@@ -22,6 +22,7 @@ use Modules\Core\Http\Controllers\NotificationChannelController;
 use Modules\Core\Http\Controllers\NotificationController;
 use Modules\Core\Http\Controllers\NotificationDeliveryController;
 use Modules\Core\Http\Controllers\ProjectPhotoController;
+use Modules\Core\Http\Controllers\PushSubscriptionController;
 use Modules\Core\Http\Controllers\QueueFailedJobController;
 use Modules\Core\Http\Controllers\RateHistoryController;
 use Modules\Core\Http\Controllers\ReportController;
@@ -125,6 +126,23 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // tidak pernah menjanjikan "terkirim" untuk kanal yang akan Dilewati.
     // Tanpa gerbang izin, alasan yang sama dengan me/preferences.
     Route::get('me/notification-channels', NotificationChannelController::class);
+
+    /*
+     * P-3e (T3e.4): perangkat web push MILIK PEMANGGIL SENDIRI. Tanpa gerbang
+     * izin dengan alasan yang sama dengan me/preferences: tidak ada satu pun
+     * parameter di sini yang menyebut orang lain, dan destroy() mencari id DI
+     * DALAM baris milik pemanggil (id orang lain dijawab 404 yang sama dengan
+     * id yang tidak ada — dua kalimat berbeda adalah cara menghitung perangkat
+     * milik orang lain).
+     *
+     * Rotasi pushsubscriptionchange TIDAK ada di sini: yang memanggilnya
+     * adalah service worker, yang tidak bisa membaca token di localStorage.
+     * Ia duduk di Routes/web.php (POST push/rotate) dengan kapabilitas
+     * endpoint lamanya — lihat PushRotationController.
+     */
+    Route::get('me/push-subscriptions', [PushSubscriptionController::class, 'index']);
+    Route::post('me/push-subscriptions', [PushSubscriptionController::class, 'store']);
+    Route::delete('me/push-subscriptions/{id}', [PushSubscriptionController::class, 'destroy'])->whereNumber('id');
 
     Route::get('settings', [SettingController::class, 'index']);
     Route::put('settings', [SettingController::class, 'update'])->middleware('permission:core.update');

@@ -294,6 +294,22 @@ ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengar
 > sesudah paket ini, dan yang didokumentasikan tangan adalah **20** endpoint
 > terpakai.
 
+> **P-3e dibangun 13 Sep 2026**, dan barisnya dipenuhi secara harfiah: **Web Push standar**
+> (RFC 8030/8291/8292) lewat `minishlink/web-push` — **tidak ada SDK Firebase, tidak ada akun
+> Google, tidak ada aplikasi native**. Endpoint `fcm.googleapis.com` yang muncul di
+> `core_push_subscriptions` adalah **pilihan Chrome**, bukan integrasi kita. Tiga keputusan yang
+> diambil paket ini tanpa menunggu pemilik, karena tidak satu pun menunggu pihak luar:
+> **satu baris kotak keluar per PERANGKAT** (bukan per orang — tiga perangkat bisa menjawab
+> berbeda dalam satu pengiriman, dan "Kirim ulang" pada baris per-orang akan mengirim ulang ke
+> perangkat yang sudah menerima); **provider_id boleh kosong HANYA untuk kanal ini** (web push
+> tidak punya message id dalam standarnya — `Location` opsional, RFC 8030 §5 — dan mengarang
+> pengenal adalah kebohongan yang aturan "pengenal wajib" dibuat untuk mencegahnya); dan
+> **rotasi `pushsubscriptionchange` lewat rute publik `POST push/rotate`** yang tidak pernah
+> MEMBUAT baris, karena service worker tidak bisa membaca token sesi di `localStorage`.
+> Yang masih milik pemilik: menjalankan `php artisan core:vapid-keys` dan mengisi `VAPID_*` di
+> `.env` (DEPLOYMENT §11.3) — **mengganti kunci membatalkan SELURUH langganan yang ada**
+> (`docs/KEPUTUSAN-INTEGRASI.md` §12, `docs/LAPORAN-PAKET-HM-P-3e.md`).
+
 > **Baris 5 — "Core 001400–?" bertabrakan dengan blok pertama Quality, dan blok itu sudah
 > berisi enam migrasi.** CONVENTIONS §2 memberikan `001400–001499` kepada Quality
 > (`| Quality | api/quality | qc_ | 001400–001499 |`), dan `ls Modules/*/Database/Migrations/*_0014*.php`

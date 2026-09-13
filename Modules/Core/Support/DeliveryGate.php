@@ -52,11 +52,19 @@ final class DeliveryGate
 
     public const WHATSAPP_NO_TEMPLATE_FOR_EVENT = 'Peristiwa ini tidak punya template WhatsApp; Meta hanya menerima pesan template, jadi tidak dikirim.';
 
+    public const WEBPUSH_DISABLED = 'Web push dinonaktifkan di Pengaturan.';
+
+    public const WEBPUSH_NO_DEVICE = 'Penerima belum mendaftarkan satu perangkat pun untuk web push (Profil › Notifikasi › "Aktifkan notifikasi di perangkat ini").';
+
     /** Kunci preferensi P1-C yang membawa pilihan kanal per pengguna (T3a.2). */
     public const PREF_CHANNELS = 'notify.channels';
 
     /** Kanal luar yang bisa dipilih orangnya — urutan tampil di Profil. */
-    public const USER_CHANNELS = [NotificationDelivery::CHANNEL_EMAIL, NotificationDelivery::CHANNEL_WHATSAPP];
+    public const USER_CHANNELS = [
+        NotificationDelivery::CHANNEL_EMAIL,
+        NotificationDelivery::CHANNEL_WHATSAPP,
+        NotificationDelivery::CHANNEL_WEBPUSH,
+    ];
 
     /**
      * Ringkasan per orang (layar Profil) ketika TIDAK SATU PUN template
@@ -87,7 +95,8 @@ final class DeliveryGate
         return match ($channel) {
             NotificationDelivery::CHANNEL_EMAIL => self::emailReason($recipient),
             NotificationDelivery::CHANNEL_WHATSAPP => self::whatsappReason($recipient, $templateKey, $checkTemplate),
-            default => "Kanal {$channel} belum tersedia (Fase 3, P-3e).",
+            NotificationDelivery::CHANNEL_WEBPUSH => self::webPushReason($recipient),
+            default => "Kanal {$channel} belum tersedia.",
         };
     }
 
@@ -103,8 +112,36 @@ final class DeliveryGate
         return match ($channel) {
             NotificationDelivery::CHANNEL_EMAIL => trim((string) $recipient->email),
             NotificationDelivery::CHANNEL_WHATSAPP => trim((string) $recipient->phone_e164),
+            // Web push TIDAK PUNYA satu alamat untuk seorang penerima: ia
+            // punya NOL ATAU LEBIH perangkat, masing-masing dengan endpoint
+            // sendiri. Yang dipulangkan di sini adalah ringkasan untuk layar
+            // Profil ("2 perangkat"); baris kotak keluar memakai LABEL
+            // perangkatnya masing-masing, bukan nilai ini (P-3e, T3e.3).
+            NotificationDelivery::CHANNEL_WEBPUSH => self::deviceSummary($recipient),
             default => '',
         };
+    }
+
+    /**
+     * "1 perangkat" / "3 perangkat" / '' bila belum ada satu pun.
+     *
+     * DIHITUNG HANYA KETIKA ANGKANYA BISA BERARTI APA-APA (putaran
+     * verifikasi: B-7). Ketika gerbang sisi server sudah punya sebabnya —
+     * sakelar Pengaturan mati (itu keadaan BAWAAN setiap pemasangan), atau
+     * VAPID kosong — ringkasan ini tidak dipakai satu pembaca pun, dan
+     * COUNT-nya tetap dibayar satu kali per pemberitahuan per penerima,
+     * selamanya, pada setiap pemasangan yang tidak memakai web push sama
+     * sekali.
+     */
+    private static function deviceSummary(User $recipient): string
+    {
+        if (self::webPushServerReason() !== null) {
+            return '';
+        }
+
+        $count = PushSubscriptions::countFor($recipient);
+
+        return $count === 0 ? '' : $count.' perangkat';
     }
 
     /**
@@ -121,6 +158,11 @@ final class DeliveryGate
             $reason === self::WHATSAPP_NO_PHONE => 'Penerima tidak punya nomor WhatsApp; ia mengisinya sendiri di Profil › Notifikasi, atau administrator di Sistem › Pengguna, lalu kirim ulang.',
             $reason === self::WHATSAPP_NO_OPTIN => 'Penerima belum opt-in WhatsApp; persetujuannya dicatat di Profil › Notifikasi (atau oleh administrator di Sistem › Pengguna), lalu kirim ulang.',
             $reason === self::WHATSAPP_NO_TEMPLATE_FOR_EVENT => self::WHATSAPP_NO_TEMPLATE_FOR_EVENT.' Kirim ulang tidak akan mengubahnya.',
+            $reason === self::WEBPUSH_DISABLED => 'Web push masih dinonaktifkan di Pengaturan — nyalakan dulu (setelah VAPID_* di .env terisi), lalu kirim ulang.',
+            $reason === self::WEBPUSH_NO_DEVICE => 'Penerima belum mendaftarkan satu perangkat pun; ia menekan "Aktifkan notifikasi di perangkat ini" di Profil › Notifikasi, lalu kirim ulang.',
+            str_starts_with($reason, 'Web push belum dikonfigurasi') => 'Web push belum dikonfigurasi — jalankan `php artisan core:vapid-keys` lalu isi VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY dan VAPID_SUBJECT di .env (DEPLOYMENT.md §11.3), lalu kirim ulang.',
+            str_starts_with($reason, 'VAPID_SUBJECT harus berupa') => 'VAPID_SUBJECT di .env harus mailto:… atau https://… — betulkan, lalu kirim ulang.',
+            str_starts_with($reason, 'Perangkat tujuan baris ini sudah tidak terdaftar') => 'Perangkat tujuan baris ini sudah tidak terdaftar; pemiliknya harus menekan "Aktifkan notifikasi di perangkat ini" lagi di Profil › Notifikasi — baris ini tidak punya sasaran dan tidak bisa dikirim ulang.',
             str_starts_with($reason, 'Kanal WhatsApp belum dikonfigurasi') => 'Kanal WhatsApp belum dikonfigurasi — isi WHATSAPP_TOKEN dan WHATSAPP_PHONE_NUMBER_ID di .env (DEPLOYMENT.md §11), lalu kirim ulang.',
             str_starts_with($reason, 'Template WhatsApp untuk peristiwa') => rtrim($reason, '.').' — isi nama template yang disetujui Meta di .env, lalu kirim ulang.',
             str_starts_with($reason, 'Belum ada satu pun template WhatsApp') => 'Belum ada satu pun template WhatsApp yang disetujui Meta — isi WHATSAPP_TEMPLATE_* di .env (DEPLOYMENT.md §11), lalu kirim ulang.',
@@ -191,6 +233,54 @@ final class DeliveryGate
 
         if (self::address(NotificationDelivery::CHANNEL_EMAIL, $recipient) === '') {
             return self::EMAIL_NO_ADDRESS;
+        }
+
+        return null;
+    }
+
+    /**
+     * Urutan yang sama dengan kanal lain, dari yang paling global ke yang
+     * paling pribadi: sakelar Pengaturan → VAPID di .env → pilihan pengguna →
+     * perangkat yang didaftarkan orangnya.
+     *
+     * Yang paling pribadi ada di urutan terakhir dengan sengaja: "Anda belum
+     * mendaftarkan perangkat" tidak boleh disuruhkan kepada seseorang pada
+     * pemasangan yang VAPID-nya belum diisi sama sekali — ia akan menekan
+     * tombol yang memang tidak bisa bekerja.
+     */
+    /**
+     * Bagian GLOBAL dari sebab web push: sakelar Pengaturan lalu VAPID di
+     * .env. Dipisah karena layar Profil membutuhkannya sendiri — ia adalah
+     * jalan buntu yang TIDAK BISA diatasi tindakan apa pun di peramban, jadi
+     * tombol "Aktifkan" tidak boleh ditawarkan di atasnya. Sebab yang PRIBADI
+     * (dimatikan pengguna, belum ada perangkat) justru yang tombol itu ada
+     * untuk mengatasinya.
+     *
+     * Satu tempat, dua pembaca — bukan dua kalimat yang mirip.
+     */
+    public static function webPushServerReason(): ?string
+    {
+        if (! Erp::bool('notifications.webpush_enabled', false)) {
+            return self::WEBPUSH_DISABLED;
+        }
+
+        return WebPushSetup::skipReason();
+    }
+
+    private static function webPushReason(User $recipient): ?string
+    {
+        $server = self::webPushServerReason();
+
+        if ($server !== null) {
+            return $server;
+        }
+
+        if (! self::userEnabled(NotificationDelivery::CHANNEL_WEBPUSH, $recipient)) {
+            return self::USER_OFF;
+        }
+
+        if (PushSubscriptions::countFor($recipient) === 0) {
+            return self::WEBPUSH_NO_DEVICE;
         }
 
         return null;

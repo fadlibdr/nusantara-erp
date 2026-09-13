@@ -59,6 +59,11 @@ class UngatedApiRouteCensusTest extends ErpTestCase
         // P-3d, dan keduanya dijaga Modules\Iam\Http\Middleware\SessionOnly:
         // sebuah token tidak boleh mencetak atau mencabut token.
         'DELETE api/iam/me/api-tokens/{token}',
+        // P-3e, self-service keduanya: perangkat web push MILIK PEMANGGIL.
+        // Tidak ada satu pun parameter yang menyebut orang lain — destroy()
+        // mencari id DI DALAM baris milik $request->user(), dan id orang lain
+        // dijawab 404 yang SAMA dengan id yang tidak ada.
+        'DELETE api/core/me/push-subscriptions/{id}',
         'PATCH api/core/attachments/{attachment}',
         'POST api/core/approval-delegations',
         'POST api/core/attachments',
@@ -70,6 +75,8 @@ class UngatedApiRouteCensusTest extends ErpTestCase
         'POST api/core/external-approvals/{externalApproval}/revoke',
         'POST api/core/master-data/{resource}/import',
         'POST api/core/master-data/{resource}/preview',
+        // P-3e, self-service: mendaftarkan perangkat pemanggil sendiri.
+        'POST api/core/me/push-subscriptions',
         'POST api/core/notifications/read',
         'POST api/core/reports/run',
         'POST api/core/reports/saved',

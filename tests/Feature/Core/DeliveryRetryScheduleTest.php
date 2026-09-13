@@ -165,9 +165,11 @@ class DeliveryRetryScheduleTest extends ErpTestCase
         $this->assertSame(1, Notification::query()->where('user_id', $admin->id)->where('event', Notification::SYSTEM)->count());
 
         $rows = NotificationDelivery::query()->get();
-        $this->assertCount(4, $rows, 'Dua penerima × dua kanal luar.');
+        // P-3e: kanal luar menjadi TIGA (web push ikut mati secara bawaan, dan
+        // tanpa perangkat terdaftar barisnya satu per penerima).
+        $this->assertCount(6, $rows, 'Dua penerima × tiga kanal luar.');
         $this->assertSame(['skipped'], $rows->pluck('status')->unique()->values()->all());
-        $this->assertSame(['email', 'whatsapp'], $rows->pluck('channel')->unique()->sort()->values()->all());
+        $this->assertSame(['email', 'webpush', 'whatsapp'], $rows->pluck('channel')->unique()->sort()->values()->all());
         Http::assertNothingSent();
     }
 

@@ -70,4 +70,38 @@ final class ProviderErrorScrubber
     {
         return self::scrub($text, WhatsAppSetup::secrets());
     }
+
+    /**
+     * Untuk pesan yang datang dari WebPushChannel (P-3e). Yang disamarkan:
+     * kunci PRIVAT VAPID, DAN endpoint langganan yang sedang dikirimi.
+     *
+     * Kunci publik TIDAK disamarkan: ia memang dikirim ke setiap peramban, dan
+     * menyamarkannya hanya membuat galat "kunci salah" tidak terbaca.
+     *
+     * ENDPOINT DISAMARKAN, DAN VERSI PERTAMA KELAS INI MENGATAKAN SEBALIKNYA
+     * (putaran verifikasi: A-6/B-4). Kalimat lamanya berbunyi "ia bukan
+     * rahasia bersama, melainkan alamat milik satu perangkat" — sementara
+     * PushRotationController di paket yang sama menulis, dengan benar, bahwa
+     * endpoint push "sudah menjadi kapabilitas dalam standarnya sendiri: siapa
+     * pun yang memegangnya bisa mem-POST ke langganan itu", dan `POST
+     * push/rotate` memang memakainya sebagai SATU-SATUNYA kredensial. Dua
+     * kalimat itu tidak bisa sama-sama benar, dan yang benar adalah yang
+     * kedua. Pesan Guzzle memuat URL permintaan lengkap, jadi tanpa penyamaran
+     * ini endpoint utuh mendarat di kolom "Galat / alasan" yang dibaca SETIAP
+     * pemegang core.update, ikut ke setiap cadangan, dan ikut ke setiap
+     * tangkapan layar yang dikirim orang saat minta bantuan. Yang menjawab
+     * "perangkat mana yang gagal" adalah LABEL perangkat, yang memang ada di
+     * kalimatnya — dan yang justru dipilih untuk kolom `recipient` dengan
+     * alasan yang sama persis.
+     */
+    public static function webPush(string $text, ?string $endpoint = null): string
+    {
+        $secrets = WebPushSetup::secrets();
+
+        if ($endpoint !== null && trim($endpoint) !== '') {
+            $secrets[] = trim($endpoint);
+        }
+
+        return self::scrub($text, $secrets);
+    }
 }

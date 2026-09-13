@@ -171,20 +171,277 @@ class PwaServiceWorkerTest extends TestCase
      *
      * Karena itu yang dipaku adalah DAFTAR pendengarnya, bukan isinya.
      */
-    public function test_the_worker_registers_exactly_four_listeners(): void
+    public function test_the_worker_registers_exactly_seven_listeners(): void
     {
         preg_match_all("~addEventListener\('(\w+)'~", $this->code(), $found);
         $listeners = $found[1];
         sort($listeners);
 
         $this->assertSame(
-            ['activate', 'fetch', 'install', 'message'],
+            ['activate', 'fetch', 'install', 'message', 'notificationclick', 'push', 'pushsubscriptionchange'],
             $listeners,
             'Daftar pendengar sw.js berubah. Pendengar `fetch` kedua bisa menyimpan jawaban '
             .'tanpa satu pun respondWith(), sehingga seluruh pemeriksaan lain di berkas ini '
             .'melewatinya; pendengar baru jenis lain butuh pembacanya sendiri. Tambahkan pendengar '
-            .'hanya bersama uji yang memaku apa yang boleh dilakukannya.',
+            .'hanya bersama uji yang memaku apa yang boleh dilakukannya. (Empat sampai P-3e; '
+            .'ketiga pendengar web push ditambahkan bersama uji di bawah yang memaku bahwa '
+            .'tidak satu pun dari mereka menyentuh cache.)',
         );
+    }
+
+    /**
+     * P-3e — TIGA PENDENGAR BARU, DAN TIDAK SATU PUN MENYENTUH CACHE.
+     *
+     * Menaikkan angka pada uji di atas dari empat menjadi tujuh adalah
+     * pelonggaran, dan pelonggaran tanpa pengganti adalah persis cara aturan
+     * ini membusuk. Penggantinya di sini: badan ketiga pendengar web push
+     * dibaca satu per satu dan tidak boleh memuat `caches`, tulisan `.put(`/
+     * `.add(`, atau permintaan ke API. Muatan push membawa judul dan isi
+     * pemberitahuan seseorang; sebuah `cache.put()` di pendengar `push` akan
+     * menyajikannya kepada orang berikutnya di tablet lapangan yang dipakai
+     * bergantian — bentuk kebocoran yang sama persis dengan mutasi "pendengar
+     * fetch kedua" yang diukur 7 Sep 2026, dari pintu yang baru.
+     */
+    public function test_the_web_push_listeners_never_touch_the_cache_or_the_api(): void
+    {
+        foreach (['push', 'notificationclick', 'pushsubscriptionchange'] as $event) {
+            $body = $this->listenerBody($event);
+
+            $this->assertStringNotContainsString(
+                'caches',
+                $body,
+                "Pendengar `{$event}` menyentuh `caches`. Satu-satunya jalan menuju cache di berkas ini adalah "
+                .'shellRequest() + storable(); pintu kedua harus mengulang kelima syaratnya, dan itulah yang tidak '
+                .'pernah terjadi.',
+            );
+
+            $this->assertSame(
+                0,
+                preg_match_all('~\b\w+\.(?:put|add|addAll)\(~', $body),
+                "Pendengar `{$event}` menulis ke penyimpanan (.put/.add). Muatan push membawa judul dan isi "
+                .'pemberitahuan seseorang.',
+            );
+
+            $this->assertStringNotContainsString(
+                '/api',
+                strtolower($body),
+                "Pendengar `{$event}` memanggil API aplikasi. Worker tidak punya kredensial sesi (token ada di "
+                .'localStorage, yang tidak bisa dibaca dari sini), jadi permintaan seperti itu hanya bisa berupa '
+                .'endpoint tanpa autentikasi yang dipasang di bawah /api — dan aturan daftar izin cache berdiri di '
+                .'atas premis bahwa berkas ini tidak pernah menyebut /api sama sekali.',
+            );
+        }
+    }
+
+    /**
+     * P-3e — `push` SELALU menampilkan notifikasi, termasuk saat muatannya
+     * tidak bisa dibaca.
+     *
+     * Itu kontrak `userVisibleOnly: true`: peramban yang menerima push dan
+     * tidak melihat notifikasi muncul boleh MENCABUT langganan perangkat itu.
+     * Sebuah `try { … } catch { return; }` yang "aman" di sana adalah cara
+     * kehilangan perangkat satu per satu tanpa satu pun galat.
+     */
+    public function test_a_broken_payload_still_shows_a_notification(): void
+    {
+        $body = $this->listenerBody('push');
+
+        $this->assertMatchesRegularExpression(
+            '~catch \([^)]*\) \{\s*isi = \{\};\s*\}~',
+            $body,
+            'Muatan yang tidak bisa diurai tidak lagi jatuh ke objek kosong. Pendengar `push` yang keluar diam-diam '
+            .'pada muatan rusak melanggar kontrak userVisibleOnly, dan peramban mencabut langganannya.',
+        );
+
+        $this->assertSame(
+            1,
+            preg_match_all('~showNotification\(~', $body),
+            'showNotification() harus dipanggil TEPAT SEKALI, di satu jalur yang dilewati semua cabang — dua '
+            .'panggilan berarti ada cabang yang bisa melewatkan keduanya.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            "~showNotification\(isi\.judul \|\| '[^']+', \{~",
+            $body,
+            'Judul tidak lagi punya cadangan. Muatan tanpa judul menghasilkan notifikasi berjudul "undefined".',
+        );
+    }
+
+    /**
+     * P-3e (putaran verifikasi: C-2) — TIDAK ADA JALAN KELUAR SEBELUM
+     * showNotification().
+     *
+     * Uji di atas memaku bentuk `catch { isi = {}; }` dan jumlah
+     * showNotification() = 1, dan docblock-nya menjanjikan bahwa pendengar
+     * yang "keluar diam-diam" akan merah. Ia TIDAK merah untuk bentuk
+     * kegagalan yang paling mungkin ditulis orang berikutnya: `if
+     * (!event.data) return;` sebagai baris pertama — diukur 13 Sep 2026,
+     * mutasi itu lolos dengan 15 uji hijau. Push TANPA muatan sah dalam
+     * standarnya, dan justru itulah yang melanggar kontrak userVisibleOnly
+     * yang uji ini ada untuk menjaganya: peramban mencabut langganan perangkat
+     * itu, dan baris kotak keluarnya tetap berbunyi Terkirim.
+     *
+     * Harness S41 juga tidak menangkapnya: kedua push yang dikirimnya (muatan
+     * baik dan muatan rusak) SELALU membawa data.
+     */
+    public function test_nothing_returns_or_throws_before_the_notification_is_shown(): void
+    {
+        $body = $this->listenerBody('push');
+
+        $sebelum = substr($body, 0, (int) strpos($body, 'showNotification('));
+
+        $this->assertSame(
+            0,
+            preg_match_all('~\breturn\b~', $sebelum),
+            'Ada `return` sebelum showNotification(): sebuah push yang mengambil cabang itu tidak menampilkan '
+            .'notifikasi apa pun, dan peramban boleh mencabut langganan perangkat itu tanpa ada yang tahu. Push '
+            .'tanpa muatan sah dalam standarnya — ia harus tetap berakhir di satu showNotification().',
+        );
+        $this->assertSame(
+            0,
+            preg_match_all('~\bthrow\b~', $sebelum),
+            'Ada `throw` sebelum showNotification(): sama akibatnya dengan `return`.',
+        );
+    }
+
+    /**
+     * P-3e (putaran verifikasi: C-1) — badan `notificationclick` DIBANDINGKAN,
+     * bukan dipercaya.
+     *
+     * LAPORAN §7 mengaku perilaku pendengar ini "dipaku sebagai bentuk kode".
+     * Ia tidak: diukur 13 Sep 2026, SELURUH badannya bisa diganti dengan satu
+     * `openWindow()` polos — tanpa close(), tanpa matchAll/focus, tanpa
+     * pemeriksaan asal — dan berkas ini tetap 15 uji hijau. Pendengar ini juga
+     * TIDAK diuji di peramban (tidak ada pintu CDP untuk mengetuk notifikasi),
+     * jadi perbandingan bentuk inilah satu-satunya jaring yang ada.
+     *
+     * Tiga perilaku yang menentukan pengalaman orangnya, dan masing-masing
+     * punya harganya: notifikasi yang tidak ditutup diketuk dua kali; jendela
+     * kedua alih-alih tab yang difokuskan membuat orang yang sedang mengisi
+     * formulir kehilangan isinya; dan tautan dari muatan yang dipakai tanpa
+     * pemeriksaan asal menavigasi tab aplikasi orang itu ke tempat lain.
+     */
+    public function test_the_notification_click_listener_is_pinned_whole(): void
+    {
+        $body = $this->listenerBody('notificationclick');
+
+        $this->assertStringContainsString(
+            'event.notification.close();',
+            $body,
+            'Notifikasi tidak lagi ditutup saat diketuk: ia menggantung di baki dan diketuk dua kali.',
+        );
+        $this->assertStringContainsString(
+            'tautanAman(',
+            $body,
+            'Tautan dari MUATAN push dipakai tanpa pemeriksaan asal. Satu APP_URL yang salah di .env cukup untuk '
+            .'menavigasi tab aplikasi orang itu ke asal lain.',
+        );
+
+        $matchAll = strpos($body, 'clients.matchAll');
+        $focus = strpos($body, '.focus()');
+        $openWindow = strpos($body, 'openWindow(');
+
+        $this->assertNotFalse($matchAll, 'Tab yang sudah terbuka tidak lagi dicari.');
+        $this->assertNotFalse($focus, 'Tab yang sudah terbuka tidak lagi difokuskan.');
+        $this->assertNotFalse($openWindow, 'Tidak ada jalan membuka jendela sama sekali.');
+        $this->assertLessThan(
+            $openWindow,
+            $focus,
+            'openWindow() mendahului focus(): setiap ketukan membuka jendela kedua, dan orang yang sedang mengisi '
+            .'formulir di tab pertama kehilangan isinya.',
+        );
+    }
+
+    /**
+     * P-3e (putaran verifikasi: C-1/C-10) — `tautanAman()` benar-benar
+     * membandingkan asal, dan ketiga pendengar tidak pernah menyebut host
+     * asing.
+     *
+     * Satu-satunya penjaga jaringan pada uji di atas adalah harfiah `/api`.
+     * Itu tidak menghalangi apa pun yang berbahaya di sini: sebuah `fetch()`
+     * di pendengar `push` yang mengirim judul dan isi pemberitahuan seseorang
+     * ke host pihak ketiga tidak menyebut `/api` sama sekali, dan lolos hijau
+     * (diukur 13 Sep 2026). Muatan push sudah didekripsi ketika pendengar itu
+     * berjalan — ia satu-satunya tempat di aplikasi ini yang memegang isi
+     * pemberitahuan dalam bentuk terbaca DI LUAR server.
+     *
+     * Rotasi memang ber-fetch, dan itu benar: alamatnya relatif
+     * (`new URL('../push/rotate', self.location)`), jadi ia tidak pernah
+     * meninggalkan asal ini. Yang dilarang adalah alamat MUTLAK.
+     */
+    public function test_the_web_push_listeners_never_name_a_foreign_host(): void
+    {
+        foreach (['push', 'notificationclick', 'pushsubscriptionchange'] as $event) {
+            $body = $this->listenerBody($event);
+
+            $this->assertSame(
+                0,
+                preg_match_all('~https?://~i', $body),
+                "Pendengar `{$event}` menyebut alamat MUTLAK. Satu-satunya alamat yang boleh disentuh worker ini "
+                .'adalah asalnya sendiri, dan alamat relatif adalah cara mengatakannya yang tidak bisa salah — '
+                .'muatan push yang sudah didekripsi memuat judul dan isi pemberitahuan seseorang.',
+            );
+        }
+
+        $helper = $this->functionBody('tautanAman');
+
+        $this->assertStringContainsString(
+            'self.location.origin',
+            $helper,
+            'tautanAman() tidak lagi membandingkan asal: namanya berjanji sesuatu yang tidak dilakukannya.',
+        );
+        $this->assertStringContainsString(
+            'SCOPE',
+            $helper,
+            'Tautan yang ditolak tidak lagi jatuh ke SCOPE: ketukan pada notifikasi tidak membuka apa-apa.',
+        );
+    }
+
+    /**
+     * P-3e — `pushsubscriptionchange` mengirim endpoint LAMA bersama yang baru.
+     *
+     * Tanpa endpoint lama, server tidak punya cara mengenali baris mana yang
+     * harus diganti: ia akan menumpuk baris kedua untuk perangkat yang sama,
+     * dan orangnya menerima setiap pemberitahuan dua kali sampai yang lama
+     * dijawab 410.
+     */
+    public function test_the_rotation_sends_the_old_endpoint_so_the_server_replaces_instead_of_stacking(): void
+    {
+        $body = $this->listenerBody('pushsubscriptionchange');
+
+        $this->assertStringContainsString(
+            'old_endpoint: lama.endpoint',
+            $body,
+            'Endpoint lama tidak ikut dikirim: server tidak bisa mengganti baris yang benar dan akan menumpuk.',
+        );
+        $this->assertStringContainsString(
+            'userVisibleOnly: true',
+            $body,
+            'Berlangganan ulang tanpa userVisibleOnly ditolak setiap peramban yang menegakkannya.',
+        );
+    }
+
+    /** Badan sebuah `self.addEventListener('nama', (event) => { … })`, tanpa komentar. */
+    private function listenerBody(string $event): string
+    {
+        $code = $this->code();
+        $start = strpos($code, "self.addEventListener('{$event}'");
+        $this->assertNotFalse($start, "Pendengar `{$event}` tidak ada di sw.js.");
+
+        $open = strpos($code, '{', $start);
+        $depth = 0;
+        for ($i = $open; $i < strlen($code); $i++) {
+            if ($code[$i] === '{') {
+                $depth++;
+            } elseif ($code[$i] === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($code, $open, $i - $open + 1);
+                }
+            }
+        }
+
+        $this->fail("Kurung badan pendengar `{$event}` tidak seimbang.");
     }
 
     /* --------------------------------------------------------------- (d) */

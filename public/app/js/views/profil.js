@@ -31,6 +31,7 @@ import { initials } from '../format.js';
 const CHANNEL_HELP = {
   email: 'Pemberitahuan dokumen dan alarm sistem ke alamat e-mail akun Anda.',
   whatsapp: 'Lima alarm operasional (tenggat, eskalasi, penagihan, cadangan, penjadwal) sebagai pesan template WhatsApp.',
+  webpush: 'Pemberitahuan di layar perangkat yang Anda daftarkan di kartu di bawah — satu baris kotak keluar per perangkat.',
 };
 
 /** "12 Sep 2026 06:00 WIB" dari ISO-8601 — dalam WIB, karena jam tenangnya WIB. */
@@ -236,7 +237,7 @@ function quietHoursCard(state, reload) {
       state.quiet_now
         ? el('.alert.info', { style: { marginBottom: '10px' } }, [
           icon('warn', 16),
-          el('div', { text: `Sekarang di dalam jam tenang Anda: e-mail/WhatsApp yang ditulis saat ini berangkat ${wib(state.postponed_until)}.` }),
+          el('div', { text: `Sekarang di dalam jam tenang Anda: e-mail, WhatsApp dan web push yang ditulis saat ini berangkat ${wib(state.postponed_until)}.` }),
         ])
         : null,
       el('.check-row', [on, el('label', { for: 'quiet-on', text: 'Aktifkan jam tenang (WIB)' })]),
@@ -246,11 +247,336 @@ function quietHoursCard(state, reload) {
       ]),
       el('.cell-sub', {
         style: { marginTop: '8px' },
-        text: 'Selama jam tenang, e-mail dan WhatsApp DITUNDA sampai jam selesai — tidak pernah dibuang. '
+        text: 'Selama jam tenang, KETIGA kanal luar — e-mail, WhatsApp dan web push — DITUNDA sampai jam selesai, tidak pernah dibuang. '
           + 'Pemberitahuan di dalam aplikasi tetap masuk seketika. Jendela boleh melintasi tengah malam (mis. 22:00–06:00). '
           + 'Zona waktu Asia/Jakarta (WIB).',
       }),
       el('.row-actions', { style: { marginTop: '12px' } }, [save]),
+    ]),
+  ]);
+}
+
+
+/* ------------------------------------------------------------- Web push
+ *
+ * P-3e (T3e.4). Tombol yang HANYA muncul ketika ia benar-benar bisa bekerja,
+ * dan EMPAT jalan buntu yang masing-masing punya kalimatnya sendiri. Tombol
+ * mati tanpa kalimat adalah cacat yang paling mahal di layar ini: orangnya
+ * menekan, tidak terjadi apa-apa, dan tidak ada tempat untuk bertanya kenapa.
+ *
+ *  1. peramban tidak punya Push API sama sekali;
+ *  2. iPhone/iPad: push baru ada sejak iOS 16.4 DAN hanya setelah aplikasinya
+ *     dipasang lewat "Tambahkan ke Layar Utama". Di tab Safari biasa tombolnya
+ *     TIDAK AKAN PERNAH bekerja — jadi yang ditampilkan adalah CARA
+ *     memasangnya, bukan tombol yang gagal;
+ *  3. izin sudah DITOLAK di tingkat peramban: aplikasi tidak bisa memintanya
+ *     lagi (requestPermission langsung memulangkan 'denied' tanpa dialog), dan
+ *     yang harus diubah adalah setelan situs di peramban;
+ *  4. sisi server belum siap (VAPID kosong / sakelar Pengaturan mati) —
+ *     kalimatnya datang dari `server_reason`, yaitu KALIMAT YANG SAMA yang
+ *     ditulis DeliveryGate ke kolom "Galat / alasan", bukan kalimat kedua yang
+ *     mirip.
+ *
+ * Urutannya sama dengan urutan DeliveryGate: dari yang paling global ke yang
+ * paling pribadi. Menyuruh seseorang memasang aplikasi ke Layar Utama pada
+ * pemasangan yang VAPID-nya kosong adalah menyuruhnya bekerja untuk tombol
+ * yang tetap tidak akan mengirim apa pun.
+ */
+
+const IOS_INSTALL = 'Di iPhone dan iPad, pemberitahuan hanya bisa dinyalakan setelah aplikasi ini DITAMBAHKAN KE LAYAR UTAMA '
+  + '(iOS/iPadOS 16.4 ke atas): di Safari tekan tombol Bagikan, pilih "Tambahkan ke Layar Utama", lalu buka Nusantara ERP '
+  + 'dari ikonnya di layar utama dan kembali ke halaman ini. Di tab Safari biasa tombol ini tidak akan pernah bekerja — '
+  + 'itu batas sistem operasinya, bukan setelan yang bisa diubah.';
+
+const DENIED_HELP = 'Pemberitahuan DITOLAK untuk situs ini di peramban Anda, dan aplikasi tidak bisa memintanya lagi — '
+  + 'permintaannya hanya boleh muncul sekali. Yang harus diubah adalah setelan situs di peramban: buka ikon gembok/info '
+  + 'di sebelah alamat, cari "Pemberitahuan", ubah menjadi Izinkan (atau Tanya), lalu muat ulang halaman ini.';
+
+const NO_API = 'Peramban ini tidak mendukung Push API, jadi pemberitahuan di luar aplikasi tidak bisa dinyalakan di sini. '
+  + 'Yang mendukungnya: Chrome, Edge, Firefox dan Opera di Android/Windows/macOS/Linux, serta Safari di iOS 16.4+ '
+  + 'lewat "Tambahkan ke Layar Utama". Pemberitahuan di dalam aplikasi (lonceng) tetap bekerja seperti biasa.';
+
+/*
+ * Jalan buntu 5 — dan kenapa ia BUKAN NO_API (putaran verifikasi: C-7).
+ *
+ * `'serviceWorker' in navigator` bernilai false di konteks yang tidak aman:
+ * halaman tanpa TLS yang bukan localhost. Di sana kalimat NO_API menyalahkan PERAMBAN
+ * dan menyodorkan daftar peramban lain — padahal peramban orang itu sudah
+ * termasuk daftarnya, dan yang kurang ada di sisi pemasangan. Menyuruh orang
+ * memasang peramban baru untuk masalah yang tidak ada padanya adalah bentuk
+ * kalimat salah yang paling mahal: ia terdengar membantu.
+ */
+const NO_HTTPS = 'Halaman ini TIDAK dilayani lewat HTTPS, dan pemberitahuan di luar aplikasi hanya bisa dinyalakan '
+  + 'di halaman HTTPS — itu aturan peramban, bukan setelan aplikasi. Peramban Anda tidak bermasalah; yang harus '
+  + 'diubah ada di sisi pemasangan, jadi sampaikan kepada administrator (DEPLOYMENT.md §11.3). Pemberitahuan di '
+  + 'dalam aplikasi (lonceng) tetap bekerja seperti biasa.';
+
+/*
+ * Jalan buntu 6: worker BELUM TERDAFTAR (putaran verifikasi: C-3).
+ *
+ * hasPushApi() hanya memeriksa ADANYA API, bukan adanya registrasi — dan
+ * app.js sengaja menelan kegagalan pendaftaran worker (sw.js 404 sesudah rilis
+ * yang setengah tersinkron, penyimpanan situs diblokir peramban). Tanpa jalan
+ * buntu ini tombolnya DITAWARKAN, orangnya menekan, MEMBERIKAN izin
+ * pemberitahuan — permanen, untuk tidak ada apa-apa — lalu
+ * `navigator.serviceWorker.ready` tidak pernah selesai dan withBusy() berputar
+ * sampai halaman dimuat ulang. Tombol mati tanpa kalimat, persis cacat yang
+ * kartu ini ada untuk mencegahnya.
+ */
+const NO_WORKER = 'Aplikasi ini belum terpasang sebagai pekerja latar di peramban ini, jadi pemberitahuan di luar '
+  + 'aplikasi belum bisa dinyalakan. Muat ulang halaman (Ctrl+Shift+R) dan coba lagi; kalau tetap begini, peramban '
+  + 'Anda memblokir penyimpanan situs untuk alamat ini. Pemberitahuan di dalam aplikasi (lonceng) tetap bekerja.';
+
+/*
+ * Jalan buntu 7: kanalnya DIMATIKAN ORANGNYA di kartu di atas (putaran
+ * verifikasi: C-5).
+ *
+ * `GET core/me/push-subscriptions` sudah menjawab `reason` — kalimat
+ * DeliveryGate yang UTUH — dan versi pertama kartu ini hanya membaca
+ * `server_reason`. Akibatnya orang yang menghapus centang "Web push" tetap
+ * ditawari tombolnya dan, sesudah menekan, diberi tahu "pemberitahuan
+ * berikutnya akan muncul" — sementara kotak keluar akan menulis "Dilewati —
+ * Dimatikan pengguna di Profil › Notifikasi." pada setiap baris. Aturan berkas
+ * ini sendiri: layar tidak boleh menjanjikan apa yang kotak keluar akan
+ * lewati.
+ *
+ * Kalimatnya datang dari server apa adanya; yang ditambahkan klien hanyalah
+ * PETUNJUK tindakannya, bukan sebab kedua.
+ */
+const USER_OFF_HINT = ' Hapus dulu keadaan itu di kartu "Kanal notifikasi" di atas: centang «Web push», lalu '
+  + 'tekan Simpan pilihan kanal.';
+
+/** base64url → Uint8Array. Ditulis tangan: applicationServerKey menuntut byte, bukan teks. */
+function urlBase64ToUint8Array(value) {
+  const padded = String(value).replace(/-/g, '+').replace(/_/g, '/');
+  const base64 = padded + '='.repeat((4 - (padded.length % 4)) % 4);
+  const raw = atob(base64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
+  return bytes;
+}
+
+/** Apple? — iPadOS 13+ menyamar sebagai Mac, jadi maxTouchPoints yang membedakannya. */
+function isApple() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/** Dibuka dari ikon Layar Utama (standalone), bukan dari tab peramban. */
+function isInstalled() {
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || window.navigator.standalone === true;
+}
+
+function hasPushApi() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+/*
+ * Jalan buntu yang berlaku SEKARANG, atau null bila tombolnya boleh muncul.
+ *
+ * URUTANNYA ADALAH KALIMATNYA. Setiap baris di bawah memilih SATU kalimat dari
+ * tujuh, jadi menukar dua baris berarti memberi orang yang sama nasihat yang
+ * berbeda — dan pada pemasangan yang belum di belakang TLS, cabang iOS yang
+ * berdiri lebih dulu memberi pengguna iPhone kalimat yang menyalahkan sistem
+ * operasinya ("itu batas sistem operasinya, bukan setelan yang bisa diubah")
+ * padahal yang kurang adalah HTTPS: ia akan memasang aplikasi ke Layar Utama,
+ * dan tombolnya tetap tidak bekerja, karena service worker menuntut konteks
+ * aman di mana pun (putaran penutup, V-7 — bentuk yang sama dengan C-7, yang
+ * justru diangkat untuk menutupnya).
+ *
+ * Karena itu urutannya mengikuti DeliveryGate: dari yang paling GLOBAL ke yang
+ * paling pribadi. `isSecureContext` adalah sifat PEMASANGAN — sama globalnya
+ * dengan `server_reason` dan lebih global daripada perangkat yang dipegang
+ * orangnya — jadi tempatnya sebelum cabang iOS, bukan sesudah.
+ */
+function pushBlocker(state) {
+  if (state.server_reason) return { kind: 'server', text: state.server_reason };
+  if (!window.isSecureContext) return { kind: 'insecure', text: NO_HTTPS };
+  if (isApple() && !isInstalled()) return { kind: 'ios', text: IOS_INSTALL };
+  if (!hasPushApi()) return { kind: 'unsupported', text: NO_API };
+  if (state.no_worker) return { kind: 'no-worker', text: NO_WORKER };
+  if (window.Notification && Notification.permission === 'denied') return { kind: 'denied', text: DENIED_HELP };
+  if (state.user_off && state.reason) return { kind: 'user-off', text: state.reason + USER_OFF_HINT };
+  return null;
+}
+
+/**
+ * Keadaan worker di peramban INI: apakah ada registrasi sama sekali, dan
+ * endpoint langganannya bila ada.
+ *
+ * Keduanya dibaca SEKALI, dari satu getRegistration(). Sebelum putaran
+ * verifikasi (C-3) hanya endpoint-nya yang dibaca, dan "tidak ada registrasi"
+ * tidak bisa dibedakan dari "belum berlangganan" — dua keadaan dengan dua
+ * jalan keluar yang berbeda sama sekali.
+ */
+async function workerState() {
+  if (!hasPushApi()) return { registered: false, endpoint: null };
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration) return { registered: false, endpoint: null };
+    if (!registration.pushManager) return { registered: true, endpoint: null };
+    const subscription = await registration.pushManager.getSubscription();
+    return { registered: true, endpoint: subscription ? subscription.endpoint : null };
+  } catch (error) {
+    return { registered: false, endpoint: null };
+  }
+}
+
+/** Langganan peramban ini sekarang — null bila belum ada worker atau belum berlangganan. */
+async function currentSubscription() {
+  if (!hasPushApi()) return null;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (!registration || !registration.pushManager) return null;
+    return await registration.pushManager.getSubscription();
+  } catch (error) {
+    return null;
+  }
+}
+
+async function subscribeHere(publicKey) {
+  // requestPermission() HARUS dipanggil dari gestur pengguna: di luar gestur
+  // peramban menolaknya diam-diam (Chrome memulangkan 'denied' tanpa dialog).
+  // Karena itu ia dipanggil di sini, di dalam onClick, dan bukan saat layar
+  // digambar.
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    // SATU KEADAAN, SATU KALIMAT (putaran verifikasi: C-6). Versi pertama
+    // melempar kalimat pendek KEDUA untuk 'denied', sementara DENIED_HELP —
+    // yang menyebut ikon gembok, menu Pemberitahuan, dan muat ulang — sudah
+    // ditulis lengkap tepat di atas dan tidak pernah terlihat, karena kartu
+    // baru berpindah ke jalan buntu 3 setelah halaman dimuat ulang.
+    throw new Error(permission === 'denied'
+      ? DENIED_HELP
+      : 'Izin pemberitahuan belum diberikan — tekan "Izinkan" pada permintaan peramban.');
+  }
+
+  // `serviceWorker.ready` adalah janji yang TIDAK PERNAH SELESAI bila tidak
+  // ada registrasi (putaran verifikasi: C-3). Tanpa batas waktu di sini,
+  // withBusy() memasang pemutar di tombol dan `finally`-nya tidak pernah
+  // berjalan: tombol berputar sampai orangnya memuat ulang halaman, sesudah
+  // ia terlanjur memberikan izin pemberitahuan untuk tidak ada apa-apa.
+  const registration = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, tolak) => setTimeout(() => tolak(new Error(NO_WORKER)), 8000)),
+  ]);
+  const options = { userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) };
+
+  let subscription;
+  let endpointLama = null;
+  try {
+    subscription = await registration.pushManager.subscribe(options);
+  } catch (error) {
+    // Langganan LAMA yang dibuat dengan applicationServerKey berbeda membuat
+    // subscribe() menolak dengan InvalidStateError — itu persis yang terjadi
+    // pada setiap perangkat setelah pemilik mengganti kunci VAPID. Yang benar
+    // adalah membuang langganan lama lalu berlangganan dengan kunci baru.
+    const stale = await registration.pushManager.getSubscription();
+    if (!stale) throw error;
+    // Endpoint lama DITANGKAP sebelum dibuang: berlangganan ulang memberi
+    // endpoint BARU, dan tanpa nilai ini baris lama tinggal di server sebagai
+    // perangkat hantu yang tidak pernah dibuang siapa pun — 404/410
+    // menghapus, tetapi langganan lama sesudah ganti kunci dijawab 401/403
+    // (putaran verifikasi: B-5/C-4).
+    endpointLama = stale.endpoint || null;
+    await stale.unsubscribe();
+    subscription = await registration.pushManager.subscribe(options);
+  }
+
+  const json = subscription.toJSON();
+  const muatan = { endpoint: json.endpoint, keys: json.keys };
+  if (endpointLama && endpointLama !== json.endpoint) muatan.previous_endpoint = endpointLama;
+
+  return api.post('core/me/push-subscriptions', muatan);
+}
+
+function deviceRow(device, thisEndpoint, reload) {
+  const here = Boolean(thisEndpoint) && device.endpoint === thisEndpoint;
+
+  return el('.push-device', { dataset: { id: String(device.id), here: here ? 'yes' : 'no' } }, [
+    el('div', { style: { display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap' } }, [
+      el('b', { text: device.label }),
+      here ? badge('Perangkat ini', 'green') : null,
+    ]),
+    el('.cell-sub', {
+      text: `Didaftarkan ${wib(device.created_at)} · terakhir berhasil menerima `
+        + `${device.last_success_at ? wib(device.last_success_at) : 'belum pernah'}`,
+    }),
+    el('.row-actions', { style: { marginTop: '6px' } }, [
+      button('Cabut', {
+        variant: 'danger', size: 'sm', iconName: 'trash',
+        onClick: (event) => withBusy(event.currentTarget, async () => {
+          if (!await confirmDialog({
+            title: `Cabut «${device.label}»?`,
+            message: here
+              ? 'Perangkat ini berhenti menerima pemberitahuan di luar aplikasi. Lonceng di dalam aplikasi tetap aktif.'
+              : 'Perangkat itu berhenti menerima pemberitahuan di luar aplikasi. Lonceng di dalam aplikasi tetap aktif.',
+            confirmLabel: 'Cabut',
+          })) return;
+          try {
+            await api.del(`core/me/push-subscriptions/${device.id}`);
+            // Perangkat INI juga melepas langganannya di peramban: baris yang
+            // dihapus di server tanpa unsubscribe meninggalkan langganan hidup
+            // yang tidak dikenali siapa pun, dan peramban yang tidak pernah
+            // melihat notifikasi boleh mencabutnya sendiri diam-diam.
+            if (here) {
+              const subscription = await currentSubscription();
+              if (subscription) await subscription.unsubscribe();
+            }
+            toast('Perangkat dicabut.');
+            await reload();
+          } catch (error) {
+            toastError(error);
+          }
+        }),
+      }),
+    ]),
+  ]);
+}
+
+function pushCard(state, thisEndpoint, reload) {
+  const blocker = pushBlocker(state);
+  const devices = state.devices || [];
+  const here = Boolean(thisEndpoint) && devices.some((device) => device.endpoint === thisEndpoint);
+
+  const enable = button(here ? 'Daftarkan ulang perangkat ini' : 'Aktifkan notifikasi di perangkat ini', {
+    variant: 'primary', iconName: 'bell',
+    onClick: (event) => withBusy(event.currentTarget, async () => {
+      try {
+        await subscribeHere(state.public_key);
+        toast('Perangkat ini terdaftar — pemberitahuan berikutnya akan muncul walau aplikasinya tidak dibuka.');
+        await reload();
+      } catch (error) {
+        toastError(error);
+        // DAN KARTUNYA DIGAMBAR ULANG (putaran verifikasi: C-6). Keadaan yang
+        // membuat percobaan ini gagal — izin baru saja menjadi 'denied', worker
+        // ternyata tidak terdaftar — adalah keadaan yang punya jalan buntunya
+        // sendiri; tanpa baris ini tombolnya tetap berdiri dan setiap tekanan
+        // berikutnya menghasilkan toast yang sama.
+        await reload();
+      }
+    }),
+  });
+
+  return el('.card.profil-push', [
+    el('.card-head', [el('h2', { text: 'Pemberitahuan di luar aplikasi (web push)' }), el('.spacer')]),
+    el('.card-body', [
+      el('.muted', {
+        style: { fontSize: '12.5px', marginBottom: '8px' },
+        text: 'Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. '
+          + 'Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari '
+          + 'perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.',
+      }),
+      blocker
+        ? el('.alert.info.push-blocker', { dataset: { kind: blocker.kind } }, [
+          icon('warn', 16),
+          el('div', { text: blocker.text }),
+        ])
+        : el('.row-actions', { style: { marginBottom: '10px' } }, [enable]),
+      devices.length
+        ? el('.push-devices', devices.map((device) => deviceRow(device, thisEndpoint, reload)))
+        : el('.cell-sub', { text: 'Belum ada perangkat terdaftar — selama itu setiap pemberitahuan web push tercatat Dilewati, bukan Terkirim.' }),
     ]),
   ]);
 }
@@ -416,9 +742,11 @@ export async function renderProfil(host) {
   async function reload(justCreatedToken) {
     let state;
     let tokens;
+    let push;
     try {
       state = await api.get('core/me/notification-channels');
       tokens = await api.get('iam/me/api-tokens');
+      push = await api.get('core/me/push-subscriptions');
     } catch (error) {
       clear(body).appendChild(el('.card', el('.card-body', errorState(error, reload))));
       return;
@@ -429,6 +757,10 @@ export async function renderProfil(host) {
     if (justCreatedToken && justCreatedToken.token) body.appendChild(tokenSecretCard(justCreatedToken));
     body.appendChild(tokensCard(tokens, reload));
     body.appendChild(channelsCard(state, reload));
+    // Endpoint langganan peramban INI — dibaca dari worker, bukan ditebak:
+    // hanya dengan itu daftar perangkat bisa menandai "Perangkat ini".
+    const worker = await workerState();
+    body.appendChild(pushCard({ ...push, no_worker: !worker.registered }, worker.endpoint, reload));
     body.appendChild(phoneCard(state, reload));
     body.appendChild(quietHoursCard(state, reload));
   }
@@ -449,4 +781,7 @@ export const PROFIL_SELECTORS = {
   phone: '.profil-phone',
   optin: '.profil-optin',
   quiet: '.profil-quiet',
+  push: '.profil-push',
+  pushDevice: '.push-device',
+  pushBlocker: '.push-blocker',
 };

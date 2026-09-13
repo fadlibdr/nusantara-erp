@@ -8,6 +8,7 @@ use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Modules\Core\Channels\WebPushChannel;
 use Modules\Core\Channels\WhatsAppChannel;
 use Modules\Core\Jobs\DeliverNotification;
 use Modules\Core\Models\Notification;
@@ -454,13 +455,18 @@ class WhatsAppChannelTest extends ErpTestCase
         $this->assertSame(['meta', 'qontak'], WhatsAppSetup::PROVIDERS);
     }
 
-    public function test_the_registry_resolves_whatsapp_and_still_refuses_webpush(): void
+    public function test_the_registry_resolves_every_channel_it_names_and_refuses_the_rest(): void
     {
         $this->assertInstanceOf(WhatsAppChannel::class, DeliveryChannels::for('whatsapp'));
 
+        // P-3e: webpush punya pengirimnya sejak T3e.3 — kalimat "belum
+        // tersedia" untuknya hilang dari DeliveryChannels DAN dari
+        // DeliveryGate::reasonToSkip.
+        $this->assertInstanceOf(WebPushChannel::class, DeliveryChannels::for('webpush'));
+
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Kanal webpush belum tersedia (Fase 3, P-3e).');
-        DeliveryChannels::for('webpush');
+        $this->expectExceptionMessage('Kanal sms tidak dikenal.');
+        DeliveryChannels::for('sms');
     }
 
     // ------------------------------------------------------------- penyaring

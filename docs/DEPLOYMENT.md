@@ -1202,7 +1202,7 @@ in the number; from erp1 itself the figures include the client and are
 conservative. The write-path burst of §10.6 (`burst.py`) stays where it is:
 against `erp_scratch`, never against `erp`.
 
-## 11. SMTP dan WhatsApp — runbook pemilik (Fase 3 / P-3a, 12 Sep 2026)
+## 11. SMTP, WhatsApp dan web push — runbook pemilik (Fase 3 / P-3a 12 Sep 2026, §11.3 P-3e 13 Sep 2026)
 
 > **Keadaan erp1 hari ini: `MAIL_MAILER=log` dan tidak ada satu pun `WHATSAPP_*`.**
 > Sejak P-3a itu bukan lagi keadaan yang diam: setiap pengiriman e-mail dicatat
@@ -1210,7 +1210,9 @@ against `erp_scratch`, never against `erp`.
 > WhatsApp **Dilewati — "WhatsApp dinonaktifkan di Pengaturan"** di Sistem › Pengiriman
 > Notifikasi, bukan "Terkirim". (Sebelum P-3a baris e-mail ditandai `sent` dengan
 > Message-ID buatan lokal — diukur 11 Sep 2026; tidak ada surel yang pernah keluar.)
-> Paket ini **tidak mengubah `.env` mana pun**. Kedua langkah di bawah milik pemilik.
+> P-3e menambahkan kanal ketiga dengan keadaan yang sama: **tidak ada satu pun `VAPID_*`**,
+> jadi setiap pengiriman web push **Dilewati — "Web push dinonaktifkan di Pengaturan"**.
+> Paket-paket ini **tidak mengubah `.env` mana pun**. Ketiga langkah di bawah milik pemilik.
 > Nama variabel saja yang ditulis di sini — tidak ada nilai.
 
 ### 11.1 SMTP (ledger ROADMAP-HASHMICRO §5 #8: kotak surat domain perusahaan, 587 STARTTLS)
@@ -1326,3 +1328,88 @@ dikarang, KEPUTUSAN-INTEGRASI §5) — memilihnya menghasilkan Dilewati yang men
 **Jalan pulang:** matikan sakelar Pengaturan (pesan berhenti seketika; baris berikutnya
 Dilewati); kosongkan `WHATSAPP_TOKEN` bila token harus dicabut; token yang bocor dicabut
 di Meta Business Suite (System User › token), bukan hanya dihapus dari `.env`.
+
+### 11.3 Web push (Fase 3 / P-3e) — VAPID, dan apa yang terjadi bila kuncinya diganti
+
+Web Push **standar** (RFC 8030/8291/8292). **Tidak ada aplikasi native, tidak ada SDK Firebase,
+tidak ada akun Google.** Peramban memilih sendiri layanan push-nya — Chrome memakai
+`fcm.googleapis.com`, Firefox memakai Mozilla, Safari memakai Apple — dan aplikasi ini hanya
+mem-POST ke alamat yang diberikan peramban itu. Endpoint FCM yang muncul di basis data adalah
+pilihan Chrome, bukan integrasi kita.
+
+> **Syarat nol: halaman harus dilayani lewat HTTPS.** Push API — dan service worker yang
+> membawanya — hanya ada di *secure context*: `https://`, atau `http://localhost` di mesin
+> pengembang. Pada pemasangan `http://<alamat-IP>/app/`, `'serviceWorker' in navigator`
+> bernilai **false** di Chrome dan Firefox yang sehat, dan kartu Profil mengatakannya apa
+> adanya sejak putaran verifikasi P-3e ("halaman ini dilayani lewat http://… sampaikan kepada
+> administrator") alih-alih menyuruh orangnya memasang peramban lain. erp1 sudah di belakang
+> TLS; sebuah pemasangan baru yang belum, tidak akan bisa menyalakan web push sama sekali —
+> berapa pun kunci VAPID yang diisi.
+>
+> **Alamat internal ditolak sebagai endpoint perangkat.** Endpoint langganan melewati penjaga
+> yang sama dengan URL webhook (§11 P-3d): loopback, 10/8, 169.254/16, CGNAT dan nama
+> `*.internal` ditolak saat disimpan **dan** sekali lagi saat dikirim, dan pengalihan (3xx)
+> tidak pernah diikuti. Satu pemasangan memegang paling banyak **10 perangkat per pengguna**.
+
+1. **Buat sepasang kunci VAPID** di server (satu kali, seumur pemasangan):
+
+   ```
+   sudo -u www-data php artisan core:vapid-keys
+   ```
+
+   Perintah itu **mencetak** sepasang kunci; ia **tidak menulis `.env`** dan tidak menyimpan
+   apa pun ke basis data. Salin ketiga baris yang dicetaknya ke `.env` erp1:
+
+   ```
+   VAPID_PUBLIC_KEY=      # base64url — memang PUBLIK: dikirim ke setiap peramban
+   VAPID_PRIVATE_KEY=     # base64url — RAHASIA: hanya di .env, tidak pernah di core_settings/API/log
+   VAPID_SUBJECT=         # mailto:… atau https://… milik pemilik (RFC 8292 §2.1)
+   ```
+
+   `VAPID_SUBJECT` harus `mailto:` atau `https:` — bentuk lain ditolak **sebelum** permintaan
+   berangkat, dengan kalimatnya sendiri di kolom Dilewati.
+2. `php artisan config:clear`, `systemctl restart erp1-queue`.
+3. Nyalakan **Pengaturan › Notifikasi › "Kirim juga lewat web push"**.
+4. **Setiap orang mendaftarkan perangkatnya sendiri**, sekali per perangkat, dari perangkat itu:
+   **Profil › Notifikasi › "Aktifkan notifikasi di perangkat ini"**. Tanpa satu perangkat pun,
+   barisnya **Dilewati — "belum mendaftarkan satu perangkat pun"**, bukan Terkirim.
+   Di **iPhone/iPad** tombol itu hanya bekerja setelah aplikasinya ditambahkan ke **Layar Utama**
+   (iOS/iPadOS **16.4** ke atas) — di tab Safari biasa Push API tidak ada sama sekali, dan layar
+   menampilkan cara memasangnya alih-alih tombol yang gagal.
+5. Uji satu pesan sungguhan: picu satu alarm (mis. `php artisan erp:watchdog-alarm --force` sebagai
+   www-data), lalu **Sistem › Pengiriman Notifikasi** disaring kanal **Web push**. Kolom
+   "Penerima / perangkat" memuat **label perangkat** ("Chrome di Android"), bukan alamat: kanal ini
+   menulis **satu baris per perangkat**, jadi seseorang dengan tiga perangkat menghasilkan tiga
+   baris — itu disengaja, supaya jawaban yang berbeda per perangkat tidak saling menutupi.
+   `provider_id` boleh **kosong** pada baris Terkirim: Web Push tidak punya message id dalam
+   standarnya (header `Location` opsional, RFC 8030 §5), dan buktinya adalah `201` dari layanan
+   push itu sendiri.
+
+**MENGGANTI SEPASANG KUNCI VAPID MEMBATALKAN SELURUH LANGGANAN YANG ADA.**
+`applicationServerKey` terikat pada langganan di peramban: sesudah kunci diganti, layanan push
+menolak (**403**) setiap pengiriman ke langganan lama, barisnya **Gagal** dengan kalimat yang
+menyebut VAPID, dan **setiap perangkat** harus menekan "Aktifkan notifikasi di perangkat ini"
+lagi. Jangan mengganti kunci untuk merapikan konfigurasi. Bila kunci privat benar-benar bocor,
+mengganti pasangannya memang jalan yang benar — dan biayanya adalah seluruh basis perangkat
+sekaligus, jadi umumkan lebih dulu.
+
+**Perangkat yang hilang membersihkan dirinya sendiri.** Langganan yang dijawab **404/410** oleh
+layanan push (peramban dipasang ulang, profil dihapus, izin dicabut) **dihapus** dari
+`core_push_subscriptions`, dan kejadiannya dicatat di **`core_audit_log`** (append-only) dengan
+label perangkatnya — barisnya sendiri hilang, jadi catatannya harus berada di tempat lain. **Tidak
+ada layar Log Audit di menu Sistem**: bacalah lewat `GET api/core/audit-log?auditable_type=PushSubscription`
+(izin `core.view`), caranya di PANDUAN-ADMINISTRATOR §3.10.
+Baris kotak keluar yang memicunya menjadi **Gagal** dengan kalimat yang menyebut perangkat itu,
+dan "Kirim ulang" atasnya **ditolak 422**: sasarannya sudah tidak ada.
+
+**Jalan pulang:** matikan sakelar Pengaturan (pengiriman berhenti seketika; baris berikutnya
+Dilewati). Mengosongkan `VAPID_*` juga menghentikannya, tetapi **tidak** mencabut langganan yang
+sudah ada di peramban orang — yang mencabutnya adalah orangnya sendiri lewat tombol Cabut di
+Profil › Notifikasi, atau layanan push ketika langganannya kedaluwarsa.
+
+**Apa yang tetap dilihat layanan push.** Isi pemberitahuan dienkripsi ujung-ke-ujung (aes128gcm)
+dengan kunci milik peramban penerima: layanan push **tidak bisa membaca** judul maupun isinya, dan
+panjang badan permintaan selalu sama (diukur **2.922 byte**, apa pun isinya). Yang tetap dilihatnya:
+**bahwa ada pesan, kapan, dan untuk endpoint yang mana** — yaitu pola dan waktu, bukan isi. Itu
+dicatat apa adanya di `docs/KEPUTUSAN-INTEGRASI.md` §12; jangan menjanjikan lebih dari itu kepada
+siapa pun.

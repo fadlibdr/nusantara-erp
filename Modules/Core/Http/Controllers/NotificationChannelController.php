@@ -27,6 +27,25 @@ use Modules\Core\Support\WhatsAppSetup;
  */
 class NotificationChannelController extends ApiController
 {
+    /**
+     * Nama kanal untuk layar, satu baris per kanal.
+     *
+     * Sampai P-3e ini sebuah ternary: `email ? 'E-mail' : 'WhatsApp'` — benar
+     * selama kanalnya persis dua, dan DIAM-DIAM SALAH pada kanal ketiga:
+     * baris web push tampil berlabel "WhatsApp", lengkap dengan sebab
+     * Dilewati milik web push di bawahnya (ditemukan di peramban, harness
+     * S41m, 13 Sep 2026 — bukan oleh satu pun uji PHP yang sudah ada, karena
+     * semuanya memeriksa `channel` dan `reason` dan tidak pernah `label`).
+     * Peta ini gagal ke nama kanalnya sendiri, bukan ke kanal lain.
+     *
+     * @var array<string, string>
+     */
+    private const LABELS = [
+        NotificationDelivery::CHANNEL_EMAIL => 'E-mail',
+        NotificationDelivery::CHANNEL_WHATSAPP => 'WhatsApp',
+        NotificationDelivery::CHANNEL_WEBPUSH => 'Web push',
+    ];
+
     public function __invoke(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -43,7 +62,7 @@ class NotificationChannelController extends ApiController
 
             $channels[] = [
                 'channel' => $channel,
-                'label' => $channel === NotificationDelivery::CHANNEL_EMAIL ? 'E-mail' : 'WhatsApp',
+                'label' => self::LABELS[$channel] ?? $channel,
                 'address' => DeliveryGate::address($channel, $user) ?: null,
                 'enabled_by_user' => DeliveryGate::userEnabled($channel, $user),
                 // null = kanal ini akan MENCOBA mengirim; string = kalimat

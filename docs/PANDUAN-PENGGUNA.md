@@ -507,12 +507,19 @@ Yang perlu Anda ketahui tentang lonceng:
 - Alarm sistem (cadangan basi, tutup buku telat, tenggat harian) muncul dengan lencana
   kosong **"—"**, jadi tampilannya berbeda dari tiga jenis pemberitahuan dokumen di
   sekitarnya.
-- **Email dan WhatsApp mati secara bawaan.** Keduanya keputusan administrator (server surel,
-  akun WhatsApp Business). Anda sendiri mengatur **kanal mana yang Anda mau**, **jam tenang**
-  (e-mail/WhatsApp ditunda sampai jam tenang berakhir — tidak dibuang; lonceng tetap masuk
-  seketika), dan **nomor WhatsApp + persetujuan** Anda di **Ringkasan › Profil & Notifikasi**
-  (juga dari menu akun). Layar itu mengatakan apa yang benar-benar akan terjadi pada tiap
-  kanal — "Akan dikirim" atau "Dilewati" beserta sebabnya — bukan apa yang Anda pilih.
+- **Email, WhatsApp dan web push mati secara bawaan.** Ketiganya keputusan administrator
+  (server surel, akun WhatsApp Business, kunci VAPID). Anda sendiri mengatur **kanal mana yang
+  Anda mau**, **jam tenang** (e-mail/WhatsApp/web push ditunda sampai jam tenang berakhir —
+  tidak dibuang; lonceng tetap masuk seketika), **nomor WhatsApp + persetujuan**, dan
+  **perangkat mana yang menerima pemberitahuan di luar aplikasi**, di **Ringkasan › Profil &
+  Notifikasi** (juga dari menu akun). Layar itu mengatakan apa yang benar-benar akan terjadi
+  pada tiap kanal — "Akan dikirim" atau "Dilewati" beserta sebabnya — bukan apa yang Anda pilih.
+- **Web push: satu kali per perangkat, dari perangkat itu.** Buka Profil & Notifikasi di
+  ponsel/komputer yang ingin Anda pakai, tekan **"Aktifkan notifikasi di perangkat ini"**, lalu
+  izinkan permintaan peramban. Tidak ada aplikasi yang perlu dipasang. Di **iPhone/iPad** ini
+  hanya bekerja setelah aplikasinya ditambahkan ke **Layar Utama** (iOS 16.4+) — layar
+  mengatakan caranya. Isi pemberitahuan dienkripsi untuk perangkat Anda: layanan push tidak
+  bisa membacanya (ia tetap tahu bahwa ada pemberitahuan dan kapan).
 
 ### 1.7 Tiga pintu tempat pekerjaan sampai kepada Anda
 
@@ -8212,7 +8219,7 @@ Bab ini ada supaya Anda berhenti mencari tombol yang memang tidak ada.
 | Menambah izin atau peran | Peran diatur di `Sistem › Peran & Hak Akses` | administrator |
 | Membuka menu yang tidak ada di sidebar Anda | Kelompok menu bergerbang izin | administrator |
 | Keluar dari perangkat lain | Tidak ada daftar sesi dan tidak ada "keluar dari semua perangkat" | administrator |
-| Mengaktifkan pemberitahuan email / WhatsApp | Mati secara bawaan; keduanya butuh server/akun yang disetel administrator (DEPLOYMENT.md §11) | administrator — tetapi kanal mana yang Anda mau, jam tenang, dan nomor WhatsApp Anda: **Profil & Notifikasi** |
+| Mengaktifkan pemberitahuan email / WhatsApp / web push | Mati secara bawaan; ketiganya butuh server/akun/kunci yang disetel administrator (DEPLOYMENT.md §11) | administrator — tetapi kanal mana yang Anda mau, jam tenang, nomor WhatsApp Anda, dan perangkat web push Anda: **Profil & Notifikasi** |
 | Mematikan "Wajib pemisahan tugas" | Ada di Pengaturan, butuh izin sistem | administrator (dan itu keputusan kebijakan, bukan kemudahan) |
 | Mengubah tarif pajak, ambang persetujuan direktur, format penomoran dokumen | Ada di Pengaturan | administrator |
 | Mengubah **Profil Perusahaan** (kop setiap formulir cetak) | Kolomnya terlihat tetapi mati tanpa izin sistem | administrator |

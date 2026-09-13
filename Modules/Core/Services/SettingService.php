@@ -389,11 +389,12 @@ class SettingService
              * Two-way contract for this group:
              *   notifications.email_enabled     DeliveryGate::emailReason()
              *   notifications.whatsapp_enabled  DeliveryGate::whatsappReason()   (P-3a)
+             *   notifications.webpush_enabled   DeliveryGate::webPushReason()    (P-3e)
              */
             'notifications' => [
                 'label' => 'Notifikasi',
                 'description' => 'Pemberitahuan persetujuan dokumen dan alarm sistem. Pemberitahuan di dalam '
-                    .'aplikasi selalu aktif; e-mail dan WhatsApp hanya dikirim bila servernya sudah disetel '
+                    .'aplikasi selalu aktif; e-mail, WhatsApp dan web push hanya dikirim bila servernya sudah disetel '
                     .'— dan setiap yang tidak terkirim tercatat dengan sebabnya di Sistem › Pengiriman Notifikasi.',
                 'settings' => [
                     [
@@ -414,6 +415,18 @@ class SettingService
                             .'template disetujui Meta (WHATSAPP_TEMPLATE_* di .env), dan anggaran per percakapan. '
                             .'Sebelum itu setiap pengiriman WhatsApp dicatat Dilewati dengan sebab yang menyebut apa '
                             .'yang kurang. Penerima juga harus mengisi nomor dan opt-in di Profil › Notifikasi.',
+                    ],
+                    [
+                        'key' => 'notifications.webpush_enabled',
+                        'label' => 'Kirim juga lewat web push',
+                        'type' => 'boolean',
+                        'help' => 'Pemberitahuan yang muncul di layar ponsel/komputer walau aplikasinya tidak sedang dibuka. '
+                            .'Nyalakan hanya setelah VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY dan VAPID_SUBJECT di .env terisi '
+                            .'(`php artisan core:vapid-keys` mencetak sepasang; DEPLOYMENT.md §11.3). Tidak ada aplikasi '
+                            .'yang perlu dipasang dari toko: setiap orang menekan "Aktifkan notifikasi di perangkat ini" di '
+                            .'Profil › Notifikasi, sekali per perangkat — di iPhone/iPad hanya setelah aplikasi ditambahkan '
+                            .'ke Layar Utama (iOS 16.4+). Tanpa satu pun perangkat terdaftar, pengiriman dicatat Dilewati '
+                            .'dengan sebab yang menyebutnya, bukan Terkirim.',
                     ],
                 ],
             ],

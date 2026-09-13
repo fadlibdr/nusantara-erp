@@ -69,9 +69,24 @@ class ApiTokenAndWebhookSpaTest extends ErpTestCase
         // kalau tidak, aplikasi tetap jalan daring dan setengah mati saat luring.
         $this->assertStringContainsString("'js/views/webhook.js',", $sw);
 
-        // Versi cangkang naik pada rilis yang mengubah berkas cangkang —
-        // tanpanya toast "Versi baru siap" tidak pernah muncul.
-        $this->assertMatchesRegularExpression("/const SHELL_VERSION = '12';/", $sw);
+        /*
+         * Versi cangkang naik pada rilis yang mengubah berkas cangkang —
+         * tanpanya toast "Versi baru siap" tidak pernah muncul.
+         *
+         * Dipaku sebagai "tidak pernah turun di bawah 12", bukan "sama dengan
+         * 12" (P-3e): angka literal di sini menuntut setiap paket berikutnya
+         * menyunting uji paket INI hanya untuk menaikkan versi cangkangnya,
+         * dan uji yang harus disunting oleh orang yang tidak sedang
+         * memikirkannya adalah uji yang akan disunting sampai hijau. Yang
+         * dijaga tetap sama: webhook.js masuk cangkang pada versi 12, jadi
+         * versi yang lebih kecil berarti seseorang menurunkannya.
+         */
+        $this->assertSame(1, preg_match("/const SHELL_VERSION = '(\\d+)';/", $sw, $version));
+        $this->assertGreaterThanOrEqual(
+            12,
+            (int) $version[1],
+            'SHELL_VERSION turun di bawah 12, versi yang membawa js/views/webhook.js ke dalam cangkang.',
+        );
 
         $this->assertStringContainsString("import { renderWebhook } from './views/webhook.js';", $app);
         $this->assertStringContainsString("route('webhook'", $app);

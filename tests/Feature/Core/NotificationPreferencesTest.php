@@ -168,7 +168,7 @@ class NotificationPreferencesTest extends ErpTestCase
         $this->putJson('/api/core/me/preferences/notify.channels', ['value' => ['email' => 'ya']])
             ->assertStatus(422)->assertJsonFragment(['message' => 'notify.channels: Nilai kanal "email" harus true atau false.']);
         $this->putJson('/api/core/me/preferences/notify.channels', ['value' => ['email']])
-            ->assertStatus(422)->assertJsonFragment(['message' => 'notify.channels: Kanal notifikasi harus berupa objek {email: true/false, whatsapp: true/false}.']);
+            ->assertStatus(422)->assertJsonFragment(['message' => 'notify.channels: Kanal notifikasi harus berupa objek {email: true/false, whatsapp: true/false, webpush: true/false}.']);
     }
 
     public function test_notify_quiet_hours_accepts_a_window_or_null_and_refuses_the_rest(): void
@@ -639,7 +639,9 @@ class NotificationPreferencesTest extends ErpTestCase
 
         // E-mail mati di Pengaturan: sebab yang sama dengan kotak keluar.
         $data = $this->getJson('/api/core/me/notification-channels')->assertOk()->json('data');
-        $this->assertSame(['email', 'whatsapp'], array_column($data['channels'], 'channel'));
+        // P-3e: kanal ketiga, di urutan terakhir (paling baru, paling butuh
+        // tindakan orangnya sendiri).
+        $this->assertSame(['email', 'whatsapp', 'webpush'], array_column($data['channels'], 'channel'));
         $email = $data['channels'][0];
         $this->assertSame($user->email, $email['address']);
         $this->assertTrue($email['enabled_by_user']);

@@ -9964,16 +9964,17 @@ def _p3a_raise_alarm():
     return {"exit": run.returncode, "tail": (run.stdout + run.stderr).strip()[-300:]}
 
 def _p3a_cleanup(tok):
-    api("core/me/preferences/notify.channels", tok, "PUT", {"value": {"email": True, "whatsapp": True}})
+    api("core/me/preferences/notify.channels", tok, "PUT", {"value": {"email": True, "whatsapp": True, "webpush": True}})
     api("core/me/preferences/notify.quiet_hours", tok, "PUT", {"value": False})
     api("iam/me/phone", tok, "PUT", {"phone_e164": None, "whatsapp_opt_in": False})
     _p3a_settings(tok, {"notifications.email_enabled": False})
 
 @scenario("S37_kanal_notifikasi_profil")
 def s37(browser):
-    """1440×900 sebagai admin@: (1) Pengiriman Notifikasi memperlihatkan dua baris Dilewati dari
+    """1440×900 sebagai admin@: (1) Pengiriman Notifikasi memperlihatkan baris Dilewati dari
     alarm sungguhan — e-mail "MAIL_MAILER=log — belum ada server surel", WhatsApp "dinonaktifkan di
-    Pengaturan" — plus kolom Berikutnya dan Status penyedia; (2) Profil & Notifikasi: lencana kanal
+    Pengaturan", dan sejak P-3e web push "dinonaktifkan di Pengaturan" — plus kolom Berikutnya dan
+    Status penyedia; (2) Profil & Notifikasi: lencana kanal
     mengatakan hal yang sama; mematikan e-mail lalu menyimpan tersimpan di server, dan lencananya
     tetap menyebut sebab yang lebih global (mailer log) — bukan "Dimatikan pengguna"; jam tenang
     22:00–06:00 tersimpan; nomor 0812-3456-7890 tersimpan sebagai +6281234567890 dengan opt-in
@@ -10063,15 +10064,19 @@ def s37(browser):
             "the_whatsapp_row_is_skipped_because_the_switch_is_off":
                 wr.get("Status") == "Dilewati" and (wr.get("Galat / alasan") or "") == "WhatsApp dinonaktifkan di Pengaturan.",
             "nothing_is_called_sent": all(r.get("Status") != "Terkirim" for r in table["rows"]),
+            # P-3e: kanal luar menjadi TIGA. Baris ketiga diperiksa dengan ukuran
+            # yang sama — sebab yang sama dengan yang ditulis kotak keluar.
             "the_profile_says_the_same_as_the_outbox":
-                [c["channel"] for c in pb["channels"]] == ["email", "whatsapp"]
+                [c["channel"] for c in pb["channels"]] == ["email", "whatsapp", "webpush"]
                 and pb["channels"][0]["state"] == "skipped" and "MAIL_MAILER=log" in (pb["channels"][0]["status"] or "")
-                and pb["channels"][1]["state"] == "skipped" and "dinonaktifkan di Pengaturan" in (pb["channels"][1]["status"] or ""),
+                and pb["channels"][1]["state"] == "skipped" and "dinonaktifkan di Pengaturan" in (pb["channels"][1]["status"] or "")
+                and pb["channels"][2]["state"] == "skipped" and "Web push dinonaktifkan di Pengaturan" in (pb["channels"][2]["status"] or ""),
             # Sebab yang lebih GLOBAL menang (DeliveryGate: Pengaturan → mailer → pengguna → alamat):
             # dengan MAIL_MAILER=log, mematikan e-mail tersimpan tetapi lencananya tetap menyebut
             # mailer — "Dimatikan pengguna" baru tampil setelah server surel ada (dipaku PHP).
+            # P-3e: kartu kanal menulis SELURUH peta, jadi kunci webpush ikut tersimpan.
             "switching_email_off_is_stored_and_the_global_reason_still_wins":
-                out["prefs_channels"] == {"email": False, "whatsapp": True}
+                out["prefs_channels"] == {"email": False, "whatsapp": True, "webpush": True}
                 and chans_after["email"]["checked"] is False
                 and "MAIL_MAILER=log" in (chans_after["email"]["status"] or ""),
             "quiet_hours_are_stored_on_the_server": (sc.get("quiet_hours") or {}).get("start") == "22:00" and (sc.get("quiet_hours") or {}).get("end") == "06:00",
@@ -10091,7 +10096,7 @@ def s37(browser):
 @scenario("S37_kanal_notifikasi_profil_ponsel")
 def s37m(browser):
     """390×844 (is_mobile, has_touch) sebagai admin@: Profil & Notifikasi dan Pengiriman
-    Notifikasi tidak menggulir ke samping; kedua kartu kanal tampil; mematikan WhatsApp dari
+    Notifikasi tidak menggulir ke samping; ketiga kartu kanal tampil; mematikan WhatsApp dari
     ponsel tersimpan, dan lencananya tetap jujur — sebab global (dinonaktifkan di Pengaturan)
     menang atas pilihan pengguna; 0 galat konsol."""
     tok = token_for("admin@nusantara.test")
@@ -10128,9 +10133,12 @@ def s37m(browser):
         out["console_errors"] = errors
         wa_after = next((c for c in out["profil_after"]["channels"] if c["channel"] == "whatsapp"), {})
         out["checks"] = {
-            "the_profile_renders_both_channels_on_a_phone": [c["channel"] for c in out["profil"]["channels"]] == ["email", "whatsapp"],
+            "the_profile_renders_all_three_channels_on_a_phone": [c["channel"] for c in out["profil"]["channels"]] == ["email", "whatsapp", "webpush"],
             "the_profile_never_scrolls_sideways": out["profil"]["scrolls_sideways"] is False and out["profil_after"]["scrolls_sideways"] is False,
-            "switching_whatsapp_off_from_a_phone_is_stored": out["prefs_channels"] == {"email": True, "whatsapp": False} and wa_after.get("checked") is False,
+            # P-3e: kotak centang yang dikirim layar kini TIGA — kunci webpush ikut
+            # tersimpan karena kartunya menulis seluruh peta, bukan hanya yang diubah.
+            "switching_whatsapp_off_from_a_phone_is_stored":
+                out["prefs_channels"] == {"email": True, "whatsapp": False, "webpush": True} and wa_after.get("checked") is False,
             "the_global_switch_still_wins_over_the_users_choice": "dinonaktifkan di Pengaturan" in (wa_after.get("status") or ""),
             "the_deliveries_screen_never_scrolls_sideways": out["deliveries"]["scrolls_sideways"] is False,
             "no_console_error": errors == [],
@@ -11227,6 +11235,487 @@ def s40m(browser):
         ctx.close()
 
 
+# ---------------------------------------------------------------------------
+# S41 — P-3e PWA push (13 Sep 2026): Profil › Notifikasi › "Pemberitahuan di
+# luar aplikasi", dan pendengar `push` service worker.
+#
+# Yang diukur di sini HANYA bisa diukur di peramban sungguhan:
+#
+#  1. KEEMPAT jalan buntu benar-benar TERCAPAI, masing-masing dengan
+#     kalimatnya sendiri — bukan tombol mati. Ketiganya dipicu dengan cara
+#     yang benar-benar terjadi pada orang: sakelar server dimatikan (jalan
+#     buntu 4), peramban tanpa Push API (1, `delete window.PushManager` di
+#     init script — itulah yang dilihat kode kita pada peramban yang memang
+#     tidak punya), izin yang sudah DITOLAK di tingkat peramban (3, lewat CDP
+#     Browser.setPermission), dan iPhone di tab Safari biasa (2, di S41m).
+#  2. Kalimat jalan buntu 4 di layar SAMA PERSIS dengan yang dijawab
+#     GET core/me/notification-channels — "satu daftar, empat permukaan"
+#     diperiksa sebagai dua permukaan yang benar-benar dimuat, bukan sebagai
+#     dua konstanta di berkas yang sama.
+#  3. Pendengar `push` SELALU menampilkan notifikasi — termasuk untuk muatan
+#     yang TIDAK BISA DIURAI. Push palsu diantarkan lewat CDP
+#     ServiceWorker.deliverPushMessage (tanpa layanan push sungguhan), dan
+#     yang dibaca kembali adalah registration.getNotifications() — judul, isi
+#     dan tag yang benar-benar digambar peramban.
+#
+# Yang TIDAK bisa dijalankan di sini dikatakan apa adanya di keluarannya
+# (`not_run`), tidak ditandai hijau: PushManager.subscribe() menuntut layanan
+# push sungguhan yang tidak ada di Chromium headless mesin ini, dan
+# notificationclick tidak punya pintu CDP untuk mengetuk notifikasi.
+S41_PUSH = """() => {
+  const card = document.querySelector('.profil-push');
+  const blocker = document.querySelector('.push-blocker');
+  const devices = [...document.querySelectorAll('.push-device')].map(d => ({
+    label: (d.querySelector('b') || {}).innerText || null,
+    here: d.dataset.here,
+    badge: (d.querySelector('.badge') || {}).innerText || null,
+    meta: [...d.querySelectorAll('.cell-sub')].map(s => s.innerText.trim()),
+    buttons: [...d.querySelectorAll('button')].map(b => b.innerText.trim()),
+  }));
+  return {
+    card_present: !!card,
+    intro: card ? ((card.querySelector('.muted') || {}).innerText || null) : null,
+    blocker_kind: blocker ? blocker.dataset.kind : null,
+    blocker_text: blocker ? blocker.innerText.trim() : null,
+    buttons: [...document.querySelectorAll('.profil-push .card-body > .row-actions button')].map(b => b.innerText.trim()),
+    devices,
+    empty_note: (() => {
+      const subs = [...document.querySelectorAll('.profil-push .cell-sub')];
+      return subs.length ? subs[subs.length - 1].innerText.trim() : null;
+    })(),
+    scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    main_scrolls_sideways: (() => { const m = document.querySelector('.main'); return !!m && m.scrollWidth > m.clientWidth; })(),
+  };
+}"""
+
+S41_OVERFLOW = """() => {
+  let n = 0;
+  for (const el of document.querySelectorAll('.profil-push, .profil-push *')) {
+    for (const node of el.childNodes) {
+      if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+      const range = document.createRange(); range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0) continue;
+      let limit = document.documentElement.clientWidth + 1;
+      for (let a = el; a && a !== document.body; a = a.parentElement) {
+        const o = getComputedStyle(a).overflowX;
+        if (o === 'visible') continue;
+        const r = a.getBoundingClientRect();
+        limit = (o === 'auto' || o === 'scroll') ? r.left + a.scrollWidth + 1 : r.right + 1;
+        break;
+      }
+      if (rect.right > limit) n++;
+    }
+  }
+  return n;
+}"""
+
+S41_NOTIFICATIONS = """async () => {
+  const reg = await navigator.serviceWorker.ready;
+  const list = await reg.getNotifications();
+  const out = list.map(n => ({ title: n.title, body: n.body, tag: n.tag, data: n.data }));
+  list.forEach(n => n.close());
+  return out;
+}"""
+
+
+def _p3e_setting(on):
+    """Sakelar Pengaturan notifications.webpush_enabled — dan memo SettingService dibuang.
+
+    CACHE_STORE=database pada pemasangan ini, jadi memo 60 detiknya hidup di tabel `cache`:
+    tanpa menghapusnya, layar berikutnya membaca sakelar yang lama dan skenario ini akan
+    "membuktikan" keadaan yang sudah tidak berlaku.
+    """
+    con = sqlite3.connect(DB)
+    value = "true" if on else "false"
+    if con.execute("select count(*) from core_settings where key = 'notifications.webpush_enabled'").fetchone()[0]:
+        con.execute("update core_settings set value = ? where key = 'notifications.webpush_enabled'", (value,))
+    else:
+        con.execute("insert into core_settings (key, value, created_at, updated_at) values (?, ?, datetime('now'), datetime('now'))",
+                    ("notifications.webpush_enabled", value))
+    con.execute("delete from cache")
+    con.commit()
+    read = con.execute("select value from core_settings where key = 'notifications.webpush_enabled'").fetchone()[0]
+    con.close()
+    return read
+
+
+def _p3e_reset():
+    con = sqlite3.connect(DB)
+    con.execute("delete from core_push_subscriptions")
+    con.execute("delete from core_notification_deliveries where channel = 'webpush'")
+    con.execute("delete from cache")
+    con.commit()
+    left = con.execute("select count(*) from core_push_subscriptions").fetchone()[0]
+    con.close()
+    return {"cleared": left == 0}
+
+
+def _p3e_seed_device(email, label, suffix):
+    """Satu langganan FIXTURE — dan keluarannya menandainya sebagai fixture.
+
+    PushManager.subscribe() menuntut layanan push sungguhan; Chromium headless di mesin ini
+    tidak punya satu pun, jadi daftar perangkat tidak bisa diisi lewat tombolnya. Barisnya
+    disuntikkan supaya YANG DIUKUR — bagaimana daftar itu digambar, dan bahwa perangkat yang
+    bukan perangkat ini TIDAK dilencanai "Perangkat ini" — tetap diukur. Yang tidak diukur
+    dikatakan di `not_run`.
+    """
+    import hashlib
+    endpoint = "https://fcm.googleapis.com/fcm/send/" + (suffix * 40)
+    con = sqlite3.connect(DB)
+    uid = con.execute("select id from users where email = ?", (email,)).fetchone()[0]
+    con.execute(
+        "insert into core_push_subscriptions (user_id, endpoint, endpoint_hash, p256dh, auth, device_label, created_at, updated_at) "
+        "values (?, ?, ?, ?, ?, ?, datetime('now','-3 days'), datetime('now','-3 days'))",
+        (uid, endpoint, hashlib.sha256(endpoint.encode()).hexdigest(), "B" + "k" * 86, "a" * 22, label))
+    con.commit()
+    con.close()
+    return {"fixture_endpoint": endpoint, "label": label}
+
+
+def _p3e_notification_browser(browser):
+    """Peramban yang IZIN NOTIFIKASINYA bisa diberikan — dan kenapa ia harus berbeda.
+
+    Terukur 13 Sep 2026: `chromium.launch(headless=True)` milik Playwright menjalankan
+    **headless shell**, yang TIDAK punya jembatan notifikasi sama sekali —
+    `Notification.permission` memulangkan `denied` walau `grant_permissions(['notifications'])`
+    sudah dipanggil, dan setiap `showNotification()` di service worker ditolak diam-diam. Uji
+    yang dijalankan di atasnya akan "membuktikan" bahwa notifikasi tidak muncul, yang tidak ada
+    hubungannya dengan kode kita.
+
+    `channel='chromium'` memakai Chromium PENUH dengan `--headless=new`, dan di sana izinnya
+    benar-benar bisa diberikan (`granted`). Skenario ini memakai peramban itu dan menutupnya
+    sendiri; kalau ia tidak tersedia, yang dilaporkan adalah `not_run`, bukan hijau.
+    """
+    try:
+        return browser.browser_type.launch(headless=True, channel="chromium"), True
+    except Exception:
+        return browser, False
+
+
+def _p3e_registration_id(ctx, page):
+    """Id registrasi service worker untuk CDP ServiceWorker.deliverPushMessage."""
+    cdp = ctx.new_cdp_session(page)
+    seen = []
+    cdp.on("ServiceWorker.workerRegistrationUpdated", lambda e: seen.extend(e.get("registrations") or []))
+    cdp.send("ServiceWorker.enable")
+    page.wait_for_timeout(1200)
+    for reg in seen:
+        if "/app/" in (reg.get("scopeURL") or ""):
+            return cdp, reg["registrationId"], reg.get("scopeURL")
+    return cdp, None, None
+
+
+@scenario("S41_web_push_profil_dan_service_worker")
+def s41(browser):
+    """1440×900 sebagai admin@: kartu "Pemberitahuan di luar aplikasi" di Profil › Notifikasi —
+    jalan buntu 4 (sakelar server mati) memakai KALIMAT SERVER yang sama dengan
+    GET core/me/notification-channels; sakelar dinyalakan → tombolnya muncul; jalan buntu 1
+    (peramban tanpa Push API) dan 3 (izin ditolak peramban) masing-masing dengan kalimatnya;
+    daftar perangkat menggambar label + tanggal + "terakhir berhasil"; push palsu diantar lewat
+    CDP ServiceWorker.deliverPushMessage → notifikasi sungguhan dengan judul/isi/tag dari muatan,
+    DAN muatan rusak tetap menghasilkan notifikasi berkalimat umum. 0 galat konsol."""
+    reset = _p3e_reset()
+    if not reset["cleared"]:
+        return {"SKIPPED": "sqlite tidak bisa dibersihkan"}
+
+    out = {"reset": reset, "not_run": []}
+    errors = []
+
+    browser, owned = _p3e_notification_browser(browser)
+    out["notification_browser"] = "chromium penuh (--headless=new)" if owned else "headless shell — izin notifikasi tidak bisa diberikan"
+    if not owned:
+        out["not_run"].append("Chromium penuh (channel=chromium) tidak tersedia: izin notifikasi tidak bisa diberikan di headless shell")
+
+    # ------------------------------------------------ jalan buntu 4: sakelar server
+    out["switch_off"] = _p3e_setting(False)
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    ctx.grant_permissions(["notifications"], origin=ORIGIN)
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+        pg.goto(BASE + "#/profil")
+        pg.wait_for_selector(".profil-push", timeout=20000)
+        pg.wait_for_timeout(600)
+        assert_screen(pg, "#/profil", "Profil")
+        out["server_blocked"] = pg.evaluate(S41_PUSH)
+        pg.screenshot(path=f"{OUT}/s41-push-sakelar-mati.png", full_page=True)
+
+        # Permukaan KEDUA yang harus mengucapkan kalimat yang sama.
+        out["channels_endpoint"] = pg.evaluate("""async () => {
+          const r = await fetch('/api/core/me/notification-channels', {
+            headers: { Accept: 'application/json', 'X-Api-Token': localStorage.getItem('nusantara_erp_token') || '' } });
+          const j = await r.json();
+          return (j.data.channels || []).find(c => c.channel === 'webpush') || null;
+        }""")
+
+        # ------------------------------------------------ sakelar dinyalakan
+        out["switch_on"] = _p3e_setting(True)
+        pg.reload()
+        pg.wait_for_selector(".profil-push", timeout=20000)
+        pg.wait_for_timeout(700)
+        out["ready"] = pg.evaluate(S41_PUSH)
+        pg.screenshot(path=f"{OUT}/s41-push-tombol.png", full_page=True)
+
+        # ------------------------------------------------ daftar perangkat (fixture)
+        out["fixture"] = _p3e_seed_device("admin@nusantara.test", "Chrome di Android", "c")
+        pg.reload()
+        pg.wait_for_selector(".push-device", timeout=20000)
+        pg.wait_for_timeout(600)
+        out["with_device"] = pg.evaluate(S41_PUSH)
+        pg.screenshot(path=f"{OUT}/s41-push-perangkat.png", full_page=True)
+
+        # ------------------------------------------------ push palsu lewat CDP
+        cdp, rid, scope = _p3e_registration_id(ctx, pg)
+        out["sw_registration"] = {"id": rid, "scope": scope}
+
+        if rid is None:
+            out["not_run"].append("ServiceWorker.deliverPushMessage: registrasi worker tidak terbaca lewat CDP")
+        else:
+            muatan = json.dumps({"judul": "Cadangan luar situs basi (S41)", "isi": "Cadangan terakhir berumur 3 hari.",
+                                 "tautan": ORIGIN + "/app/#/settings", "tag": "erp-notif-s41"}, ensure_ascii=False)
+            cdp.send("ServiceWorker.deliverPushMessage", {"origin": ORIGIN, "registrationId": rid, "data": muatan})
+            pg.wait_for_timeout(1200)
+            out["notifications_good_payload"] = pg.evaluate(S41_NOTIFICATIONS)
+
+            # …DAN muatan yang tidak bisa diurai: kontrak userVisibleOnly menuntut
+            # notifikasi tetap muncul, kalau tidak peramban boleh mencabut langganannya.
+            cdp.send("ServiceWorker.deliverPushMessage", {"origin": ORIGIN, "registrationId": rid, "data": "{bukan json sama sekali"})
+            pg.wait_for_timeout(1200)
+            out["notifications_broken_payload"] = pg.evaluate(S41_NOTIFICATIONS)
+
+        out["console_errors_main"] = errors
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------ jalan buntu 1: tanpa Push API
+    ctx2 = browser.new_context(viewport={"width": 1440, "height": 900})
+    ctx2.add_init_script("delete window.PushManager;")
+    ctx2.grant_permissions(["notifications"], origin=ORIGIN)
+    pg2 = ctx2.new_page()
+    try:
+        login(pg2, "admin@nusantara.test")
+        pg2.goto(BASE + "#/profil")
+        pg2.wait_for_selector(".profil-push", timeout=20000)
+        pg2.wait_for_timeout(600)
+        out["no_push_api"] = pg2.evaluate(S41_PUSH)
+        pg2.screenshot(path=f"{OUT}/s41-push-tanpa-api.png", full_page=True)
+    finally:
+        ctx2.close()
+
+    # ------------------------------------------------ jalan buntu 3: izin DITOLAK peramban
+    ctx3 = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg3 = ctx3.new_page()
+    try:
+        login(pg3, "admin@nusantara.test")
+
+        # `Browser.setPermission` TANPA browserContextId mengenai konteks BAWAAN,
+        # bukan konteks Playwright ini — terukur 13 Sep 2026: izinnya tetap
+        # `default` dan skenarionya "gagal" tanpa ada yang salah di kode kita.
+        # Id konteksnya diambil dari target halaman yang sedang dipakai.
+        try:
+            bcdp = browser.new_browser_cdp_session()
+            targets = bcdp.send("Target.getTargets")["targetInfos"]
+            ctxid = next(t["browserContextId"] for t in targets if t.get("type") == "page" and ORIGIN in (t.get("url") or ""))
+            bcdp.send("Browser.setPermission", {"origin": ORIGIN, "permission": {"name": "notifications"},
+                                                "setting": "denied", "browserContextId": ctxid})
+            denied_ok = True
+        except Exception as e:
+            denied_ok = False
+            out["not_run"].append(f"Browser.setPermission(denied): {e}")
+
+        if denied_ok:
+            pg3.goto(BASE + "#/profil")
+            pg3.wait_for_selector(".profil-push", timeout=20000)
+            pg3.wait_for_timeout(600)
+            out["permission_state_denied"] = pg3.evaluate("() => Notification.permission")
+            out["denied"] = pg3.evaluate(S41_PUSH)
+            pg3.screenshot(path=f"{OUT}/s41-push-izin-ditolak.png", full_page=True)
+    finally:
+        ctx3.close()
+
+    # PushManager.subscribe() sungguhan menuntut layanan push yang tidak ada di
+    # Chromium headless mesin ini; notificationclick tidak punya pintu CDP.
+    out["not_run"].append("PushManager.subscribe() sungguhan: tidak ada layanan push di Chromium headless mesin ini")
+    out["not_run"].append("notificationclick: tidak ada pintu CDP untuk mengetuk notifikasi")
+
+    sb, rd, wd = out["server_blocked"], out["ready"], out.get("with_device") or {}
+    ch = out.get("channels_endpoint") or {}
+    good = out.get("notifications_good_payload") or []
+    broken = out.get("notifications_broken_payload") or []
+    na = out.get("no_push_api") or {}
+    dn = out.get("denied") or {}
+
+    out["console_errors"] = errors
+    out["checks"] = {
+        "the_switch_off_is_a_dead_end_with_the_servers_own_sentence":
+            sb["blocker_kind"] == "server" and "Web push dinonaktifkan di Pengaturan." in (sb["blocker_text"] or ""),
+        "and_no_button_is_offered_while_it_cannot_work": sb["buttons"] == [],
+        "the_profile_screen_and_the_channels_endpoint_say_the_same_words":
+            (ch.get("reason") or "") == "Web push dinonaktifkan di Pengaturan." and ch.get("will_deliver") is False
+            and (ch.get("reason") or "") in (sb["blocker_text"] or ""),
+        "switching_it_on_offers_the_button": rd["blocker_kind"] is None and rd["buttons"] == ["Aktifkan notifikasi di perangkat ini"],
+        "the_empty_list_says_what_happens_while_it_is_empty": "Dilewati" in (rd["empty_note"] or ""),
+        "a_registered_device_shows_its_label_and_when_it_last_succeeded":
+            len(wd.get("devices") or []) == 1
+            and wd["devices"][0]["label"] == "Chrome di Android"
+            and "Didaftarkan" in (wd["devices"][0]["meta"][0] if wd["devices"][0]["meta"] else "")
+            and "belum pernah" in (wd["devices"][0]["meta"][0] if wd["devices"][0]["meta"] else ""),
+        "a_device_that_is_not_this_browser_is_not_badged_as_this_device":
+            bool(wd.get("devices")) and wd["devices"][0]["here"] == "no" and wd["devices"][0]["badge"] is None,
+        "a_push_really_draws_the_notification_in_the_payload":
+            len(good) == 1 and good[0]["title"] == "Cadangan luar situs basi (S41)"
+            and good[0]["body"] == "Cadangan terakhir berumur 3 hari." and good[0]["tag"] == "erp-notif-s41",
+        "a_payload_that_cannot_be_parsed_still_draws_a_notification":
+            len(broken) == 1 and broken[0]["title"] == "Nusantara ERP"
+            and "Ada pemberitahuan baru" in (broken[0]["body"] or ""),
+        "a_browser_without_push_api_says_so_instead_of_showing_a_button":
+            na.get("blocker_kind") == "unsupported" and "tidak mendukung Push API" in (na.get("blocker_text") or "")
+            and na.get("buttons") == [],
+        "a_denied_permission_points_at_the_browsers_site_settings":
+            out.get("permission_state_denied") == "denied" and dn.get("blocker_kind") == "denied"
+            and "setelan situs di peramban" in (dn.get("blocker_text") or "") and dn.get("buttons") == [],
+        "no_console_error": errors == [],
+    }
+    out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+    out["ok"] = not out["failed_checks"]
+    if owned:
+        browser.close()
+    # Sakelar dan langganan dikembalikan ke BAWAANNYA. Skenario yang
+    # meninggalkan sakelar menyala membuat S37 — yang mengukur kalimat
+    # "dinonaktifkan di Pengaturan" — gagal karena keadaan yang ditinggalkan
+    # skenario LAIN, bukan karena kode (terukur 13 Sep 2026).
+    out["restored"] = {"switch": _p3e_setting(False), "rows": _p3e_reset()}
+    return out
+
+
+@scenario("S41_web_push_profil_ponsel")
+def s41m(browser):
+    """390×844 (is_mobile, has_touch), DUA konteks — karena satu konteks hanya bisa mengukur satu
+    dari dua hal yang perlu diukur di lebar ponsel.
+
+    (a) User-Agent iPhone: di tab Safari biasa tombol Aktifkan TIDAK ditampilkan sama sekali —
+    yang ditampilkan adalah cara memasang aplikasinya lewat "Tambahkan ke Layar Utama"
+    (iOS 16.4+), karena di sana tombol itu tidak akan pernah bekerja.
+
+    (b) User-Agent Android: kartunya punya tombol DAN daftar perangkat, dan di situlah simpul
+    teks yang paling mungkin terpotong berada — nama tebal + lencana "Perangkat ini" + baris meta
+    "Didaftarkan … · terakhir berhasil menerima …" + tombol Cabut. Putaran verifikasi (C-8)
+    menemukan bahwa versi pertama skenario ini menjalankan S41_OVERFLOW HANYA pada konteks
+    iPhone, yaitu pada kartu yang daftar perangkatnya KOSONG: "0 simpul teks terpotong" benar,
+    tetapi ia mengukur tiga simpul (paragraf pengantar, kotak blocker, kalimat daftar kosong) dan
+    terbaca seolah mengukur kartunya. Perangkatnya disuntikkan dengan label 40 karakter, karena
+    label pendek tidak memotong apa pun di lebar berapa pun.
+
+    Kartu digambar tanpa gulir samping dan tanpa simpul teks yang terpotong leluhur; 0 galat konsol."""
+    reset = _p3e_reset()
+    if not reset["cleared"]:
+        return {"SKIPPED": "sqlite tidak bisa dibersihkan"}
+
+    out = {"reset": reset, "switch": _p3e_setting(True)}
+    errors = []
+    ctx = browser.new_context(
+        viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+        user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 "
+                   "(KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+    )
+    pg = ctx.new_page()
+    try:
+        login(pg, "admin@nusantara.test")
+        pg.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+        pg.goto(BASE + "#/profil")
+        pg.wait_for_selector(".profil-push", timeout=20000)
+        pg.wait_for_timeout(700)
+        out["push"] = pg.evaluate(S41_PUSH)
+        out["overflow"] = pg.evaluate(S41_OVERFLOW)
+        # Kartunya digulir ke dalam pandangan lebih dulu: tangkapan viewport
+        # yang berhenti di kartu Akun membuktikan bahwa layarnya memuat, bukan
+        # bahwa kalimat iOS-nya terbaca.
+        pg.locator(".profil-push").scroll_into_view_if_needed()
+        pg.wait_for_timeout(300)
+        pg.screenshot(path=f"{OUT}/s41m-push-iphone.png", full_page=False)
+
+        out["console_errors"] = errors
+        ps = out["push"]
+    finally:
+        ctx.close()
+
+    # ---------------------------------------------- (b) Android 390 px, kartu BERISI
+    out["fixture"] = _p3e_seed_device("admin@nusantara.test", "Chrome di Android Lapangan Proyek", "d")
+    # Izin notifikasi hanya bisa DIBERIKAN di Chromium penuh; di headless shell
+    # `Notification.permission` selalu 'denied', jadi jalan buntu 3 menyala dan
+    # tombolnya memang tidak digambar. Itu keadaan mesin uji, bukan kode — dan
+    # ia dikatakan di `not_run` alih-alih diam-diam memerahkan syarat.
+    browser, owned2 = _p3e_notification_browser(browser)
+    out["android_notification_browser"] = "chromium penuh (--headless=new)" if owned2 else "headless shell — izin notifikasi tidak bisa diberikan"
+    if not owned2:
+        out["not_run"] = out.get("not_run", []) + [
+            "Tombol Aktifkan pada konteks Android 390 px: Chromium penuh tidak tersedia, izin notifikasi tidak bisa diberikan"]
+    ctx2 = browser.new_context(
+        viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+        user_agent="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) "
+                   "Chrome/120.0.0.0 Mobile Safari/537.36",
+    )
+    pg2 = ctx2.new_page()
+    try:
+        login(pg2, "admin@nusantara.test")
+        pg2.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg2.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+        pg2.goto(BASE + "#/profil")
+        pg2.wait_for_selector(".push-device", timeout=20000)
+        pg2.wait_for_timeout(700)
+        out["push_android"] = pg2.evaluate(S41_PUSH)
+        out["overflow_android"] = pg2.evaluate(S41_OVERFLOW)
+        out["device_text_nodes_measured"] = pg2.evaluate("""() => {
+          let n = 0;
+          for (const el of document.querySelectorAll('.push-device, .push-device *'))
+            for (const node of el.childNodes)
+              if (node.nodeType === 3 && node.textContent.trim()) n++;
+          return n;
+        }""")
+        pg2.locator(".profil-push").scroll_into_view_if_needed()
+        pg2.wait_for_timeout(300)
+        pg2.screenshot(path=f"{OUT}/s41m-push-android-perangkat.png", full_page=False)
+
+        out["console_errors"] = errors
+        pa = out["push_android"]
+        out["checks"] = {
+            "safari_in_a_tab_gets_the_install_instructions_not_a_button":
+                ps["blocker_kind"] == "ios" and "Tambahkan ke Layar Utama" in (ps["blocker_text"] or "")
+                and "16.4" in (ps["blocker_text"] or "") and ps["buttons"] == [],
+            "it_says_the_button_would_never_work_there_rather_than_pretending":
+                "tidak akan pernah bekerja" in (ps["blocker_text"] or ""),
+            "the_card_never_scrolls_sideways": ps["scrolls_sideways"] is False and ps["main_scrolls_sideways"] is False,
+            "no_push_text_is_clipped_on_an_iphone": out["overflow"] == 0,
+            # C-8: yang di bawah ini adalah pengukuran yang BARU ada. Yang
+            # dituntut TANPA SYARAT adalah adanya BARIS PERANGKAT untuk diukur —
+            # itulah yang hilang dari versi pertama skenario ini. Tombolnya
+            # hanya dituntut bila peramban yang bisa memberi izin tersedia.
+            "android_at_390px_draws_the_device_list": len(pa["devices"]) == 1,
+            "android_at_390px_gets_the_button_when_permission_can_be_granted":
+                (pa["blocker_kind"] is None and pa["buttons"] != []) if owned2 else True,
+            "the_device_row_is_actually_there_to_be_measured": out["device_text_nodes_measured"] >= 2,
+            "no_push_text_is_clipped_on_an_android_phone_with_a_device_row": out["overflow_android"] == 0,
+            "the_card_never_scrolls_sideways_on_android":
+                pa["scrolls_sideways"] is False and pa["main_scrolls_sideways"] is False,
+            "no_console_error": errors == [],
+        }
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx2.close()
+        # Sakelar dikembalikan ke bawaannya — lihat s41.
+        _p3e_setting(False)
+        _p3e_reset()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -11237,7 +11726,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

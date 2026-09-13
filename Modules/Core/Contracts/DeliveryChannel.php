@@ -15,8 +15,14 @@ use Modules\Core\Models\NotificationDelivery;
  * kegagalannya sendiri; yang menelan adalah yang membuat pengiriman gagal
  * tampak berhasil.
  *
- * Fase 3 menambah WhatsApp (Meta Cloud API / Qontak) dan web push dengan
+ * Fase 3 menambah WhatsApp (Meta Cloud API, P-3a) dan web push (P-3e) dengan
  * mengimplementasikan antarmuka ini dan mendaftarkannya di DeliveryChannels.
+ *
+ * SATU pelonggaran, dan ia ditandai di kanalnya sendiri: kanal yang
+ * penyedianya tidak punya message id dalam standarnya boleh memulangkan
+ * kosong tanpa dicatat gagal — lihat ChannelWithoutMessageId, yang hanya
+ * diimplementasikan WebPushChannel. "Gagal berarti gagal" tidak pernah
+ * dilonggarkan: kanal tetap wajib MELEMPAR.
  */
 interface DeliveryChannel
 {

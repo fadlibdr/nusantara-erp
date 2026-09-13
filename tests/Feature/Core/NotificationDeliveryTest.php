@@ -223,9 +223,10 @@ class NotificationDeliveryTest extends ErpTestCase
 
         // Penerima yang tulisannya gagal tidak punya baris E-MAIL (hanya log);
         // baris WhatsApp-nya (skipped, kanal mati) dan penerima berikutnya
-        // tetap diproses — sejak T3a.3 dua baris per penerima, masing-masing
-        // di balik guard-nya sendiri.
-        $this->assertSame(3, NotificationDelivery::query()->count());
+        // tetap diproses — sejak T3a.3 dua baris per penerima, sejak T3e.3
+        // TIGA (web push, skipped karena sakelarnya mati), masing-masing di
+        // balik guard-nya sendiri.
+        $this->assertSame(5, NotificationDelivery::query()->count());
         $this->assertSame(1, NotificationDelivery::query()->where('channel', NotificationDelivery::CHANNEL_EMAIL)->count());
         Queue::assertPushed(DeliverNotification::class, 1);
     }
@@ -248,8 +249,9 @@ class NotificationDeliveryTest extends ErpTestCase
 
         $this->assertSame(2, Notification::query()->where('event', Notification::SYSTEM)->count());
         $this->assertSame(1, Notification::query()->where('user_id', $second->id)->count());
-        // Tulisan pertama (e-mail admin) gagal; tiga baris lain (WA admin, e-mail + WA admin kedua) tetap ada.
-        $this->assertSame(3, NotificationDelivery::query()->count());
+        // Tulisan pertama (e-mail admin) gagal; lima baris lain (WA + web push
+        // admin, e-mail + WA + web push admin kedua) tetap ada.
+        $this->assertSame(5, NotificationDelivery::query()->count());
     }
 
     /**
@@ -283,8 +285,9 @@ class NotificationDeliveryTest extends ErpTestCase
         }
 
         $this->assertSame(1, DB::table('jobs')->count(), 'Transaksi yang dibatalkan tidak menyisakan job.');
-        // Dua baris (e-mail queued + WhatsApp skipped) dari transaksi yang commit; nol dari yang dibatalkan.
-        $this->assertSame(2, NotificationDelivery::query()->count(), 'Dan tidak menyisakan baris pengiriman.');
+        // Tiga baris (e-mail queued + WhatsApp skipped + web push skipped) dari
+        // transaksi yang commit; nol dari yang dibatalkan.
+        $this->assertSame(3, NotificationDelivery::query()->count(), 'Dan tidak menyisakan baris pengiriman.');
     }
 
     // ------------------------------------------------------------------ job

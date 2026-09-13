@@ -845,7 +845,7 @@
       "headers": [
         "Dibuat",
         "Kanal",
-        "Penerima",
+        "Penerima / perangkat",
         "Notifikasi",
         "Status",
         "Percobaan",
@@ -856,9 +856,21 @@
       ],
       "rows": [
         {
-          "Dibuat": "12 Sep 2026 03.20",
+          "Dibuat": "13 Sep 2026 05.29",
+          "Kanal": "Web push",
+          "Penerima / perangkat": "—",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "Web push dinonaktifkan di Pengaturan.",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.29",
           "Kanal": "WhatsApp",
-          "Penerima": "—",
+          "Penerima / perangkat": "—",
           "Notifikasi": "Penjadwal tidak berjalan",
           "Status": "Dilewati",
           "Percobaan": "0",
@@ -868,9 +880,9 @@
           "Status penyedia": "—"
         },
         {
-          "Dibuat": "12 Sep 2026 03.20",
+          "Dibuat": "13 Sep 2026 05.29",
           "Kanal": "E-mail",
-          "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+          "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
           "Notifikasi": "Penjadwal tidak berjalan",
           "Status": "Dilewati",
           "Percobaan": "0",
@@ -880,9 +892,9 @@
           "Status penyedia": "—"
         },
         {
-          "Dibuat": "12 Sep 2026 03.18",
+          "Dibuat": "13 Sep 2026 05.29",
           "Kanal": "WhatsApp",
-          "Penerima": "—",
+          "Penerima / perangkat": "—",
           "Notifikasi": "Penjadwal tidak berjalan",
           "Status": "Dilewati",
           "Percobaan": "0",
@@ -892,9 +904,57 @@
           "Status penyedia": "—"
         },
         {
-          "Dibuat": "12 Sep 2026 03.18",
+          "Dibuat": "13 Sep 2026 05.29",
           "Kanal": "E-mail",
-          "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+          "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.28",
+          "Kanal": "WhatsApp",
+          "Penerima / perangkat": "—",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.28",
+          "Kanal": "E-mail",
+          "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.27",
+          "Kanal": "WhatsApp",
+          "Penerima / perangkat": "—",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.27",
+          "Kanal": "E-mail",
+          "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
           "Notifikasi": "Penjadwal tidak berjalan",
           "Status": "Dilewati",
           "Percobaan": "0",
@@ -907,9 +967,9 @@
       "scrolls_sideways": false
     },
     "email_row": {
-      "Dibuat": "12 Sep 2026 03.20",
+      "Dibuat": "13 Sep 2026 05.29",
       "Kanal": "E-mail",
-      "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+      "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
       "Notifikasi": "Penjadwal tidak berjalan",
       "Status": "Dilewati",
       "Percobaan": "0",
@@ -919,9 +979,9 @@
       "Status penyedia": "—"
     },
     "wa_row": {
-      "Dibuat": "12 Sep 2026 03.20",
+      "Dibuat": "13 Sep 2026 05.29",
       "Kanal": "WhatsApp",
-      "Penerima": "—",
+      "Penerima / perangkat": "—",
       "Notifikasi": "Penjadwal tidak berjalan",
       "Status": "Dilewati",
       "Percobaan": "0",
@@ -943,6 +1003,12 @@
           "checked": true,
           "state": "skipped",
           "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+        },
+        {
+          "channel": "webpush",
+          "checked": true,
+          "state": "skipped",
+          "status": "Dilewati Web push dinonaktifkan di Pengaturan."
         }
       ],
       "quiet_on": false,
@@ -967,6 +1033,12 @@
           "checked": true,
           "state": "skipped",
           "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+        },
+        {
+          "channel": "webpush",
+          "checked": true,
+          "state": "skipped",
+          "status": "Dilewati Web push dinonaktifkan di Pengaturan."
         }
       ],
       "quiet_on": false,
@@ -980,7 +1052,8 @@
     },
     "prefs_channels": {
       "email": false,
-      "whatsapp": true
+      "whatsapp": true,
+      "webpush": true
     },
     "server_channels": {
       "channels": [
@@ -999,6 +1072,14 @@
           "enabled_by_user": true,
           "will_deliver": false,
           "reason": "WhatsApp dinonaktifkan di Pengaturan."
+        },
+        {
+          "channel": "webpush",
+          "label": "Web push",
+          "address": null,
+          "enabled_by_user": true,
+          "will_deliver": false,
+          "reason": "Web push dinonaktifkan di Pengaturan."
         }
       ],
       "quiet_hours": {
@@ -1032,6 +1113,12 @@
           "checked": true,
           "state": "skipped",
           "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+        },
+        {
+          "channel": "webpush",
+          "checked": true,
+          "state": "skipped",
+          "status": "Dilewati Web push dinonaktifkan di Pengaturan."
         }
       ],
       "quiet_on": true,
@@ -1039,7 +1126,7 @@
       "quiet_end": "06:00",
       "phone": "+6281234567890",
       "optin_state": "on",
-      "optin_text": "Opt-in tercatat 12 Sep 2026 10:20 WIB lewat Profil.",
+      "optin_text": "Opt-in tercatat 13 Sep 2026 12:30 WIB lewat Profil.",
       "h1": "Profil & Notifikasi",
       "scrolls_sideways": false
     },
@@ -1063,7 +1150,7 @@
     },
     "failed_checks": [],
     "ok": true,
-    "_ms": 8783,
+    "_ms": 11852,
     "_clicks": 6
   },
   "S37_kanal_notifikasi_profil_ponsel": {
@@ -1080,6 +1167,12 @@
           "checked": true,
           "state": "skipped",
           "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+        },
+        {
+          "channel": "webpush",
+          "checked": true,
+          "state": "skipped",
+          "status": "Dilewati Web push dinonaktifkan di Pengaturan."
         }
       ],
       "quiet_on": false,
@@ -1104,6 +1197,12 @@
           "checked": false,
           "state": "skipped",
           "status": "Dilewati WhatsApp dinonaktifkan di Pengaturan."
+        },
+        {
+          "channel": "webpush",
+          "checked": true,
+          "state": "skipped",
+          "status": "Dilewati Web push dinonaktifkan di Pengaturan."
         }
       ],
       "quiet_on": false,
@@ -1117,13 +1216,14 @@
     },
     "prefs_channels": {
       "email": true,
-      "whatsapp": false
+      "whatsapp": false,
+      "webpush": true
     },
     "deliveries": {
       "headers": [
         "Dibuat",
         "Kanal",
-        "Penerima",
+        "Penerima / perangkat",
         "Notifikasi",
         "Status",
         "Percobaan",
@@ -1134,9 +1234,21 @@
       ],
       "rows": [
         {
-          "Dibuat": "12 Sep 2026 03.20",
+          "Dibuat": "13 Sep 2026 05.29",
+          "Kanal": "Web push",
+          "Penerima / perangkat": "—",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "Web push dinonaktifkan di Pengaturan.",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.29",
           "Kanal": "WhatsApp",
-          "Penerima": "—",
+          "Penerima / perangkat": "—",
           "Notifikasi": "Penjadwal tidak berjalan",
           "Status": "Dilewati",
           "Percobaan": "0",
@@ -1146,9 +1258,9 @@
           "Status penyedia": "—"
         },
         {
-          "Dibuat": "12 Sep 2026 03.20",
+          "Dibuat": "13 Sep 2026 05.29",
           "Kanal": "E-mail",
-          "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+          "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
           "Notifikasi": "Penjadwal tidak berjalan",
           "Status": "Dilewati",
           "Percobaan": "0",
@@ -1158,9 +1270,9 @@
           "Status penyedia": "—"
         },
         {
-          "Dibuat": "12 Sep 2026 03.18",
+          "Dibuat": "13 Sep 2026 05.29",
           "Kanal": "WhatsApp",
-          "Penerima": "—",
+          "Penerima / perangkat": "—",
           "Notifikasi": "Penjadwal tidak berjalan",
           "Status": "Dilewati",
           "Percobaan": "0",
@@ -1170,9 +1282,57 @@
           "Status penyedia": "—"
         },
         {
-          "Dibuat": "12 Sep 2026 03.18",
+          "Dibuat": "13 Sep 2026 05.29",
           "Kanal": "E-mail",
-          "Penerima": "admin@nusantara.test\nAdministrator Sistem",
+          "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.28",
+          "Kanal": "WhatsApp",
+          "Penerima / perangkat": "—",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.28",
+          "Kanal": "E-mail",
+          "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "MAIL_MAILER=log — belum ada server surel; pesan hanya ditulis ke berkas log, tidak keluar dari mesin. Arahkan MAIL_* di .env ke server sungguhan (DEPLOYMENT.md §11).",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.27",
+          "Kanal": "WhatsApp",
+          "Penerima / perangkat": "—",
+          "Notifikasi": "Penjadwal tidak berjalan",
+          "Status": "Dilewati",
+          "Percobaan": "0",
+          "Galat / alasan": "WhatsApp dinonaktifkan di Pengaturan.",
+          "Berikutnya": "—",
+          "Terkirim": "—",
+          "Status penyedia": "—"
+        },
+        {
+          "Dibuat": "13 Sep 2026 05.27",
+          "Kanal": "E-mail",
+          "Penerima / perangkat": "admin@nusantara.test\nAdministrator Sistem",
           "Notifikasi": "Penjadwal tidak berjalan",
           "Status": "Dilewati",
           "Percobaan": "0",
@@ -1186,7 +1346,7 @@
     },
     "console_errors": [],
     "checks": {
-      "the_profile_renders_both_channels_on_a_phone": true,
+      "the_profile_renders_all_three_channels_on_a_phone": true,
       "the_profile_never_scrolls_sideways": true,
       "switching_whatsapp_off_from_a_phone_is_stored": true,
       "the_global_switch_still_wins_over_the_users_choice": true,
@@ -1195,7 +1355,7 @@
     },
     "failed_checks": [],
     "ok": true,
-    "_ms": 6531,
+    "_ms": 6846,
     "_clicks": 2
   },
   "S38_kepatuhan_djp": {
@@ -3349,5 +3509,242 @@
     "ok": true,
     "_ms": 5168,
     "_clicks": 2
+  },
+  "S41_web_push_profil_dan_service_worker": {
+    "reset": {
+      "cleared": true
+    },
+    "not_run": [
+      "PushManager.subscribe() sungguhan: tidak ada layanan push di Chromium headless mesin ini",
+      "notificationclick: tidak ada pintu CDP untuk mengetuk notifikasi"
+    ],
+    "notification_browser": "chromium penuh (--headless=new)",
+    "switch_off": "false",
+    "server_blocked": {
+      "card_present": true,
+      "intro": "Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.",
+      "blocker_kind": "server",
+      "blocker_text": "Web push dinonaktifkan di Pengaturan.",
+      "buttons": [],
+      "devices": [],
+      "empty_note": "Belum ada perangkat terdaftar — selama itu setiap pemberitahuan web push tercatat Dilewati, bukan Terkirim.",
+      "scrolls_sideways": false,
+      "main_scrolls_sideways": false
+    },
+    "channels_endpoint": {
+      "channel": "webpush",
+      "label": "Web push",
+      "address": null,
+      "enabled_by_user": true,
+      "will_deliver": false,
+      "reason": "Web push dinonaktifkan di Pengaturan."
+    },
+    "switch_on": "true",
+    "ready": {
+      "card_present": true,
+      "intro": "Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.",
+      "blocker_kind": null,
+      "blocker_text": null,
+      "buttons": [
+        "Aktifkan notifikasi di perangkat ini"
+      ],
+      "devices": [],
+      "empty_note": "Belum ada perangkat terdaftar — selama itu setiap pemberitahuan web push tercatat Dilewati, bukan Terkirim.",
+      "scrolls_sideways": false,
+      "main_scrolls_sideways": false
+    },
+    "fixture": {
+      "fixture_endpoint": "https://fcm.googleapis.com/fcm/send/cccccccccccccccccccccccccccccccccccccccc",
+      "label": "Chrome di Android"
+    },
+    "with_device": {
+      "card_present": true,
+      "intro": "Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.",
+      "blocker_kind": null,
+      "blocker_text": null,
+      "buttons": [
+        "Aktifkan notifikasi di perangkat ini"
+      ],
+      "devices": [
+        {
+          "label": "Chrome di Android",
+          "here": "no",
+          "badge": null,
+          "meta": [
+            "Didaftarkan 10 Sep 2026 06:57 WIB · terakhir berhasil menerima belum pernah"
+          ],
+          "buttons": [
+            "Cabut"
+          ]
+        }
+      ],
+      "empty_note": "Didaftarkan 10 Sep 2026 06:57 WIB · terakhir berhasil menerima belum pernah",
+      "scrolls_sideways": false,
+      "main_scrolls_sideways": false
+    },
+    "sw_registration": {
+      "id": "0",
+      "scope": "http://127.0.0.1:8111/app/"
+    },
+    "notifications_good_payload": [
+      {
+        "title": "Cadangan luar situs basi (S41)",
+        "body": "Cadangan terakhir berumur 3 hari.",
+        "tag": "erp-notif-s41",
+        "data": {
+          "tautan": "http://127.0.0.1:8111/app/#/settings"
+        }
+      }
+    ],
+    "notifications_broken_payload": [
+      {
+        "title": "Nusantara ERP",
+        "body": "Ada pemberitahuan baru. Buka Nusantara ERP untuk membacanya.",
+        "tag": "nusantara-erp",
+        "data": {
+          "tautan": null
+        }
+      }
+    ],
+    "console_errors_main": [],
+    "no_push_api": {
+      "card_present": true,
+      "intro": "Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.",
+      "blocker_kind": "unsupported",
+      "blocker_text": "Peramban ini tidak mendukung Push API, jadi pemberitahuan di luar aplikasi tidak bisa dinyalakan di sini. Yang mendukungnya: Chrome, Edge, Firefox dan Opera di Android/Windows/macOS/Linux, serta Safari di iOS 16.4+ lewat \"Tambahkan ke Layar Utama\". Pemberitahuan di dalam aplikasi (lonceng) tetap bekerja seperti biasa.",
+      "buttons": [],
+      "devices": [
+        {
+          "label": "Chrome di Android",
+          "here": "no",
+          "badge": null,
+          "meta": [
+            "Didaftarkan 10 Sep 2026 06:57 WIB · terakhir berhasil menerima belum pernah"
+          ],
+          "buttons": [
+            "Cabut"
+          ]
+        }
+      ],
+      "empty_note": "Didaftarkan 10 Sep 2026 06:57 WIB · terakhir berhasil menerima belum pernah",
+      "scrolls_sideways": false,
+      "main_scrolls_sideways": false
+    },
+    "permission_state_denied": "denied",
+    "denied": {
+      "card_present": true,
+      "intro": "Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.",
+      "blocker_kind": "denied",
+      "blocker_text": "Pemberitahuan DITOLAK untuk situs ini di peramban Anda, dan aplikasi tidak bisa memintanya lagi — permintaannya hanya boleh muncul sekali. Yang harus diubah adalah setelan situs di peramban: buka ikon gembok/info di sebelah alamat, cari \"Pemberitahuan\", ubah menjadi Izinkan (atau Tanya), lalu muat ulang halaman ini.",
+      "buttons": [],
+      "devices": [
+        {
+          "label": "Chrome di Android",
+          "here": "no",
+          "badge": null,
+          "meta": [
+            "Didaftarkan 10 Sep 2026 06:57 WIB · terakhir berhasil menerima belum pernah"
+          ],
+          "buttons": [
+            "Cabut"
+          ]
+        }
+      ],
+      "empty_note": "Didaftarkan 10 Sep 2026 06:57 WIB · terakhir berhasil menerima belum pernah",
+      "scrolls_sideways": false,
+      "main_scrolls_sideways": false
+    },
+    "console_errors": [],
+    "checks": {
+      "the_switch_off_is_a_dead_end_with_the_servers_own_sentence": true,
+      "and_no_button_is_offered_while_it_cannot_work": true,
+      "the_profile_screen_and_the_channels_endpoint_say_the_same_words": true,
+      "switching_it_on_offers_the_button": true,
+      "the_empty_list_says_what_happens_while_it_is_empty": true,
+      "a_registered_device_shows_its_label_and_when_it_last_succeeded": true,
+      "a_device_that_is_not_this_browser_is_not_badged_as_this_device": true,
+      "a_push_really_draws_the_notification_in_the_payload": true,
+      "a_payload_that_cannot_be_parsed_still_draws_a_notification": true,
+      "a_browser_without_push_api_says_so_instead_of_showing_a_button": true,
+      "a_denied_permission_points_at_the_browsers_site_settings": true,
+      "no_console_error": true
+    },
+    "failed_checks": [],
+    "ok": true,
+    "restored": {
+      "switch": "false",
+      "rows": {
+        "cleared": true
+      }
+    },
+    "_ms": 20672,
+    "_clicks": 0
+  },
+  "S41_web_push_profil_ponsel": {
+    "reset": {
+      "cleared": true
+    },
+    "switch": "true",
+    "push": {
+      "card_present": true,
+      "intro": "Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.",
+      "blocker_kind": "ios",
+      "blocker_text": "Di iPhone dan iPad, pemberitahuan hanya bisa dinyalakan setelah aplikasi ini DITAMBAHKAN KE LAYAR UTAMA (iOS/iPadOS 16.4 ke atas): di Safari tekan tombol Bagikan, pilih \"Tambahkan ke Layar Utama\", lalu buka Nusantara ERP dari ikonnya di layar utama dan kembali ke halaman ini. Di tab Safari biasa tombol ini tidak akan pernah bekerja — itu batas sistem operasinya, bukan setelan yang bisa diubah.",
+      "buttons": [],
+      "devices": [],
+      "empty_note": "Belum ada perangkat terdaftar — selama itu setiap pemberitahuan web push tercatat Dilewati, bukan Terkirim.",
+      "scrolls_sideways": false,
+      "main_scrolls_sideways": false
+    },
+    "overflow": 0,
+    "console_errors": [],
+    "fixture": {
+      "fixture_endpoint": "https://fcm.googleapis.com/fcm/send/dddddddddddddddddddddddddddddddddddddddd",
+      "label": "Chrome di Android Lapangan Proyek"
+    },
+    "android_notification_browser": "chromium penuh (--headless=new)",
+    "push_android": {
+      "card_present": true,
+      "intro": "Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.",
+      "blocker_kind": null,
+      "blocker_text": null,
+      "buttons": [
+        "Aktifkan notifikasi di perangkat ini"
+      ],
+      "devices": [
+        {
+          "label": "Chrome di Android Lapangan Proyek",
+          "here": "no",
+          "badge": null,
+          "meta": [
+            "Didaftarkan 10 Sep 2026 06:58 WIB · terakhir berhasil menerima belum pernah"
+          ],
+          "buttons": [
+            "Cabut"
+          ]
+        }
+      ],
+      "empty_note": "Didaftarkan 10 Sep 2026 06:58 WIB · terakhir berhasil menerima belum pernah",
+      "scrolls_sideways": false,
+      "main_scrolls_sideways": false
+    },
+    "overflow_android": 0,
+    "device_text_nodes_measured": 3,
+    "checks": {
+      "safari_in_a_tab_gets_the_install_instructions_not_a_button": true,
+      "it_says_the_button_would_never_work_there_rather_than_pretending": true,
+      "the_card_never_scrolls_sideways": true,
+      "no_push_text_is_clipped_on_an_iphone": true,
+      "android_at_390px_draws_the_device_list": true,
+      "android_at_390px_gets_the_button_when_permission_can_be_granted": true,
+      "the_device_row_is_actually_there_to_be_measured": true,
+      "no_push_text_is_clipped_on_an_android_phone_with_a_device_row": true,
+      "the_card_never_scrolls_sideways_on_android": true,
+      "no_console_error": true
+    },
+    "failed_checks": [],
+    "ok": true,
+    "_ms": 10047,
+    "_clicks": 0
   }
 }

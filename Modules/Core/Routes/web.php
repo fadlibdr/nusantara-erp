@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Core\Http\Controllers\ExternalApprovalPageController;
+use Modules\Core\Http\Controllers\PushRotationController;
 use Modules\Core\Http\Controllers\WhatsAppWebhookController;
 
 /*
@@ -44,3 +45,22 @@ Route::get('whatsapp/webhook', [WhatsAppWebhookController::class, 'verify'])
 
 Route::post('whatsapp/webhook', [WhatsAppWebhookController::class, 'statuses'])
     ->middleware('throttle:600,1');
+
+/*
+ * Rotasi langganan web push (P-3e, T3e.5) — permukaan publik ketiga.
+ *
+ * Dipanggil SERVICE WORKER pada peristiwa `pushsubscriptionchange`, yaitu
+ * ketika peramban memutar endpoint langganan atas kemauannya sendiri.
+ * Tiga alasan ia tidak bisa berada di bawah `api/` dengan `auth:sanctum`:
+ * worker tidak bisa membaca token di localStorage (tidak ada API-nya),
+ * peristiwanya menyala ketika tidak ada tab yang terbuka, dan
+ * PwaServiceWorkerTest memaku bahwa kode sw.js tidak menyebut `/api` sama
+ * sekali (CONVENTIONS §21).
+ *
+ * Kapabilitasnya adalah ENDPOINT LAMA, dan rute ini TIDAK PERNAH MEMBUAT
+ * baris: endpoint lama yang tidak cocok apa pun dijawab tanpa menulis. Asal
+ * endpoint baru harus sama dengan yang lama. Lihat PushRotationController
+ * untuk batas yang tersisa, yang dikatakan apa adanya.
+ */
+Route::post('push/rotate', PushRotationController::class)
+    ->middleware('throttle:30,1');

@@ -64,7 +64,7 @@ Pemilik menyetujui rentang lanjutan Finance dan Projects (ROADMAP-HASHMICRO §5 
 | Finance     | 001100–001199 | **001500–001599** | DIPAKAI — `2026_09_07_001500_create_fin_overhead_budget_tables.php` (F-2), `2026_09_07_001501_add_cancellation_to_fin_overhead_budgets_table.php` (putaran verifikasi F-2), `2026_09_12_001502_add_import_preset_to_fin_bank_accounts_table.php` dan `2026_09_12_001503_create_fin_bank_inbox_files_table.php` (P-3c) |
 | Projects    | 000700–000799 | **001600–001699** | DIDAFTARKAN, belum dipakai — F-2 tidak butuh migrasi Projects |
 | Inventory   | 000400–000499 | **001700–001799** | DIPAKAI — `2026_09_08_001700_create_inv_reorder_rules_table.php` (F-6) |
-| Core        | 000100–000199 | **001800–001899** | DIPAKAI — `2026_09_09_001800_add_valid_until_to_core_attachments_table.php` (F-8); `2026_09_11_001801_add_template_to_core_notifications_table.php` dan `2026_09_11_001802_add_provider_status_to_core_notification_deliveries_table.php` (P-3a) |
+| Core        | 000100–000199 | **001800–001899** | DIPAKAI — `2026_09_09_001800_add_valid_until_to_core_attachments_table.php` (F-8); `2026_09_11_001801_add_template_to_core_notifications_table.php` dan `2026_09_11_001802_add_provider_status_to_core_notification_deliveries_table.php` (P-3a); `2026_09_12_001803_create_core_webhook_tables.php` (P-3d); `2026_09_13_001804_create_core_push_subscriptions_table.php` dan `2026_09_13_001805_add_push_subscription_to_core_notification_deliveries_table.php` (P-3e) |
 
 Rentang Inventory 001700–001799 **belum ada di ledger pemilik** (ROADMAP-HASHMICRO §5 baris 5
 menyebut Core, Finance dan Projects saja). Ia ditetapkan di sini karena aturan di bawah menuntut
@@ -905,11 +905,16 @@ itu, memaku bahwa hanya ada SATU `respondWith()` dan SATU `cache.put()`, dan mem
 
 Uji itu memaku **bentuk, bukan ejaan**: badan `shellRequest()` dan `storable()` dibandingkan UTUH,
 tulisan cache dihitung sebagai pola `\w+.put(`/`\w+.add(` (bukan nama variabel `cache`), dan DAFTAR
-pendengar worker dipaku persis empat (`install`, `activate`, `fetch`, `message`). Alasannya terukur:
+pendengar worker dipaku persis — **empat sampai P-3e, tujuh sesudahnya** (`install`, `activate`,
+`fetch`, `message`, dan `push`, `notificationclick`, `pushsubscriptionchange`). Alasannya terukur:
 versi pertama yang menghitung potongan teks meloloskan empat mutasi yang benar-benar membocorkan
 cache — antara lain pendengar `fetch` KEDUA yang menulis lewat `store.put()` tanpa satu pun
 `respondWith()`, yang di peramban menyajikan `/api/core/dashboard/summary` kepada orang berikutnya
-di perangkat yang sama, sesudah Keluar, tanpa token. **Menambah pendengar berarti menambah ujinya.**
+di perangkat yang sama, sesudah Keluar, tanpa token. **Menambah pendengar berarti menambah ujinya**,
+dan P-3e membayarnya: menaikkan angka empat → tujuh disertai pin baru yang membaca **badan ketiga
+pendengar web push satu per satu** dan menolak `caches`, tulisan `.put(`/`.add(`, dan permintaan ke
+`/api` di dalamnya. Muatan push membawa judul dan isi pemberitahuan seseorang; sebuah `cache.put()`
+di pendengar `push` adalah kebocoran yang sama persis dari pintu yang baru.
 
 **Strateginya jaringan-dulu.** Cache dibaca HANYA ketika `fetch()` melempar. Jawaban HTTP yang sah
 tetapi tidak menyenangkan (404 sesudah rilis membuang berkas, 401 dari gerbang HTTP) diteruskan apa
@@ -2244,9 +2249,12 @@ sebab = satu konstanta + satu cabang di sini, tidak pernah `if` di kanal. `Iam\S
 PasswordHelp::resetByEmail()` membaca `MailTransport` yang sama, supaya halaman masuk dan
 kotak keluar tidak berselisih tentang apakah surat keluar dari mesin.
 
-**Satu baris per kanal luar per penerima** (`DeliveryGate::USER_CHANNELS` = email, whatsapp),
+**Satu baris per kanal luar per penerima** (`DeliveryGate::USER_CHANNELS` = email, whatsapp; sejak
+P-3e ditambah webpush, yang ber-FAN-OUT per perangkat — §42),
 masing-masing di balik `guard()`-nya sendiri, SESUDAH semua baris kotak masuk ditulis (P-0b).
-Dengan kedua sakelar mati (bawaan) setiap notifikasi menghasilkan dua baris `skipped` —
+Dengan ketiga sakelar mati (bawaan) setiap notifikasi menghasilkan tiga baris `skipped` —
+(web push tanpa perangkat terdaftar juga satu baris: fan-out per perangkat atas nol perangkat tetap
+menulis satu baris yang menyebut sebabnya, bukan diam) —
 pertumbuhan tabel adalah keputusan pemilik (LAPORAN P-3a), bukan alasan menyembunyikan baris.
 
 **Template per peristiwa** — `Core\Support\NotificationTemplates`: PERSIS lima kunci
@@ -2666,3 +2674,115 @@ mengeluarkan middlewarenya dari `gatherMiddleware()`, jadi syarat yang hanya
 membaca yang pertama meloloskan satu baris yang membuka endpoint bagi siapa pun.
 Menambah endpoint ke dokumen = menambah `x-izin`-nya, `requestBody`-nya bila ia
 TULIS, dan parameter halaman bila jawabannya `AmplopDaftar`.
+
+## 42. Web push — satu baris per PERANGKAT, dan pengenal yang tidak dikarang (P-3e)
+
+**Web Push STANDAR, bukan FCM.** RFC 8030/8291/8292 lewat `minishlink/web-push` (kripto
+aes128gcm tidak ditulis sendiri). **Tidak ada SDK Firebase, tidak ada akun Google, tidak ada
+aplikasi native.** Endpoint `fcm.googleapis.com` yang muncul di `core_push_subscriptions` adalah
+**pilihan Chrome**, bukan integrasi kita: Firefox memberi alamat Mozilla dan Safari alamat Apple,
+dan tidak satu baris kode pun berubah.
+
+**`core_push_subscriptions` (migrasi 001804).** `endpoint` disimpan **UTUH** di kolom `text` dan
+**TIDAK PERNAH diindeks**: endpoint yang NYATA diukur **188 karakter** (13 Sep 2026) dan
+spesifikasinya tidak menjanjikan batas apa pun, sementara `varchar(190)` utf8mb4 = 760 byte adalah
+batas indeks InnoDB. Identitasnya dibawa `endpoint_hash` = **sha256 heksadesimal, 64 karakter,
+unik** — karena itu peramban yang berlangganan ulang **memperbarui** barisnya, bukan menumpuk.
+`p256dh` dan `auth` milik peramban apa adanya; **tidak ada satu pun rahasia KITA di tabel ini**
+(kunci privat VAPID hanya di `.env`). User-Agent **mentah tidak disimpan**: `PushDeviceLabel`
+menurunkan "Chrome di Android" sekali saat mendaftar dan membuang sisanya.
+
+**SATU BARIS KOTAK KELUAR PER LANGGANAN**, bukan per orang — satu-satunya kanal yang ber-fan-out
+(`push_subscription_id`, migrasi 001805). Alasannya: seseorang bisa punya tiga perangkat yang
+menjawab **berbeda** dalam satu pengiriman (201, 410, timeout). Satu baris harus memilih satu
+jawaban dari tiga, satu `provider_id` dari tiga, dan "Kirim ulang" sesudah 1 dari 3 berhasil akan
+mengirim **ulang ke perangkat yang sudah menerima**. Harganya dikatakan apa adanya: barisnya
+berlipat sebanyak perangkat. Kolomnya **tanpa foreign key** dengan sengaja — baris pengiriman
+adalah riwayat dan harus hidup lebih lama daripada perangkatnya.
+
+**PENGENAL YANG TIDAK DIKARANG.** Web push **tidak punya message id** dalam standarnya: RFC 8030 §5
+menjadikan header `Location` **opsional**. Yang ada dipakai apa adanya; yang tidak ada dibiarkan
+**kosong**, dan buktinya adalah `201` dari layanan push itu sendiri. Aturan "tidak ada `sent` tanpa
+pengenal penyedia" (§38) karena itu dilonggarkan **HANYA** untuk kanal yang mengimplementasikan
+`Core\Contracts\ChannelWithoutMessageId`; `MailChannel` dan `WhatsAppChannel` **tidak**
+mengimplementasikannya, dan uji memaku itu sebagai bentuk kelas, bukan sebagai kalimat. Yang
+dilonggarkan hanya "kosong belum tentu gagal"; "gagal berarti gagal" tidak pernah dilonggarkan —
+kanal tetap wajib MELEMPAR.
+
+**Empat sebab baru di `DeliveryGate`**, urutan yang sama dengan kanal lain (paling global →
+paling pribadi): `WEBPUSH_DISABLED` (sakelar Pengaturan) → `WebPushSetup::skipReason()` (VAPID di
+`.env`) → `USER_OFF` → `WEBPUSH_NO_DEVICE`. Dua yang pertama dipisah ke
+`DeliveryGate::webPushServerReason()` karena layar Profil membutuhkannya sendiri: itulah jalan
+buntu yang **tidak bisa** diatasi tindakan apa pun di peramban, jadi tombolnya tidak ditawarkan.
+
+**TUJUH jalan buntu di kartu Profil** (empat sampai putaran verifikasi P-3e, 13 Sep 2026), dalam
+urutan gerbang: sebab server → iOS tanpa Layar Utama → **konteks tidak aman** → tanpa Push API →
+**worker belum terdaftar** → izin ditolak → **kanal dimatikan pengguna**. Ketiga yang baru masing-
+masing menutup sebuah tombol mati tanpa kalimat: halaman tanpa TLS membuat `'serviceWorker' in
+navigator` bernilai false dan kalimat "peramban tidak mendukung" menyalahkan peramban yang sehat;
+tanpa registrasi worker, `navigator.serviceWorker.ready` **tidak pernah selesai** dan `finally`
+`withBusy()` tidak pernah berjalan (karena itu ia dibungkus `Promise.race` berkalimat); dan kanal
+yang dimatikan pengguna membuat kartu menjanjikan "pemberitahuan berikutnya akan muncul" untuk
+baris yang kotak keluar akan tulis **Dilewati**. Badan `pushBlocker()` **dibandingkan UTUH** di
+uji — sebuah gerbang yang memilih satu kalimat dari tujuh hanya bisa dipaku sebagai satu kalimat
+penuh.
+
+**ENDPOINT PERANGKAT ADALAH URL MILIK ORANG LAIN, dan ia melewati penjaga §11** (putaran
+verifikasi P-3e). `Core\Support\PushEndpoint` memakai **penilaian `WebhookUrl` apa adanya** —
+bentuk samaran, CGNAT, nama internal, resolver sebagai seam — dan hanya mengganti kalimatnya.
+Diperiksa di **tiga pintu**: pendaftaran, rotasi, dan sekali lagi tepat sebelum mengirim (DNS
+rebinding). **Pengalihan tidak diikuti** (`allow_redirects => false`), dan sebuah 3xx tidak pernah
+`sent` — pustaka ini menandai setiap jawaban yang bukan galat HTTP sebagai sukses, termasuk 3xx.
+**Dua kegagalan penjaga punya umur berbeda**: alamat internal = PERMANEN (`LogicException` →
+`failed` seketika), nama yang tidak bisa diterjemahkan sekarang = SEMENTARA (`RuntimeException` →
+diulang pekerja). Plafon **`PushSubscriptions::MAX_PER_USER` = 10** membatasi fan-out yang bisa
+dipicu pengguna biasa.
+
+**SATU LANGGANAN, SATU PEMILIK — DAN KANAL MEMERIKSANYA.** Langganan push milik PERAMBAN, bukan
+akun: di komputer yang dipakai bergantian, peramban memulangkan endpoint yang SAMA untuk siapa pun
+yang sedang masuk, jadi menekan "Aktifkan" **memindahkan** barisnya (id barisnya tidak berubah).
+Karena itu `WebPushChannel::subscriptionOf()` mencari langganan **di dalam lingkup pemilik baris**,
+dan ketidakcocokan adalah `skipped` — bukan `failed`: tidak ada yang gagal, sasarannya yang
+berpindah. Perpindahan antar-pengguna menulis baris audit. Endpoint **disamarkan** sebelum masuk
+kolom `error` (`ProviderErrorScrubber::webPush($teks, $endpoint)`): ia kapabilitas — `push/rotate`
+memakainya sebagai satu-satunya kredensial — dan kolom itu dibaca setiap pemegang `core.update`.
+
+**404/410 → langganan DIHAPUS, dan kejadiannya dicatat di `core_audit_log`.** Mencatatnya "di baris
+langganan" tidak berarti apa-apa: baris itulah yang dihapus. Log audit append-only dan tidak punya
+jalur hapus di aplikasi ini; ia **tidak punya layar** (PANDUAN-ADMINISTRATOR §3.10) — yang membacanya
+`GET api/core/audit-log`, izin `core.view`. Baris kotak keluarnya
+`failed` seketika (permanen), dan Kirim ulang atasnya **ditolak 422**. **401/403** = kunci VAPID
+ditolak layanan push (termasuk: kunci baru saja diganti) — juga permanen. **429/5xx/jaringan** =
+pengecualian biasa, lima percobaan dengan backoff yang sudah ada.
+
+**Muatan dipotong 2.820 byte**, bukan 4.078 (batas keras pustaka). Di bawah angka itu — panjang
+padding otomatis pustaka — **setiap badan permintaan keluar dengan panjang yang sama persis**
+(diukur 2.922 byte, apa pun isinya), dan panjang badan adalah satu-satunya hal tentang isi pesan
+yang bisa dibaca layanan push. Muatannya `{judul, isi, tautan, tag}`; `tag` = id notifikasi, jadi
+pemberitahuan yang sama yang sampai dua kali **menimpa** alih-alih menumpuk.
+
+**Jahitan uji ada TEPAT SATU: `Core\Support\WebPushSender::$clientOptions`.** `Minishlink\WebPush\
+WebPush` **membuat klien Guzzle-nya sendiri** di konstruktor, jadi `Http::fake()` dan
+`Http::preventStrayRequests()` **TIDAK menutupinya** — diukur 13 Sep 2026: uji yang lupa memasang
+handler benar-benar menghubungi layanan push dari mesin uji. Satu-satunya lubang adalah argumen
+KEEMPAT konstruktornya (`clientOptions`), dan uji memasang
+`['handler' => HandlerStack::create(new MockHandler([...]))]` di sana
+(`Tests\Support\FakeWebPushSender`). Yang tetap dijalankan adalah kode sungguhan sampai ke soket:
+enkripsi, penandatanganan, pembentukan permintaan — jadi **kunci langganan di uji harus kunci
+P-256 yang SAH**. `VAPID::getVapidHeaders()` menuntut kunci MENTAH dan melempar untuk bentuk
+base64url; yang dipakai adalah kelas `WebPush` (lewat `VAPID::validate`). `ContentEncoding` adalah
+**enum PHP** di v10, bukan string, dan `aes128gcm` **disebut** — bawaan pustaka masih `aesgcm`.
+
+**Rotasi `pushsubscriptionchange` lewat rute PUBLIK `POST push/rotate`**, bukan `api/`. Bukan
+kenyamanan: service worker **tidak bisa membaca token sesi** (ia di `localStorage`, yang tidak
+punya API di sana), peristiwanya menyala **ketika tidak ada satu tab pun terbuka**, dan §21 memaku
+bahwa kode `sw.js` tidak menyebut `/api` sama sekali. Kapabilitasnya adalah **endpoint lama**;
+**lima batas** menjaganya — rutenya **tidak pernah MEMBUAT** baris (endpoint lama yang tidak dikenal
+dijawab tanpa menulis), asal endpoint baru harus **sama** dengan yang lama, ia **tidak pernah
+menyentuh baris milik akun lain** (putaran verifikasi: tanpa batas ini satu POST tanpa sesi
+menghapus langganan korban), alamatnya bukan alamat internal, dan lajunya dibatasi.
+
+**Yang boleh diklaim tentang privasinya, dan hanya itu:** isi pesan dienkripsi ujung-ke-ujung
+dengan kunci milik peramban penerima, jadi layanan push **tidak bisa membacanya**. Yang TETAP
+dilihatnya: **bahwa ada pesan, kapan, dan untuk endpoint mana**. Uji kabel SPA memaku daftar frasa
+yang tidak boleh muncul di layar ("tidak ada yang tahu", "sepenuhnya pribadi", …).

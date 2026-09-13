@@ -12,6 +12,7 @@ use Illuminate\Queue\MaxAttemptsExceededException;
 use Illuminate\Queue\TimeoutExceededException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Modules\Core\Contracts\ChannelWithoutMessageId;
 use Modules\Core\Exceptions\DeliveryRejectedException;
 use Modules\Core\Exceptions\DeliverySkippedException;
 use Modules\Core\Models\NotificationDelivery;
@@ -167,9 +168,18 @@ class DeliverNotification implements ShouldQueueAfterCommit
         $delivery->forceFill(['attempts' => $delivery->attempts + 1])->save();
 
         try {
-            $providerId = trim((string) DeliveryChannels::for($delivery->channel)->send($delivery, $delivery->notification));
+            $channel = DeliveryChannels::for($delivery->channel);
+            $providerId = trim((string) $channel->send($delivery, $delivery->notification));
 
-            if ($providerId === '') {
+            // SATU-SATUNYA PELONGGARAN aturan "pengenal wajib", dan ia
+            // ditandai di KANALNYA, bukan di sini: web push tidak punya
+            // message id dalam standarnya (RFC 8030 §5 menjadikan header
+            // Location opsional), jadi buktinya adalah 201/2xx dari layanan
+            // push itu sendiri. Kanal yang penyedianya MEMANG memberi pengenal
+            // — e-mail (Message-ID sesudah 250) dan WhatsApp (wamid) — tidak
+            // mengimplementasikan ChannelWithoutMessageId, dan kosong dari
+            // mereka tetap percobaan gagal. Lihat Contracts\ChannelWithoutMessageId.
+            if ($providerId === '' && ! $channel instanceof ChannelWithoutMessageId) {
                 throw new \RuntimeException(
                     'Kanal tidak memulangkan pengenal dari penyedia; tanpa itu tidak ada bukti pesan diterima, '
                     .'jadi status tidak ditandai terkirim.',
@@ -215,7 +225,10 @@ class DeliverNotification implements ShouldQueueAfterCommit
         // merah bertanggal sebelum jam Terkirim-nya).
         $delivery->forceFill([
             'status' => NotificationDelivery::SENT,
-            'provider_id' => Str::limit($providerId, 190, ''),
+            // Kosong disimpan sebagai NULL, bukan string kosong: "layanan push
+            // tidak mengirim Location" dan "pengenalnya string kosong" adalah
+            // dua hal berbeda, dan layar membaca yang pertama sebagai "—".
+            'provider_id' => $providerId === '' ? null : Str::limit($providerId, 190, ''),
             'provider_status' => null,
             'provider_status_at' => null,
             'error' => null,

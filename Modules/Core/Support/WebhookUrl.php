@@ -61,6 +61,18 @@ final class WebhookUrl
     /** Akhiran nama yang tidak pernah keluar dari jaringan sendiri. */
     public const PRIVATE_SUFFIXES = ['.local', '.internal', '.localhost', '.home.arpa'];
 
+    /*
+     * TIGA PENOLONG DI BAWAH INI PUBLIK KARENA ADA PEMAKAI KEDUA (P-3e,
+     * putaran verifikasi: A-1/B-2). Endpoint langganan web push adalah URL
+     * milik orang lain persis seperti URL webhook, dan menulis aturan bentuk
+     * samaran untuk KEDUA KALINYA adalah cara memiliki dua daftar yang
+     * berbeda enam bulan lagi — yang satu tahu `0177.0.0.1`, yang satu tidak.
+     * Maka yang dipakai bersama adalah PENILAIAN alamatnya; yang tidak dipakai
+     * bersama adalah KALIMATNYA, karena kalimat yang menyebut "webhook" kepada
+     * orang yang sedang mendaftarkan ponselnya adalah kalimat yang salah.
+     * Lihat Modules/Core/Support/PushEndpoint.php.
+     */
+
     /** @var null|callable(string): list<string> */
     private static $resolver = null;
 
@@ -101,7 +113,7 @@ final class WebhookUrl
 
         $host = strtolower($parts['host']);
 
-        if ($host === 'localhost' || Str::endsWith($host, self::PRIVATE_SUFFIXES)) {
+        if (self::isPrivateName($host)) {
             throw new LogicException("Alamat «{$host}» adalah nama jaringan internal. Webhook hanya dikirim ke alamat yang bisa dijangkau dari luar.");
         }
 
@@ -148,6 +160,14 @@ final class WebhookUrl
         }
     }
 
+    /** Nama yang tidak pernah keluar dari jaringan sendiri — `localhost` telanjang atau berakhiran PRIVATE_SUFFIXES. */
+    public static function isPrivateName(string $host): bool
+    {
+        $host = strtolower(trim($host));
+
+        return $host === 'localhost' || Str::endsWith($host, self::PRIVATE_SUFFIXES);
+    }
+
     /**
      * Alamat IP yang benar-benar dituju host ini tanpa bertanya kepada DNS,
      * atau null bila host-nya sebuah NAMA.
@@ -157,7 +177,7 @@ final class WebhookUrl
      * ala `inet_aton` (`2130706433`, `0177.0.0.1`, `127.1`), yang dipakai
      * pustaka HTTP dan libc persis seperti alamat bertitik empat.
      */
-    private static function literalAddress(string $host): ?string
+    public static function literalAddress(string $host): ?string
     {
         $literal = trim($host, '[]');
 
@@ -288,7 +308,7 @@ final class WebhookUrl
     }
 
     /** @return list<string> */
-    private static function resolve(string $host): array
+    public static function resolve(string $host): array
     {
         if (self::$resolver !== null) {
             return array_values(array_filter((self::$resolver)($host), 'is_string'));
