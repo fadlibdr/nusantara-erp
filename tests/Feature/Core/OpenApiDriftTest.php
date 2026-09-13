@@ -346,18 +346,48 @@ class OpenApiDriftTest extends ErpTestCase
         // badannya memang berbeda — dan yang kedua tidak punya `errors` sama
         // sekali. Bentuk kenyataannya dipaku
         // ApiTokenAbilityMatrixTest::test_revoking_the_permission_from_the_role_…
+        //
+        // V-close-1: syaratnya MENGIKUTI `x-izin`, dan berlaku DUA ARAH. Versi
+        // pertama uji ini hanya memeriksa operasi yang PUNYA 403, sehingga ia
+        // justru menjaga kalimat yang tidak benar tetap ada: sembilan operasi
+        // ber-`x-izin: []` menjanjikan 403 «ability yang kurang» pada rute yang
+        // tidak digerbangi izin apa pun — 403 yang tidak pernah bisa dikirim,
+        // sementara token «hanya baca proyek» memulangkan 200 berisi seluruh
+        // master pelanggan/vendor/PO/SPK/penerimaan barang. Sekarang: rute
+        // BERGERBANG wajib menjanjikannya, rute TANPA gerbang wajib TIDAK —
+        // dan wajib mengatakan bahwa ability tidak mempersempitnya.
+        $gated = 0;
+        $ungated = 0;
+
         foreach ($doc['paths'] as $path => $methods) {
             foreach ($methods as $method => $operation) {
-                if (! isset($operation['responses']['403'])) {
+                $where = strtoupper($method).' '.$path;
+                $forbidden = $operation['responses']['403']['description'] ?? null;
+
+                if (($operation['x-izin'] ?? []) !== []) {
+                    $gated++;
+                    $this->assertNotNull($forbidden, "{$where}: rute bergerbang izin tanpa jawaban 403 di dokumen");
+                    $this->assertStringContainsString('errors.token_abilities', $forbidden, $where);
+                    $this->assertStringContainsString('TANPA kunci `errors`', $forbidden, $where);
+
                     continue;
                 }
 
-                $forbidden = $operation['responses']['403']['description'];
-
-                $this->assertStringContainsString('errors.token_abilities', $forbidden, $method.' '.$path);
-                $this->assertStringContainsString('TANPA kunci `errors`', $forbidden, $method.' '.$path);
+                $ungated++;
+                $this->assertNull($forbidden,
+                    "{$where}: rute ini tidak digerbangi izin apa pun, jadi 403 «ability yang kurang» tidak pernah "
+                    .'dikirim — dokumen tidak boleh menjanjikannya (V-close-1)');
+                $this->assertStringContainsString('TIDAK digerbangi izin apa pun', $operation['description'] ?? '',
+                    "{$where}: dokumen harus mengatakan bahwa ability tidak mempersempit rute ini");
             }
         }
+
+        $this->assertSame(20, $gated + $ungated, 'jumlah operasi yang didokumentasikan berubah');
+        $this->assertGreaterThan(0, $gated);
+        $this->assertGreaterThan(0, $ungated);
+
+        // Kalimat yang sama harus ada di kontrak autentikasi, bukan hanya per operasi.
+        $this->assertStringContainsString('tidak digerbangi izin', $doc['x-autentikasi']['ability']);
         $this->assertStringContainsString('data.permissions', $me);
 
         $this->assertStringContainsString('X-Api-Token', $doc['x-autentikasi']['header_alternatif']);

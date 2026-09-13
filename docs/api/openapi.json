@@ -3,7 +3,7 @@
   "info": {
     "title": "Nusantara ERP — API integrasi",
     "version": "1.0.0",
-    "description": "DIPELIHARA TANGAN. ROADMAP-HASHMICRO P-3d menolak pembangkit otomatis secara eksplisit: ia menuntut dependensi Composer baru dan akan memuntahkan 862 rute yang tidak terkurasi, yang tidak seorang pun bisa membacanya sebagai janji. Yang didokumentasikan di sini adalah DUA PULUH endpoint yang benar-benar dipakai sebuah integrasi luar: masuk, memeriksa token, lalu membaca daftar dan detail dokumen utama (pelanggan, vendor, PO, AR, AP, pembayaran, jurnal, SPK, penerimaan barang) plus dua layar webhook. tests/Feature/Core/OpenApiDriftTest membandingkan setiap baris di bawah ini terhadap Route::getRoutes() pada TIGA hal — jalur, metode HTTP, dan izin yang menggerbanginya — DAN HANYA untuk kedua puluh ini, supaya endpoint baru sebuah modul lain tidak memerahkan gerbang tanpa sebab. Berkas ini statis: tidak ada pembangkit, tidak ada dependensi."
+    "description": "DIPELIHARA TANGAN. ROADMAP-HASHMICRO P-3d menolak pembangkit otomatis secara eksplisit: ia menuntut dependensi Composer baru dan akan memuntahkan 862 rute yang tidak terkurasi, yang tidak seorang pun bisa membacanya sebagai janji. Yang didokumentasikan di sini adalah DUA PULUH endpoint yang benar-benar dipakai sebuah integrasi luar: masuk, memeriksa token, lalu membaca daftar dan detail dokumen utama (pelanggan, vendor, PO, AR, AP, pembayaran, jurnal, SPK, penerimaan barang) plus dua layar webhook. tests/Feature/Core/OpenApiDriftTest membandingkan setiap baris di bawah ini terhadap Route::getRoutes() pada EMPAT hal — jalur, metode HTTP, izin yang menggerbanginya, dan apakah rutenya benar-benar menuntut `auth:sanctum` — DAN HANYA untuk kedua puluh ini, supaya endpoint baru sebuah modul lain tidak memerahkan gerbang tanpa sebab. Berkas ini statis: tidak ada pembangkit, tidak ada dependensi."
   },
   "servers": [
     {
@@ -15,7 +15,7 @@
     "header": "Authorization: Bearer <token>",
     "header_alternatif": "X-Api-Token: <token> — dipakai ketika sebuah gerbang HTTP di depan aplikasi sudah menguasai header Authorization.",
     "token_pribadi": "Dibuat pemiliknya sendiri di Profil > Token API. Teksnya tampil SEKALI. Masa berlaku 1-365 hari, dipilih saat dibuat.",
-    "ability": "Setiap token pribadi membawa daftar ability = nama izin (mis. fin.view). Sebuah permintaan ditolak 403 bila tokennya tidak membawa izin yang digerbangi rutenya, DAN bila pemilik tokennya sudah tidak memegang izin itu lagi — ability adalah SUBSET izin, bukan pemberian.",
+    "ability": "Setiap token pribadi membawa daftar ability = nama izin (mis. fin.view). Sebuah permintaan ditolak 403 bila tokennya tidak membawa izin yang digerbangi rutenya, DAN bila pemilik tokennya sudah tidak memegang izin itu lagi — ability adalah SUBSET izin, bukan pemberian. PERHATIAN: sebagian rute — termasuk sembilan dari kedua puluh yang didokumentasikan di sini — tidak digerbangi izin apa pun dan karena itu TIDAK dipersempit ability; token sesempit apa pun membacanya. Operasi seperti itu ditandai x-izin: [] dan tidak punya jawaban 403. Ability menyempitkan gerbang izin yang ADA, ia tidak membuat gerbang baru di tempat aplikasi ini tidak menggerbangi apa pun.",
     "cors": "KOSONG, dengan sengaja (ledger pemilik ROADMAP-HASHMICRO §5 baris 10). Tidak ada Access-Control-Allow-Origin yang dikirim, jadi API ini tidak bisa dipanggil dari JavaScript di halaman asal lain. Integrasi memanggilnya dari server ke server, tempat token tidak terlihat pemakai."
   },
   "x-batas-ability": "Ability menyempitkan GERBANG IZIN, dan tidak menciptakan gerbang di tempat aplikasi ini sendiri tidak menggerbangi apa pun. Diukur 12 Sep 2026: 862 rute di bawah /api, 644 dijaga sebuah izin dan 218 hanya menuntut autentikasi. Endpoint yang x-izin-nya kosong ada di golongan kedua: ia dijangkau token terbatas milik seseorang persis seperti sesi peramban orang itu. tests/Feature/Core/UngatedApiRouteCensusTest menghitungnya dan memaku daftar rute TULIS-nya.",
@@ -259,7 +259,7 @@
     "/api/iam/auth/login": {
       "post": {
         "summary": "Masuk dan menerima token sesi",
-        "description": "Menukar email + kata sandi dengan token sesi SPA (abilities [\"*\"], berlaku 720 menit). Integrasi TIDAK memakai pintu ini: ia memakai token pribadi dari Profil > Token API, yang tidak pernah kedaluwarsa dalam 12 jam.",
+        "description": "Menukar email + kata sandi dengan token sesi SPA (abilities [\"*\"], berlaku 720 menit). Integrasi TIDAK memakai pintu ini: ia memakai token pribadi dari Profil > Token API, yang tidak pernah kedaluwarsa dalam 12 jam. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "post_api_iam_auth_login",
         "tags": [
           "iam"
@@ -340,7 +340,7 @@
     "/api/iam/auth/me": {
       "get": {
         "summary": "Identitas dan peran pemilik token",
-        "description": "Panggilan pertama setiap klien: memastikan tokennya hidup dan mengetahui peran pemiliknya. 401 berarti token mati atau dicabut.",
+        "description": "Panggilan pertama setiap klien: memastikan tokennya hidup dan mengetahui peran pemiliknya. 401 berarti token mati atau dicabut. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_iam_auth_me",
         "tags": [
           "iam"
@@ -367,16 +367,6 @@
               }
             }
           },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
-                }
-              }
-            }
-          },
           "429": {
             "description": "Batas laju terlampaui (300 permintaan/menit per token integrasi, 120/menit untuk sesi peramban). Header Retry-After menyebut berapa detik lagi.",
             "content": {
@@ -393,7 +383,7 @@
     "/api/crm/customers": {
       "get": {
         "summary": "Daftar pelanggan",
-        "description": "Hanya menuntut autentikasi: rute ini tidak dijaga izin apa pun, jadi ability token tidak mempersempitnya (lihat x-batas-ability).",
+        "description": "Hanya menuntut autentikasi: rute ini tidak dijaga izin apa pun, jadi ability token tidak mempersempitnya (lihat x-batas-ability). Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_crm_customers",
         "tags": [
           "crm"
@@ -416,16 +406,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
                 }
               }
             }
@@ -613,7 +593,7 @@
     "/api/crm/customers/{customer}": {
       "get": {
         "summary": "Satu pelanggan",
-        "description": "Hanya menuntut autentikasi.",
+        "description": "Hanya menuntut autentikasi. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_crm_customers_customer",
         "tags": [
           "crm"
@@ -636,16 +616,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
                 }
               }
             }
@@ -676,7 +646,7 @@
     "/api/procurement/vendors": {
       "get": {
         "summary": "Daftar vendor",
-        "description": "Hanya menuntut autentikasi.",
+        "description": "Hanya menuntut autentikasi. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_procurement_vendors",
         "tags": [
           "procurement"
@@ -699,16 +669,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
                 }
               }
             }
@@ -743,7 +703,7 @@
     "/api/procurement/vendors/{vendor}": {
       "get": {
         "summary": "Satu vendor",
-        "description": "Hanya menuntut autentikasi.",
+        "description": "Hanya menuntut autentikasi. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_procurement_vendors_vendor",
         "tags": [
           "procurement"
@@ -766,16 +726,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
                 }
               }
             }
@@ -806,7 +756,7 @@
     "/api/procurement/purchase-orders": {
       "get": {
         "summary": "Daftar pesanan pembelian",
-        "description": "Hanya menuntut autentikasi.",
+        "description": "Hanya menuntut autentikasi. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_procurement_purchase-orders",
         "tags": [
           "procurement"
@@ -829,16 +779,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
                 }
               }
             }
@@ -873,7 +813,7 @@
     "/api/procurement/purchase-orders/{purchaseOrder}": {
       "get": {
         "summary": "Satu pesanan pembelian",
-        "description": "Hanya menuntut autentikasi.",
+        "description": "Hanya menuntut autentikasi. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_procurement_purchase-orders_purchaseOrder",
         "tags": [
           "procurement"
@@ -896,16 +836,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
                 }
               }
             }
@@ -1407,7 +1337,7 @@
     "/api/subcontract/subcontracts": {
       "get": {
         "summary": "Daftar SPK subkontraktor",
-        "description": "Hanya menuntut autentikasi.",
+        "description": "Hanya menuntut autentikasi. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_subcontract_subcontracts",
         "tags": [
           "subcontract"
@@ -1430,16 +1360,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
                 }
               }
             }
@@ -1474,7 +1394,7 @@
     "/api/inventory/goods-receipts": {
       "get": {
         "summary": "Daftar penerimaan barang",
-        "description": "Hanya menuntut autentikasi.",
+        "description": "Hanya menuntut autentikasi. Rute ini TIDAK digerbangi izin apa pun: ia hanya menuntut token yang sah, dan ability tidak mempersempitnya — token pribadi ber-ability sesempit apa pun memulangkan 200 di sini. Karena itu operasi ini TIDAK punya jawaban 403: penolakan karena ability tidak pernah dikirim dari rute ini. Lihat x-autentikasi.ability.",
         "operationId": "get_api_inventory_goods-receipts",
         "tags": [
           "inventory"
@@ -1497,16 +1417,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Galat"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Token API yang dipakai TIDAK membawa ability yang digerbangi rute ini. Badannya berbentuk GalatAbility: `message` berbahasa Indonesia yang menyebut ability yang kurang di antara «…», dan `errors.token_abilities` memuat daftarnya. Kasus KEDUA, dan bentuk badannya BERBEDA: pemilik tokennya sendiri tidak (lagi) memegang izin itu — peran dipersempit, izin dicabut. Badannya hanya `message` («User does not have the right permissions.», kalimat bawaan pustaka izin, berbahasa Inggris) TANPA kunci `errors` sama sekali. Klien yang membaca errors.token_abilities harus menyiapkan diri untuk kunci yang tidak ada.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GalatAbility"
                 }
               }
             }

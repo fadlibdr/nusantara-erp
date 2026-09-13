@@ -594,3 +594,23 @@ perintah verifier, lalu diperbaiki dengan paku yang **merah sebelum perbaikan** 
 Yang **tidak** dikerjakan di putaran ini, dan alasannya, ada di §9 (pilihan b V-OPENAPI-2) dan §12.6
 (kalimat `${module}.view` pada pola `r/` generik — ada sejak sebelum P-3d, bukan temuan putaran ini,
 dan jalannya sudah dibuka).
+
+### 15.1 Putaran penutup (verifier penutup atas `ffb9550`: 3 temuan, semuanya ditutup sesi utama)
+
+Verifier penutup menjalankan ulang setiap perintah verifier putaran pertama di ujung cabang (18/18
+tertutup, direproduksi, termasuk V-webhook-3 DI MySQL), gerbang per-direktori sendiri (Core + Iam +
+`tests/Unit` = 1.946 uji / 13.542 asersi), harness S40/S40m dari worktree-nya sendiri (28 + 8 syarat,
+`console_errors []`), dan memeriksa bahwa `results-phase-3.json` menyimpan 14 kunci lama TANPA satu
+byte pun berubah. Putusannya **BELUM SIAP** karena satu temuan kejujuran pada satu-satunya permukaan
+yang dibaca pihak penerima.
+
+| ID | Jenis | Temuan (gejala) | Penutupan |
+|---|---|---|---|
+| V-close-1 | HONESTY | **Sembilan** dari dua puluh operasi yang didokumentasikan menjanjikan 403 «ability yang kurang» pada rute yang TIDAK digerbangi izin apa pun — 403 yang tidak pernah bisa dikirim. Token «hanya baca proyek» memulangkan **200** berisi seluruh master pelanggan, vendor, PO, SPK dan penerimaan barang, sementara `OpenApiDriftTest` justru MEMAKU kalimat yang tidak benar itu supaya tetap ada. Batasnya sudah jujur di layar Profil dan PANDUAN §20 — yang berbohong hanya `openapi.json` | Blok `403` dibuang dari kesembilan operasi ber-`x-izin: []`; masing-masing kini mengatakan sendiri «Rute ini TIDAK digerbangi izin apa pun … ability tidak mempersempitnya … TIDAK punya jawaban 403»; `x-autentikasi.ability` membawa peringatan yang sama. `OpenApiDriftTest` kini MENGIKUTI `x-izin` dan berlaku DUA ARAH: bergerbang → wajib 403 dengan kedua kalimatnya; tanpa gerbang → wajib TIDAK punya 403 DAN wajib memuat kalimat jujurnya. Tiga mutasi merah: 403 mustahil dikembalikan, kalimat jujur dihapus, 403 dibuang dari rute bergerbang |
+| V-close-2 | DOCS | `info.description` masih berkata uji anti-driftnya membandingkan «TIGA hal» — sejak `ba599ec` ia membandingkan EMPAT (autentikasi termasuk), dan kalimat itu berumur lebih pendek daripada commit yang menulisnya | «EMPAT hal — jalur, metode HTTP, izin yang menggerbanginya, dan apakah rutenya benar-benar menuntut `auth:sanctum`» |
+| V-close-3 | DOCS | `CoreServiceProvider::registerApiTokenScope()` mengutip sensus `main` (852 rute api) tanpa menyebut pohonnya — cacat yang sama dengan V-TOKEN-4, diperbaiki di `TokenScope` tetapi tertinggal di berkas yang MENDAFTARKAN penjaganya; angka berjalannya 862 | Angka dikualifikasikan dan sumbernya disebut (`php artisan route:list --json`), seperti `TokenScope`; dua kemunculan «852» yang tersisa adalah kutipan sejarah yang memang menjelaskan angka basi itu |
+
+**Bukti sesudah penutupan** (pohon kerja `/root/p3d`, ujung cabang): `tests/Feature/Core` +
+`tests/Feature/Iam` + `tests/Unit` = **1.946 uji / 13.558 asersi** (11 dilewati) hijau;
+`OpenApiDriftTest` **8 uji / 213 asersi**; `pint --test` bersih pada berkas yang disentuh. Dokumen
+`openapi.json` kini: 20 operasi, **10 bergerbang izin dengan 403**, **10 tanpa gerbang tanpa 403**.

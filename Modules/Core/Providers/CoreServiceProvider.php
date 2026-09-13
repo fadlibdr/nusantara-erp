@@ -279,8 +279,11 @@ class CoreServiceProvider extends ServiceProvider
      *  2. Kalimat 403-nya, lewat middleware yang didorong ke GRUP `api`.
      *     `pushMiddlewareToGroup` dipakai supaya `bootstrap/app.php` tidak
      *     perlu disentuh (aturan rumah paket ini) dan supaya tidak ada satu
-     *     baris pun yang harus ditambahkan per modul — 852 rute di bawah
-     *     `api/` mewarisinya sekaligus.
+     *     baris pun yang harus ditambahkan per modul — SELURUH rute di bawah
+     *     `api/` mewarisinya sekaligus (862 pada cabang ini; jumlah berjalannya
+     *     DIUKUR `php artisan route:list --json`, tidak dipaku di sini —
+     *     pelajaran 5, dan V-close-3 menemukan angka 852 warisan `main` yang
+     *     tertinggal justru di berkas yang MENDAFTARKAN penjaganya).
      */
     private function registerApiTokenScope(): void
     {
