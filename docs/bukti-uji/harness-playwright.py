@@ -11494,6 +11494,7 @@ def s41(browser):
     # ------------------------------------------------ jalan buntu 1: tanpa Push API
     ctx2 = browser.new_context(viewport={"width": 1440, "height": 900})
     ctx2.add_init_script("delete window.PushManager;")
+    ctx2.grant_permissions(["notifications"], origin=ORIGIN)
     pg2 = ctx2.new_page()
     try:
         login(pg2, "admin@nusantara.test")
@@ -11593,9 +11594,22 @@ def s41(browser):
 
 @scenario("S41_web_push_profil_ponsel")
 def s41m(browser):
-    """390×844 (is_mobile, has_touch) dengan User-Agent iPhone: di tab Safari biasa tombol Aktifkan
-    TIDAK ditampilkan sama sekali — yang ditampilkan adalah cara memasang aplikasinya lewat
-    "Tambahkan ke Layar Utama" (iOS 16.4+), karena di sana tombol itu tidak akan pernah bekerja.
+    """390×844 (is_mobile, has_touch), DUA konteks — karena satu konteks hanya bisa mengukur satu
+    dari dua hal yang perlu diukur di lebar ponsel.
+
+    (a) User-Agent iPhone: di tab Safari biasa tombol Aktifkan TIDAK ditampilkan sama sekali —
+    yang ditampilkan adalah cara memasang aplikasinya lewat "Tambahkan ke Layar Utama"
+    (iOS 16.4+), karena di sana tombol itu tidak akan pernah bekerja.
+
+    (b) User-Agent Android: kartunya punya tombol DAN daftar perangkat, dan di situlah simpul
+    teks yang paling mungkin terpotong berada — nama tebal + lencana "Perangkat ini" + baris meta
+    "Didaftarkan … · terakhir berhasil menerima …" + tombol Cabut. Putaran verifikasi (C-8)
+    menemukan bahwa versi pertama skenario ini menjalankan S41_OVERFLOW HANYA pada konteks
+    iPhone, yaitu pada kartu yang daftar perangkatnya KOSONG: "0 simpul teks terpotong" benar,
+    tetapi ia mengukur tiga simpul (paragraf pengantar, kotak blocker, kalimat daftar kosong) dan
+    terbaca seolah mengukur kartunya. Perangkatnya disuntikkan dengan label 40 karakter, karena
+    label pendek tidak memotong apa pun di lebar berapa pun.
+
     Kartu digambar tanpa gulir samping dan tanpa simpul teks yang terpotong leluhur; 0 galat konsol."""
     reset = _p3e_reset()
     if not reset["cleared"]:
@@ -11628,6 +11642,49 @@ def s41m(browser):
 
         out["console_errors"] = errors
         ps = out["push"]
+    finally:
+        ctx.close()
+
+    # ---------------------------------------------- (b) Android 390 px, kartu BERISI
+    out["fixture"] = _p3e_seed_device("admin@nusantara.test", "Chrome di Android Lapangan Proyek", "d")
+    # Izin notifikasi hanya bisa DIBERIKAN di Chromium penuh; di headless shell
+    # `Notification.permission` selalu 'denied', jadi jalan buntu 3 menyala dan
+    # tombolnya memang tidak digambar. Itu keadaan mesin uji, bukan kode — dan
+    # ia dikatakan di `not_run` alih-alih diam-diam memerahkan syarat.
+    browser, owned2 = _p3e_notification_browser(browser)
+    out["android_notification_browser"] = "chromium penuh (--headless=new)" if owned2 else "headless shell — izin notifikasi tidak bisa diberikan"
+    if not owned2:
+        out["not_run"] = out.get("not_run", []) + [
+            "Tombol Aktifkan pada konteks Android 390 px: Chromium penuh tidak tersedia, izin notifikasi tidak bisa diberikan"]
+    ctx2 = browser.new_context(
+        viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+        user_agent="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) "
+                   "Chrome/120.0.0.0 Mobile Safari/537.36",
+    )
+    pg2 = ctx2.new_page()
+    try:
+        login(pg2, "admin@nusantara.test")
+        pg2.on("console", lambda m: errors.append(f"console {m.type}: {m.text[:200]}") if m.type == "error" else None)
+        pg2.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+
+        pg2.goto(BASE + "#/profil")
+        pg2.wait_for_selector(".push-device", timeout=20000)
+        pg2.wait_for_timeout(700)
+        out["push_android"] = pg2.evaluate(S41_PUSH)
+        out["overflow_android"] = pg2.evaluate(S41_OVERFLOW)
+        out["device_text_nodes_measured"] = pg2.evaluate("""() => {
+          let n = 0;
+          for (const el of document.querySelectorAll('.push-device, .push-device *'))
+            for (const node of el.childNodes)
+              if (node.nodeType === 3 && node.textContent.trim()) n++;
+          return n;
+        }""")
+        pg2.locator(".profil-push").scroll_into_view_if_needed()
+        pg2.wait_for_timeout(300)
+        pg2.screenshot(path=f"{OUT}/s41m-push-android-perangkat.png", full_page=False)
+
+        out["console_errors"] = errors
+        pa = out["push_android"]
         out["checks"] = {
             "safari_in_a_tab_gets_the_install_instructions_not_a_button":
                 ps["blocker_kind"] == "ios" and "Tambahkan ke Layar Utama" in (ps["blocker_text"] or "")
@@ -11635,14 +11692,25 @@ def s41m(browser):
             "it_says_the_button_would_never_work_there_rather_than_pretending":
                 "tidak akan pernah bekerja" in (ps["blocker_text"] or ""),
             "the_card_never_scrolls_sideways": ps["scrolls_sideways"] is False and ps["main_scrolls_sideways"] is False,
-            "no_push_text_is_clipped_on_a_phone": out["overflow"] == 0,
+            "no_push_text_is_clipped_on_an_iphone": out["overflow"] == 0,
+            # C-8: yang di bawah ini adalah pengukuran yang BARU ada. Yang
+            # dituntut TANPA SYARAT adalah adanya BARIS PERANGKAT untuk diukur —
+            # itulah yang hilang dari versi pertama skenario ini. Tombolnya
+            # hanya dituntut bila peramban yang bisa memberi izin tersedia.
+            "android_at_390px_draws_the_device_list": len(pa["devices"]) == 1,
+            "android_at_390px_gets_the_button_when_permission_can_be_granted":
+                (pa["blocker_kind"] is None and pa["buttons"] != []) if owned2 else True,
+            "the_device_row_is_actually_there_to_be_measured": out["device_text_nodes_measured"] >= 2,
+            "no_push_text_is_clipped_on_an_android_phone_with_a_device_row": out["overflow_android"] == 0,
+            "the_card_never_scrolls_sideways_on_android":
+                pa["scrolls_sideways"] is False and pa["main_scrolls_sideways"] is False,
             "no_console_error": errors == [],
         }
         out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
         out["ok"] = not out["failed_checks"]
         return out
     finally:
-        ctx.close()
+        ctx2.close()
         # Sakelar dikembalikan ke bawaannya — lihat s41.
         _p3e_setting(False)
         _p3e_reset()
