@@ -19,10 +19,21 @@ use Illuminate\Support\Str;
  *   3. access_token=… / token=… / app_secret=… / secret=…     → …=[rahasia]
  *   4. query string URL apa pun                               → ?[…]
  *   5. deretan 8–15 digit (dengan/tanpa +)                    → [nomor]
- *   6. dipotong 480 karakter
+ *   6. keluarannya DIPAKSA menjadi UTF-8 sah
+ *   7. dipotong 480 karakter
  *
  * Kode galat Meta (mis. 131026) ≤ 6 digit dan tidak tersentuh aturan 5;
  * wamid bukan angka. Yang hilang dari pesan hanya yang tidak boleh ada.
+ *
+ * ATURAN 6 ADALAH SYARAT AGAR KOLOMNYA BISA DITULIS SAMA SEKALI (V-webhook-3).
+ * Badan jawaban penyedia tidak wajib berupa teks: sebuah halaman galat
+ * windows-1252 dengan huruf beraksen, atau badan ter-gzip yang tidak
+ * di-dekode, adalah byte yang bukan UTF-8 sah. Di SQLite byte itu tersimpan
+ * diam-diam; di MySQL kolomnya menolak dengan `1366 Incorrect string value`,
+ * dan yang naik ke pekerja bukan lagi kegagalan pengiriman melainkan
+ * `QueryException` yang menyebut jalur soket dan nama basis data — lalu
+ * KALIMAT ITU yang digambar layar. Maka penyaring ini, yang dilewati SETIAP
+ * pesan penyedia, memaksa keluarannya sah lebih dulu.
  */
 final class ProviderErrorScrubber
 {
@@ -46,6 +57,10 @@ final class ProviderErrorScrubber
         $out = (string) preg_replace('/\b(access_token|app_secret|verify_token|secret|token)=[^&\s"\'>]+/i', '$1=[rahasia]', $out);
         $out = (string) preg_replace('/(https?:\/\/[^\s"\'?]+)\?[^\s"\']*/i', '$1?[…]', $out);
         $out = (string) preg_replace('/\+?\d{8,15}\b/', '[nomor]', $out);
+
+        // SEBELUM dipotong: `Str::limit()` memotong menurut karakter, dan
+        // memotong byte yang bukan UTF-8 sah hanya memindahkan masalahnya.
+        $out = (string) mb_convert_encoding($out, 'UTF-8', 'UTF-8');
 
         return Str::limit(trim($out), self::LIMIT, '…');
     }

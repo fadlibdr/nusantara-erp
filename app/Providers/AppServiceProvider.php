@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Modules\Iam\Support\IntegrationRate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,11 +28,18 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        // Global API rate limit, applied by $middleware->throttleApi() in
-        // bootstrap/app.php. Keyed by user id when authenticated, IP otherwise.
-        RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute((int) config('erp.security.api_rate_limit', 120))
-                ->by($request->user()?->id ?? $request->ip());
-        });
+        /*
+         * Global API rate limit, applied by $middleware->throttleApi() in
+         * bootstrap/app.php.
+         *
+         * P-3d memisahkannya menjadi DUA ember (ledger pemilik
+         * ROADMAP-HASHMICRO §5 baris 10: "laju token integrasi → 300 per
+         * menit"): token pribadi mendapat 300/menit per TOKEN, semua yang lain
+         * tetap 120/menit dengan kunci yang sama persis seperti sebelumnya —
+         * id pengguna bila ada, IP bila tidak. Aturan dan alasannya, termasuk
+         * harga satu pencarian token per permintaan, ada di
+         * Modules\Iam\Support\IntegrationRate.
+         */
+        RateLimiter::for('api', fn (Request $request): Limit => IntegrationRate::limitFor($request));
     }
 }

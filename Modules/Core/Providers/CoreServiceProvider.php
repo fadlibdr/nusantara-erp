@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Events\TokenAuthenticated;
 use Modules\Core\Console\Commands\ApprovalWatchCommand;
 use Modules\Core\Console\Commands\BackupWatchCommand;
 use Modules\Core\Console\Commands\DeadlineWatchCommand;
@@ -18,6 +19,8 @@ use Modules\Core\Console\Commands\MysqlPreflightCommand;
 use Modules\Core\Console\Commands\SqliteToMysqlCommand;
 use Modules\Core\Console\Commands\WatchdogAlarmCommand;
 use Modules\Core\Events\DocumentTransitioned;
+use Modules\Core\Http\Middleware\ExplainTokenScopeRefusal;
+use Modules\Core\Listeners\DispatchDocumentWebhooks;
 use Modules\Core\Listeners\SendApprovalNotifications;
 use Modules\Core\Models\Approval;
 use Modules\Core\Services\AuditService;
@@ -26,6 +29,7 @@ use Modules\Core\Support\ApprovalDelegationMemo;
 use Modules\Core\Support\ApprovalDelegations;
 use Modules\Core\Support\ApprovalStamp;
 use Modules\Core\Support\AuditedModels;
+use Modules\Core\Support\TokenScope;
 
 class CoreServiceProvider extends ServiceProvider
 {
@@ -101,6 +105,14 @@ class CoreServiceProvider extends ServiceProvider
          * delegasi yang sudah dicabut sampai ia direstart.
          */
         $this->app->scoped(ApprovalDelegationMemo::class);
+
+        /*
+         * P-3d — lingkup token permintaan ini, dengan batas yang sama dan untuk
+         * alasan yang sama: ia mengingat token yang MEMBUKA permintaan ini dan
+         * ability apa saja yang ditolaknya, dan tidak satu pun dari keduanya
+         * boleh menyeberang ke pekerjaan berikutnya seorang pekerja antrean.
+         */
+        $this->app->scoped(TokenScope::class);
     }
 
     public function boot(): void
@@ -113,6 +125,16 @@ class CoreServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'coredoc');
 
         Event::listen(DocumentTransitioned::class, SendApprovalNotifications::class);
+
+        /*
+         * P-3d — pendengar KEDUA: webhook keluar. Didaftarkan di sebelah yang
+         * pertama dan dengan bentuk yang sama (ShouldHandleEventsAfterCommit),
+         * karena keduanya menghadapi masalah yang sama: peristiwanya
+         * dipancarkan dari DALAM transaksi bisnis.
+         */
+        Event::listen(DocumentTransitioned::class, DispatchDocumentWebhooks::class);
+
+        $this->registerApiTokenScope();
 
         $this->commands([
             BackupWatchCommand::class, DeadlineWatchCommand::class, ApprovalWatchCommand::class, HardenDemoLoginsCommand::class,
@@ -216,7 +238,59 @@ class CoreServiceProvider extends ServiceProvider
                 return null;
             }
 
-            return ApprovalDelegations::grants($user, $ability);
+            $granted = ApprovalDelegations::grants($user, $ability);
+
+            /*
+             * P-3d — DELEGASI TIDAK PERNAH MELEBIHI ABILITY TOKEN YANG MEMANGGIL.
+             *
+             * Ini satu-satunya jalur pemberian di aplikasi yang TIDAK lewat
+             * User::hasPermissionTo() untuk orang yang memakainya: delegatnya
+             * memang tidak memegang izin itu — itulah gunanya delegasi — jadi
+             * penyempitan yang dipasang di sana tidak pernah dipanggil untuknya.
+             * Tanpa baris ini, sebuah token "hanya baca proyek" milik integrasi
+             * pihak ketiga yang kebetulan dipegang seorang delegat bisa
+             * MENYETUJUI dokumen, dan tidak ada uji ability yang akan melihatnya.
+             *
+             * Memulangkan null, bukan false: gerbang ini tidak berpendapat
+             * apa-apa lagi, dan pemeriksaan izin biasa (yang dipersempit
+             * TokenScope) yang menolaknya dengan kalimatnya sendiri.
+             */
+            if ($granted === true && ! app(TokenScope::class)->allows($user, $ability)) {
+                return null;
+            }
+
+            return $granted;
         });
+    }
+
+    /**
+     * P-3d — penegakan ability token, dan kalimat yang menjelaskannya.
+     *
+     * Penolakannya sendiri hidup di `App\Models\User::hasPermissionTo()`; yang
+     * didaftarkan di sini adalah dua hal yang melayaninya:
+     *
+     *  1. Token yang membuka permintaan ini diingat dari `TokenAuthenticated`
+     *     — peristiwa yang dipancar `Laravel\Sanctum\Guard` SESUDAH token
+     *     dinyatakan sah, dan satu-satunya titik yang dilewati setiap
+     *     permintaan bearer. Mengingat BARISNYA (bukan instans User-nya)
+     *     membuat `User::find($id)` yang segar di dalam sebuah service ikut
+     *     dipersempit.
+     *
+     *  2. Kalimat 403-nya, lewat middleware yang didorong ke GRUP `api`.
+     *     `pushMiddlewareToGroup` dipakai supaya `bootstrap/app.php` tidak
+     *     perlu disentuh (aturan rumah paket ini) dan supaya tidak ada satu
+     *     baris pun yang harus ditambahkan per modul — SELURUH rute di bawah
+     *     `api/` mewarisinya sekaligus (862 pada cabang ini; jumlah berjalannya
+     *     DIUKUR `php artisan route:list --json`, tidak dipaku di sini —
+     *     pelajaran 5, dan V-close-3 menemukan angka 852 warisan `main` yang
+     *     tertinggal justru di berkas yang MENDAFTARKAN penjaganya).
+     */
+    private function registerApiTokenScope(): void
+    {
+        Event::listen(TokenAuthenticated::class, static function (TokenAuthenticated $event): void {
+            app(TokenScope::class)->remember($event->token);
+        });
+
+        $this->app['router']->pushMiddlewareToGroup('api', ExplainTokenScopeRefusal::class);
     }
 }

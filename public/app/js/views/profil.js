@@ -25,7 +25,7 @@
  * 02.00 tetap masuk kotak masuknya seketika dan e-mail-nya berangkat 06.00. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, icon, toast, toastError, withBusy, errorState } from '../ui.js';
+import { el, clear, button, badge, icon, toast, toastError, withBusy, errorState, confirmDialog } from '../ui.js';
 import { initials } from '../format.js';
 
 const CHANNEL_HELP = {
@@ -255,6 +255,148 @@ function quietHoursCard(state, reload) {
   ]);
 }
 
+
+/* ---------------------------------------------------------------- Token API
+ *
+ * P-3d. Kredensial milik orangnya sendiri, dan TIGA kalimat yang tidak boleh
+ * disusun layar ini:
+ *
+ *  - "Salin sekarang, tidak akan ditampilkan lagi" datang dari
+ *    `data.shown_once` server. Ia BENAR karena yang disimpan server hanya
+ *    sidik jari tokennya; sebuah layar yang menjanjikannya sendiri akan
+ *    berbohong pada hari server berubah.
+ *  - Daftar ability yang BOLEH dipilih datang dari `available_abilities` =
+ *    izin pemanggil hari ini. Daftar yang disusun klien akan menawarkan izin
+ *    yang tidak dimiliki pemakainya dan menghasilkan 422 yang tampak seperti
+ *    kesalahan aplikasi.
+ *  - Batas 365 hari dan laju 300/menit dibaca dari muatan, bukan diketik.
+ *
+ * Dan satu batas yang DIKATAKAN, bukan disembunyikan: ability menyempitkan
+ * apa yang dijaga izin, dan sebagian endpoint aplikasi ini hanya menuntut
+ * masuk — token terbatas menjangkau yang itu seperti sesi peramban pemiliknya.
+ */
+
+function tokenSecretCard(payload) {
+  const field = el('input.token-value', { type: 'text', readOnly: true, value: payload.token });
+
+  return el('.card.token-secret', { dataset: { state: 'shown' } }, [
+    el('.card-head', [el('h2', { text: 'Token baru — tampil sekali' }), el('.spacer')]),
+    el('.card-body', [
+      el('.row-actions', { style: { gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
+        field,
+        button('Salin', {
+          iconName: 'copy',
+          onClick: async () => {
+            field.select();
+            try {
+              await navigator.clipboard.writeText(payload.token);
+              toast('Token disalin ke papan klip.');
+            } catch (error) {
+              toast('Peramban menolak papan klip. Teksnya sudah terpilih — tekan Ctrl+C.');
+            }
+          },
+        }),
+      ]),
+      el('.cell-sub.token-once', { text: payload.shown_once }),
+    ]),
+  ]);
+}
+
+function tokenRow(row, reload) {
+  return el('.token-row', { dataset: { id: String(row.id), expired: row.expired ? 'yes' : 'no' } }, [
+    el('div', { style: { display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap' } }, [
+      el('b', { text: row.name }),
+      row.expired ? badge('Kedaluwarsa', 'red') : badge('Berlaku', 'green'),
+    ]),
+    el('.cell-sub.token-abilities', { text: (row.abilities || []).join(', ') }),
+    el('.cell-sub', {
+      text: `Berlaku sampai ${wib(row.expires_at)} · dibuat ${wib(row.created_at)} · `
+        + `terakhir dipakai ${row.last_used_at ? wib(row.last_used_at) : 'belum pernah'}`,
+    }),
+    el('.row-actions', { style: { marginTop: '6px' } }, [
+      button('Cabut', {
+        variant: 'danger', size: 'sm', iconName: 'trash',
+        onClick: (event) => withBusy(event.currentTarget, async () => {
+          if (!await confirmDialog({
+            title: `Cabut token «${row.name}»?`,
+            message: 'Klien yang masih memakainya akan mendapat 401 pada permintaan berikutnya. Token tidak bisa dikembalikan.',
+            confirmLabel: 'Cabut',
+          })) return;
+          try {
+            await api.del(`iam/me/api-tokens/${row.id}`);
+            toast(`Token «${row.name}» dicabut.`);
+            await reload();
+          } catch (error) {
+            toastError(error);
+          }
+        }),
+      }),
+    ]),
+  ]);
+}
+
+function tokensCard(state, reload) {
+  const name = el('input', { type: 'text', id: 'tok-name', placeholder: 'Integrasi akuntansi' });
+  const days = el('input', { type: 'number', id: 'tok-days', min: '1', max: String(state.max_lifetime_days), value: '90' });
+  const boxes = (state.available_abilities || []).map((ability) => {
+    const box = el('input', { type: 'checkbox', id: `tok-ab-${ability}`, value: ability });
+    return { ability, box, node: el('.check-row', [box, el('label', { for: `tok-ab-${ability}`, text: ability })]) };
+  });
+
+  const create = button('Buat token', {
+    variant: 'primary', iconName: 'plus',
+    onClick: (event) => withBusy(event.currentTarget, async () => {
+      try {
+        const payload = await api.post('iam/me/api-tokens', {
+          name: name.value.trim(),
+          abilities: boxes.filter((b) => b.box.checked).map((b) => b.ability),
+          expires_in_days: Number(days.value),
+        });
+        name.value = '';
+        boxes.forEach((b) => { b.box.checked = false; });
+        await reload(payload);
+      } catch (error) {
+        toastError(error);
+      }
+    }),
+  });
+
+  const rows = (state.tokens || []).map((row) => tokenRow(row, reload));
+
+  return el('.card.profil-tokens', [
+    el('.card-head', [el('h2', { text: 'Token API' }), el('.spacer')]),
+    el('.card-body', [
+      el('.muted', {
+        style: { fontSize: '12.5px', marginBottom: '8px' },
+        text: 'Token dipakai sistem lain untuk memanggil API atas nama Anda. Teksnya tampil SEKALI saat dibuat. '
+          + `Masa berlaku paling lama ${state.max_lifetime_days} hari, dan batas lajunya ${state.rate_limit_per_minute} permintaan per menit per token.`,
+      }),
+      el('.cell-sub.token-scope-note', {
+        text: 'Ability sebuah token adalah SUBSET izin Anda: yang tidak dipilih ditolak 403, dan izin yang dicabut dari peran Anda '
+          + 'mencabut aksesnya token juga. Yang TIDAK dibatasi ability adalah endpoint yang memang tidak dijaga izin apa pun — '
+          + 'endpoint itu dijangkau token Anda persis seperti sesi peramban Anda.',
+      }),
+      rows.length ? el('div', rows) : el('.cell-sub', { text: 'Belum ada token.' }),
+      el('.form-grid', { style: { marginTop: '12px' } }, [
+        el('.field', [el('label', { for: 'tok-name', text: 'Nama token' }), name,
+          el('.help', { text: 'Nama yang menyebutkan siapa yang memakainya, mis. "Integrasi akuntansi".' })]),
+        el('.field', [el('label', { for: 'tok-days', text: 'Berlaku berapa hari' }), days,
+          el('.help', { text: `1 sampai ${state.max_lifetime_days} hari.` })]),
+      ]),
+      // Kisi, bukan satu kolom panjang: seorang admin memegang 94 izin, dan 94
+      // baris centang membuat kartunya 1.300 px — tombol "Buat token" jatuh
+      // jauh di bawah lipatan pada layar mana pun (terukur S40, 12 Sep 2026).
+      el('.field', { style: { marginTop: '8px' } }, [
+        el('label', { text: 'Ability' }),
+        el('.token-ability-grid', {
+          style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '2px 12px' },
+        }, boxes.map((b) => b.node)),
+      ]),
+      el('.row-actions', { style: { marginTop: '12px' } }, [create]),
+    ]),
+  ]);
+}
+
 export async function renderProfil(host) {
   clear(host);
   host.appendChild(el('.page-head', [
@@ -271,15 +413,21 @@ export async function renderProfil(host) {
   const body = el('div');
   host.appendChild(body);
 
-  async function reload() {
+  async function reload(justCreatedToken) {
     let state;
+    let tokens;
     try {
       state = await api.get('core/me/notification-channels');
+      tokens = await api.get('iam/me/api-tokens');
     } catch (error) {
       clear(body).appendChild(el('.card', el('.card-body', errorState(error, reload))));
       return;
     }
     clear(body);
+    // Token yang baru lahir digambar DI ATAS, sekali. Memuat ulang layar
+    // membuangnya — dan itu memang yang terjadi pada tokennya di server.
+    if (justCreatedToken && justCreatedToken.token) body.appendChild(tokenSecretCard(justCreatedToken));
+    body.appendChild(tokensCard(tokens, reload));
     body.appendChild(channelsCard(state, reload));
     body.appendChild(phoneCard(state, reload));
     body.appendChild(quietHoursCard(state, reload));
@@ -291,6 +439,11 @@ export async function renderProfil(host) {
 
 /* Dipakai harness/uji: nama-nama yang dijanjikan layar ini. */
 export const PROFIL_SELECTORS = {
+  tokens: '.profil-tokens',
+  tokenRow: '.token-row',
+  tokenSecret: '.token-secret',
+  tokenOnce: '.token-once',
+  tokenAbilities: '.token-abilities',
   channel: '.profil-channel',
   status: '.profil-status',
   phone: '.profil-phone',

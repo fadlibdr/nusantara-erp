@@ -1,12 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Iam\Http\Controllers\ApiTokenController;
 use Modules\Iam\Http\Controllers\AuthController;
 use Modules\Iam\Http\Controllers\OnboardingController;
 use Modules\Iam\Http\Controllers\PermissionController;
 use Modules\Iam\Http\Controllers\PhoneController;
 use Modules\Iam\Http\Controllers\RoleController;
 use Modules\Iam\Http\Controllers\UserController;
+use Modules\Iam\Http\Middleware\SessionOnly;
 
 // Public (unauthenticated) — brute-force protected.
 // Akun demo untuk halaman masuk — HANYA di luar produksi. Sebelum ini
@@ -32,7 +34,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('auth/me', [AuthController::class, 'me']);
     // Ganti kata sandi sendiri — sandi lama wajib (ChangePasswordRequest).
     // Menu akun hanya "Tutup · Keluar" sampai 2 Sep 2026 (HASIL-UJI §1, S9).
-    Route::put('me/password', [AuthController::class, 'changePassword']);
+    Route::put('me/password', [AuthController::class, 'changePassword'])->middleware(SessionOnly::class);
     // Panduan onboarding per peran + keputusan Lewati/Selesai yang diingat di
     // server (permintaan pemilik 5 Sep 2026: "on boarding is not working" —
     // panduan hanya ada sebagai berkas docs/ONBOARDING, tak pernah tampil di
@@ -41,7 +43,19 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('me/onboarding', [OnboardingController::class, 'update']);
     // P-3a (T3a.3): nomor WhatsApp + opt-in berstempel waktu milik sendiri —
     // rekam pemanggil, tanpa izin tambahan; via 'profil'.
-    Route::put('me/phone', [PhoneController::class, 'update']);
+    Route::put('me/phone', [PhoneController::class, 'update'])->middleware(SessionOnly::class);
+
+    /*
+     * P-3d — Profil › Token API. Rekam pemanggil sendiri, jadi tanpa izin;
+     * yang menjaganya SessionOnly, karena sebuah token yang bisa mencetak token
+     * berikutnya adalah token tanpa batas (lihat kelas itu untuk ketiga rute
+     * yang dijaganya dan alasannya).
+     */
+    Route::middleware(SessionOnly::class)->group(function (): void {
+        Route::get('me/api-tokens', [ApiTokenController::class, 'index']);
+        Route::post('me/api-tokens', [ApiTokenController::class, 'store']);
+        Route::delete('me/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->whereNumber('token');
+    });
 
     Route::middleware('permission:iam.view')->group(function (): void {
         Route::get('users', [UserController::class, 'index']);

@@ -2202,6 +2202,105 @@ per rekening yang Anda simpan dari pratinjau yang berhasil; preset bawaan per ba
 berkas ekspor nyata pemilik di `docs/samples/bank/`), tidak membuat foldernya sendiri, dan
 tidak menyentuh berkas di dalamnya.
 
+
+### 5.14 Webhook keluar — runbook (P-3d)
+
+**Sistem › Webhook** (izin `core.update`). Setiap kali sebuah dokumen diajukan,
+disetujui, atau ditolak, aplikasi ini mengirim satu POST bertanda tangan ke setiap
+langganan yang mendengarkannya.
+
+#### Apa yang dilihat PENERIMA
+
+```
+POST https://penerima-anda/…
+Content-Type: application/json
+X-Nusantara-Signature: t=1757683200,v1=3f9c…        (hex, 64 karakter)
+X-Nusantara-Event: 1f0a…                            (uuid peristiwa)
+X-Nusantara-Delivery: 412                           (id baris log)
+
+{"version":1,"id":"1f0a…","event":"document.approved",
+ "occurred_at":"2026-09-12T17:05:00+07:00",
+ "data":{"document_type":"finance/ap-bills","document_id":42,
+         "document_code":"BILL/2026/09/0042","status":"approved",
+         "actor":{"id":3,"name":"Budi Santoso"},"note":"Setuju."}}
+```
+
+Muatannya **sengaja kurus**: ia penunjuk, bukan salinan dokumen. Tidak ada nilai
+rupiah, nama pelanggan, atau baris dokumen yang ikut keluar. Penerima yang butuh
+detail memanggil balik API dengan **tokennya sendiri**, dan pada saat itu ability
+tokennya berlaku.
+
+#### Cara penerima memeriksa tanda tangannya
+
+1. Baca `X-Nusantara-Signature`, pisahkan `t` dan `v1`.
+2. **Tolak bila `|sekarang − t| > 300 detik`.**
+3. Hitung `hash_hmac('sha256', t + '.' + badan_mentah, rahasia_langganan)`.
+   Yang ditandatangani adalah **byte badan yang persis diterima** — jangan
+   mem-parse lalu meng-encode ulang JSON-nya sebelum menghitung.
+   Rahasia langganan adalah 64 karakter heksadesimal dan dipakai sebagai KUNCI HMAC APA ADANYA (byte ASCII-nya), bukan di-decode dari hex.
+4. Bandingkan dengan **`hash_equals()`**, bukan `===`: perbandingan string biasa
+   membocorkan posisi karakter pertama yang berbeda lewat waktu eksekusi.
+5. **Tolak `X-Nusantara-Event` yang sudah pernah diproses.** Kelima percobaan
+   sebuah kiriman membawa id yang SAMA — percobaan ulang bukan peristiwa baru.
+
+Stempel waktunya **ikut ditandatangani**; tanpa itu jendela 300 detik hanya
+hiasan, karena penyerang bisa memutar ulang kiriman lama dengan stempel baru.
+
+#### Rahasia langganan
+
+Rahasia langganan adalah 64 karakter heksadesimal dan dipakai sebagai KUNCI HMAC APA ADANYA (byte ASCII-nya), bukan di-decode dari hex.
+Ia muncul **sekali**, di layar, saat langganan dibuat atau saat Anda menekan
+**Putar rahasia**. Tersimpan terenkripsi (`APP_KEY`) dan **tidak pernah**
+dipulangkan API mana pun. Memutarnya membuat penerima lama berhenti bisa
+memverifikasi sampai rahasia barunya dipasang di sana — jadi putar hanya ketika
+rahasianya bocor atau hilang, dan siapkan sisi penerima lebih dulu.
+
+#### Percobaan ulang, dan kapan berhenti
+
+Lima percobaan lewat antrean, dengan jeda **60 / 300 / 900 / 3600 detik** —
+pola yang sama dengan pengiriman notifikasi. **Terkirim hanya bila penerima
+menjawab 2xx**; 3xx (redirect, yang sengaja tidak diikuti), 4xx dan 5xx tidak.
+Sesudah percobaan kelima barisnya `failed` dengan sebabnya dalam bahasa
+Indonesia, terbaca di **Log pengiriman**.
+
+**Langganan yang gagal 20 kali BERTURUT-TURUT dinonaktifkan otomatis**, dan
+mengatakannya: kalimat sebabnya di layar, satu notifikasi ke pemegang
+`core.update`, dan tombol **Aktifkan lagi**. Alasannya: URL yang mati membakar
+lima percobaan bertingkat untuk SETIAP transisi dokumen, di pekerja antrean yang
+sama yang mengantre e-mail dan WhatsApp. Satu pengiriman yang berhasil
+mengembalikan hitungannya ke nol, jadi gangguan satu jam tidak akan pernah
+mencapai 20.
+
+#### Alamat yang ditolak — dan mengapa
+
+`https` **wajib**. Alamat di dalam jaringan server ini ditolak **dua kali**: saat
+langganan disimpan (422 dengan kalimatnya) dan lagi saat kiriman berangkat (nama
+yang hari ini publik bisa besok menunjuk ke `127.0.0.1`). Yang ditolak: loopback,
+`10/8`, `172.16/12`, `192.168/16`, `169.254/16` (termasuk `169.254.169.254`,
+alamat metadata awan), `100.64/10`, `::1`, `fc00::/7`, dan nama berakhiran
+`.local` / `.internal`. Bentuk samaran dari alamat yang sama ikut ditolak —
+`[::ffff:127.0.0.1]`, `[::ffff:169.254.169.254]`, NAT64 `[64:ff9b::7f00:1]`, dan
+bentuk numerik `2130706433` / `0177.0.0.1` / `127.1` — karena semuanya mendarat
+di soket yang sama. **Redirect tidak diikuti**: sebuah penerima yang menjawab
+`302 Location: http://169.254.169.254/` akan memindahkan kiriman bertanda tangan
+kita ke sana tanpa satu pun pemeriksaan di atas berlaku lagi. Sikap ini tertulis
+di `docs/KEPUTUSAN-INTEGRASI.md` §11.
+
+#### Kalau pekerja antreannya mati
+
+Webhook diantrekan, jadi ia berhenti bersama pekerjanya — persis seperti e-mail.
+Hidup-matinya penjadwal/pekerja dibaca dari `GET core/health` dan spanduk dasbor,
+**bukan** dari layar ini; layar ini hanya menampilkan apa yang benar-benar
+tercatat di log pengiriman.
+
+#### Batas laju integrasi
+
+Token integrasi (Profil › Token API) dibatasi **300 permintaan per menit per
+token**, ember terpisah dari 120/menit milik sesi peramban. Ubah lewat
+`INTEGRATION_RATE_LIMIT` di `.env` bila pemilik memutuskan angka lain; nilainya
+adalah ledger §5 baris 10. **CORS tetap kosong** — API ini dipanggil server ke
+server, bukan dari JavaScript di halaman asal lain.
+
 ---
 
 ## 6. Tutup buku bulanan

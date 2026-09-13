@@ -228,7 +228,17 @@ class VendorManifestTest extends TestCase
      *     gagal. Sebaliknya, el(EL_LOADER_TAGS, { EL_LOADER_KEYS }) ke http(s):// atau //host
      *     adalah PEMUAT betapa pun dalamnya ia bersarang di el('a') — diputuskan di pemindai
      *     sebelum sampai ke sini; `<link href` HTML ditangkap LOADER_BEFORE_URL; atau
-     *  3. barisnya komentar JS/CSS (//, *, /*) — docblock yang mengutip alamat.
+     *  3. ia CONTOH YANG DIKETIK UNTUK DIBACA ORANG: atribut `placeholder` — HTML
+     *     `placeholder="…"` pada baris yang sama, atau kunci `placeholder` di argumen
+     *     objek pertama el() (elContext yang sama dengan aturan 2, tag apa pun).
+     *     `placeholder` bukan pemuat pada elemen mana pun di HTML: ia teks abu-abu di
+     *     dalam kotak isian yang hilang begitu orangnya mengetik, dan peramban tidak
+     *     pernah mengambilnya. Ditambahkan P-3d untuk kotak "URL penerima" di layar
+     *     Webhook, yang HARUS menunjukkan bentuk https lengkap — sebuah contoh yang
+     *     menghilangkan skemanya mengajarkan hal yang salah tentang kolom yang
+     *     memang menolak http. Ini ATURAN, bukan allowlist: ia tidak menyebut satu
+     *     alamat pun, dan `src`/`href` ke alamat yang sama tetap gagal; atau
+     *  4. barisnya komentar JS/CSS (//, *, /*) — docblock yang mengutip alamat.
      * Selain itu gagal, supaya setiap URL baru di SPA diputuskan sadar.
      *
      * @param  array{tag: string, key: string}|null  $el  elContext($before)
@@ -246,6 +256,14 @@ class VendorManifestTest extends TestCase
             return true;
         }
         if ($el !== null && $el['tag'] === 'a' && $el['key'] === 'href') {
+            return true;
+        }
+
+        // Aturan 3 — contoh yang dibaca orang, bukan alamat yang diambil peramban.
+        if (preg_match('~\bplaceholder\s*[=:]\s*["\']$~i', $before)) {
+            return true;
+        }
+        if ($el !== null && $el['key'] === 'placeholder') {
             return true;
         }
 

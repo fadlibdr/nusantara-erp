@@ -9137,3 +9137,72 @@ perbandingannya; akun yang belum bermutasi sekali pun tahun ini bertanda "—",
 bukan Rp 0. Bila **belum satu akun pun** bermutasi, totalnya ikut bertanda "—"
 dan persentasenya kosong: yang benar adalah "belum ada yang tercatat", bukan
 "0 % terpakai, aman".
+
+## 20. Token API — memberi sistem lain akses atas nama Anda (P-3d)
+
+**Profil & Notifikasi › Token API.** Sebuah token adalah kata sandi khusus mesin:
+sistem lain memakainya untuk memanggil API Nusantara ERP **atas nama Anda**, tanpa
+pernah tahu kata sandi Anda.
+
+### Membuatnya
+
+1. Buka **Profil & Notifikasi** dari menu akun (nama Anda di pojok kanan atas).
+2. Pada kartu **Token API**: isi **Nama token** (tulis siapa yang memakainya —
+   "Integrasi akuntansi", bukan "token 1"), **Berlaku berapa hari** (1 sampai
+   365), lalu centang **Ability**-nya.
+3. Tekan **Buat token**.
+
+**Teksnya tampil SEKALI.** Kotak yang muncul di atas layar adalah satu-satunya
+kesempatan menyalinnya: yang tersimpan di server hanya sidik jarinya, jadi tidak
+ada seorang pun — termasuk administrator — yang bisa membacakannya kembali untuk
+Anda. Bila hilang, cabut token itu dan buat yang baru.
+
+### Ability — apa yang dibatasinya, dan apa yang TIDAK
+
+**Ability adalah SUBSET izin Anda.** Layar hanya menawarkan izin yang benar-benar
+Anda pegang, dan sebuah panggilan ke endpoint yang menuntut izin yang tidak
+dicentang dijawab **403** dengan kalimat yang menyebut ability yang kurang.
+Ability tidak bisa ditambahkan sesudah token dibuat — buat token baru.
+
+**Dan arah sebaliknya juga berlaku:** bila administrator mencabut sebuah izin dari
+peran Anda, token Anda kehilangan akses itu **pada permintaan berikutnya**, tanpa
+ada yang perlu menyentuh tokennya.
+
+**Yang TIDAK dibatasi ability**, dan ini ditulis di layar juga: sebagian endpoint
+aplikasi ini tidak dijaga izin apa pun — ia hanya menuntut Anda masuk. Endpoint
+seperti itu dijangkau token terbatas Anda persis seperti sesi peramban Anda.
+Perlakukan setiap token seperti kata sandi, bukan seperti kunci yang hanya membuka
+satu pintu.
+
+### Yang tidak bisa dilakukan sebuah token
+
+Tiga hal sengaja menuntut Anda **masuk lewat halaman masuk**, dan sebuah token
+menerima 403 di ketiganya:
+
+| Tindakan | Mengapa |
+|---|---|
+| Membuat atau mencabut token API | Kalau tidak, token "hanya baca" bisa mencetak token yang tidak terbatas — dan setiap pembatasan berumur satu permintaan |
+| Mengganti kata sandi | Kunci akun berpindah tangan |
+| Mengubah nomor WhatsApp / opt-in | Alarm operasional perusahaan diarahkan ke nomor lain |
+
+### Memakainya
+
+Kirim tokennya di salah satu dari dua header:
+
+```
+Authorization: Bearer <token>
+X-Api-Token: <token>
+```
+
+Batas lajunya **300 permintaan per menit per token**. Bila terlampaui, jawabannya
+**429** dengan header `Retry-After` yang menyebut berapa detik lagi — tunggu, lalu
+ulangi permintaan yang sama.
+
+Endpoint yang didokumentasikan untuk integrasi ada di `docs/api/openapi.json`
+(dua puluh endpoint; dokumen itu dipelihara tangan dan diperiksa uji terhadap rute
+yang sebenarnya).
+
+### Mencabut
+
+Tekan **Cabut** pada barisnya. Klien yang masih memakainya mendapat **401** pada
+permintaan berikutnya. Pencabutan tidak bisa dibatalkan.

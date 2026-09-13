@@ -2549,3 +2549,120 @@ dibaca dari hash. **Tidak ada klaim "penjadwal aktif"** di SPA: hidup-matinya pe
 bank», «penjadwal aktif/berjalan», «diambil dari bank») dipaku TERBATAS pada berkas paket ini
 (`BankInboxTest`), tak peka huruf besar, negasi wajar dan guillemet dikecualikan. SFTP dan
 host-to-host: `docs/KEPUTUSAN-INTEGRASI.md` §10; runbook folder: PANDUAN-ADMINISTRATOR §5.13.
+
+## 41. Token API, ability, dan webhook keluar (P-3d)
+
+**Ability token ditegakkan di SATU tempat: `App\Models\User::hasPermissionTo()`.**
+Setiap pemeriksaan izin di aplikasi ini bermuara di sana — middleware rute spatie
+(`canAny`), `Gate::before` yang didaftarkan spatie (`checkPermissionTo`),
+`$request->user()->can()` di dalam controller, `hasAnyPermission()` di dalam
+service. `Modules\Core\Support\TokenScope` menyempitkannya SESUDAH versi spatie
+memulangkan true, jadi ia hanya pernah MENGURANGI: izin yang dicabut dari peran
+mencabut aksesnya token pada permintaan berikutnya juga. `Gate::before` **tidak
+dipakai untuk menolak** — spatie mendaftarkan `before`-nya lewat
+`callAfterResolving(Gate::class)` di dalam `register()`, jadi ia selalu callback
+PERTAMA dan memulangkan `true` untuk izin yang dimiliki pengguna; sebuah `before`
+kedua yang menolak tidak akan pernah dipanggil untuk kasus yang harus ditolaknya.
+Token yang dipakai permintaan diingat dari peristiwa `TokenAuthenticated`
+Sanctum — **satu sumber, dan hanya satu**: `currentAccessToken()` sengaja tidak
+dibaca, karena `Sanctum::actingAs($user)` memasang Mockery dengan daftar ability
+KOSONG dan membacanya mengubah 23 uji `tests/Feature/Core` menjadi 403 atas izin
+yang penggunanya pegang penuh. **Satu-satunya jalur pemberian yang tidak lewat
+`hasPermissionTo()` milik pemakainya** adalah `Gate::before` delegasi persetujuan
+(F-1), dan ia memanggil `TokenScope::allows()` sendiri; menambah jalur pemberian
+ketiga berarti menambah panggilan itu. `['*']` (cangkang SPA dan setiap baris
+sebelum P-3d) tidak pernah dipersempit. 403-nya diterjemahkan
+`Modules\Core\Http\Middleware\ExplainTokenScopeRefusal`, didorong ke grup `api`
+lewat `pushMiddlewareToGroup` (bukan `bootstrap/app.php`). Ia menukar BADAN
+jawaban 403 — dan `Illuminate\Routing\Pipeline` sudah merender pengecualian
+`UnauthorizedException` menjadi jawaban sebelum middleware grup melihatnya, jadi
+cabang jawaban itulah yang berjalan untuk 403 dari middleware rute MAUPUN dari
+dalam controller; cabang `catch`-nya lapis kedua untuk penangan pengecualian yang
+melempar ulang (`withoutExceptionHandling()`). **403 punya DUA bentuk badan**:
+ability token yang kurang → kalimat Indonesia + `errors.token_abilities`; izin
+PENGGUNA yang kurang → kalimat bawaan spatie tanpa `errors`. Keduanya dituliskan
+apa adanya di `docs/api/openapi.json`.
+
+**Batasnya dikatakan, bukan disembunyikan.** Ability menyempitkan gerbang izin
+dan tidak menciptakan gerbang di tempat aplikasi ini tidak menggerbangi apa pun.
+`UngatedApiRouteCensusTest` memaku daftar LITERAL **31** rute TULIS tanpa gerbang
+izin — dan HANYA itu. Hitungan seluruh aplikasi (diukur 12 Sep 2026: **862** rute
+api, **644** dijaga izin, **218** tidak, **646** kemunculan middleware — dua rute
+SPK membawa dua) sengaja TIDAK dipaku: sebuah rute baru yang wajar dan bergerbang
+di modul mana pun akan memerahkan gerbang paket ini tanpa sebab, dan paku yang
+merah tanpa sebab akan dimatikan orang (pelajaran 4). Setiap baris daftar itu
+harus self-service, memeriksa izin di dalam controllernya, atau dijaga
+`Modules\Iam\Http\Middleware\SessionOnly`. Tiga pintu memakai yang terakhir
+(`me/api-tokens`, `me/password`, `me/phone`): sebuah token yang bisa mencetak
+token berikutnya adalah token tanpa batas.
+
+**Kedaluwarsa punya DUA kunci, dan yang global membunuh yang per-token.**
+`Sanctum\Guard::isValidAccessToken()` menuntut plafon `config('sanctum.expiration')`
+(720 menit) DAN `expires_at` baris. `Sanctum::authenticateAccessTokensUsing()` di
+`IamServiceProvider` memakai plafon itu HANYA pada token sesi SPA
+(`personal_access_tokens.kind` = `session` **atau NULL** — setiap baris sebelum
+P-3d) dan menilai token `personal` dari `expires_at`-nya sendiri; token personal
+tanpa `expires_at` ditolak. `config/sanctum.php` tidak disentuh, jadi tidak ada
+baris produksi yang menjadi abadi dan tidak ada backfill. Batas ≤ 365 hari
+ditegakkan di `ApiTokenStoreRequest` sebagai JUMLAH HARI, bukan tanggal.
+`Modules\Iam\Models\ApiToken` menuruni `PersonalAccessToken` Sanctum (penyimpangan
+§1 yang disengaja: Guard hanya memakai model itu) dan **harus** menuliskan
+`$table` sendiri.
+
+**Dua ember laju** (ledger §5 baris 10): `Modules\Iam\Support\IntegrationRate` —
+token pribadi 300/menit per TOKEN, sisanya 120/menit dengan kunci lama. Ia
+menyelesaikan tokennya sendiri karena pembatas laju berjalan sebelum
+`auth:sanctum`. **CORS tetap kosong** (`docs/KEPUTUSAN-INTEGRASI.md` §11).
+
+**Webhook keluar: tanda tangan atas BYTE YANG DIKIRIM.** `WebhookPayload::encode()`
+adalah satu-satunya tempat muatan menjadi string; string itu ditandatangani
+(`WebhookSignature`: `t=<unix>,v1=hmac_sha256("<t>.<badan>", rahasia)`, stempel
+waktu IKUT ditandatangani, jendela 300 detik, `hash_equals`), string itu dikirim
+(`Http::withBody`, bukan `->post($url, $array)` yang meng-encode ulang), dan
+string itu disimpan di kolom `payload`. **Tanda tangannya dihitung sekali per
+PERCOBAAN**, di `DeliverWebhook` tepat sebelum POST-nya — stempel waktu ikut
+ditandatangani, dan percobaan kelima berangkat 4.860 detik sesudah barisnya lahir,
+jauh di luar jendela 300 detik yang dokumen kita suruh penerima tegakkan; kolom
+`signature` karena itu adalah CATATAN percobaan terakhir, bukan janji. Yang
+dibekukan hanyalah `payload`. `X-Nusantara-Event` stabil di kelima percobaan DAN
+sama untuk semua langganan pada transisi yang sama. **Rahasianya dipakai APA
+ADANYA** sebagai kunci HMAC (64 karakter hex, bukan 32 byte yang di-decode) —
+dikatakan di `WebhookSignature::SECRET_FORM` dan dari sana ke layar, PANDUAN
+§5.14 dan openapi.json, karena penerima yang menebak salah gagal pada SETIAP
+kiriman tanpa satu pun petunjuk. Muatan **kurus
+dengan sengaja** — penunjuk, bukan salinan dokumen; penerima yang butuh detail
+memanggil balik API dengan tokennya sendiri, tempat ability-nya berlaku.
+`version` naik hanya bila arti sebuah kolom berubah.
+
+**Dua lapis menunggu commit.** `DispatchDocumentWebhooks` adalah
+`ShouldHandleEventsAfterCommit` dan `DeliverWebhook` adalah
+`ShouldQueueAfterCommit` (tries 5, backoff 60/300/900/3600 — pola rumah
+`DeliverNotification`). `DocumentTransitioned` dipancarkan dari DALAM transaksi
+bisnis, dan sebuah POST tidak bisa ditarik kembali. Listener tidak pernah
+menjatuhkan persetujuannya: `WebhookService::dispatchFor` menelan Throwable ke
+log. `sent` **hanya** pada 2xx. Langganan yang gagal 20 kali beruntun
+dinonaktifkan otomatis DAN mengatakannya (kalimat di layar + notifikasi
+`core.update` + tombol Aktifkan lagi). Rahasia langganan terenkripsi, `$hidden`,
+tampil SEKALI. SSRF: `WebhookUrl` (https wajib, alamat internal ditolak saat
+MENYIMPAN dan saat MENGIRIM, redirect tidak diikuti, penyelesai DNS adalah seam
+supaya uji tidak menyentuh jaringan). **Alamatnya DINORMALKAN sebelum dinilai**:
+`FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE` milik PHP tidak menutup `::ffff:0:0/96`,
+jadi `::ffff:127.0.0.1` memulangkan "publik", dan `filter_var` tidak mengenali
+bentuk `inet_aton` (`2130706433`, `0177.0.0.1`, `127.1`) sebagai IP sama sekali.
+Kolom `error` melewati `ProviderErrorScrubber` **dengan rahasia langganan sebagai
+rahasia yang dikenal**, dan penyaring itu memaksa keluarannya UTF-8 sah — badan
+jawaban yang bukan teks menjatuhkan penulisan barisnya di MySQL (1366) dan
+menggantikan sebab pengiriman dengan galat SQL yang menyebut soket dan nama basis
+data.
+
+**OpenAPI dipelihara tangan**: `docs/api/openapi.json` (JSON, bukan YAML — tidak
+ada parser YAML di pohon ini dan menambahkannya melanggar aturan dependensi),
+DUA PULUH endpoint terpakai, dengan `x-izin` per operasi. `OpenApiDriftTest`
+membandingkan terhadap `Route::getRoutes()` pada jalur, metode, izin, **dan
+`auth:sanctum`** — DIBATASI pada kedua puluh itu, supaya endpoint baru sebuah
+modul lain tidak memerahkannya tanpa sebab. Arah keempat membaca
+`excludedMiddleware()` juga: `->withoutMiddleware('auth:sanctum')` TIDAK
+mengeluarkan middlewarenya dari `gatherMiddleware()`, jadi syarat yang hanya
+membaca yang pertama meloloskan satu baris yang membuka endpoint bagi siapa pun.
+Menambah endpoint ke dokumen = menambah `x-izin`-nya, `requestBody`-nya bila ia
+TULIS, dan parameter halaman bila jawabannya `AmplopDaftar`.

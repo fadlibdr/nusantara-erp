@@ -30,6 +30,7 @@ use Modules\Core\Http\Controllers\SearchController;
 use Modules\Core\Http\Controllers\SettingController;
 use Modules\Core\Http\Controllers\ThresholdController;
 use Modules\Core\Http\Controllers\UserPreferenceController;
+use Modules\Core\Http\Controllers\WebhookController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('company', [CompanyController::class, 'show']);
@@ -162,6 +163,20 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // P-0b: kotak keluar pengiriman (e-mail; WhatsApp/web push di Fase 3).
     // Baca-saja + Kirim ulang, bergerbang core.update — pemegang Pengaturan,
     // tempat sakelar e-mail yang menentukan `skipped` atau bukan.
+    /*
+     * P-3d — webhook keluar. core.update, gerbang yang sama dengan kotak keluar
+     * notifikasi dan antrean gagal: keduanya adalah pengaturan sistem yang
+     * memutuskan ke mana peristiwa perusahaan ini dikirim. Rahasia langganan
+     * tampil SEKALI, hanya di jawaban store/rotate, dan tidak pernah lagi.
+     */
+    Route::get('webhooks', [WebhookController::class, 'index'])->middleware('permission:core.update');
+    Route::post('webhooks', [WebhookController::class, 'store'])->middleware('permission:core.update');
+    Route::get('webhooks/deliveries', [WebhookController::class, 'deliveries'])->middleware('permission:core.update');
+    Route::put('webhooks/{webhook}', [WebhookController::class, 'update'])->whereNumber('webhook')->middleware('permission:core.update');
+    Route::post('webhooks/{webhook}/rotate-secret', [WebhookController::class, 'rotate'])->whereNumber('webhook')->middleware('permission:core.update');
+    Route::post('webhooks/{webhook}/enable', [WebhookController::class, 'enable'])->whereNumber('webhook')->middleware('permission:core.update');
+    Route::delete('webhooks/{webhook}', [WebhookController::class, 'destroy'])->whereNumber('webhook')->middleware('permission:core.delete');
+
     Route::get('notification-deliveries', [NotificationDeliveryController::class, 'index'])->middleware('permission:core.update');
     Route::get('notification-deliveries/{notificationDelivery}', [NotificationDeliveryController::class, 'show'])->middleware('permission:core.update');
     Route::post('notification-deliveries/{notificationDelivery}/retry', [NotificationDeliveryController::class, 'retry'])->middleware('permission:core.update');

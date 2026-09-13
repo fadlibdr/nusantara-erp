@@ -279,6 +279,21 @@ ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengar
 > dibaca** aplikasi — SFTP tidak dibangun, host-to-host tetap ditolak
 > (`docs/KEPUTUSAN-INTEGRASI.md` §10, `docs/LAPORAN-PAKET-HM-P-3c.md`).
 
+> **P-3d dibangun 12 Sep 2026**, dan baris 10 dipakai apa adanya: **CORS tetap
+> kosong**, **laju token integrasi 300 per menit** dengan ember terpisah per TOKEN
+> (batas peramban 120/menit tidak disentuh; `INTEGRATION_RATE_LIMIT` di `.env`).
+> Keputusan yang diambil paket ini tanpa menunggu pemilik, karena tidak satu pun
+> menunggu pihak luar: kedaluwarsa Sanctum diselesaikan dengan callback yang
+> memakai plafon global HANYA pada token sesi SPA (bukan `expiration = null`, yang
+> akan membuat setiap baris produksi tanpa `expires_at` menjadi abadi); muatan
+> webhook **kurus** (penunjuk, bukan salinan dokumen); langganan yang gagal 20 kali
+> beruntun **dinonaktifkan otomatis dan mengatakannya**; dan alamat internal
+> ditolak dua kali dengan redirect yang tidak diikuti
+> (`docs/KEPUTUSAN-INTEGRASI.md` §11, `docs/LAPORAN-PAKET-HM-P-3d.md`). Angka 793
+> di teks P-3d sudah basi: diukur 12 Sep 2026 ada **862** rute di bawah `/api`
+> sesudah paket ini, dan yang didokumentasikan tangan adalah **20** endpoint
+> terpakai.
+
 > **Baris 5 — "Core 001400–?" bertabrakan dengan blok pertama Quality, dan blok itu sudah
 > berisi enam migrasi.** CONVENTIONS §2 memberikan `001400–001499` kepada Quality
 > (`| Quality | api/quality | qc_ | 001400–001499 |`), dan `ls Modules/*/Database/Migrations/*_0014*.php`

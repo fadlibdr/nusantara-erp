@@ -23,6 +23,13 @@ return [
     'security' => [
         'force_https' => env('FORCE_HTTPS', false),
         'api_rate_limit' => env('API_RATE_LIMIT', 120),
+        /*
+         * P-3d — batas laju untuk TOKEN INTEGRASI (ledger pemilik
+         * ROADMAP-HASHMICRO §5 baris 10: 300 per menit). Ember terpisah dari
+         * yang di atas, dikunci per token, supaya integrasi tidak memakan jatah
+         * peramban dan sebaliknya (Modules\Iam\Support\IntegrationRate).
+         */
+        'integration_rate_limit' => env('INTEGRATION_RATE_LIMIT', 300),
     ],
 
     /*
