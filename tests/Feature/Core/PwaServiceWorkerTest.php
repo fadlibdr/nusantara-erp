@@ -171,20 +171,147 @@ class PwaServiceWorkerTest extends TestCase
      *
      * Karena itu yang dipaku adalah DAFTAR pendengarnya, bukan isinya.
      */
-    public function test_the_worker_registers_exactly_four_listeners(): void
+    public function test_the_worker_registers_exactly_seven_listeners(): void
     {
         preg_match_all("~addEventListener\('(\w+)'~", $this->code(), $found);
         $listeners = $found[1];
         sort($listeners);
 
         $this->assertSame(
-            ['activate', 'fetch', 'install', 'message'],
+            ['activate', 'fetch', 'install', 'message', 'notificationclick', 'push', 'pushsubscriptionchange'],
             $listeners,
             'Daftar pendengar sw.js berubah. Pendengar `fetch` kedua bisa menyimpan jawaban '
             .'tanpa satu pun respondWith(), sehingga seluruh pemeriksaan lain di berkas ini '
             .'melewatinya; pendengar baru jenis lain butuh pembacanya sendiri. Tambahkan pendengar '
-            .'hanya bersama uji yang memaku apa yang boleh dilakukannya.',
+            .'hanya bersama uji yang memaku apa yang boleh dilakukannya. (Empat sampai P-3e; '
+            .'ketiga pendengar web push ditambahkan bersama uji di bawah yang memaku bahwa '
+            .'tidak satu pun dari mereka menyentuh cache.)',
         );
+    }
+
+    /**
+     * P-3e — TIGA PENDENGAR BARU, DAN TIDAK SATU PUN MENYENTUH CACHE.
+     *
+     * Menaikkan angka pada uji di atas dari empat menjadi tujuh adalah
+     * pelonggaran, dan pelonggaran tanpa pengganti adalah persis cara aturan
+     * ini membusuk. Penggantinya di sini: badan ketiga pendengar web push
+     * dibaca satu per satu dan tidak boleh memuat `caches`, tulisan `.put(`/
+     * `.add(`, atau permintaan ke API. Muatan push membawa judul dan isi
+     * pemberitahuan seseorang; sebuah `cache.put()` di pendengar `push` akan
+     * menyajikannya kepada orang berikutnya di tablet lapangan yang dipakai
+     * bergantian — bentuk kebocoran yang sama persis dengan mutasi "pendengar
+     * fetch kedua" yang diukur 7 Sep 2026, dari pintu yang baru.
+     */
+    public function test_the_web_push_listeners_never_touch_the_cache_or_the_api(): void
+    {
+        foreach (['push', 'notificationclick', 'pushsubscriptionchange'] as $event) {
+            $body = $this->listenerBody($event);
+
+            $this->assertStringNotContainsString(
+                'caches',
+                $body,
+                "Pendengar `{$event}` menyentuh `caches`. Satu-satunya jalan menuju cache di berkas ini adalah "
+                .'shellRequest() + storable(); pintu kedua harus mengulang kelima syaratnya, dan itulah yang tidak '
+                .'pernah terjadi.',
+            );
+
+            $this->assertSame(
+                0,
+                preg_match_all('~\b\w+\.(?:put|add|addAll)\(~', $body),
+                "Pendengar `{$event}` menulis ke penyimpanan (.put/.add). Muatan push membawa judul dan isi "
+                .'pemberitahuan seseorang.',
+            );
+
+            $this->assertStringNotContainsString(
+                '/api',
+                strtolower($body),
+                "Pendengar `{$event}` memanggil API aplikasi. Worker tidak punya kredensial sesi (token ada di "
+                .'localStorage, yang tidak bisa dibaca dari sini), jadi permintaan seperti itu hanya bisa berupa '
+                .'endpoint tanpa autentikasi yang dipasang di bawah /api — dan aturan daftar izin cache berdiri di '
+                .'atas premis bahwa berkas ini tidak pernah menyebut /api sama sekali.',
+            );
+        }
+    }
+
+    /**
+     * P-3e — `push` SELALU menampilkan notifikasi, termasuk saat muatannya
+     * tidak bisa dibaca.
+     *
+     * Itu kontrak `userVisibleOnly: true`: peramban yang menerima push dan
+     * tidak melihat notifikasi muncul boleh MENCABUT langganan perangkat itu.
+     * Sebuah `try { … } catch { return; }` yang "aman" di sana adalah cara
+     * kehilangan perangkat satu per satu tanpa satu pun galat.
+     */
+    public function test_a_broken_payload_still_shows_a_notification(): void
+    {
+        $body = $this->listenerBody('push');
+
+        $this->assertMatchesRegularExpression(
+            '~catch \([^)]*\) \{\s*isi = \{\};\s*\}~',
+            $body,
+            'Muatan yang tidak bisa diurai tidak lagi jatuh ke objek kosong. Pendengar `push` yang keluar diam-diam '
+            .'pada muatan rusak melanggar kontrak userVisibleOnly, dan peramban mencabut langganannya.',
+        );
+
+        $this->assertSame(
+            1,
+            preg_match_all('~showNotification\(~', $body),
+            'showNotification() harus dipanggil TEPAT SEKALI, di satu jalur yang dilewati semua cabang — dua '
+            .'panggilan berarti ada cabang yang bisa melewatkan keduanya.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            "~showNotification\(isi\.judul \|\| '[^']+', \{~",
+            $body,
+            'Judul tidak lagi punya cadangan. Muatan tanpa judul menghasilkan notifikasi berjudul "undefined".',
+        );
+    }
+
+    /**
+     * P-3e — `pushsubscriptionchange` mengirim endpoint LAMA bersama yang baru.
+     *
+     * Tanpa endpoint lama, server tidak punya cara mengenali baris mana yang
+     * harus diganti: ia akan menumpuk baris kedua untuk perangkat yang sama,
+     * dan orangnya menerima setiap pemberitahuan dua kali sampai yang lama
+     * dijawab 410.
+     */
+    public function test_the_rotation_sends_the_old_endpoint_so_the_server_replaces_instead_of_stacking(): void
+    {
+        $body = $this->listenerBody('pushsubscriptionchange');
+
+        $this->assertStringContainsString(
+            'old_endpoint: lama.endpoint',
+            $body,
+            'Endpoint lama tidak ikut dikirim: server tidak bisa mengganti baris yang benar dan akan menumpuk.',
+        );
+        $this->assertStringContainsString(
+            'userVisibleOnly: true',
+            $body,
+            'Berlangganan ulang tanpa userVisibleOnly ditolak setiap peramban yang menegakkannya.',
+        );
+    }
+
+    /** Badan sebuah `self.addEventListener('nama', (event) => { … })`, tanpa komentar. */
+    private function listenerBody(string $event): string
+    {
+        $code = $this->code();
+        $start = strpos($code, "self.addEventListener('{$event}'");
+        $this->assertNotFalse($start, "Pendengar `{$event}` tidak ada di sw.js.");
+
+        $open = strpos($code, '{', $start);
+        $depth = 0;
+        for ($i = $open; $i < strlen($code); $i++) {
+            if ($code[$i] === '{') {
+                $depth++;
+            } elseif ($code[$i] === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($code, $open, $i - $open + 1);
+                }
+            }
+        }
+
+        $this->fail("Kurung badan pendengar `{$event}` tidak seimbang.");
     }
 
     /* --------------------------------------------------------------- (d) */

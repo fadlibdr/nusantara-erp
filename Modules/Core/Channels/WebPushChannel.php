@@ -117,6 +117,13 @@ class WebPushChannel implements ChannelWithoutMessageId, DeliveryChannel
         }
 
         if ($report->isSuccess()) {
+            // "Terakhir berhasil" milik PERANGKATNYA, bukan barisnya: layar
+            // Profil menjawab "kapan perangkat ini terakhir benar-benar
+            // menerima" tanpa menelusuri kotak keluar, dan sebuah perangkat
+            // yang tanggalnya kosong berbulan-bulan adalah perangkat yang
+            // pantas dicabut.
+            $subscription->forceFill(['last_success_at' => now()])->save();
+
             // RFC 8030 §5: `Location` OPSIONAL. Yang ada dipakai apa adanya,
             // yang tidak ada dibiarkan kosong — bukti penerimaan kanal ini
             // adalah 2xx itu sendiri (ChannelWithoutMessageId).

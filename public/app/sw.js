@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '12';
+const SHELL_VERSION = '13';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -357,6 +357,125 @@ async function networkFirst(event) {
 self.addEventListener('fetch', (event) => {
   if (!shellRequest(event.request)) return;
   event.respondWith(networkFirst(event));
+});
+
+/* -------------------------------------------------------------- web push
+ *
+ * P-3e (T3e.5). TIGA pendengar baru, dan satu aturan yang berlaku untuk
+ * ketiganya: TIDAK SATU PUN dari mereka menyentuh cache.
+ *
+ * Itu bukan kehati-hatian berlebihan. Aturan "tidak pernah di-cache" di kepala
+ * berkas ini berbentuk daftar izin dengan SATU gerbang (shellRequest) dan SATU
+ * tulisan; sebuah pendengar baru yang menulis ke cache adalah gerbang kedua
+ * yang harus mengulang kelima syaratnya, dan gerbang kedua itulah bentuk
+ * kebocoran yang paling mungkin ditulis paket berikutnya. Muatan push berisi
+ * judul dan isi pemberitahuan seseorang; ia tidak boleh menyentuh penyimpanan
+ * bersama di perangkat yang dipakai bergantian. PwaServiceWorkerTest memaku
+ * ketiga badan pendengar ini bebas dari caches/.put(/permintaan ke API.
+ */
+
+self.addEventListener('push', (event) => {
+  /*
+   * SELALU menampilkan notifikasi — termasuk ketika muatannya hilang atau
+   * tidak bisa dibaca.
+   *
+   * Itu kontrak `userVisibleOnly: true`: peramban yang menerima push dan TIDAK
+   * melihat notifikasi muncul boleh mencabut langganan perangkat itu (Chrome
+   * menghitungnya dan menampilkan "Situs ini diperbarui di latar belakang"
+   * lebih dulu). Jadi muatan rusak dijawab kalimat umum, bukan diam: satu
+   * kalimat yang kurang tepat jauh lebih murah daripada langganan yang dicabut
+   * peramban tanpa ada yang tahu.
+   */
+  event.waitUntil((async () => {
+    let isi = {};
+    try {
+      isi = event.data ? event.data.json() : {};
+    } catch (error) {
+      isi = {};
+    }
+    if (!isi || typeof isi !== 'object') isi = {};
+
+    await self.registration.showNotification(isi.judul || 'Nusantara ERP', {
+      body: isi.isi || 'Ada pemberitahuan baru. Buka Nusantara ERP untuk membacanya.',
+      // tag = id notifikasinya: pemberitahuan yang sama yang sampai dua kali
+      // MENIMPA yang lama alih-alih menumpuk dua baris identik.
+      tag: isi.tag || 'nusantara-erp',
+      icon: 'icons/icon-192.png',
+      badge: 'icons/icon-192.png',
+      data: { tautan: isi.tautan || null },
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', (event) => {
+  // Tutup dulu: notifikasi yang tetap menggantung sesudah diketuk adalah
+  // notifikasi yang diketuk dua kali.
+  event.notification.close();
+
+  const tautan = (event.notification.data && event.notification.data.tautan) || SCOPE;
+
+  event.waitUntil((async () => {
+    // Tab yang SUDAH terbuka difokuskan, bukan ditimpa jendela baru: orang
+    // yang sedang mengisi formulir di tab itu tidak boleh kehilangan isinya,
+    // dan dua tab aplikasi yang sama adalah dua sesi yang membingungkan.
+    const terbuka = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+    for (const klien of terbuka) {
+      if (new URL(klien.url).pathname.startsWith(SCOPE)) {
+        await klien.focus();
+        if ('navigate' in klien) {
+          try {
+            await klien.navigate(tautan);
+          } catch (error) {
+            // Peramban yang menolak navigate() (lintas asal, klien tidak
+            // dikuasai) tetap mendapat tab yang fokus — itu sudah lebih baik
+            // daripada tidak terjadi apa-apa.
+          }
+        }
+        return;
+      }
+    }
+
+    await self.clients.openWindow(tautan);
+  })());
+});
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  /*
+   * Peramban MEMUTAR langganannya sendiri (kunci kedaluwarsa, profil
+   * dipulihkan). Tanpa pendengar ini, baris di server menunjuk endpoint mati
+   * sampai layanan push menjawab 410 pada pengiriman berikutnya — yaitu satu
+   * pemberitahuan yang hilang, diam-diam, per perangkat.
+   *
+   * Endpoint LAMA ikut dikirim supaya server MENGGANTI barisnya, bukan
+   * menumpuk baris kedua yang membuat orangnya menerima dua kali.
+   *
+   * Alamatnya BUKAN endpoint bersesi: worker tidak bisa membaca token sesi
+   * (ia ada di localStorage, yang tidak punya API di sini) dan peristiwa ini
+   * menyala ketika tidak ada satu tab pun terbuka. Kapabilitasnya adalah
+   * endpoint lama itu sendiri; server tidak pernah MEMBUAT baris dari
+   * permintaan ini. Lihat Modules/Core/Http/Controllers/PushRotationController.
+   */
+  event.waitUntil((async () => {
+    const lama = event.oldSubscription || null;
+    if (!lama) return;
+
+    let baru = event.newSubscription || null;
+
+    if (!baru) {
+      const kunci = lama.options ? lama.options.applicationServerKey : null;
+      if (!kunci) return;
+      baru = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: kunci });
+    }
+
+    const isi = baru.toJSON();
+
+    await fetch(new URL('../push/rotate', self.location), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ old_endpoint: lama.endpoint, endpoint: isi.endpoint, keys: isi.keys }),
+    });
+  })());
 });
 
 /* ---------------------------------------------------------------- pesan */

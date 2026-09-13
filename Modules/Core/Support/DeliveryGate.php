@@ -234,15 +234,31 @@ final class DeliveryGate
      * pemasangan yang VAPID-nya belum diisi sama sekali — ia akan menekan
      * tombol yang memang tidak bisa bekerja.
      */
-    private static function webPushReason(User $recipient): ?string
+    /**
+     * Bagian GLOBAL dari sebab web push: sakelar Pengaturan lalu VAPID di
+     * .env. Dipisah karena layar Profil membutuhkannya sendiri — ia adalah
+     * jalan buntu yang TIDAK BISA diatasi tindakan apa pun di peramban, jadi
+     * tombol "Aktifkan" tidak boleh ditawarkan di atasnya. Sebab yang PRIBADI
+     * (dimatikan pengguna, belum ada perangkat) justru yang tombol itu ada
+     * untuk mengatasinya.
+     *
+     * Satu tempat, dua pembaca — bukan dua kalimat yang mirip.
+     */
+    public static function webPushServerReason(): ?string
     {
         if (! Erp::bool('notifications.webpush_enabled', false)) {
             return self::WEBPUSH_DISABLED;
         }
 
-        $setup = WebPushSetup::skipReason();
-        if ($setup !== null) {
-            return $setup;
+        return WebPushSetup::skipReason();
+    }
+
+    private static function webPushReason(User $recipient): ?string
+    {
+        $server = self::webPushServerReason();
+
+        if ($server !== null) {
+            return $server;
         }
 
         if (! self::userEnabled(NotificationDelivery::CHANNEL_WEBPUSH, $recipient)) {

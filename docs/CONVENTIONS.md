@@ -905,11 +905,16 @@ itu, memaku bahwa hanya ada SATU `respondWith()` dan SATU `cache.put()`, dan mem
 
 Uji itu memaku **bentuk, bukan ejaan**: badan `shellRequest()` dan `storable()` dibandingkan UTUH,
 tulisan cache dihitung sebagai pola `\w+.put(`/`\w+.add(` (bukan nama variabel `cache`), dan DAFTAR
-pendengar worker dipaku persis empat (`install`, `activate`, `fetch`, `message`). Alasannya terukur:
+pendengar worker dipaku persis — **empat sampai P-3e, tujuh sesudahnya** (`install`, `activate`,
+`fetch`, `message`, dan `push`, `notificationclick`, `pushsubscriptionchange`). Alasannya terukur:
 versi pertama yang menghitung potongan teks meloloskan empat mutasi yang benar-benar membocorkan
 cache — antara lain pendengar `fetch` KEDUA yang menulis lewat `store.put()` tanpa satu pun
 `respondWith()`, yang di peramban menyajikan `/api/core/dashboard/summary` kepada orang berikutnya
-di perangkat yang sama, sesudah Keluar, tanpa token. **Menambah pendengar berarti menambah ujinya.**
+di perangkat yang sama, sesudah Keluar, tanpa token. **Menambah pendengar berarti menambah ujinya**,
+dan P-3e membayarnya: menaikkan angka empat → tujuh disertai pin baru yang membaca **badan ketiga
+pendengar web push satu per satu** dan menolak `caches`, tulisan `.put(`/`.add(`, dan permintaan ke
+`/api` di dalamnya. Muatan push membawa judul dan isi pemberitahuan seseorang; sebuah `cache.put()`
+di pendengar `push` adalah kebocoran yang sama persis dari pintu yang baru.
 
 **Strateginya jaringan-dulu.** Cache dibaca HANYA ketika `fetch()` melempar. Jawaban HTTP yang sah
 tetapi tidak menyenangkan (404 sesudah rilis membuang berkas, 401 dari gerbang HTTP) diteruskan apa
