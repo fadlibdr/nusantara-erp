@@ -487,7 +487,11 @@ asersi**) — di sanalah M3 (endpoint `varchar(190)`) merah, dan ia **hanya** bi
 | `5e74cfe` | Putaran verifikasi (§13) — C-8: S41m dua konteks, syarat 5 → 10 |
 | `460a8f5` | Putaran verifikasi (§13) — §6/§3.5/§12.4/CONVENTIONS §42 dibetulkan, §13 ditulis, gagal resolusi dipisahkan dari alamat internal |
 | `ffcbc1f` | Putaran verifikasi (§13) — muatan dibentuk di luar `try` pengirim: dua sebab berbeda tidak berbagi satu kalimat pembuka |
-| (commit ini) | Putaran verifikasi (§13) — angka gerbang dua driver |
+| `fa7150c` | Putaran verifikasi (§13) — angka gerbang dua driver |
+| `9236ad2` | Putaran penutup (§14) — V-1/V-4/V-5/V-6: sapuan "kanal ketiga" sampai ke LAYAR; kartu jam tenang dan dua pin barunya |
+| `6e8fb4a` | Putaran penutup (§14) — V-2/V-3: plafon perangkat tanpa jalan memutar, dan uji untuk penjaga penghapusan lintas-akun |
+| `b4223ad` | Putaran penutup (§14) — V-7/V-8: konteks tidak aman mendahului cabang iOS; jumlah batas rotasi ditulis satu angka |
+| (commit ini) | Putaran penutup (§14) — daftar commit dan angka gerbang penutup |
 
 ---
 
@@ -665,8 +669,8 @@ tidak ikut berpindah oleh pendaftaran yang gagal.
 
 | # | Apa | Ditutup di |
 |---|---|---|
-| **V-7** (rendah) | `pushBlocker()` menempatkan cabang iOS SEBELUM cabang konteks tidak aman. Pada pemasangan `http://`, pengguna iPhone mendapat kalimat yang menyalahkan sistem operasinya ("itu batas sistem operasinya, bukan setelan yang bisa diubah") padahal yang kurang adalah HTTPS: ia akan memasang aplikasi ke Layar Utama dan tombolnya tetap tidak bekerja. Itu persis bentuk yang C-7 diangkat untuk menutup. | `0488101` |
-| **V-8** (rendah) | Jumlah batas rute rotasi ditulis tiga angka berbeda: docblock "Tiga" (lalu mendaftar lima), LAPORAN §6.3 "EMPAT", LAPORAN §3.5 dan KEPUTUSAN §12.4 "Lima". Bagi pembaca yang menilai risiko rute publik itu, angka yang tidak bisa dipercaya lebih buruk daripada tidak ada angka. | `0488101` |
+| **V-7** (rendah) | `pushBlocker()` menempatkan cabang iOS SEBELUM cabang konteks tidak aman. Pada pemasangan `http://`, pengguna iPhone mendapat kalimat yang menyalahkan sistem operasinya ("itu batas sistem operasinya, bukan setelan yang bisa diubah") padahal yang kurang adalah HTTPS: ia akan memasang aplikasi ke Layar Utama dan tombolnya tetap tidak bekerja. Itu persis bentuk yang C-7 diangkat untuk menutup. | `b4223ad` |
+| **V-8** (rendah) | Jumlah batas rute rotasi ditulis tiga angka berbeda: docblock "Tiga" (lalu mendaftar lima), LAPORAN §6.3 "EMPAT", LAPORAN §3.5 dan KEPUTUSAN §12.4 "Lima". Bagi pembaca yang menilai risiko rute publik itu, angka yang tidak bisa dipercaya lebih buruk daripada tidak ada angka. | `b4223ad` |
 
 `isSecureContext` adalah sifat **pemasangan** — lebih global daripada perangkat yang dipegang
 orangnya — jadi tempatnya tepat setelah `server_reason`. Urutannya dipaku UTUH sebagai satu string,
@@ -680,6 +684,11 @@ memanggil `$this->code()` = `stripComments($this->worker())`, jadi premis temuan
 sub-saran yang ditolak juga pantas — daftar-izin host layanan push harus benar untuk peramban yang
 belum ada, dan menghapus langganan pada 401/403 menjadikan satu salah ketik `VAPID_PRIVATE_KEY`
 penghapus seluruh basis perangkat.
+
+Gerbang per-direktori sesudah kedelapan temuan ditutup (`tests/Feature/Core` + `tests/Unit` +
+`tests/Feature/Iam`, SQLite): **2.037 uji / 14.013 asersi, 11 dilewati**, 5 mnt 57 dtk — empat uji
+lebih banyak daripada angka verifier penutup (2.033), yaitu persis keempat pin baru putaran ini.
+`pint --test` atas setiap berkas yang disentuh: passed.
 
 Lima pertanyaan wajibnya dijawab dengan bukti: **tidak ada jalan keluar bagi kunci privat VAPID**
 (dibaca satu tempat, `private`, dua pintu keluar yang keduanya menuju penandatangan atau penyamar);
