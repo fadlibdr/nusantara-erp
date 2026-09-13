@@ -423,10 +423,19 @@ pernah memulangkan satu angka).
 | *(putaran verifikasi)* 16 mutasi sisi server + 6 `sw.js` + 7 `profil.js` + 1 harness | **30 MERAH, 0 lolos** |
 | *(putaran verifikasi)* `vendor/bin/pint` atas setiap berkas yang disentuh | `passed` |
 | Migrasi atas salinan sqlite demo (001804 + 001805) | `DONE` keduanya |
+| *(putaran penutup)* `tests/Feature/Core` + `tests/Unit` + `tests/Feature/Iam`, SQLite, sesudah V-1…V-8 | **OK — 2.037 uji / 14.013 asersi, 11 dilewati**, 5 mnt 57 dtk |
+| **GERBANG RILIS — seluruh suite, SQLite, atas `f1b600c`** | **OK — 5.135 uji / 35.091 asersi, 11 dilewati**, 16 mnt 34 dtk |
+| **GERBANG RILIS — seluruh suite, MySQL 8 `erp_dryrun`, atas `f1b600c`** | **OK — 5.135 uji / 35.097 asersi, 9 dilewati**, 47 mnt 6 dtk |
 
-**Gerbang penuh dua driver SUDAH DIJALANKAN di putaran verifikasi** (dua baris terakhir tabel di
-atas): angkanya **sama persis di kedua driver — 2.033 uji**, dan selisih asersi (13.974 vs 13.981)
-serta jumlah yang dilewati (11 vs 9) adalah dua uji khusus-MySQL yang memang dilewati di SQLite.
+**GERBANG RILIS (13 Sep 2026, `f1b600c`, worktree terisolasi, `vendor/` DISALIN dari `/root/p3e`
+karena vendor milik main tidak punya `minishlink/web-push`): HIJAU DI KEDUA DRIVER.** Jumlah ujinya
+**sama persis — 5.135** di SQLite dan di MySQL; selisih asersi (35.091 vs 35.097) dan jumlah yang
+dilewati (11 vs 9) adalah dua uji khusus-MySQL yang memang dilewati di SQLite, pola yang sama dengan
+setiap gerbang fase ini. Main `2bd6066` membawa **5.044** → paket ini **+91 uji**. Pohon bersih
+sebelum dan sesudah kedua jalannya (`dirty=0`).
+
+Gerbang per-direktori dua driver juga sudah dijalankan lebih awal di putaran verifikasi (dua baris
+di tengah tabel): angkanya sama persis di kedua driver — 2.033 uji — dengan selisih yang sama.
 Selama pembangunan, `PushSubscriptionSchemaTest` juga sudah hijau di `erp_dryrun` (**8 uji / 47
 asersi**) — di sanalah M3 (endpoint `varchar(190)`) merah, dan ia **hanya** bisa merah di MySQL.
 
