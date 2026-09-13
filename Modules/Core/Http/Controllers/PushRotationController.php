@@ -35,7 +35,8 @@ use Modules\Core\Support\PushEndpoint;
  * KAPABILITASNYA ADALAH ENDPOINT LAMA. Endpoint push adalah rahasia yang
  * hanya diketahui peramban itu dan server ini; ia sudah menjadi kapabilitas
  * dalam standarnya sendiri (siapa pun yang memegangnya bisa mem-POST ke
- * langganan itu). Tiga batas menjaganya:
+ * langganan itu). Lima batas menjaganya — (a) sampai (c) sejak T3e.5,
+ * (d) dan (e) sejak putaran verifikasi:
  *
  *  a. TIDAK PERNAH MEMBUAT. Endpoint lama yang tidak cocok satu baris pun
  *     dijawab 204 dan tidak menulis apa pun — rute ini tidak bisa dipakai

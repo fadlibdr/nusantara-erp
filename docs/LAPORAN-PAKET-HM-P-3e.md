@@ -306,8 +306,9 @@ Paku P-3d bekerja persis seperti yang dijanjikannya.
    adalah tidak menyalakan kanalnya (KEPUTUSAN-INTEGRASI §12.3).
 2. **iPhone/iPad hanya lewat Layar Utama, iOS 16.4+.** Di tab Safari biasa Push API tidak ada; layar
    mengatakan cara memasangnya alih-alih menampilkan tombol yang gagal.
-3. **Rotasi publik** — batasnya di §3.5, EMPAT batas sejak putaran verifikasi (A-4): tidak pernah
-   membuat, asal harus sama, tidak pernah menyentuh baris milik akun lain, dan bukan alamat internal.
+3. **Rotasi publik** — batasnya di §3.5, **lima batas** (tiga sejak T3e.5, dua sejak putaran
+   verifikasi A-4 dan A-1/B-2): tidak pernah membuat, asal harus sama, tidak pernah menyentuh baris
+   milik akun lain, bukan alamat internal, dan laju dibatasi.
 4. **Endpoint perangkat hanya boleh menunjuk ke LUAR jaringan server** (putaran verifikasi A-1/B-2).
    Ia melewati penjaga yang sama dengan URL webhook (P-3d §11): https wajib, loopback/privat/
    link-local/CGNAT/nama internal ditolak dalam bentuk apa pun ia ditulis, diperiksa saat menyimpan
@@ -614,3 +615,77 @@ bukan karena pemeriksaannya lolos diam-diam. Tidak ada perubahan.
 6. **Satu kalimat "Sistem › Log Audit" TERSISA di luar paket ini**
    (`PANDUAN-ADMINISTRATOR.md` baris ~3984, matriks persetujuan) — cacat yang sama, tetapi milik
    paket lain; tidak disentuh supaya putaran ini tidak melebar.
+
+## 14. Putaran penutup (13 Sep 2026) — 8 temuan verifier penutup, semuanya ditutup
+
+Verifier penutup bekerja di worktree-nya sendiri atas `fa7150c`, menjalankan **36 mutasinya sendiri**
+atas perbaikan §13.2 (34 merah; dua yang hijau adalah mutasi yang memang tidak mengubah perilaku),
+memeriksa ulang satu penolakan §13.3, dan menjalankan migrasi ini pada basis data MySQL **berisi**
+(rollback 001805 → isi tabel dengan baris e-mail + WhatsApp → jalankan lagi: DONE 47 ms, kedua baris
+utuh, `push_subscription_id` NULL). Verdiktnya **BELUM SIAP**, atas dua hal yang masing-masing satu
+sampai lima baris — dan atas satu BENTUK yang berulang empat kali.
+
+### 14.1 Bentuk yang berulang: sapuan "kanal ketiga" berhenti satu lapis sebelum layar
+
+LAPORAN dan PANDUAN-PENGGUNA sudah berbicara tentang tiga kanal; **layar belum**. Empat dari delapan
+temuan adalah instans bentuk itu, dan yang pertama adalah kebohongan struktural yang §13 memang
+dibuat untuk mengejar — dalam arah terbalik: layar **menyangkal** perilaku yang benar.
+
+| # | Apa | Ditutup di |
+|---|---|---|
+| **V-1** (sedang) | Kartu "Jam tenang" berbunyi "e-mail dan WhatsApp DITUNDA" — dua kanal dari tiga, satu kartu di atas kartu web push. `outboxRow()` menunda SETIAP baris `queued` tanpa memandang kanal, jadi setiap baris web push ikut ditunda. Orang yang membacanya menyimpulkan ponselnya akan berbunyi pukul 02.00. Tidak ada satu uji pun yang menyentuh kalimat itu. | `9236ad2` |
+| **V-4** (rendah) | `USER_OFF_HINT` menyuruh orangnya ke kartu bernama "Kanal pemberitahuan"; kartu itu berjudul "Kanal notifikasi". Cacat yang sama bentuknya dengan "Sistem › Log Audit" yang §13.2 tutup di lima tempat — dan diperkenalkan OLEH putaran itu. | `9236ad2` |
+| **V-5** (rendah) | Pesan 422 `notify.channels` mengeja "{email, whatsapp}" — dua kanal, di pesan yang ADA untuk memberi tahu bentuk yang benar — dan `NotificationPreferencesTest` memakunya kata demi kata. | `9236ad2` |
+| **V-6** (rendah) | Deskripsi kelompok Pengaturan › Notifikasi (digambar di atas KETIGA sakelarnya) dan CONVENTIONS §38 masih menghitung dua kanal / dua baris `skipped`. | `9236ad2` |
+
+**V-1 ditutup dengan DUA pin, keduanya dibuktikan merah**, karena kalimat dan perilaku adalah dua hal:
+`WebPushOutboxTest::test_quiet_hours_postpones_every_web_push_row_one_per_device` memaku yang
+TERJADI (mutasi: `outboxRow()` melewati penundaan untuk kanal webpush → "Baris web push berangkat
+SEKARANG di tengah jam tenang"), dan
+`WebPushSpaWiringTest::test_the_quiet_hours_card_names_every_channel_it_actually_postpones` memaku
+yang DIKATAKAN (mutasi: kalimat dikembalikan ke versi dua kanal → merah). Pin kedua mengulang
+**daftar kanal**, bukan kalimatnya, sehingga kanal keempat memerahkannya; peta namanya **dieja di
+uji dan tidak diturunkan dari kode yang diuji** — pin yang membaca harapannya sendiri tidak pernah
+bisa merah (pelajaran Fase 2).
+
+**V-5** ditutup dengan menurunkan bentuknya dari `DeliveryGate::USER_CHANNELS` di sisi produksi,
+sementara ujinya tetap memaku literalnya: kanal berikutnya memerahkannya **sekali**, dengan sadar.
+
+### 14.2 Dua batas yang tidak sekuat kalimatnya
+
+| # | Apa | Ditutup di |
+|---|---|---|
+| **V-2** (sedang) | Plafon `MAX_PER_USER` diperiksa hanya ketika `$existing === null`. Pendaftaran yang MENGAMBIL ALIH endpoint milik akun lain — jalur "peramban bersama" yang memang disengaja — melewatinya: sepuluh perangkat menjadi sebelas. Tiga dokumen menyebutnya batas mutlak. Uji A-5 tidak bisa menangkapnya (ia mendaftarkan sebelas endpoint BARU). | `6e8fb4a` |
+| **V-3** (sedang) | Lingkup pemilik pada penghapusan lewat `previous_endpoint` — sebuah pintu penghapusan lintas-akun di rute tanpa gerbang izin — **tidak punya satu uji pun**: mutasi yang membuangnya lolos hijau atas 99 uji. Kodenya benar sejak awal; ujinya yang tidak ada. Ini B-6 dalam bentuk kedua, di pintu yang lebih terbuka, dan ia lolos dari putaran §13. | `6e8fb4a` |
+
+Uji V-2 memeriksa **dua** hal, bukan satu: pendaftaran ke-11 ditolak 422, DAN langganan orang lain
+tidak ikut berpindah oleh pendaftaran yang gagal.
+
+### 14.3 Urutan yang adalah kalimatnya, dan satu angka yang ditulis tiga kali berbeda
+
+| # | Apa | Ditutup di |
+|---|---|---|
+| **V-7** (rendah) | `pushBlocker()` menempatkan cabang iOS SEBELUM cabang konteks tidak aman. Pada pemasangan `http://`, pengguna iPhone mendapat kalimat yang menyalahkan sistem operasinya ("itu batas sistem operasinya, bukan setelan yang bisa diubah") padahal yang kurang adalah HTTPS: ia akan memasang aplikasi ke Layar Utama dan tombolnya tetap tidak bekerja. Itu persis bentuk yang C-7 diangkat untuk menutup. | `0488101` |
+| **V-8** (rendah) | Jumlah batas rute rotasi ditulis tiga angka berbeda: docblock "Tiga" (lalu mendaftar lima), LAPORAN §6.3 "EMPAT", LAPORAN §3.5 dan KEPUTUSAN §12.4 "Lima". Bagi pembaca yang menilai risiko rute publik itu, angka yang tidak bisa dipercaya lebih buruk daripada tidak ada angka. | `0488101` |
+
+`isSecureContext` adalah sifat **pemasangan** — lebih global daripada perangkat yang dipegang
+orangnya — jadi tempatnya tepat setelah `server_reason`. Urutannya dipaku UTUH sebagai satu string,
+jadi pertukaran itu memerahkan `test_all_seven_dead_ends_are_actually_reachable_in_the_order_of_the_gate`
+(mutasi dijalankan: merah).
+
+### 14.4 Yang verifier penutup TOLAK, dan yang ia konfirmasi
+
+Ia memeriksa ulang penolakan §13.3 (**C-9**) dan menyatakannya **benar**: `listenerBody()` memang
+memanggil `$this->code()` = `stripComments($this->worker())`, jadi premis temuan itu salah. Dua
+sub-saran yang ditolak juga pantas — daftar-izin host layanan push harus benar untuk peramban yang
+belum ada, dan menghapus langganan pada 401/403 menjadikan satu salah ketik `VAPID_PRIVATE_KEY`
+penghapus seluruh basis perangkat.
+
+Lima pertanyaan wajibnya dijawab dengan bukti: **tidak ada jalan keluar bagi kunci privat VAPID**
+(dibaca satu tempat, `private`, dua pintu keluar yang keduanya menuju penandatangan atau penyamar);
+**kanal e-mail dan WhatsApp tidak berubah perilakunya** selain aritmetika baris 2 → 3 (keenam
+suntingan uji lama dibaca satu per satu; pelonggaran "pengenal wajib" hanya berlaku bagi
+`ChannelWithoutMessageId`, dan mutasi yang menandai `MailChannel` dengannya merah); dan **migrasinya
+aman pada tabel berisi** (dijalankan, §14 pembuka). Satu hal yang pemilik harus tahu sebelum deploy
+dan yang laporan ini sudah katakan di §2.3: sejak hari deploy, setiap notifikasi menulis **satu baris
+`skipped` tambahan per penerima**, bahkan dengan sakelarnya mati.

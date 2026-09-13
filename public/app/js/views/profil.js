@@ -372,11 +372,28 @@ function hasPushApi() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
 
-/** Jalan buntu yang berlaku SEKARANG, atau null bila tombolnya boleh muncul. */
+/*
+ * Jalan buntu yang berlaku SEKARANG, atau null bila tombolnya boleh muncul.
+ *
+ * URUTANNYA ADALAH KALIMATNYA. Setiap baris di bawah memilih SATU kalimat dari
+ * tujuh, jadi menukar dua baris berarti memberi orang yang sama nasihat yang
+ * berbeda — dan pada pemasangan yang belum di belakang TLS, cabang iOS yang
+ * berdiri lebih dulu memberi pengguna iPhone kalimat yang menyalahkan sistem
+ * operasinya ("itu batas sistem operasinya, bukan setelan yang bisa diubah")
+ * padahal yang kurang adalah HTTPS: ia akan memasang aplikasi ke Layar Utama,
+ * dan tombolnya tetap tidak bekerja, karena service worker menuntut konteks
+ * aman di mana pun (putaran penutup, V-7 — bentuk yang sama dengan C-7, yang
+ * justru diangkat untuk menutupnya).
+ *
+ * Karena itu urutannya mengikuti DeliveryGate: dari yang paling GLOBAL ke yang
+ * paling pribadi. `isSecureContext` adalah sifat PEMASANGAN — sama globalnya
+ * dengan `server_reason` dan lebih global daripada perangkat yang dipegang
+ * orangnya — jadi tempatnya sebelum cabang iOS, bukan sesudah.
+ */
 function pushBlocker(state) {
   if (state.server_reason) return { kind: 'server', text: state.server_reason };
-  if (isApple() && !isInstalled()) return { kind: 'ios', text: IOS_INSTALL };
   if (!window.isSecureContext) return { kind: 'insecure', text: NO_HTTPS };
+  if (isApple() && !isInstalled()) return { kind: 'ios', text: IOS_INSTALL };
   if (!hasPushApi()) return { kind: 'unsupported', text: NO_API };
   if (state.no_worker) return { kind: 'no-worker', text: NO_WORKER };
   if (window.Notification && Notification.permission === 'denied') return { kind: 'denied', text: DENIED_HELP };

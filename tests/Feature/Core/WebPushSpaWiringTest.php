@@ -98,8 +98,8 @@ class WebPushSpaWiringTest extends ErpTestCase
 
         $this->assertSame(
             "{ if (state.server_reason) return { kind: 'server', text: state.server_reason }; "
-            ."if (isApple() && !isInstalled()) return { kind: 'ios', text: IOS_INSTALL }; "
             ."if (!window.isSecureContext) return { kind: 'insecure', text: NO_HTTPS }; "
+            ."if (isApple() && !isInstalled()) return { kind: 'ios', text: IOS_INSTALL }; "
             ."if (!hasPushApi()) return { kind: 'unsupported', text: NO_API }; "
             ."if (state.no_worker) return { kind: 'no-worker', text: NO_WORKER }; "
             ."if (window.Notification && Notification.permission === 'denied') return { kind: 'denied', text: DENIED_HELP }; "
@@ -108,7 +108,9 @@ class WebPushSpaWiringTest extends ErpTestCase
             $this->squash($body),
             'pushBlocker() bukan lagi ketujuh jalan buntu itu, dalam urutan itu. Urutannya mengikuti DeliveryGate — '
             .'dari yang paling global ke yang paling pribadi — supaya seseorang tidak disuruh memasang aplikasi ke '
-            .'Layar Utama pada pemasangan yang VAPID-nya kosong.',
+            .'Layar Utama pada pemasangan yang VAPID-nya kosong, dan (putaran penutup, V-7) supaya pengguna iPhone '
+            .'pada pemasangan http:// tidak disuruh memasangnya ke Layar Utama untuk tombol yang tetap tidak akan '
+            .'bekerja: yang kurang di sana adalah HTTPS, dan itu sifat pemasangan, bukan sifat perangkatnya.',
         );
     }
 
@@ -120,7 +122,10 @@ class WebPushSpaWiringTest extends ErpTestCase
      * di http:// yang bukan localhost, jadi tanpa jalan buntu ini Chrome dan
      * Firefox yang SEHAT dijawab "Peramban ini tidak mendukung Push API" dan
      * disodori daftar peramban lain yang sudah memuat peramban mereka. Ia
-     * harus lebih dulu daripada NO_API, karena di keadaan itu keduanya menyala.
+     * harus lebih dulu daripada NO_API, karena di keadaan itu keduanya menyala
+     * — dan sejak putaran penutup (V-7) juga lebih dulu daripada cabang iOS,
+     * karena di keadaan itu KETIGANYA menyala bagi pengguna iPhone dan hanya
+     * kalimat ini yang menyebut hal yang benar-benar kurang.
      *
      * C-3 — tidak ada registrasi worker. hasPushApi() hanya memeriksa ADANYA
      * API; app.js sengaja menelan kegagalan pendaftaran. Tanpa ini tombolnya
