@@ -17,6 +17,7 @@ use Modules\Core\Console\Commands\HeartbeatCommand;
 use Modules\Core\Console\Commands\MigrationVerifyCommand;
 use Modules\Core\Console\Commands\MysqlPreflightCommand;
 use Modules\Core\Console\Commands\SqliteToMysqlCommand;
+use Modules\Core\Console\Commands\VapidKeysCommand;
 use Modules\Core\Console\Commands\WatchdogAlarmCommand;
 use Modules\Core\Events\DocumentTransitioned;
 use Modules\Core\Http\Middleware\ExplainTokenScopeRefusal;
@@ -140,6 +141,8 @@ class CoreServiceProvider extends ServiceProvider
             BackupWatchCommand::class, DeadlineWatchCommand::class, ApprovalWatchCommand::class, HardenDemoLoginsCommand::class,
             MysqlPreflightCommand::class, SqliteToMysqlCommand::class, MigrationVerifyCommand::class,
             HeartbeatCommand::class, WatchdogAlarmCommand::class,
+            // P-3e — cetak sepasang kunci VAPID untuk pemilik (tidak menulis .env).
+            VapidKeysCommand::class,
         ]);
 
         // After the 02:15 backup and before the workday: whoever opens the ERP

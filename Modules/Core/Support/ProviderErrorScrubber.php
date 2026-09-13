@@ -70,4 +70,19 @@ final class ProviderErrorScrubber
     {
         return self::scrub($text, WhatsAppSetup::secrets());
     }
+
+    /**
+     * Untuk pesan yang datang dari WebPushChannel (P-3e). Yang disamarkan
+     * hanya kunci PRIVAT VAPID; kunci publik memang dikirim ke setiap peramban
+     * dan menyamarkannya hanya membuat galat "kunci salah" tidak terbaca.
+     *
+     * Endpoint push tidak disamarkan di sini — ia bukan rahasia bersama,
+     * melainkan alamat milik satu perangkat, dan kolom error yang tidak
+     * menyebutnya membuat "perangkat mana yang gagal" mustahil dijawab. Yang
+     * menjaga agar ia tidak memenuhi kolom adalah potongan 480 karakter.
+     */
+    public static function webPush(string $text): string
+    {
+        return self::scrub($text, WebPushSetup::secrets());
+    }
 }

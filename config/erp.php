@@ -366,6 +366,10 @@ return [
         // P-3a: sakelar WhatsApp — mati sampai WHATSAPP_* di .env terisi dan
         // template disetujui Meta (KEPUTUSAN-INTEGRASI.md §4).
         'whatsapp_enabled' => false,
+        // P-3e: sakelar web push — mati sampai VAPID_* di .env terisi
+        // (artisan core:vapid-keys mencetak sepasang) DAN orangnya menekan
+        // "Aktifkan di perangkat ini" di Profil › Notifikasi.
+        'webpush_enabled' => false,
     ],
 
     /*
@@ -403,6 +407,42 @@ return [
             'backup.stale' => env('WHATSAPP_TEMPLATE_BACKUP_STALE'),
             'scheduler.down' => env('WHATSAPP_TEMPLATE_SCHEDULER_DOWN'),
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Web push (P-3e, T3e.1) — SEMUA dari .env, KOSONG di repo
+    |--------------------------------------------------------------------------
+    | Web Push standar (RFC 8030/8291/8292), bukan FCM: tidak ada SDK Firebase
+    | dan tidak ada ketergantungan pada Google. Endpoint `fcm.googleapis.com`
+    | tetap bisa muncul di tabel langganan karena CHROME yang memilihnya
+    | sendiri sebagai layanan push-nya — kita hanya mem-POST ke alamat yang
+    | diberikan peramban.
+    |
+    | vapid_private_key adalah RAHASIA. Ia hanya di .env, tidak pernah di
+    | core_settings, jawaban API, kolom error, log, atau layar; satu-satunya
+    | pembacanya adalah Core\Support\WebPushSetup, yang tidak punya satu pun
+    | getter publik untuknya (WebPushSetup::auth() menyerahkannya langsung ke
+    | pustaka pengirim). vapid_public_key sebaliknya MEMANG publik: peramban
+    | membutuhkannya sebagai applicationServerKey saat berlangganan.
+    |
+    | MENGGANTI SEPASANG KUNCI MEMBATALKAN SELURUH LANGGANAN YANG ADA:
+    | applicationServerKey terikat pada langganan, jadi setiap perangkat harus
+    | menekan "Aktifkan" lagi. Lihat DEPLOYMENT.md §11.3.
+    |
+    | subject = mailto: atau https: milik pemilik, dikirim di header VAPID
+    | supaya layanan push punya siapa yang dihubungi bila pengiriman kami
+    | bermasalah (RFC 8292 §2.1). Kosong = kanal belum dikonfigurasi.
+    */
+    'push' => [
+        'vapid_public_key' => env('VAPID_PUBLIC_KEY'),
+        'vapid_private_key' => env('VAPID_PRIVATE_KEY'),
+        'vapid_subject' => env('VAPID_SUBJECT'),
+        // Detik. Layanan push menyimpan pesan yang perangkatnya sedang mati
+        // selama TTL ini lalu membuangnya; 24 jam adalah umur wajar sebuah
+        // alarm operasional — yang lebih tua sudah dibaca di kotak masuk.
+        'ttl_seconds' => 86400,
+        'timeout_seconds' => 15,
     ],
 
     /*
