@@ -237,6 +237,32 @@ class WebPushOutboxTest extends ErpTestCase
         $this->assertSame('2 perangkat', $channel['address']);
     }
 
+    /**
+     * SETIAP KANAL PUNYA NAMANYA SENDIRI DI LAYAR.
+     *
+     * Sampai P-3e label kanal di endpoint ini adalah sebuah ternary —
+     * "email ? 'E-mail' : 'WhatsApp'" — yang benar selama kanalnya persis
+     * dua dan diam-diam salah pada kanal ketiga. Ditemukan DI PERAMBAN
+     * (harness S41m, 13 Sep 2026): baris web push tampil berlabel
+     * **WhatsApp**, dengan sebab Dilewati milik web push terbaca di
+     * bawahnya — dua baris "WhatsApp" berturut-turut, satu di antaranya
+     * berbohong. Tidak satu pun uji PHP yang ada melihatnya, karena semua
+     * memeriksa `channel` dan `reason`, tidak pernah `label`.
+     */
+    public function test_every_channel_carries_its_own_name_on_the_screen(): void
+    {
+        $user = User::factory()->create();
+
+        $channels = $this->actingAs($user)->getJson('api/core/me/notification-channels')->assertOk()->json('data.channels');
+
+        $this->assertSame(
+            ['email' => 'E-mail', 'whatsapp' => 'WhatsApp', 'webpush' => 'Web push'],
+            collect($channels)->pluck('label', 'channel')->all(),
+            'Sebuah kanal memakai nama kanal LAIN di layar. Label yang salah di sebelah sebab Dilewati yang benar '
+            .'adalah kalimat yang menunjuk orang ke setelan yang bukan miliknya.',
+        );
+    }
+
     /* ----------------------------------------------------------- kirim ulang */
 
     public function test_retry_refuses_with_its_own_sentence_when_the_device_is_gone(): void

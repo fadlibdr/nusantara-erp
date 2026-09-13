@@ -4,6 +4,7 @@ namespace Tests\Feature\Core;
 
 use App\Models\User;
 use Base64Url\Base64Url;
+use Illuminate\Support\Facades\Route;
 use Modules\Core\Models\PushSubscription;
 use Tests\ErpTestCase;
 
@@ -116,6 +117,77 @@ class PushRotationTest extends ErpTestCase
 
         $this->assertSame(1, PushSubscription::query()->count());
         $this->assertSame($kept->id, PushSubscription::query()->sole()->id);
+    }
+
+    /**
+     * DAN SENSUS RUTE TULIS PUBLIK DI LUAR `api/` — YANG BELUM PERNAH DIHITUNG.
+     *
+     * `UngatedApiRouteCensusTest` (P-3d) memaku daftar rute TULIS tanpa gerbang
+     * izin **di bawah `api/`**, dan rute ini justru tidak berada di sana: ia di
+     * `Routes/web.php`, tempat sensus itu tidak melihat sama sekali. Sebuah
+     * rute tulis publik yang tidak terlihat sensus mana pun adalah persis
+     * bentuk yang paket berikutnya bisa tambahkan tanpa ada yang menyadarinya
+     * — jadi daftarnya dipaku di sini, di paket yang menambah anggotanya.
+     *
+     * Diukur 13 Sep 2026, dan angkanya **LIMA, bukan tiga**: menuliskannya
+     * menemukan dua yang tidak pernah disebut dokumen mana pun (`penilaian/
+     * {token}` dari F-9, dan rute unggah milik kerangka kerja sendiri). Itu
+     * gunanya menghitung alih-alih mengingat.
+     *
+     * Kelimanya, dengan kapabilitasnya masing-masing:
+     *
+     *   POST penilaian/{token}    CSAT (F-9) — token sekali-pakai di URL, throttle 10/menit
+     *   POST persetujuan/{token}  keputusan MK/Owner (P0-F) — token 20–64 karakter di URL, throttle 10/menit
+     *   POST push/rotate          rotasi langganan (P-3e) — ENDPOINT LAMA, dan tidak pernah MEMBUAT baris
+     *   POST whatsapp/webhook     status Meta (P-3a) — HMAC-SHA256 atas badan MENTAH, tanpa App Secret 403
+     *   PUT  storage/{path}       `storage.local.upload` milik Laravel sendiri, terdaftar karena
+     *                             `filesystems.disks.local.serve = true`; kapabilitasnya TANDA TANGAN
+     *                             relatif (`ReceiveFile` abort tanpa `?upload=1` bertanda tangan sah)
+     */
+    public function test_the_public_write_routes_outside_the_api_are_the_five_that_were_counted(): void
+    {
+        $public = [];
+
+        foreach (Route::getRoutes() as $route) {
+            $uri = ltrim((string) $route->uri(), '/');
+
+            if (str_starts_with($uri, 'api/')) {
+                continue;
+            }
+
+            $methods = array_diff($route->methods(), ['HEAD', 'GET', 'OPTIONS']);
+            if ($methods === []) {
+                continue;
+            }
+
+            $middleware = $route->gatherMiddleware();
+            $guarded = array_filter($middleware, static fn ($m) => is_string($m)
+                && (str_starts_with($m, 'permission:') || str_starts_with($m, 'auth:') || str_contains($m, 'Authenticate')));
+
+            if ($guarded !== []) {
+                continue;
+            }
+
+            foreach ($methods as $method) {
+                $public[] = $method.' '.$uri;
+            }
+        }
+
+        sort($public);
+
+        $this->assertSame(
+            [
+                'POST penilaian/{token}',
+                'POST persetujuan/{token}',
+                'POST push/rotate',
+                'POST whatsapp/webhook',
+                'PUT storage/{path}',
+            ],
+            $public,
+            'Daftar rute TULIS publik di luar `api/` berubah. Sensus P-3d tidak melihat bagian ini, jadi '
+            .'sebuah rute baru di sini adalah permukaan tanpa sesi yang tidak terlihat paku mana pun. '
+            .'Tambahkan hanya bersama kalimat yang menyebut APA kapabilitasnya.',
+        );
     }
 
     public function test_the_route_needs_no_session_but_refuses_nonsense(): void

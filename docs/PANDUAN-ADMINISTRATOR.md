@@ -2052,9 +2052,10 @@ permintaan "tolong awasi tanggal X juga" adalah perubahan kecil, bukan proyek.
 - **Tidak ada perintah, layar, atau endpoint yang menjalankan kejar-tayang akrual alat
   lintas-bulan sekaligus.** Kejar-tayangnya adalah beberapa invokasi terpisah,
   dijalankan tangan, dari yang tertua.
-- **Tidak ada notifikasi email maupun WhatsApp yang menyala secara bawaan** — kedua kanal
-  ada (P-3a), keduanya mati sampai pemilik menyetel server surel / akun WABA (DEPLOYMENT.md §11),
-  dan selama itu setiap pengiriman tercatat Dilewati dengan sebabnya.
+- **Tidak ada notifikasi email, WhatsApp, maupun web push yang menyala secara bawaan** — ketiga
+  kanal ada (P-3a; web push sejak P-3e), ketiganya mati sampai pemilik menyetel server surel /
+  akun WABA / kunci VAPID (DEPLOYMENT.md §11), dan selama itu setiap pengiriman tercatat Dilewati
+  dengan sebabnya.
 - **Tidak ada halaman riwayat atau arsip alarm sistem di luar lonceng**, dan tidak ada
   penyaringan menurut jenis peristiwa di server.
 - **Tidak ada perintah untuk membatalkan atau menghapus baris akrual alat yang telanjur
@@ -2300,6 +2301,98 @@ token**, ember terpisah dari 120/menit milik sesi peramban. Ubah lewat
 `INTEGRATION_RATE_LIMIT` di `.env` bila pemilik memutuskan angka lain; nilainya
 adalah ledger §5 baris 10. **CORS tetap kosong** — API ini dipanggil server ke
 server, bukan dari JavaScript di halaman asal lain.
+
+### 5.15 Web push — runbook (P-3e)
+
+Pemberitahuan yang muncul di layar ponsel atau komputer seseorang **walau Nusantara ERP
+tidak sedang dibuka**. Tidak ada aplikasi yang perlu dipasang dari toko aplikasi: yang
+dipakai adalah Web Push standar yang sudah ada di peramban.
+
+#### Sekali, oleh Anda: sepasang kunci VAPID
+
+```
+sudo -u www-data php artisan core:vapid-keys
+```
+
+Perintah itu **mencetak** sepasang kunci baru dan **tidak menulis apa pun** — tidak `.env`,
+tidak basis data. Salin ketiga baris yang dicetaknya ke `.env`
+(`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`), lalu
+`php artisan config:clear` dan `systemctl restart erp1-queue`. Langkah lengkapnya di
+**DEPLOYMENT §11.3**. Sesudah itu nyalakan **Pengaturan › Notifikasi › "Kirim juga lewat
+web push"**.
+
+`VAPID_PRIVATE_KEY` adalah **rahasia**: ia tidak pernah masuk `core_settings`, jawaban API,
+kolom galat, atau log. `VAPID_PUBLIC_KEY` sebaliknya memang dikirim ke setiap peramban —
+itu tugasnya.
+
+#### MENGGANTI KUNCI MEMBATALKAN SELURUH LANGGANAN
+
+Baca kalimat ini sebelum menjalankan `core:vapid-keys` untuk kedua kalinya.
+
+`applicationServerKey` **terikat pada langganan** di peramban masing-masing orang. Begitu
+pasangan kunci di `.env` diganti:
+
+- layanan push menolak **403** setiap pengiriman ke langganan lama;
+- barisnya menjadi **Gagal** dengan kalimat yang menyebut VAPID (dan menyebut kemungkinan
+  bahwa kuncinya baru saja diganti);
+- **setiap orang, di setiap perangkatnya**, harus menekan "Aktifkan notifikasi di perangkat
+  ini" lagi di Profil › Notifikasi.
+
+Jadi: jangan mengganti kunci untuk merapikan konfigurasi. Bila kunci privat benar-benar
+bocor, menggantinya memang jalan yang benar — umumkan lebih dulu, karena biayanya adalah
+seluruh basis perangkat sekaligus.
+
+#### Sekali per perangkat, oleh orangnya sendiri
+
+**Profil › Notifikasi › "Aktifkan notifikasi di perangkat ini"**, ditekan **dari perangkat
+itu**. Anda tidak bisa melakukannya untuk orang lain, dan itu bukan kekurangan: izin
+notifikasi hanya boleh diminta oleh halaman yang sedang dibuka orang itu, atas gestur
+tangannya sendiri.
+
+Di **iPhone dan iPad** tombol itu hanya bekerja setelah aplikasinya ditambahkan ke **Layar
+Utama** (iOS/iPadOS **16.4** ke atas): di tab Safari biasa Push API tidak ada sama sekali.
+Layar mengatakan cara memasangnya alih-alih menampilkan tombol yang tidak akan pernah
+bekerja. Tiga jalan buntu lain punya kalimatnya sendiri juga: peramban tanpa Push API,
+izin yang sudah ditolak di tingkat peramban (yang harus diubah adalah setelan situs di
+peramban — aplikasi tidak bisa memintanya lagi), dan server yang belum disetel.
+
+#### Cara membaca Dilewati di Sistem › Pengiriman Notifikasi
+
+Saring kanal **Web push**. Kolom **"Penerima / perangkat"** memuat **label perangkat**
+("Chrome di Android"), bukan alamat — kanal ini menulis **satu baris per perangkat**, jadi
+seseorang dengan tiga perangkat menghasilkan tiga baris. Itu disengaja: tiga perangkat bisa
+menjawab berbeda dalam satu pengiriman, dan satu baris tidak bisa jujur tentang tiga
+jawaban.
+
+| Kalimat di kolom "Galat / alasan" | Artinya | Yang memperbaikinya |
+|---|---|---|
+| Web push dinonaktifkan di Pengaturan. | Sakelarnya mati. | Anda — Pengaturan › Notifikasi. |
+| Web push belum dikonfigurasi (VAPID_… kosong…). | `.env` belum diisi. | Anda — DEPLOYMENT §11.3. |
+| VAPID_SUBJECT harus berupa mailto:… atau https://… | Nilainya salah bentuk; layanan push menolak header VAPID lain. | Anda — betulkan `.env`. |
+| Dimatikan pengguna di Profil › Notifikasi. | Orangnya mematikan kanal ini untuk dirinya. | Hanya orang itu. |
+| Penerima belum mendaftarkan satu perangkat pun… | Belum ada perangkat. | Orang itu, dari perangkatnya. |
+| Perangkat tujuan baris ini sudah tidak terdaftar… | Perangkatnya dicabut/kedaluwarsa sesudah baris ditulis. | Orang itu mendaftarkannya lagi; baris ini tidak bisa dikirim ulang. |
+
+Baris **Terkirim** boleh punya `provider_id` **kosong**, dan itu bukan cacat: Web Push
+tidak punya message id dalam standarnya (header `Location` opsional), jadi buktinya adalah
+jawaban **201** dari layanan push. Kami tidak mengarang pengenal untuk mengisi kolom.
+
+#### Perangkat yang hilang membersihkan dirinya sendiri
+
+Peramban yang dipasang ulang, profil yang dihapus, izin yang dicabut: layanan push menjawab
+**404/410**, aplikasi **menghapus** langganan itu, dan mencatat penghapusannya di
+**Sistem › Log Audit** dengan label perangkatnya. Catatan itu sengaja berada di sana dan
+bukan "di baris langganan" — baris itulah yang dihapus. Baris kotak keluar yang memicunya
+menjadi **Gagal** dengan kalimat yang menyebut perangkat itu, dan **Kirim ulang** atasnya
+ditolak dengan kalimat: sasarannya sudah tidak ada.
+
+#### Apa yang tetap dilihat layanan push
+
+Isi pemberitahuan **dienkripsi** dengan kunci milik peramban penerima: layanan push tidak
+bisa membaca judul maupun isinya, dan panjang badan permintaan selalu sama (2.922 byte, apa
+pun isinya). Yang **tetap** dilihatnya: bahwa ada pesan, kapan, dan untuk endpoint yang
+mana. Jangan menjanjikan lebih dari itu kepada siapa pun — yang tersembunyi adalah isinya,
+bukan keberadaannya.
 
 ---
 

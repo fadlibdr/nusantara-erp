@@ -50,9 +50,13 @@ use Modules\Core\Support\SegregationOfDuties;
  *    shows.
  *  - WHATSAPP (Fase 3 / P-3a, T3a.3) goes through the same outbox: one row
  *    per recipient beside the e-mail row, `skipped` with the reason until the
- *    owner's prerequisites are met (KEPUTUSAN-INTEGRASI.md). Web push is
- *    still Fase 3 (P-3e): implement DeliveryChannel, register it in
- *    DeliveryChannels, add it to DeliveryGate::USER_CHANNELS.
+ *    owner's prerequisites are met (KEPUTUSAN-INTEGRASI.md).
+ *  - WEB PUSH (Fase 3 / P-3e, T3e.3) juga lewat kotak keluar yang sama, dengan
+ *    SATU perbedaan yang harus diketahui siapa pun yang membaca tabel ini: ia
+ *    ber-FAN-OUT. Satu baris per LANGGANAN (per perangkat), bukan satu per
+ *    penerima, karena tiga perangkat bisa menjawab berbeda dalam satu
+ *    pengiriman dan satu baris tidak bisa jujur tentang tiga jawaban —
+ *    lihat outboxChannel() dan LAPORAN-PAKET-HM-P-3e §2.
  */
 class NotificationService
 {
@@ -360,7 +364,8 @@ class NotificationService
 
     /**
      * Kotak keluar: satu baris pengiriman per kanal luar untuk notifikasi yang
-     * baru ditulis, lalu job-nya. Dua kanal sejak T3a.3 (e-mail, WhatsApp).
+     * baru ditulis, lalu job-nya. Dua kanal sejak T3a.3 (e-mail, WhatsApp),
+     * tiga sejak T3e.3 (web push) — dan yang ketiga ber-fan-out per perangkat.
      *
      * Barisnya ditulis DULU — kalau tulisan ke tabel sendiri gagal, tidak ada
      * yang bisa dilaporkan selain log, dan write() menjaga agar kegagalan itu

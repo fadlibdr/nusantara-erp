@@ -31,6 +31,7 @@ import { initials } from '../format.js';
 const CHANNEL_HELP = {
   email: 'Pemberitahuan dokumen dan alarm sistem ke alamat e-mail akun Anda.',
   whatsapp: 'Lima alarm operasional (tenggat, eskalasi, penagihan, cadangan, penjadwal) sebagai pesan template WhatsApp.',
+  webpush: 'Pemberitahuan di layar perangkat yang Anda daftarkan di kartu di bawah — satu baris kotak keluar per perangkat.',
 };
 
 /** "12 Sep 2026 06:00 WIB" dari ISO-8601 — dalam WIB, karena jam tenangnya WIB. */

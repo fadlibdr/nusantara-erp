@@ -2249,7 +2249,8 @@ sebab = satu konstanta + satu cabang di sini, tidak pernah `if` di kanal. `Iam\S
 PasswordHelp::resetByEmail()` membaca `MailTransport` yang sama, supaya halaman masuk dan
 kotak keluar tidak berselisih tentang apakah surat keluar dari mesin.
 
-**Satu baris per kanal luar per penerima** (`DeliveryGate::USER_CHANNELS` = email, whatsapp),
+**Satu baris per kanal luar per penerima** (`DeliveryGate::USER_CHANNELS` = email, whatsapp; sejak
+P-3e ditambah webpush, yang ber-FAN-OUT per perangkat — §42),
 masing-masing di balik `guard()`-nya sendiri, SESUDAH semua baris kotak masuk ditulis (P-0b).
 Dengan kedua sakelar mati (bawaan) setiap notifikasi menghasilkan dua baris `skipped` —
 pertumbuhan tabel adalah keputusan pemilik (LAPORAN P-3a), bukan alasan menyembunyikan baris.
@@ -2671,3 +2672,80 @@ mengeluarkan middlewarenya dari `gatherMiddleware()`, jadi syarat yang hanya
 membaca yang pertama meloloskan satu baris yang membuka endpoint bagi siapa pun.
 Menambah endpoint ke dokumen = menambah `x-izin`-nya, `requestBody`-nya bila ia
 TULIS, dan parameter halaman bila jawabannya `AmplopDaftar`.
+
+## 42. Web push — satu baris per PERANGKAT, dan pengenal yang tidak dikarang (P-3e)
+
+**Web Push STANDAR, bukan FCM.** RFC 8030/8291/8292 lewat `minishlink/web-push` (kripto
+aes128gcm tidak ditulis sendiri). **Tidak ada SDK Firebase, tidak ada akun Google, tidak ada
+aplikasi native.** Endpoint `fcm.googleapis.com` yang muncul di `core_push_subscriptions` adalah
+**pilihan Chrome**, bukan integrasi kita: Firefox memberi alamat Mozilla dan Safari alamat Apple,
+dan tidak satu baris kode pun berubah.
+
+**`core_push_subscriptions` (migrasi 001804).** `endpoint` disimpan **UTUH** di kolom `text` dan
+**TIDAK PERNAH diindeks**: endpoint yang NYATA diukur **188 karakter** (13 Sep 2026) dan
+spesifikasinya tidak menjanjikan batas apa pun, sementara `varchar(190)` utf8mb4 = 760 byte adalah
+batas indeks InnoDB. Identitasnya dibawa `endpoint_hash` = **sha256 heksadesimal, 64 karakter,
+unik** — karena itu peramban yang berlangganan ulang **memperbarui** barisnya, bukan menumpuk.
+`p256dh` dan `auth` milik peramban apa adanya; **tidak ada satu pun rahasia KITA di tabel ini**
+(kunci privat VAPID hanya di `.env`). User-Agent **mentah tidak disimpan**: `PushDeviceLabel`
+menurunkan "Chrome di Android" sekali saat mendaftar dan membuang sisanya.
+
+**SATU BARIS KOTAK KELUAR PER LANGGANAN**, bukan per orang — satu-satunya kanal yang ber-fan-out
+(`push_subscription_id`, migrasi 001805). Alasannya: seseorang bisa punya tiga perangkat yang
+menjawab **berbeda** dalam satu pengiriman (201, 410, timeout). Satu baris harus memilih satu
+jawaban dari tiga, satu `provider_id` dari tiga, dan "Kirim ulang" sesudah 1 dari 3 berhasil akan
+mengirim **ulang ke perangkat yang sudah menerima**. Harganya dikatakan apa adanya: barisnya
+berlipat sebanyak perangkat. Kolomnya **tanpa foreign key** dengan sengaja — baris pengiriman
+adalah riwayat dan harus hidup lebih lama daripada perangkatnya.
+
+**PENGENAL YANG TIDAK DIKARANG.** Web push **tidak punya message id** dalam standarnya: RFC 8030 §5
+menjadikan header `Location` **opsional**. Yang ada dipakai apa adanya; yang tidak ada dibiarkan
+**kosong**, dan buktinya adalah `201` dari layanan push itu sendiri. Aturan "tidak ada `sent` tanpa
+pengenal penyedia" (§38) karena itu dilonggarkan **HANYA** untuk kanal yang mengimplementasikan
+`Core\Contracts\ChannelWithoutMessageId`; `MailChannel` dan `WhatsAppChannel` **tidak**
+mengimplementasikannya, dan uji memaku itu sebagai bentuk kelas, bukan sebagai kalimat. Yang
+dilonggarkan hanya "kosong belum tentu gagal"; "gagal berarti gagal" tidak pernah dilonggarkan —
+kanal tetap wajib MELEMPAR.
+
+**Empat sebab baru di `DeliveryGate`**, urutan yang sama dengan kanal lain (paling global →
+paling pribadi): `WEBPUSH_DISABLED` (sakelar Pengaturan) → `WebPushSetup::skipReason()` (VAPID di
+`.env`) → `USER_OFF` → `WEBPUSH_NO_DEVICE`. Dua yang pertama dipisah ke
+`DeliveryGate::webPushServerReason()` karena layar Profil membutuhkannya sendiri: itulah jalan
+buntu yang **tidak bisa** diatasi tindakan apa pun di peramban, jadi tombolnya tidak ditawarkan.
+
+**404/410 → langganan DIHAPUS, dan kejadiannya dicatat di `core_audit_log`.** Mencatatnya "di baris
+langganan" tidak berarti apa-apa: baris itulah yang dihapus. Log audit append-only punya layarnya
+sendiri (Sistem › Log Audit) dan tidak punya jalur hapus di aplikasi ini. Baris kotak keluarnya
+`failed` seketika (permanen), dan Kirim ulang atasnya **ditolak 422**. **401/403** = kunci VAPID
+ditolak layanan push (termasuk: kunci baru saja diganti) — juga permanen. **429/5xx/jaringan** =
+pengecualian biasa, lima percobaan dengan backoff yang sudah ada.
+
+**Muatan dipotong 2.820 byte**, bukan 4.078 (batas keras pustaka). Di bawah angka itu — panjang
+padding otomatis pustaka — **setiap badan permintaan keluar dengan panjang yang sama persis**
+(diukur 2.922 byte, apa pun isinya), dan panjang badan adalah satu-satunya hal tentang isi pesan
+yang bisa dibaca layanan push. Muatannya `{judul, isi, tautan, tag}`; `tag` = id notifikasi, jadi
+pemberitahuan yang sama yang sampai dua kali **menimpa** alih-alih menumpuk.
+
+**Jahitan uji ada TEPAT SATU: `Core\Support\WebPushSender::$clientOptions`.** `Minishlink\WebPush\
+WebPush` **membuat klien Guzzle-nya sendiri** di konstruktor, jadi `Http::fake()` dan
+`Http::preventStrayRequests()` **TIDAK menutupinya** — diukur 13 Sep 2026: uji yang lupa memasang
+handler benar-benar menghubungi layanan push dari mesin uji. Satu-satunya lubang adalah argumen
+KEEMPAT konstruktornya (`clientOptions`), dan uji memasang
+`['handler' => HandlerStack::create(new MockHandler([...]))]` di sana
+(`Tests\Support\FakeWebPushSender`). Yang tetap dijalankan adalah kode sungguhan sampai ke soket:
+enkripsi, penandatanganan, pembentukan permintaan — jadi **kunci langganan di uji harus kunci
+P-256 yang SAH**. `VAPID::getVapidHeaders()` menuntut kunci MENTAH dan melempar untuk bentuk
+base64url; yang dipakai adalah kelas `WebPush` (lewat `VAPID::validate`). `ContentEncoding` adalah
+**enum PHP** di v10, bukan string, dan `aes128gcm` **disebut** — bawaan pustaka masih `aesgcm`.
+
+**Rotasi `pushsubscriptionchange` lewat rute PUBLIK `POST push/rotate`**, bukan `api/`. Bukan
+kenyamanan: service worker **tidak bisa membaca token sesi** (ia di `localStorage`, yang tidak
+punya API di sana), peristiwanya menyala **ketika tidak ada satu tab pun terbuka**, dan §21 memaku
+bahwa kode `sw.js` tidak menyebut `/api` sama sekali. Kapabilitasnya adalah **endpoint lama**;
+rutenya **tidak pernah MEMBUAT** baris (endpoint lama yang tidak dikenal dijawab tanpa menulis) dan
+asal endpoint baru harus **sama** dengan yang lama.
+
+**Yang boleh diklaim tentang privasinya, dan hanya itu:** isi pesan dienkripsi ujung-ke-ujung
+dengan kunci milik peramban penerima, jadi layanan push **tidak bisa membacanya**. Yang TETAP
+dilihatnya: **bahwa ada pesan, kapan, dan untuk endpoint mana**. Uji kabel SPA memaku daftar frasa
+yang tidak boleh muncul di layar ("tidak ada yang tahu", "sepenuhnya pribadi", …).

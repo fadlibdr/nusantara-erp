@@ -329,3 +329,99 @@ dengan `Route::getRoutes()`, bukan dipaku; yang dipaku `UngatedApiRouteCensusTes
 adalah daftar **31** rute TULIS tanpa gerbang izin, supaya
 yang ke-32 memerahkan gerbang alih-alih diam-diam memperlebar apa yang bisa
 dilakukan sebuah token "hanya baca".
+
+---
+
+## 12. PWA push (P-3e, 13 Sep 2026): TIDAK ADA aplikasi native, TIDAK ADA SDK FCM — dan apa yang TETAP dilihat layanan push
+
+Ledger pemilik [`ROADMAP-HASHMICRO.md`](ROADMAP-HASHMICRO.md) §5, baris paket P-3e:
+**"Tidak ada aplikasi native, tidak ada FCM."** Paket ini memenuhinya secara harfiah, dan
+sisa bagian ini menuliskan apa yang dibeli dan apa yang **tidak** dibeli oleh keputusan itu.
+
+### 12.1 Tidak ada aplikasi native — dan itu memang menutup satu pintu
+
+Yang dipakai adalah **Web Push standar** (RFC 8030 pengiriman, RFC 8291 enkripsi, RFC 8292
+VAPID) lewat peramban yang sudah ada di perangkat orangnya. Tidak ada yang perlu dipasang
+dari App Store atau Play Store, tidak ada akun pengembang tahunan, tidak ada proses tinjauan
+toko, dan tidak ada kode kedua yang harus dirilis setiap kali sebuah layar berubah.
+
+Yang **hilang** bersamanya, dikatakan apa adanya supaya tidak ditanyakan lagi sebagai
+"kenapa tidak bisa":
+
+- **iPhone dan iPad**: pemberitahuan hanya bekerja pada **iOS/iPadOS 16.4 ke atas** DAN hanya
+  setelah aplikasinya ditambahkan ke **Layar Utama**. Di tab Safari biasa Push API tidak ada
+  sama sekali. Layar Profil mengatakan cara memasangnya alih-alih menampilkan tombol yang
+  tidak akan pernah bekerja.
+- **Tidak ada ikon lencana** di layar utama, tidak ada akses ke kontak/kalender perangkat,
+  tidak ada notifikasi yang bisa memaksa bunyi di mode senyap. Itu semua milik aplikasi
+  native, dan tidak ada satu pun yang dibutuhkan sistem ini.
+- **Perangkat, bukan orang.** Langganan melekat pada satu peramban di satu perangkat.
+  Seseorang yang memakai ponsel dan laptop menekan "Aktifkan" dua kali, dan aplikasi menulis
+  dua baris pengiriman — satu per perangkat.
+
+### 12.2 Tidak ada SDK FCM, dan endpoint `fcm.googleapis.com` bukan pelanggarannya
+
+**Tidak ada paket Firebase apa pun** di `composer.json` maupun di SPA; tidak ada kunci server
+FCM, tidak ada `google-services.json`, tidak ada akun Google yang dibutuhkan pemasangan ini.
+Satu-satunya dependensi kripto adalah `minishlink/web-push` — dipilih supaya **aes128gcm dan
+penandatanganan VAPID tidak ditulis sendiri** (kripto yang ditulis sendiri adalah kripto yang
+salah, dan yang salah di sini berarti pemberitahuan yang bisa dibaca pihak ketiga).
+
+Endpoint yang tersimpan di `core_push_subscriptions` **bisa** berbunyi
+`https://fcm.googleapis.com/fcm/send/…`, dan itu **bukan** integrasi dengan Google: dalam Web
+Push, **peramban** yang memilih layanan push-nya sendiri dan menyerahkan alamatnya kepada
+halaman. Chrome memilih milik Google, Firefox memilih milik Mozilla, Safari memilih milik
+Apple. Aplikasi ini mem-POST ke alamat yang diberikan, apa pun isinya, tanpa satu baris kode
+yang khusus untuk salah satu dari mereka.
+
+### 12.3 APA YANG TETAP DILIHAT LAYANAN PUSH — batas yang paling mudah dilebihkan
+
+Ini bagian yang paling penting di §12, karena godaan menuliskan lebih banyak daripada yang
+benar ada di setiap layar dan setiap panduan.
+
+**Yang TIDAK bisa dibacanya:** isi pemberitahuan. Judul dan badan dienkripsi ujung-ke-ujung
+(`aes128gcm`) dengan kunci `p256dh`/`auth` yang dibangkitkan **peramban penerima**; server
+kita tidak memegang kunci pembukanya dan layanan push tidak pernah melihatnya. Panjang badan
+permintaan pun tidak membocorkan panjang isinya: pustaka memadinya sehingga setiap permintaan
+keluar dengan panjang yang sama — **diukur 2.922 byte, apa pun isinya** (13 Sep 2026), dan
+muatan dipotong pada 2.820 byte justru untuk menjaga sifat itu.
+
+**Yang TETAP dilihatnya, dan yang harus dikatakan:**
+
+| Yang terlihat layanan push | Artinya |
+|---|---|
+| **Bahwa ada pesan** untuk sebuah endpoint | Pola aktivitas: seseorang memakai sistem ini, dan sistem ini punya sesuatu untuknya |
+| **Kapan** — stempel waktu tiap permintaan | Jam kerja, lembur, akhir pekan, dan hari-hari yang ramai |
+| **Endpoint yang mana** | Perangkat yang mana — dan layanan push (Google/Mozilla/Apple) tahu perangkat itu milik akun siapa **di sisi mereka** |
+| **Berapa sering** | Banyaknya dokumen/alarm, walau bukan isinya |
+| `TTL`, `Urgency`, dan header VAPID kita | Termasuk `VAPID_SUBJECT` — alamat kontak pemilik yang memang dikirim menurut RFC 8292 |
+
+Jadi kalimat yang benar adalah **"layanan push tidak bisa membaca isi pemberitahuan Anda"**,
+dan kalimat yang **salah** adalah "tidak ada yang tahu Anda menerima pemberitahuan". Uji
+`WebPushSpaWiringTest` memaku daftar frasa yang tidak boleh muncul di layar Profil justru
+karena perbedaan itu mudah hilang saat seseorang menulis ulang satu kalimat agar lebih enak
+dibaca.
+
+Bagi perusahaan yang tidak menerima metadata itu keluar sama sekali, satu-satunya jalan yang
+jujur adalah **tidak menyalakan kanal ini** — sakelar Pengaturan ada, bawaannya mati, dan
+kotak masuk di dalam aplikasi tetap bekerja tanpa satu byte pun keluar dari mesin.
+
+### 12.4 Rute rotasi yang publik — keputusan, bukan kelalaian
+
+`POST push/rotate` tidak meminta sesi. Yang memanggilnya adalah **service worker**, dan dua
+hal membuat "panggil API sebagai penggunanya" mustahil di sana: worker **tidak bisa membaca
+token sesi** (ia di `localStorage`, yang tidak punya API di service worker), dan peristiwa
+`pushsubscriptionchange` menyala **ketika tidak ada satu tab pun terbuka**.
+
+Kapabilitasnya adalah **endpoint lama** — nilai yang, dalam standar Web Push itu sendiri,
+sudah menjadi kapabilitas. Tiga batas menjaganya: rute ini **tidak pernah MEMBUAT** baris
+(endpoint lama yang tidak cocok apa pun dijawab tanpa menulis, jadi ia tidak bisa dipakai
+mendaftarkan perangkat), **asal endpoint baru harus sama** dengan yang lama (layanan push
+memutar endpoint di dalam layanannya sendiri), dan lajunya dibatasi.
+
+**Batas yang tersisa, dikatakan apa adanya:** seseorang yang berhasil membaca endpoint milik
+orang lain — dari basis data, atau dari peramban orang itu — dapat memindahkan langganan itu
+ke perangkatnya sendiri di dalam layanan push yang sama, dan sejak itu menerima pemberitahuan
+yang seharusnya untuk orang tadi. Siapa pun yang bisa melakukan salah satu dari keduanya sudah
+memegang lebih banyak daripada itu; ini dicatat bukan karena bisa diperbaiki dengan menambah
+pemeriksaan, melainkan supaya tidak ditemukan lagi sebagai kejutan.
