@@ -417,12 +417,17 @@ pernah memulangkan satu angka).
 | `vendor/bin/pint --dirty` atas setiap berkas yang disentuh | `passed` |
 | Harness S41 + S41m + S37 + S37m atas `php -S` + Chromium | **4 skenario ok**, `console_errors: []` |
 | *(putaran verifikasi)* Harness S41 + S41m diulang atas sqlite yang DIBUAT BARU dari migrasi + seeder | **S41 12/12, S41m 10/10**, `console_errors: []` keduanya |
+| *(putaran verifikasi)* `tests/Feature/Core` + `tests/Unit` + `tests/Feature/Iam`, **SQLite**, atas `ffcbc1f` | **OK — 2.033 uji / 13.974 asersi, 11 dilewati**, 6 mnt 37 dtk |
+| *(putaran verifikasi)* Suite yang sama, **MySQL 8** (`erp_p3e_vr`, root lewat soket) | **OK — 2.033 uji / 13.981 asersi, 9 dilewati**, 26 mnt 6 dtk |
+| *(putaran verifikasi)* 16 mutasi sisi server + 6 `sw.js` + 7 `profil.js` + 1 harness | **30 MERAH, 0 lolos** |
+| *(putaran verifikasi)* `vendor/bin/pint` atas setiap berkas yang disentuh | `passed` |
 | Migrasi atas salinan sqlite demo (001804 + 001805) | `DONE` keduanya |
 
-**Gerbang penuh dua driver adalah langkah sesi utama**, seperti pada paket-paket sebelumnya. Yang
-perlu diketahui sesi itu: **satu mutasi paket ini (M3) hanya bisa merah di MySQL**, dan berkas uji
-paket ini sudah dijalankan di `erp_dryrun` sekali selama pembangunan — `PushSubscriptionSchemaTest`
-**8 uji / 47 asersi** hijau di MySQL.
+**Gerbang penuh dua driver SUDAH DIJALANKAN di putaran verifikasi** (dua baris terakhir tabel di
+atas): angkanya **sama persis di kedua driver — 2.033 uji**, dan selisih asersi (13.974 vs 13.981)
+serta jumlah yang dilewati (11 vs 9) adalah dua uji khusus-MySQL yang memang dilewati di SQLite.
+Selama pembangunan, `PushSubscriptionSchemaTest` juga sudah hijau di `erp_dryrun` (**8 uji / 47
+asersi**) — di sanalah M3 (endpoint `varchar(190)`) merah, dan ia **hanya** bisa merah di MySQL.
 
 ---
 
@@ -479,7 +484,9 @@ paket ini sudah dijalankan di `erp_dryrun` sekali selama pembangunan — `PushSu
 | `4436683` | Putaran verifikasi (§13) — 12 temuan sisi server: SSRF endpoint, pengalihan, kepemilikan baris, plafon perangkat, endpoint di kolom error, gelung pemotong |
 | `bf19aaf` | Putaran verifikasi (§13) — 7 temuan peramban: tiga jalan buntu baru, pendengar yang dipaku, `SHELL_VERSION` 14 |
 | `5e74cfe` | Putaran verifikasi (§13) — C-8: S41m dua konteks, syarat 5 → 10 |
-| (commit ini) | Putaran verifikasi (§13) — §6/§3.5/§12.4 dibetulkan, §13 ditulis, gerbang |
+| `460a8f5` | Putaran verifikasi (§13) — §6/§3.5/§12.4/CONVENTIONS §42 dibetulkan, §13 ditulis, gagal resolusi dipisahkan dari alamat internal |
+| `ffcbc1f` | Putaran verifikasi (§13) — muatan dibentuk di luar `try` pengirim: dua sebab berbeda tidak berbagi satu kalimat pembuka |
+| (commit ini) | Putaran verifikasi (§13) — angka gerbang dua driver |
 
 ---
 
@@ -497,6 +504,11 @@ paket ini sudah dijalankan di `erp_dryrun` sekali selama pembangunan — `PushSu
    oleh orang yang tidak sedang memikirkannya adalah uji yang akan disunting sampai hijau.
 4. **Pendengar `sw.js` naik dari empat menjadi tujuh.** Pelonggaran itu dibayar di tempat yang sama
    dengan tiga pin baru yang membaca badan ketiga pendengar satu per satu (CONVENTIONS §21 dan §42).
+5. **Tiga penolong `WebhookUrl` menjadi publik** (`literalAddress`, `resolve`, `isPrivateName`) —
+   putaran verifikasi. Pemakainya kedua, `PushEndpoint`, membutuhkan PENILAIAN alamatnya tanpa
+   kalimat webhooknya. Alternatifnya adalah menulis aturan bentuk samaran untuk kedua kalinya, dan
+   dua daftar yang sama hari ini adalah dua daftar yang berbeda enam bulan lagi — yang satu tahu
+   `0177.0.0.1`, yang satu tidak.
 
 ---
 
@@ -593,6 +605,12 @@ bukan karena pemeriksaannya lolos diam-diam. Tidak ada perubahan.
 4. **Badan jawaban penyedia masih masuk kolom `error`** (endpoint-nya yang disamarkan). Dengan SSRF
    tertutup, sasarannya adalah layanan push sungguhan; kalau suatu hari badan itu terbukti membawa
    sesuatu yang tidak boleh dilihat, potongan 480 karakter bukan jawabannya.
-5. **Satu kalimat "Sistem › Log Audit" TERSISA di luar paket ini**
+5. **Penjaga alamat berlaku SURUT untuk baris yang sudah ada.** Sebuah langganan yang tersimpan
+   sebelum putaran ini dengan endpoint yang kini ditolak akan gagal permanen pada pengiriman
+   berikutnya, dan rotasinya dijawab 422. Hari ini itu himpunan kosong — P-3e belum di-deploy dan
+   `VAPID_*` erp1 masih kosong (§9.1), jadi belum ada satu baris `core_push_subscriptions` pun di
+   produksi. Ia dicatat karena urutannya penting: kalau paket ini pernah hidup lebih dulu tanpa
+   penjaga, penjaga yang datang belakangan harus menyapu, bukan hanya menolak yang baru.
+6. **Satu kalimat "Sistem › Log Audit" TERSISA di luar paket ini**
    (`PANDUAN-ADMINISTRATOR.md` baris ~3984, matriks persetujuan) — cacat yang sama, tetapi milik
    paket lain; tidak disentuh supaya putaran ini tidak melebar.
