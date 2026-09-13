@@ -197,8 +197,16 @@ final class WebhookUrl
      * transport (`HostValidator::assertNotADottedAddress()`, CVE-2026-69246),
      * tetapi gerbang ini menilai alamat dengan penguraiannya SENDIRI dan tidak
      * pernah menumpang normalisasi pustaka HTTP — dua jaring, bukan satu.
+     *
+     * PUBLIK, dan itu bukan kelonggaran: `PushEndpoint` (P-3e) menilai host
+     * dengan penolong kelas ini tetapi MENGURAI URL-nya sendiri, sehingga
+     * tambalan ini tidak sampai kepadanya selama ia masih memanggil
+     * `strtolower()` polos. Diukur pada commit gabungan ini: enam bentuk
+     * alamat internal bertitik-ekor DITOLAK di sini dan LOLOS di sana. Satu
+     * gerbang berarti satu kanonikalisasi; dua kanonikalisasi yang mirip
+     * adalah cara lubang yang sama ditutup sekali dan dibiarkan sekali.
      */
-    private static function canonicalHost(string $host): string
+    public static function canonicalHost(string $host): string
     {
         return rtrim(strtolower($host), '.');
     }

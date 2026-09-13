@@ -17,6 +17,7 @@ use Modules\Core\Models\NotificationDelivery;
 use Modules\Core\Models\PushSubscription;
 use Modules\Core\Services\NotificationService;
 use Modules\Core\Services\SettingService;
+use Modules\Core\Support\PushEndpoint;
 use Modules\Core\Support\PushSubscriptions;
 use Modules\Core\Support\WebhookUrl;
 use Modules\Core\Support\WebPushSender;
@@ -751,5 +752,116 @@ class WebPushGuardTest extends ErpTestCase
             $korban->id,
             (int) PushSubscription::query()->where('endpoint_hash', PushSubscription::hashFor($milikKorban))->sole()->user_id,
         );
+    }
+
+    /* ------------------------------------------- gabungan keamanan (titik ekor) */
+
+    /**
+     * TITIK EKOR — BENTUK SAMARAN KESEMBILAN, DI KELAS YANG KEDUA.
+     *
+     * Cabang `chore/composer-security-bumps` menutup bentuk ini di
+     * `WebhookUrl`: `127.0.0.1.` mendarat di soket yang persis sama dengan
+     * `127.0.0.1`, tetapi `filter_var` menolaknya sebagai IP dan
+     * `numericIpv4()` berhenti di bagian kelima yang kosong — jadi gerbangnya
+     * membacanya sebagai NAMA, dan yang menolaknya sesudah itu hanyalah DNS
+     * yang kebetulan tidak menjawab.
+     *
+     * `PushEndpoint` (P-3e) menilai host dengan penolong `WebhookUrl` tetapi
+     * MENGURAI URL-nya sendiri, dan memakai `strtolower()` polos. Kedua cabang
+     * itu benar masing-masing; yang salah hanya ada SESUDAH keduanya
+     * digabungkan. Diukur pada commit gabungan, sebelum perbaikan: enam bentuk
+     * di bawah DITOLAK `WebhookUrl` dan LOLOS `PushEndpoint` — dan rute
+     * perangkat sengaja tidak bergerbang izin, jadi setiap pengguna yang bisa
+     * masuk sampai ke sana.
+     *
+     * Perbaikannya membuat `canonicalHost()` publik dan memakainya di kedua
+     * kelas: satu gerbang berarti satu kanonikalisasi. Dua kanonikalisasi yang
+     * mirip adalah cara lubang yang sama ditutup sekali dan dibiarkan sekali.
+     */
+    public function test_an_internal_address_wearing_a_trailing_dot_is_never_accepted_as_a_device(): void
+    {
+        $user = User::factory()->create();
+
+        $candidates = [
+            'https://127.0.0.1./x',
+            'https://169.254.169.254./latest/meta-data/',
+            'https://10.0.0.5./admin',
+            'https://localhost./x',
+            'https://2130706433./x',
+            'https://kasir.local./x',
+            'https://backup.internal./x',
+            // Tidak menyisakan apa pun sesudah titiknya dibuang: bukan nama,
+            // bukan alamat.
+            'https://./x',
+        ];
+
+        foreach ($candidates as $candidate) {
+            $this->actingAs($user, 'sanctum')
+                ->postJson('api/core/me/push-subscriptions', $this->payload($candidate))
+                ->assertStatus(422, "Bentuk «{$candidate}» diterima sebagai perangkat.")
+                ->assertJsonValidationErrors('endpoint');
+        }
+
+        $this->assertSame(
+            0,
+            PushSubscription::query()->count(),
+            'Sebuah alamat internal bertitik-ekor tersimpan sebagai perangkat. Sejak itu setiap pemberitahuan '
+            .'untuk orang itu membuat pekerja antrean mem-POST ke dalam jaringan server — dan yang menahannya '
+            .'hanya DNS yang kebetulan tidak menjawab nama itu.',
+        );
+    }
+
+    /** Pintu rotasi memakai penjaga yang sama, dan ia TIDAK meminta sesi. */
+    public function test_the_rotation_route_refuses_a_trailing_dot_address_too(): void
+    {
+        $user = User::factory()->create();
+        $old = $this->device($user);
+
+        $this->postJson('push/rotate', [
+            'old_endpoint' => (string) $old->endpoint,
+            'endpoint' => 'https://169.254.169.254./latest/meta-data/',
+            'keys' => $this->keys(),
+        ])->assertStatus(422)->assertJsonValidationErrors('endpoint');
+
+        $this->assertSame((string) $old->endpoint, (string) $old->refresh()->endpoint);
+    }
+
+    /**
+     * DAN ia ditolak TANPA bertanya kepada DNS.
+     *
+     * Uji di atas hijau juga bila yang menolak hanyalah resolver yang tidak
+     * menjawab nama `127.0.0.1.` — dan resolver yang membajak NXDOMAIN bukan
+     * barang langka. Di sini resolvernya menjawab SETIAP nama dengan alamat
+     * publik, jadi satu-satunya yang bisa menolak adalah membaca host itu
+     * sebagai ALAMAT, bukan sebagai nama.
+     *
+     * DUA TEMPAT, DAN HANYA SATU YANG MENANGGUNG BEBAN — diukur, bukan
+     * diduga. Mutasi yang mengembalikan `assertSafeToSend()` sendirian ke
+     * `strtolower()` LOLOS HIJAU (`assertShape()` sudah menolak lebih dulu);
+     * mutasi yang mengembalikan `assertShape()` sendirian memerahkan ketiga
+     * uji ini — TERMASUK yang ini, dan sebabnya layak dicatat:
+     * `assertSafeToSend()` memulangkan diri lebih awal ketika host-nya sebuah
+     * ALAMAT LITERAL, dengan alasan "alamat literal sudah dinilai
+     * `assertShape()` di atas". Begitu `assertShape()` berhenti mengenali
+     * `127.0.0.1.` sebagai alamat, jalan pulang itu berubah menjadi jalan
+     * keluar: host-nya dikanonkan menjadi `127.0.0.1`, dikenali sebagai
+     * literal, dan DIPULANGKAN tanpa pernah ditanya apakah ia publik.
+     * Kanonikalisasi di `assertSafeToSend()` karena itu dipertahankan sebagai
+     * konsistensi — supaya string yang sampai ke `resolve()` adalah string
+     * yang dinilai — dan bukan karena ia menutup lubang kedua.
+     */
+    public function test_a_trailing_dot_address_is_refused_without_asking_dns(): void
+    {
+        WebhookUrl::resolverUsing(static fn (): array => ['93.184.216.34']);
+
+        try {
+            PushEndpoint::assertSafeToSend('https://127.0.0.1./x');
+            $this->fail(
+                'Endpoint «127.0.0.1.» lolos penjaga saat mengirim ketika resolver menjawab setiap nama dengan '
+                .'alamat publik — artinya yang menolaknya selama ini hanyalah DNS, bukan gerbangnya.',
+            );
+        } catch (\LogicException $e) {
+            $this->assertStringContainsString('di dalam jaringan server ini', $e->getMessage());
+        }
     }
 }
