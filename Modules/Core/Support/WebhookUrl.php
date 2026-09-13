@@ -120,6 +120,51 @@ final class WebhookUrl
             throw new LogicException('URL webhook tidak bisa dibaca. Tulis lengkap dengan skema, mis. https://contoh.co.id/nusantara/webhook.');
         }
 
+        /*
+         * HOST YANG KAMI DAN TRANSPORT BACA BERBEDA — DUA JARING, BUKAN SATU.
+         *
+         * `https://127.0.0.%31/masuk` lolos seluruh penilaian di bawah:
+         * `numericIpv4()` berhenti di bagian yang bukan angka, `filter_var`
+         * menolaknya sebagai IP, jadi `literalAddress()` memulangkan null dan
+         * host-nya dinilai sebagai NAMA. Yang menolaknya sesudah itu hanyalah
+         * resolver yang kebetulan gagal menjawab nama itu — diukur: dengan
+         * resolver seam yang menjawab alamat publik, gerbang KIRIM pun
+         * menerimanya. libcurl memecahkan `%31` menjadi `1` dan menyambung ke
+         * 127.0.0.1, dan itu persis CVE-2026-69246.
+         *
+         * Hal yang sama berlaku untuk host di luar ASCII (`ерп.contoh.co.id`):
+         * apa yang benar-benar disambungi bergantung pada pihak mana yang
+         * menerjemahkannya ke A-label, dan bukan pada apa yang tertulis.
+         *
+         * Guzzle 7.15.2 menolak KEDUANYA di transport
+         * (`HostValidator::assertRequestHost()`), jadi hari ini lubang itu
+         * tertutup — OLEH PUSTAKA, bukan oleh gerbang ini. Docblock kelas ini
+         * berkata gerbangnya menilai alamat dengan penguraiannya SENDIRI dan
+         * tidak pernah menumpang normalisasi pustaka HTTP; untuk dua bentuk
+         * ini kalimat itu belum benar sampai baris-baris di bawah ada.
+         *
+         * DUA SEBAB, DUA KALIMAT. Orang yang menempelkan escape persen salah
+         * ketik; orang yang menulis nama internasional TIDAK salah — ia hanya
+         * perlu tahu bentuk A-label-nya, dan sebuah kalimat yang menyuruhnya
+         * "jangan pakai persen" tidak menolongnya sama sekali.
+         */
+        if (str_contains($host, '%')) {
+            throw new LogicException(
+                "Alamat «{$host}» memuat escape persen (%) pada bagian host-nya. Sebuah host ditulis apa adanya, "
+                .'tanpa escape: pustaka HTTP memecahkan %31 menjadi 1 sebelum menyambung, sehingga alamat yang '
+                .'benar-benar dituju berbeda dari alamat yang tertulis di layar ini.'
+            );
+        }
+
+        if (preg_match('/\A[\x21-\x7E]*\z/D', $host) !== 1) {
+            throw new LogicException(
+                "Alamat «{$host}» memuat huruf di luar ASCII pada bagian host-nya. Sebuah nama internasional "
+                .'punya bentuk A-label yang dimulai dengan «xn--» (mis. «ерп.contoh.co.id» ditulis '
+                .'«xn--e1auc.contoh.co.id»); tulislah bentuk itu, supaya alamat yang dituju tidak bergantung pada '
+                .'pihak mana yang menerjemahkannya.'
+            );
+        }
+
         if (self::isPrivateName($host)) {
             throw new LogicException("Alamat «{$host}» adalah nama jaringan internal. Webhook hanya dikirim ke alamat yang bisa dijangkau dari luar.");
         }
@@ -345,14 +390,62 @@ final class WebhookUrl
     }
 
     /**
+     * Rentang IPv4 yang DILEWATKAN `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE`,
+     * dan sebabnya masing-masing.
+     *
+     * SATU DAFTAR, BUKAN SATU PENGECUALIAN DITAMBAH TIGA. Sebelum ini CGNAT
+     * berdiri sendiri sebagai satu `if` di dalam `isPublicIp()`; menambahkan
+     * tiga `if` lagi di sebelahnya adalah cara sebuah rentang yang kelima
+     * ditulis di tempat yang salah enam bulan lagi. Masknya DITURUNKAN dari
+     * panjang prefiks dan tidak ditulis tangan — `0xFFE00000` dan
+     * `0xFFFE0000` berbeda satu huruf dan berbeda 128 kali lipat besarnya.
+     *
+     *  - `100.64.0.0/10` — ruang alamat bersama operator (RFC 6598). Di banyak
+     *    jaringan operator ini adalah "di dalam".
+     *  - `192.0.0.0/24` — IETF Protocol Assignments (RFC 6890), termasuk
+     *    alamat DNS64 `192.0.0.170`/`192.0.0.171`. Dirutekan di dalam
+     *    sebagian jaringan dan menunjuk layanan sungguhan di sana.
+     *  - `198.18.0.0/15` — benchmarking RFC 2544. Lazim dipakai DI DALAM
+     *    jaringan lab dan pada appliance yang memakainya sebagai alamat
+     *    manajemen.
+     *  - `224.0.0.0/4` — multicast (RFC 5771). Di atas TCP ia tidak pernah
+     *    membentuk koneksi (diukur: cURL galat 7 dalam 0,00 detik), jadi yang
+     *    ditutup baris ini bukan kebocoran melainkan sebuah baris kiriman yang
+     *    berjanji lalu gagal — dan sebuah gerbang yang menjawab "alamat ini
+     *    tidak dikirimi" lebih jujur daripada lima percobaan yang mati diam.
+     *
+     * YANG SENGAJA TIDAK IKUT: blok dokumentasi TEST-NET `192.0.2.0/24`,
+     * `198.51.100.0/24` dan `203.0.113.0/24` (RFC 5737). Ketiganya memang
+     * tidak dirutekan di internet, tetapi `203.0.113.10` adalah fikstur
+     * "alamat publik" baku rumah ini di 30 tempat pada 4 berkas uji (18
+     * sebelum paku-paku di bawah ditambahkan). Menolak blok itu di sini
+     * diukur, bukan diduga: mutasi yang menambahkan `203.0.113.0/24` ke
+     * daftar memerahkan 15 uji. Memindahkan fiksturnya ke alamat yang
+     * benar-benar publik adalah pekerjaan tersendiri yang harus DIPUTUSKAN,
+     * bukan terjadi sebagai efek samping baris ini.
+     *
+     * @var list<string>
+     */
+    private const REFUSED_V4_BLOCKS = [
+        '100.64.0.0/10',
+        '192.0.0.0/24',
+        '198.18.0.0/15',
+        '224.0.0.0/4',
+    ];
+
+    /**
      * Alamat ini publik?
      *
      * `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE` milik PHP menutup loopback,
      * privat RFC1918, link-local dan rentang yang dicadangkan sekaligus —
-     * termasuk 169.254.169.254 dan ::1. Yang TIDAK ditutupnya ada dua: CGNAT
-     * 100.64/10, yang di banyak jaringan operator adalah "di dalam", dan
-     * ::ffff:0:0/96 — alamat IPv4 yang ditulis sebagai IPv6. Keduanya
-     * diperiksa sendiri.
+     * termasuk 169.254.169.254 dan ::1. Yang TIDAK ditutupnya ada dua:
+     * REFUSED_V4_BLOCKS di atas, dan ::ffff:0:0/96 — alamat IPv4 yang ditulis
+     * sebagai IPv6. Keduanya diperiksa sendiri.
+     *
+     * MULTICAST IPv6 (`ff00::/8`) BELUM ditutup, dan itu dicatat apa adanya di
+     * KEPUTUSAN-INTEGRASI §11.2: `ff02::1` memulangkan true dari baris-baris
+     * di bawah. Ia kembar dari `224.0.0.0/4` dan tidak ikut ditutup di sini
+     * karena rentangnya tidak diukur bersama ketiga rentang IPv4 itu.
      */
     public static function isPublicIp(string $address): bool
     {
@@ -369,9 +462,14 @@ final class WebhookUrl
         if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
             $long = ip2long($address);
 
-            // 100.64.0.0/10 — ruang alamat bersama operator (RFC 6598).
-            if ($long !== false && ($long & 0xFFC00000) === (ip2long('100.64.0.0') & 0xFFC00000)) {
-                return false;
+            foreach (self::REFUSED_V4_BLOCKS as $block) {
+                [$network, $bits] = explode('/', $block);
+
+                $mask = (-1 << (32 - (int) $bits)) & 0xFFFFFFFF;
+
+                if ($long !== false && ($long & $mask) === (ip2long($network) & $mask)) {
+                    return false;
+                }
             }
         }
 

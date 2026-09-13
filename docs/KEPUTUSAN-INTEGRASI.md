@@ -291,9 +291,11 @@ diketik pemakainya adalah **proxy permintaan ke dalam jaringannya sendiri**.
 | URL yang membawa nama pengguna/kata sandi | Rahasianya adalah tanda tangan, bukan URL-nya |
 | **Redirect** (`3xx`) | Sebuah penerima yang menjawab `302 Location: http://169.254.169.254/` memindahkan kiriman bertanda tangan kita ke sana tanpa satu pun baris di atas berlaku lagi |
 | **Bentuk samaran dari alamat yang sama** — `[::ffff:127.0.0.1]`, `[::ffff:169.254.169.254]`, `[::10.0.0.1]`, NAT64 `[64:ff9b::7f00:1]`, dan bentuk numerik `2130706433` / `0177.0.0.1` / `127.1` | Sebuah alamat ditulis dengan lebih dari satu cara dan mendarat di soket yang SAMA. `FILTER_FLAG_NO_PRIV_RANGE\|NO_RES_RANGE` milik PHP TIDAK menutup `::ffff:0:0/96`, dan `filter_var` tidak mengenali bentuk numerik sebagai IP sama sekali sehingga host-nya diperlakukan sebagai NAMA. Maka alamatnya dinormalkan lebih dulu, lalu dinilai (putaran verifikasi V-webhook-2) |
-
 | **Titik ekor** — `127.0.0.1.`, `kasir.local.`, `2130706433.` | Menunjuk ke soket yang persis sama, tetapi `filter_var` menolak bentuk bertitik-ekor sebagai IP dan pengurai numerik berhenti di bagian kelima yang kosong — jadi host-nya dibaca sebagai NAMA, dan yang menolaknya hanyalah DNS yang kebetulan tidak menjawab. Host dikanonkan (huruf kecil + titik ekor dibuang) sebelum apa pun dinilai, di gerbang webhook DAN gerbang endpoint push |
 | **Titik ekor pada ALAMAT, bukan nama** — `203.0.113.10.`, `8.8.8.8.` | `contoh.co.id.` adalah bentuk FQDN absolut dan tetap DITERIMA; sebuah alamat IP tidak punya bentuk absolut, dan Guzzle ≥ 7.15.2 menolaknya di transport (CVE-2026-69246). Menerimanya di layar berarti menyimpan URL yang tidak akan pernah bisa dikirimi: lima percobaan per pengiriman, kalimat pustaka berbahasa Inggris di kolom Galat, dan nonaktif otomatis sesudah 20 pengiriman gagal. Ditolak saat MENYIMPAN, dalam Bahasa Indonesia |
+| **Rentang khusus IANA** — `192.0.0.0/24` (termasuk DNS64 `192.0.0.170`/`.171`), `198.18.0.0/15` (benchmarking RFC 2544), multicast `224.0.0.0/4` | `FILTER_FLAG_NO_PRIV_RANGE\|NO_RES_RANGE` melewatkan ketiganya. Dua yang pertama dirutekan di dalam sebagian jaringan lab dan appliance dan menunjuk layanan sungguhan di sana; multicast di atas TCP tidak pernah membentuk koneksi, jadi yang ditutupnya adalah baris kiriman yang berjanji lalu mati diam. Blok dokumentasi TEST-NET (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`) SENGAJA tidak ikut — lihat catatan di bawah |
+| **Host ber-escape persen** — `127.0.0.%31`, `%31%32%37.0.0.1` | `numericIpv4()` berhenti di bagian yang bukan angka, jadi host-nya dibaca sebagai NAMA dan yang menolaknya hanyalah resolver yang kebetulan gagal. libcurl memecahkan `%31` menjadi `1` dan mendarat di `127.0.0.1` — CVE-2026-69246. Ditolak di gerbang, bukan ditumpangkan pada Guzzle |
+| **Host di luar ASCII tercetak** — `ерп.contoh.co.id` | Apa yang benar-benar disambungi bergantung pada pihak mana yang menerjemahkannya ke A-label, bukan pada apa yang tertulis. Bentuk A-label yang ditulis benar (`xn--e1auc.contoh.co.id`) tetap DITERIMA, dan kalimat penolakannya menyebut bentuk itu |
 
 **Diperiksa DUA KALI: saat menyimpan DAN saat mengirim.** DNS bisa berubah di
 antara keduanya — sebuah nama yang hari ini menunjuk ke alamat publik bisa besok
@@ -306,28 +308,73 @@ tidak menawarkan "izinkan alamat internal untuk instalasi di dalam kantor".
 Sebuah sakelar seperti itu akan dinyalakan satu kali untuk satu kebutuhan yang
 masuk akal dan tetap menyala selamanya.
 
-**Yang BELUM ditutup, dan diketahui** (audit gabungan keamanan, 13 Sep 2026 —
-diukur, bukan dugaan; masing-masing pekerjaan tersendiri):
+**DITUTUP 13 Sep 2026** (dua butir yang audit gabungan keamanan tinggalkan,
+dikerjakan sebagai pekerjaan tersendiri sesudahnya):
 
-* `isPublicIp()` menganggap beberapa rentang khusus IANA sebagai publik:
-  `192.0.0.0/24` (IETF Protocol Assignments, termasuk `192.0.0.171`),
-  `198.18.0.0/15` (benchmarking RFC 2544, lazim dipakai di dalam jaringan lab
-  dan appliance) dan multicast `224.0.0.0/4`. Yang pertama dua bisa menunjuk
-  layanan nyata di sebagian jaringan; multicast di atas TCP tidak pernah
-  membentuk koneksi. **Ini PRA-ADA** — `isPublicIp()` identik byte-per-byte
-  dengan keadaan sebelum kenaikan paket ini. Perbaikannya sempit (tiga
-  perbandingan bit seperti pola `100.64/10` yang sudah ada), **tetapi blok
-  dokumentasi TEST-NET tidak boleh ikut ditolak**: `203.0.113.10` adalah
-  fikstur "alamat publik" baku rumah ini di 14 tempat pada 4 berkas uji, dan
-  menolaknya memerahkan 11 uji.
-* Host **ber-persen-escape** (`127.0.0.%31`) dan host **non-ASCII**
-  (`ерп.contoh.co.id`) lolos gerbang SIMPAN: keduanya dibaca sebagai NAMA, dan
-  yang menolaknya hanyalah resolver yang kebetulan gagal — bukan aturan.
-  Sejak kenaikan ke Guzzle 7.15.2 transport menutup keduanya, jadi lubangnya
-  tertutup hari ini **oleh pustaka, bukan oleh gerbang ini**. Pintu push tidak
-  terkena bentuk persen (aturan `url` Laravel menolaknya lebih dulu). Nama
-  internasional yang ditulis benar sebagai A-label (`xn--…`) diterima di
-  gerbang dan di transport.
+* **Rentang khusus IANA.** `isPublicIp()` kini menolak `192.0.0.0/24` (IETF
+  Protocol Assignments, termasuk DNS64 `192.0.0.170`/`.171`), `198.18.0.0/15`
+  (benchmarking RFC 2544, lazim dirutekan di dalam jaringan lab dan appliance)
+  dan multicast `224.0.0.0/4`, di samping `100.64.0.0/10` yang sudah ada.
+  Cacatnya **PRA-ADA**: badan `isPublicIp()` identik byte-per-byte dengan
+  keadaan sebelum kenaikan paket itu. Keempatnya kini satu daftar
+  (`REFUSED_V4_BLOCKS`) dengan mask yang DITURUNKAN dari panjang prefiks —
+  `0xFFE00000` dan `0xFFFE0000` berbeda satu huruf dan berbeda 128 kali lipat
+  besarnya. Bobot nyatanya rendah dan dikatakan apa adanya: multicast di atas
+  TCP tidak pernah membentuk koneksi (diukur: cURL galat 7 dalam 0,00 detik)
+  dan di mesin ini dua rentang lain menelan paket (cURL 28 sesudah 3 detik);
+  yang ditutup adalah risiko **bersyarat** pada jaringan yang merutekannya.
+  **Blok dokumentasi TEST-NET RFC 5737 SENGAJA tidak ikut**: `203.0.113.10`
+  adalah fikstur "alamat publik" baku rumah ini di 30 tempat pada 4 berkas uji
+  (18 sebelum paket ini). Mutasi yang menambahkan `203.0.113.0/24` ke daftar
+  diukur — 15 uji merah — dan memindahkan fikstur itu ke alamat yang
+  benar-benar publik adalah pekerjaan tersendiri yang harus DIPUTUSKAN, bukan
+  terjadi sebagai efek samping. Perhatikan juga bahwa di mesin ini TEST-NET
+  berperilaku sama dengan `198.18.0.0/15` (cURL 28 sesudah 3 detik): yang
+  memisahkan keduanya adalah RFC dan pemakaiannya sebagai fikstur, bukan
+  keterjangkauannya.
+* **Host ber-persen-escape dan host non-ASCII.** `https://127.0.0.%31/masuk`
+  dan `https://ерп.contoh.co.id/masuk` lolos gerbang SIMPAN: keduanya dibaca
+  sebagai NAMA (`numericIpv4()` berhenti di bagian yang bukan angka,
+  `literalAddress()` memulangkan null), dan yang menolaknya hanyalah resolver
+  yang kebetulan gagal — diukur: dengan resolver seam yang menjawab alamat
+  publik, gerbang KIRIM pun menerimanya. libcurl memecahkan `%31` menjadi `1`
+  dan mendarat di `127.0.0.1`, yaitu CVE-2026-69246. Guzzle 7.15.2 menolak
+  keduanya di transport, jadi lubangnya tertutup hari ini **oleh pustaka,
+  bukan oleh gerbang ini** — dan docblock `WebhookUrl` berkata gerbang ini
+  menilai alamat dengan penguraiannya SENDIRI dan tidak pernah menumpang
+  normalisasi pustaka HTTP. **Dua jaring, bukan satu**: `assertShape()` di
+  KEDUA kelas kini menolak host ber-`%` dan host yang bukan ASCII tercetak,
+  masing-masing dengan kalimatnya sendiri, karena orang yang menempelkan
+  escape persen salah ketik sedangkan orang yang menulis nama internasional
+  tidak — ia hanya perlu tahu bentuk A-label-nya. Nama internasional yang
+  ditulis benar (`xn--e1auc.contoh.co.id`) diterima gerbang DAN transport.
+  Di pintu push ini **pertahanan berlapis, bukan tambalan**: aturan `url`
+  milik Laravel menolak kedua bentuk lebih dulu di FormRequest — maka pakunya
+  memanggil `PushEndpoint::assertShape()` langsung, sebab uji yang hanya
+  menekan rutenya tetap hijau dengan kelas itu dikembalikan sepenuhnya.
+
+**Yang BELUM ditutup, dan diketahui** (masing-masing pekerjaan tersendiri):
+
+* **Byte kendali di host dicuci `parse_url`, dan gerbangnya tidak pernah
+  melihatnya** (diukur 13 Sep 2026, sewaktu mengerjakan butir kedua di atas).
+  `https://contoh\x01.co.id/masuk` — juga `\x00`, `\x09`, `\x0a`, `\x7f` —
+  dipulangkan `parse_url()` sebagai host `contoh_.co.id`: byte kendalinya
+  DIGANTI menjadi garis bawah, sehingga aturan ASCII-tercetak di atas tidak
+  punya apa pun untuk ditolak. Guzzle menolaknya di transport
+  (`MalformedUriException`), jadi ini **gagal-tertutup** — bukan lubang
+  keamanan, melainkan bentuk yang sama dengan titik ekor: layar berkata
+  "tersimpan", lalu setiap pengiriman mati dengan kalimat Inggris di kolom
+  Galat. Tidak ditutup di sini karena perbaikannya menuntut membaca bagian
+  otoritas dari URL MENTAH — pengurai kedua di samping `parse_url()`, persis
+  hal yang docblock kelas ini peringatkan — sedangkan menolak byte kendali di
+  SELURUH URL akan menolak jalur yang transport terima (diukur: byte kendali
+  di PATH diterima gerbang dan transport), yaitu gerbang yang menolak sesuatu
+  yang sebenarnya bisa dikirimi.
+* **Multicast IPv6 `ff00::/8` tetap dinilai publik.** `ff02::1` memulangkan
+  true dari `isPublicIp()`. Ia kembar dari `224.0.0.0/4` yang baru ditutup, dan
+  tidak ikut hanya karena rentangnya tidak diukur bersama ketiga rentang IPv4
+  itu; menutupnya satu baris, dan sebaiknya diputuskan bersama pertanyaan
+  apakah rentang IPv6 lain (mis. `2001:db8::/32`) ikut.
 * **Gerbang uji tidak bisa melihat kelas regresi transport.** Setiap uji
   keluar-jaringan memakai `Http::fake()` atau MockHandler, dan
   `HostValidator::assertRequestHost()` hanya dipanggil dari handler sungguhan
