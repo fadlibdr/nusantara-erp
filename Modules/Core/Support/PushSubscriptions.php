@@ -104,7 +104,18 @@ final class PushSubscriptions
         $hash = PushSubscription::hashFor($endpoint);
         $existing = PushSubscription::query()->where('endpoint_hash', $hash)->first();
 
-        if ($existing === null) {
+        /*
+         * Plafon diperiksa ketika perangkat ini akan menjadi perangkat BARU
+         * BAGI ORANG INI — bukan hanya ketika endpoint-nya belum dikenal
+         * siapa pun (putaran penutup, V-2). Versi pertama memeriksa
+         * `$existing === null` saja, jadi pendaftaran yang MENGAMBIL ALIH
+         * endpoint milik akun lain — jalur "peramban bersama" yang memang
+         * disengaja beberapa baris di bawah — melewati plafon sepenuhnya, dan
+         * seseorang yang sudah memegang sepuluh perangkat berakhir dengan
+         * sebelas. MAX_PER_USER dinyatakan batas penguatan lalu lintas di tiga
+         * dokumen; sebuah batas yang punya jalan memutar bukan batas.
+         */
+        if ($existing === null || (int) $existing->user_id !== (int) $user->getKey()) {
             self::assertRoomFor($user);
         }
 

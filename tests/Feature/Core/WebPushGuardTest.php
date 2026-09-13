@@ -656,4 +656,100 @@ class WebPushGuardTest extends ErpTestCase
         $this->assertSame(NotificationDelivery::SENT, $row->refresh()->status);
         $this->assertLessThanOrEqual(WebPushChannel::MAX_PAYLOAD_BYTES, strlen($sender->sent[0]['payload']));
     }
+
+    /* ------------------------------------------------- putaran penutup */
+
+    /**
+     * V-2 — plafon perangkat tidak punya jalan memutar lewat endpoint milik
+     * orang lain.
+     *
+     * Pemeriksaan plafon dulunya berjalan hanya ketika `$existing === null`,
+     * yaitu ketika endpoint-nya belum dikenal SIAPA PUN. Sebuah pendaftaran
+     * yang MENGAMBIL ALIH endpoint milik akun lain — jalur "peramban bersama"
+     * yang memang disengaja, dan yang menulis baris audit perpindahan —
+     * melewatinya sepenuhnya: seseorang yang sudah memegang sepuluh perangkat
+     * berakhir dengan sebelas, sementara MAX_PER_USER dinyatakan batas
+     * penguatan lalu lintas (bukan kenyamanan) di docblock kelasnya, di
+     * LAPORAN §6.4 dan di DEPLOYMENT §11.3. Batas yang punya jalan memutar
+     * bukan batas.
+     *
+     * Uji A-5 tidak bisa menangkapnya: ia mendaftarkan sebelas endpoint BARU.
+     */
+    public function test_the_device_ceiling_cannot_be_walked_around_by_taking_over_somebody_elses_endpoint(): void
+    {
+        $penuh = User::factory()->create();
+        $orangLain = User::factory()->create();
+
+        for ($i = 0; $i < PushSubscriptions::MAX_PER_USER; $i++) {
+            $this->actingAs($penuh, 'sanctum')
+                ->postJson('api/core/me/push-subscriptions', $this->payload($this->endpoint()))
+                ->assertOk();
+        }
+
+        // Endpoint yang SUDAH dikenal — tetapi atas nama orang lain.
+        $bersama = $this->endpoint();
+        $this->actingAs($orangLain, 'sanctum')
+            ->postJson('api/core/me/push-subscriptions', $this->payload($bersama))
+            ->assertOk();
+
+        $this->actingAs($penuh, 'sanctum')
+            ->postJson('api/core/me/push-subscriptions', $this->payload($bersama))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('endpoint');
+
+        $this->assertSame(
+            PushSubscriptions::MAX_PER_USER,
+            PushSubscriptions::countFor($penuh),
+            'Plafon dilewati: perangkat ke-11 masuk karena endpoint-nya kebetulan sudah terdaftar atas nama '
+            .'orang lain. Setiap pemberitahuan kepada akun ini kini satu permintaan keluar lebih banyak '
+            .'daripada yang dinyatakan tiga dokumen sebagai batasnya.',
+        );
+
+        $this->assertSame(
+            $orangLain->id,
+            (int) PushSubscription::query()->where('endpoint_hash', PushSubscription::hashFor($bersama))->sole()->user_id,
+            'Pendaftaran yang DITOLAK plafon tidak boleh tetap memindahkan langganan itu: orang lain kehilangan '
+            .'perangkatnya untuk sebuah pendaftaran yang gagal.',
+        );
+    }
+
+    /**
+     * V-3 — penghapusan lewat `previous_endpoint` hanya menyentuh baris
+     * PEMANGGIL.
+     *
+     * `register()` menghapus baris yang endpoint_hash-nya cocok dengan
+     * `previous_endpoint` yang dikirim KLIEN, dan penjaganya satu-satunya
+     * adalah `where('user_id', …)`. Tanpa baris itu, setiap orang yang bisa
+     * masuk dapat mencabut notifikasi orang lain hanya dengan mengetahui
+     * endpoint-nya — di rute yang memang tidak bergerbang izin, dan endpoint
+     * adalah nilai yang paket ini sendiri perlakukan sebagai kapabilitas.
+     * Penjaganya ADA sejak awal; yang tidak ada adalah ujinya (putaran
+     * penutup, V-3: mutasi yang membuangnya lolos hijau atas 99 uji).
+     */
+    public function test_the_previous_endpoint_deletion_never_reaches_somebody_elses_row(): void
+    {
+        $penyerang = User::factory()->create();
+        $korban = User::factory()->create();
+
+        $milikKorban = $this->endpoint();
+        $this->actingAs($korban, 'sanctum')
+            ->postJson('api/core/me/push-subscriptions', $this->payload($milikKorban))
+            ->assertOk();
+
+        $this->actingAs($penyerang, 'sanctum')->postJson(
+            'api/core/me/push-subscriptions',
+            $this->payload($this->endpoint()) + ['previous_endpoint' => $milikKorban],
+        )->assertOk();
+
+        $this->assertSame(
+            1,
+            PushSubscriptions::countFor($korban),
+            'Perangkat orang lain dicabut oleh sebuah pendaftaran: ia berhenti menerima pemberitahuan dan tidak '
+            .'pernah diberi tahu, karena dari layarnya perangkat itu hanya hilang dari daftar.',
+        );
+        $this->assertSame(
+            $korban->id,
+            (int) PushSubscription::query()->where('endpoint_hash', PushSubscription::hashFor($milikKorban))->sole()->user_id,
+        );
+    }
 }
