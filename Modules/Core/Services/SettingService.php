@@ -1017,12 +1017,11 @@ class SettingService
         $this->assertMayChangeApprovalPolicy($key);
 
         // F-1 — nilai EFEKTIF sebelum tulisan, untuk jejak audit "dari → ke".
-        // Dibaca sebelum apa pun berubah, dan hanya untuk approvals.*: baris
-        // core_settings sendiri sudah diamati AuditService, tetapi sebuah
-        // override yang BARU LAHIR tercatat sebagai 'created' tanpa "dari",
-        // dan "dari" adalah separuh yang penting ketika yang berubah adalah
-        // siapa boleh menyetujui berapa.
-        $approvalBefore = self::isApprovalPolicyKey($key) ? $this->get($key) : null;
+        // Dibaca sebelum apa pun berubah: baris core_settings sendiri sudah
+        // diamati AuditService, tetapi sebuah override yang BARU LAHIR tercatat
+        // sebagai 'created' tanpa "dari", dan "dari" adalah separuh yang
+        // penting ketika yang berubah adalah uang.
+        $effectiveBefore = self::auditsEffectiveChange($key) ? $this->get($key) : null;
 
         // P8 — riwayat tarif (D5): tarif efektif SEBELUM tulisan, dibaca di
         // sini karena set() adalah satu-satunya jalur tulis Pengaturan. Yang
@@ -1043,8 +1042,8 @@ class SettingService
 
         $this->flush();
 
-        if (self::isApprovalPolicyKey($key) && $row !== null) {
-            $this->auditApprovalPolicyChange($row, $key, $approvalBefore, $value ?? $this->default($key));
+        if (self::auditsEffectiveChange($key) && $row !== null) {
+            $this->auditEffectiveChange($row, $key, $effectiveBefore, $value ?? $this->default($key));
         }
 
         if ($rates->tracks($key)) {
@@ -1069,6 +1068,31 @@ class SettingService
     public static function isApprovalPolicyKey(string $key): bool
     {
         return str_starts_with($key, 'approvals.');
+    }
+
+    /**
+     * Kunci yang jejak auditnya HARUS membawa nilai "dari", bukan hanya "ke".
+     *
+     * Sebuah override yang BARU LAHIR tercatat pengamat sebagai `created`
+     * dengan `value: {from: null, to: "175"}` — nol jejak bahwa yang berlaku
+     * sebelumnya adalah bawaan config. Itu justru perubahan yang paling
+     * penting: perubahan PERTAMA, yang meninggalkan kebijakan pemilik.
+     *
+     * `approvals.*` sudah di sini sejak F-1. `hr.timesheet.*` ikut pada
+     * putaran verifikasi F-5: kesembilan kunci itu — sepuluh dengan istirahat —
+     * dikirim sebagai bawaan config tanpa baris `core_settings`, dan semuanya
+     * MENGGERAKKAN UPAH LEMBUR setiap orang. PANDUAN-ADMINISTRATOR §14
+     * menjanjikan "nilai dari→ke"; sebelum commit ini, penyelidikan atas
+     * "kenapa upah lembur turun bulan ini" membaca satu baris log yang tidak
+     * menyebut angka sebelumnya.
+     *
+     * Awalan, bukan daftar: kunci timesheet berikutnya ikut terjaring tanpa
+     * satu suntingan pun. Ini HANYA tentang jejak — gerbang izin direktur
+     * tetap milik `approvals.*` sendiri (isApprovalPolicyKey).
+     */
+    public static function auditsEffectiveChange(string $key): bool
+    {
+        return self::isApprovalPolicyKey($key) || str_starts_with($key, 'hr.timesheet.');
     }
 
     /**
@@ -1140,7 +1164,7 @@ class SettingService
      * menghapus barisnya, dan "dihapus" bukan jawaban atas "ambangnya menjadi
      * berapa".
      */
-    private function auditApprovalPolicyChange(Setting $row, string $key, mixed $from, mixed $to): void
+    private function auditEffectiveChange(Setting $row, string $key, mixed $from, mixed $to): void
     {
         if ($this->sameEffective($from, $to)) {
             return;

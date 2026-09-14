@@ -201,7 +201,7 @@ lemburnya memang tidak ada. Bedanya dipikul oleh **keadaan hari**, bukan oleh an
 
 ---
 
-## 5. Mutasi — 30 dijalankan, 30 merah (satu hanya sebagai mutasi GABUNGAN)
+## 5. Mutasi — 29 dijalankan, 29 merah (satu hanya sebagai mutasi GABUNGAN)
 
 Setiap pin baru dibuktikan merah dengan merusak kode produksi, menjalankan ujinya, lalu
 mengembalikannya dan membuktikannya hijau lagi.
@@ -237,6 +237,17 @@ mengembalikannya dan membuktikannya hijau lagi.
 | M28 | kalimat penolakan lama dikembalikan ke muatan | 2 gagal |
 | M29 | baris tanpa hari terukur diberi `0`, bukan `null` | 1 gagal |
 | M30 | formulir rekap disodori `overtime_hours ?? 0` | 1 gagal |
+
+**M14 TIDAK ADA, dan itu kelalaian penomoran — bukan mutasi yang disembunyikan.** Judul bagian ini
+semula berbunyi "30 dijalankan, 30 merah" sementara tabelnya berisi 29 baris (M1–M13, M15–M30):
+nomor M14 terlewat saat tabel disusun, dan tidak ada mutasi yang hilang bersamanya. Dikoreksi pada
+putaran verifikasi, bersama satu pengakuan yang lebih penting: **tidak satu pun dari kedua puluh
+sembilan mutasi itu menyentuh jalur pembulatan kedua** (`TimesheetService` baris `hours` per hari),
+dan §6 mendaftarkan "Pembulatan SEKALI" sebagai aturan yang dipaku delapan tepi — padahal kedelapan
+tepi itu semuanya berjalan pada langkah 15 menit, yang desimalnya kebetulan tepat. Cacat A-2/B-1
+karena itu tidak bisa merah di gerbang mana pun. Sebuah tabel bukti yang menghitung dirinya salah
+adalah tabel yang pembacanya berikutnya tidak bisa percayai; §10 membawa dua puluh lima mutasi
+putaran verifikasi, dan yang pertama di antaranya adalah mutasi yang celah ini tinggalkan.
 
 **M17 perlu penjelasan, karena ia satu-satunya yang tidak merah sendirian.** Penjaga hari non-kerja
 **berlapis dua**: `day()` memulangkan `overtime_minutes = null` untuk hari itu, DAN
@@ -345,6 +356,12 @@ Suite penuh dijalankan sesi utama, sesuai perintah paket ini.
    jadi bentuk hariannya **ada** dan bisa dibaca — tetapi membacanya berarti payroll mulai
    bergantung pada tabel Projects untuk menentukan uang, dan itu keputusan arsitektur yang tidak
    pantas diambil diam-diam di dalam paket ini.
+5. **Istirahat 60 menit** (`hr.timesheet.break_minutes`, ditambahkan pada putaran verifikasi §13).
+   Angka **kesebelas**, dan seperti `day_start` ia angka yang pemilik tidak sebut. Ia harus ada:
+   tanpanya, rentang masuk→pulang dibaca sebagai jam kerja dan hari kerja 08:00–17:00 menghasilkan
+   satu jam lembur setiap hari untuk setiap orang. 60 menit adalah bentuk yang paling umum di
+   lapangan dan lantai UU 13/2003 Pasal 79 adalah 30 menit; bila regu tertentu memang bekerja tanpa
+   istirahat, angkanya 0 — dan layar mengatakan mana yang sedang berlaku.
 
 ---
 
@@ -389,3 +406,164 @@ Suite penuh dijalankan sesi utama, sesuai perintah paket ini.
    yang dihitung DARI absensi. Yang dipilih: satu grup, dengan kalimat yang **membedakan** separuh
    yang menggerakkan uang dari separuh yang tidak — karena kalimat menyeluruh mana pun akan bohong
    untuk salah satu separuh.
+
+---
+
+## 13. PUTARAN VERIFIKASI — 14 September 2026
+
+Tiga lensa verifikasi menjalankan paket ini di tiga pohon terpisah dan mengembalikan 22 temuan.
+Setiap temuan di bawah berakhir **DIPERBAIKI** (dengan pin yang dibuktikan merah oleh mutasi) atau
+**DITOLAK** (dengan bukti). Tidak ada keadaan ketiga.
+
+Enam commit verifikasi: `91b9801` `2f28a20` `e6e3909` `1bb977f` `cbe54e3` `3d2ee68` (+ commit ini).
+**Dua puluh lima mutasi baru dijalankan (M31–M55), dua puluh lima merah**, kecuali satu yang dicatat
+apa adanya di bawah.
+
+### 13.1 Uang — diperiksa paling dulu dan paling teliti
+
+**A-1 · Istirahat tidak pernah dipotong (TINGGI) — DIPERBAIKI, `91b9801`.**
+`TimesheetService` memperlakukan RENTANG masuk→pulang sebagai jam kerja, jadi hari kerja
+**08:00–17:00** — bentuk hari kerja yang paling biasa yang ada di Indonesia, karena istirahat satu
+jam tidak termasuk jam kerja (UU 13/2003 Ps. 79) — menghasilkan **satu jam lembur setiap hari**.
+Gagal diam-diam dalam arti paling murni: batas 3 jam/hari tidak tersentuh, tidak ada bendera, dan
+angkanya persis sebesar yang orang percaya masuk akal. 26 hari kerja → 26 jam lembur karangan,
+Rp 2.479.768,79 pada upah 11 jt (22,5% upah sebulan). Jalannya menjadi uang pendek: Usulan Rekap
+menyodorkannya ke formulir rekap, HR menekan Simpan.
+Perbaikan: setelan `hr.timesheet.break_minutes` (bawaan 60), dipotong **bertahap**
+`min(istirahat, rentang − 4 jam)`, hari membawa ketiga angkanya, kartu kebijakan mencetak
+kalimatnya. **M31–M33 merah.** Fikstur uji yang memakai 08:00–16:00 sebagai "delapan jam"
+diperbaiki ke 17:00 — mereka memaku model yang salah; seluruh angka rupiah tetap sama persis.
+
+**A-2 / B-1 · Pembulatan terjadi DUA KALI (TINGGI) — DIPERBAIKI, `2f28a20`.**
+`total_hours` dari jumlah menit, tetapi tiap `days[].hours` dari menit hari itu; gerbang kesamaan
+membandingkan yang pertama, uang dihitung dari jumlah yang kedua. Pada pembulatan 10 menit slip
+membayar Rp 953,76 **lebih** dari jam yang tertulis di kolomnya sendiri; pada 20 menit Rp 953,75
+**kurang**. Tidak terlihat pada bawaan 15 menit, dan tidak satu pun dari 29 mutasi asli
+menyentuhnya. Perbaikan: menit dibawa sampai tempat uang dihitung, dibagi 60 sekali di akhir;
+`minutes_at_first_rate`/`minutes_at_next_rate` ikut dibekukan di slip, dan jam berikutnya menjadi
+SISA supaya dua angka yang ditampilkan selalu berjumlah persis kolom `overtime_hours`.
+**M34–M35 merah**, dan M34 menyebut kedua rupiahnya.
+
+**C-2 · Penjaga absensi↔payroll tidak bisa melihat jalur baru (TINGGI) — DIPERBAIKI, `e6e3909`.**
+Paket ini menyeberangi pemisahan yang `AttendanceIsNotPayrollInputTest` jaga, dan lewat begitu saja
+— persis yang pesan galat uji itu larang. Jaringnya tidak menjangkau `TimesheetService`, dan uji
+perilakunya memakai rekap 0 jam sehingga separuh yang penting tidak pernah dijalankan. Uji HIJAU
+sementara mengoreksi satu cap jam menggeser upah lembur Rp 250.000. Tautannya **tidak dicabut** (ia
+benar); yang dicabut kalimat yang menyangkalnya. Batas barunya — *absensi boleh menggeser TARIF,
+tidak pernah JUMLAH JAM* — dipaku tiga lapis, CONVENTIONS §29 ditulis ulang, §43 menautnya balik,
+dan §1 laporan ini tidak lagi mengutip kehijauan uji itu sebagai bukti. **M36–M37 merah.**
+
+### 13.2 Kalimat yang berpisah dari yang terjadi
+
+**A-3 / B-2 / C-1 · Slip tidak pernah menyebutkan dasarnya (TINGGI) — DIPERBAIKI, `1bb977f`.**
+Seluruh pembenaran migrasi 001094 adalah satu kalimat yang diulang di empat tempat dan di
+PANDUAN-PENGGUNA §21, dan kalimat itu tidak benar: `grep -rn 'overtime_basis' public/ resources/`
+memulangkan NOL baris. Yang membedakan kedua jalur dalam praktik adalah satu hari **lupa absen
+pulang**, dan orang yang dirugikan disuruh melihat sebabnya di slip yang tidak memuatnya.
+Perbaikan: baris "Dasar: …" pada `payslip.blade.php` (NULL berbunyi berbeda dari "Tanpa lembur"),
+dasarnya di tabel slip layar run gaji supaya pemeriksa melihatnya SEBELUM menyetujui, dan
+`PayslipSaysItsOvertimeBasisTest` memaku janji terhadap gambar. **M38–M39 merah.**
+
+**A-4 · PANDUAN-PENGGUNA memberi DUA rumus lembur (TINGGI) — DIPERBAIKI, `1bb977f`.**
+Bab payroll masih berbunyi "pemisahan tarif 1,5×/2× **tidak diterapkan**", seribu delapan ratus
+baris sebelum §21 mengatakan kebalikannya; data yang sama membayar 572.254,34 menurut yang satu dan
+667.630,06 menurut yang lain. Bab payroll kini menyebut kedua jalurnya dan menunjuk §21 alih-alih
+menyalin rumusnya, dan `OvertimeDocsDoNotContradictEachOtherTest` menjaring kalimat usang.
+**M41 merah.**
+
+**A-5 · Tarif 2x dijanjikan tanpa syarat (SEDANG) — DIPERBAIKI, `cbe54e3`.**
+Kartu kebijakan mencetaknya sebagai fakta di layar yang dibuka untuk tukang, padahal pada alur ILB
+ia tidak pernah menyala (terukur: 190.751,45 dibayar, 222.543,35 dijanjikan). Kalimatnya kini
+membawa syaratnya. **M45 merah.**
+
+### 13.3 Angka yang diukur pada hari yang tidak mengukurnya
+
+**A-6 · Batas 14 jam/pekan buta pada pekan lintas bulan (SEDANG) — DIPERBAIKI, `3d2ee68`.**
+2026-W27 dengan 17 jam dilaporkan `[]` oleh KEDUA bulan. Jendela kueri dilebarkan ke pekan ISO di
+kedua tepi; hari di luar bulan dipakai hanya menjumlahkan pekan, dan pekan terbelah ditandai
+`spans_periods` beserta menit yang jatuh di bulan sebelah. Pelebarannya tidak melahirkan baris
+hantu. **M49–M50 merah.**
+
+**B-5 · Shift malam dinilai terlambat 13j 50m (SEDANG) — DIPERBAIKI, `3d2ee68`.**
+Keterlambatan tidak lagi diukur bila jam masuk jatuh lebih dari setengah hari dari jam mulai —
+setengah hari, bukan satu jam, supaya keterlambatan sungguhan tetap terukur. Batas ketiga
+ditambahkan ke daftar kejujuran layar dan ke §21. **M48 merah.**
+
+**B-6 · Cap jam tidak diperiksa terhadap tanggal barisnya (SEDANG) — DIPERBAIKI, `3d2ee68`.**
+Satu salah ketik bulan = 721 jam lembur dalam satu hari; varian dua hari geser lolos tanpa satu
+tanda pun. Dua lapis: `AttendanceUpdateRequest` menuntut `after:check_in_at`, dan `day()` menolak
+mengangkat hari menjadi Terukur bila capnya tidak berhubungan dengan tanggalnya — shift malam
+22:00→06:00 tetap sah. **M46 merah.**
+
+**B-7 · Cap terbalik tetap melaporkan keterlambatan (SEDANG) — DIPERBAIKI, `3d2ee68`.**
+Satu sel yang membantah keterangannya sendiri. Kedua sebab "setengah terukur" kini dipisah: cap
+pulang HILANG tetap melaporkan keterlambatannya, cap TERTUKAR tidak. **M47 merah.**
+
+### 13.4 Layar yang menulis, dan yang diam
+
+**B-3 · Ubin "Hari terukur" memuji bulan 1-dari-26 (TINGGI) — DIPERBAIKI, `91b9801`.**
+Perbaikan 14 Sep hanya menutup `measured_days === 0` dan meninggalkan lubang yang bentuknya sama
+persis. Pujian kini menuntut ketiganya, memakai `unrecorded_days` yang sudah ada di muatan sejak
+awal dan tidak pernah dipakai.
+
+**B-4 · Peringatan setengah terukur hilang tepat saat ada angka (TINGGI) — DIPERBAIKI, `cbe54e3`.**
+Ia hanya disusun di dalam cabang `overtime_hours === null`. Kini berdiri di bawah nama karyawan,
+seperti layar Timesheet. **M43 merah.**
+
+**A-7 · Usulan Rekap tidak memperingatkan payroll terposting (SEDANG) — DIPERBAIKI, `cbe54e3`.**
+`propose()` membawa `period.payroll_posted`, dan kalimat spanduknya dipakai ulang dari
+`timesheet.js`. **M42 merah.**
+
+**C-5 · Ketiadaan ILB digambar sebagai ketiadaan baris (SEDANG) — DIPERBAIKI, `cbe54e3`.**
+Kini "tanpa ILB disetujui" dengan title yang menyebut artinya. Isian awalnya **sengaja tetap
+disodorkan**: menahannya akan membuat angka turunan tidak pernah bisa dipakai perusahaan yang tidak
+menjalankan ILB, dan keputusannya memang HR. **M44 merah.**
+
+### 13.5 Gerbang, jejak, dan bukti
+
+**C-3 · Properti pengganti gerbang izin tidak dipaku (SEDANG) — DIPERBAIKI, commit ini.**
+Tiga tempat menyatakan "tidak ada satu parameter pun di pintu itu yang menyebut orang lain", dan
+tidak ada satu asersi pun untuknya. **M51** — mutasi satu baris yang verifier laporkan sebagai tak
+terlihat — kini merah.
+
+**C-4 · Kalender lembur harian orang lain keluar lewat pintu slip (SEDANG) — DIPERBAIKI, `1bb977f`.**
+F-5 menaruh `overtime_rate_detail.days` ke `PayslipResource`, yang dilayani rute tanpa gerbang izin
+(keadaan pra-F-5). `days` disaring; kuncinya DIBUANG, bukan dikosongkan. Menutup rutenya sendiri
+adalah pekerjaan gerbang izin. **M40 merah.**
+
+**C-6 · Log Audit tanpa "dari" pada perubahan pertama (SEDANG) — DIPERBAIKI, commit ini.**
+Kesepuluh kunci `hr.timesheet.*` dikirim sebagai bawaan config tanpa baris `core_settings`, jadi
+suntingan pertama — satu-satunya yang meninggalkan kebijakan pemilik — tercatat `created` dengan
+`from: null`. Jalur "efektif dari→ke" yang sudah ada untuk `approvals.*` diperluas lewat awalan,
+**hanya untuk jejaknya** (gerbang izin direktur tetap milik `approvals.*`). Uji audit kini memaku
+ISI `changes`, bukan keberadaan barisnya. **M54–M55 merah.**
+
+**A-8 · Uji "tidak ada backfill" tidak pernah bisa merah (RENDAH) — DIPERBAIKI, commit ini.**
+Uji lama menulis sendiri kedua kolom menjadi null lalu menegaskan keduanya null: melumpuhkan
+seluruh fitur pencatatan dasar memerahkan 10 dari 14 uji berkasnya dan meninggalkannya hijau.
+Diganti dua pin yang menguji produksi: slip "lama" disisipkan lewat query builder tanpa kedua kolom
+tetap NULL sesudah setiap pintu paket ini dijalankan, dan migrasi 001094 tidak menulis ke baris yang
+sudah ada. **M52 merah.** Dicatat apa adanya: mutasi "lumpuhkan pencatatan dasar" (M53) TIDAK
+memerahkan pin backfill — dan memang tidak boleh, karena baris lama harus tetap null di kedua
+keadaan; yang dipaku di sini adalah ketiadaan backfill, dan M52 adalah mutasi yang menguji itu.
+
+**A-9 / B-8 · Tabel mutasi berjumlah salah (RENDAH) — DIPERBAIKI, commit ini.**
+Judul §5 berbunyi "30 dijalankan" atas tabel berisi 29 baris; M14 terlewat saat penomoran, dan
+tidak ada mutasi yang hilang bersamanya. Dikoreksi menjadi 29, bersama pengakuan yang lebih penting:
+tidak satu pun dari kedua puluh sembilan mutasi itu menyentuh jalur pembulatan kedua, dan kedelapan
+tepi yang §6 sebut semuanya berjalan pada langkah 15 menit yang desimalnya kebetulan tepat.
+
+### 13.6 Satu temuan yang tidak bisa ditutup
+
+**C-7 — muatan temuannya terpotong** pada perintah yang sampai ke pohon ini: yang terbaca hanya
+nomornya dan awal kata tingkat keparahannya (`"severity": "sed…"`). Tidak ada judul, lokasi, atau
+langkah reproduksi. Ia **tidak** diperbaiki dan **tidak** ditolak — menebak isinya berarti mengarang
+temuan, dan menutupnya diam-diam berarti melaporkan pekerjaan yang tidak dikerjakan. Kirim ulang
+butir C-7 dan ia akan ditutup dengan aturan yang sama seperti dua puluh satu lainnya.
+
+### 13.7 Keputusan pemilik yang bertambah
+
+Daftar §9 bertambah satu, dan ia **satu jenis** dengan `day_start` 08:00 yang sudah ada di sana:
+**`hr.timesheet.break_minutes` = 60 menit** adalah angka yang pemilik tidak sebut pada 14 September
+2026. Ia dipilih di sini karena tanpanya setiap hari kerja biasa menghasilkan lembur palsu, ia
+dicetak layar apa adanya, dan ia satu suntingan di layar Pengaturan — bukan satu rilis.

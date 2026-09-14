@@ -4105,23 +4105,29 @@ menyetujui satu-satu. Angka yang Anda isi hanya membatasi berapa banyak boleh
 dipilih sekali jalan; pilih dengan mempertimbangkan bahwa tiap dokumen adalah
 satu permintaan dan laju API dibatasi 120 permintaan per menit.
 
-## 14. Kebijakan timesheet & lembur — sembilan angka yang menggeser upah (F-5)
+## 14. Kebijakan timesheet & lembur — sepuluh angka yang menggeser upah (F-5)
 
 **Sistem › Pengaturan › SDM — Cuti, Absensi & Timesheet.** Bagian atas grup ini (hak cuti,
-radius absensi ponsel) **tidak menyentuh satu rupiah pun**. Bagian bawah — sembilan kunci
+radius absensi ponsel) **tidak menyentuh satu rupiah pun**. Bagian bawah — sepuluh kunci
 `hr.timesheet.*` — **menggerakkan upah lembur**, dan kalimat pembuka grupnya mengatakan
 perbedaan itu apa adanya sejak 14 September 2026.
 
 Setiap perubahan di sini tercatat di **Log Audit** dengan nama pelaku, tanggal dan nilai
-dari→ke, karena baris `core_settings` diamati seperti tarif pajak dan nomor rekening.
+dari→ke, karena baris `core_settings` diamati seperti tarif pajak dan nomor rekening —
+**termasuk perubahan PERTAMA sebuah kunci**, yang mencatat bawaan config sebagai "dari".
+Kunci-kunci ini dikirim sebagai bawaan tanpa baris `core_settings`, jadi tanpa perlakuan
+khusus itu suntingan pertama — satu-satunya yang meninggalkan kebijakan pemilik — akan
+tercatat sebagai `created` tanpa nilai lama sama sekali. Perlakuan yang sama sudah berlaku
+untuk `approvals.*` sejak F-1.
 
-### Kesembilan angkanya, dan apa akibatnya pada uang
+### Kesepuluh angkanya, dan apa akibatnya pada uang
 
 | Setelan | Bawaan | Akibatnya bila diubah |
 |---|---|---|
 | Jam mulai kerja (acuan terlambat) | `08:00` | Satu-satunya angka yang membuat "terlambat" punya arti. Menaikkannya **menghapus keterlambatan yang sudah tercatat dari layar secara surut** — jam masuk yang tersimpan tidak berubah, tetapi penilaiannya dihitung ulang setiap kali layar dibuka. |
 | Toleransi terlambat | 10 menit | Menit terlambat dihitung dari **batas toleransi**, bukan dari jam mulai. Tidak memotong upah sendiri; ia menentukan apa yang terbaca di layar tempat keputusan itu diambil orang. |
-| Jam kerja normal per hari | 8 jam | Menit **di atas** angka ini yang menjadi calon lembur. Menaikkannya satu jam **menghapus satu jam lembur dari setiap hari setiap orang** — pengurangan upah terbesar yang bisa dilakukan satu kotak isian di layar ini. |
+| Jam kerja normal per hari | 8 jam | Menit **di atas** angka ini yang menjadi calon lembur. Menaikkannya satu jam **menghapus satu jam lembur dari setiap hari setiap orang** — pengurangan upah terbesar yang bisa dilakukan satu kotak isian di layar ini. Yang dibandingkan dengannya adalah **jam kerja**, yaitu rentang masuk→pulang yang sudah dikurangi istirahat di bawah. |
+| Istirahat yang tidak dihitung jam kerja | 60 menit | UU 13/2003 Pasal 79: istirahat tidak termasuk jam kerja, jadi hari kerja delapan jam berlangsung sembilan jam di jam dinding. Dipotong dari rentang masuk→pulang sebelum lembur dihitung, dan hanya sejauh rentangnya melewati 4 jam. **Diisi 0**, hari kerja biasa 08:00–17:00 akan menghasilkan **satu jam lembur setiap hari untuk setiap orang** — pilih 0 hanya bila regu Anda memang bekerja tanpa istirahat. |
 | Pembulatan lembur | 15 menit | Kelebihan menit dibulatkan ke kelipatan **terdekat**, sekali saja (7 menit → 0, 8 menit → 15). Membesarkannya membuat lembur pendek lebih sering hilang. |
 | Lembur minimum | 30 menit | Di bawah ini tidak dibayar, dan diterapkan **sesudah** pembulatan: 22 menit membulat ke 15 lalu gugur. Diisi 0, setiap menit sisa ikut dibayar. |
 | Batas lembur per hari | 3 jam | Kepmenaker 102/2004 Pasal 3. Melewatinya **tidak memotong jam dan tidak menolak harinya** — jamnya dibayar penuh, barisnya ditandai agar terlihat. |
@@ -4160,3 +4166,10 @@ kebijakan itu di sebelah angkanya** supaya bisa diperiksa.
 
 Tidak ada jam mulai per proyek, per regu, atau per shift. Bila pemasangan ini butuh
 keduanya, jangan mengakali jam mulai: ia akan salah untuk salah satu kelompok setiap hari.
+
+**Akibatnya pada shift malam, dikatakan apa adanya.** Hari yang jam masuknya jatuh lebih
+dari setengah hari sesudah jam mulai — shift 22:00, misalnya — **tidak diukur
+keterlambatannya sama sekali**: kolom Terlambat bergaris dengan sebabnya, bukan berisi
+"terlambat 13 jam 50 menit". Jam kerja dan lemburnya tetap terukur seperti biasa, dan
+`late_days` tidak ikut naik. Sampai shift dibangun, itulah yang paling jujur yang bisa
+dikatakan satu jam mulai tentang orang yang tidak bekerja pada jam itu.

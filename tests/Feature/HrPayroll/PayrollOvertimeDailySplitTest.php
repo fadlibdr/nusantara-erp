@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\HrPayroll;
 
+use Illuminate\Support\Facades\DB;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\HrPayroll\Enums\OvertimeBasis;
 use Modules\HrPayroll\Enums\PayrollRunType;
 use Modules\HrPayroll\Models\Attendance;
 use Modules\HrPayroll\Models\Employee;
+use Modules\HrPayroll\Services\TimesheetService;
 use Tests\ErpTestCase;
 
 /**
@@ -453,21 +455,98 @@ class PayrollOvertimeDailySplitTest extends ErpTestCase
         $this->assertMoney(317_919.08, $this->payslipFor($run, $employee)->overtime_pay);
     }
 
-    public function test_older_payslips_keep_a_blank_basis_because_nothing_is_backfilled(): void
+    /**
+     * TIDAK ADA BACKFILL — dipaku pada baris yang produksi bisa menyentuhnya,
+     * bukan pada baris yang uji ini tulis sendiri.
+     *
+     * Bentuk lama uji ini menghitung payroll, lalu MENULIS SENDIRI kedua kolom
+     * menjadi null lewat forceFill, lalu menegaskan keduanya null — menegaskan
+     * kembali baris yang ia tulis satu baris di atasnya. Tidak ada satu pun
+     * kode produksi yang bisa membuatnya gagal: melumpuhkan seluruh fitur
+     * pencatatan dasar di PayrollService memerahkan 10 dari 14 uji berkas ini
+     * dan MENINGGALKAN yang satu ini hijau. Ia muncul di laporan paket sebagai
+     * bukti "tidak ada backfill", dan bukti itu kosong.
+     *
+     * Yang benar-benar perlu dipaku ada dua, dan keduanya di bawah: sebuah slip
+     * "lama" yang disisipkan lewat query builder TANPA kedua kolom tetap NULL
+     * sesudah setiap jalur yang paket ini tawarkan dijalankan, DAN migrasi
+     * 001094 tidak mengisi kolomnya secara surut.
+     */
+    public function test_an_older_payslip_stays_blank_through_every_door_this_package_opens(): void
     {
         $employee = $this->employeeOnElevenMillion();
         $run = $this->makeRun();
-        $this->makeRecap($employee, $run, 10);
-        $this->payrollService()->calculate($run);
 
-        // Sebuah slip yang lahir sebelum 14 Sep 2026 tidak punya kolom ini.
-        $slip = $this->payslipFor($run, $employee);
-        $slip->forceFill(['overtime_basis' => null, 'overtime_rate_detail' => null])->save();
+        // Slip "lama": disisipkan lewat query builder tanpa menyebut kedua
+        // kolom sama sekali, seperti baris yang lahir sebelum migrasi 001094.
+        $legacyId = DB::table('hr_payslips')->insertGetId([
+            'payroll_run_id' => $run->id,
+            'employee_id' => $employee->id,
+            'basic_salary' => 10_000_000,
+            'allowances_total' => 1_000_000,
+            'overtime_hours' => 10,
+            'overtime_pay' => 953_757.23,
+            'gross_income' => 11_953_757.23,
+            'bpjs_employee_total' => 0,
+            'bpjs_company_total' => 0,
+            'pph21_amount' => 0,
+            'total_deductions' => 0,
+            'net_pay' => 11_953_757.23,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $blank = fn (): object => DB::table('hr_payslips')->where('id', $legacyId)->first();
+
+        $this->assertNull($blank()->overtime_basis, 'Prasyarat: barisnya memang lahir kosong.');
+        $this->assertNull($blank()->overtime_rate_detail);
+
+        // Setiap pintu yang paket ini buka, dijalankan atas periode LAIN supaya
+        // run di atas tidak dihitung ulang: menghitung run lain, membaca layar
+        // timesheet, dan mengubah kebijakan lembur.
+        $other = $this->makeRun(['period_month' => 7]);
+        $this->overtimeDay($employee, '2026-07-01', 2);
+        $this->makeRecap($employee, $other, 2);
+        $this->payrollService()->calculate($other);
+
+        app(TimesheetService::class)->forEmployee($employee, 2026, 6);
+        $this->setSetting('hr.timesheet.overtime_next_hours_pct', 300);
+        $this->setSetting('hr.timesheet.break_minutes', 0);
 
         $this->assertNull(
-            $slip->refresh()->overtime_basis,
+            $blank()->overtime_basis,
             'Tidak ada backfill dan tidak akan ada: menebak dasar sebuah slip yang sudah diposting '
             .'adalah mengarang bukti tentang uang yang sudah keluar.',
         );
+        $this->assertNull($blank()->overtime_rate_detail);
+        $this->assertSame(
+            '953757.23',
+            (string) $blank()->overtime_pay,
+            'Dan uangnya juga tidak bergerak: slip lama tidak dihitung ulang oleh apa pun di sini.',
+        );
+    }
+
+    /** Migrasi 001094 MENAMBAH kolom; ia tidak menyentuh satu baris pun yang sudah ada. */
+    public function test_the_migration_that_added_the_columns_never_writes_to_existing_rows(): void
+    {
+        $migration = (string) file_get_contents(base_path(
+            'Modules/HrPayroll/Database/Migrations/2026_09_14_001094_add_overtime_basis_to_hr_payslips_table.php',
+        ));
+
+        $code = (string) preg_replace('#/\*.*?\*/#s', '', $migration);
+        $code = (string) preg_replace('#^\s*//.*$#m', '', $code);
+
+        foreach (['update(', 'DB::statement', 'insert(', '->fill(', 'save()'] as $write) {
+            $this->assertStringNotContainsString(
+                $write,
+                $code,
+                sprintf(
+                    'Migrasi 001094 menulis ke baris yang sudah ada (%s). Kolom KOSONG berarti "slip '
+                    .'dihitung sebelum 14 Sep 2026"; mengisinya secara surut menghapus satu-satunya '
+                    .'tanda bahwa dasarnya memang tidak pernah dicatat.',
+                    $write,
+                ),
+            );
+        }
     }
 }

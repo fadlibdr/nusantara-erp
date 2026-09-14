@@ -167,4 +167,77 @@ class TimesheetPolicySettingsTest extends ErpTestCase
             .'Perubahan yang menggeser upah setiap orang harus punya nama pelaku dan tanggal.',
         );
     }
+
+    /**
+     * "DARI" ADALAH SEPARUH YANG PENTING, dan ia hilang justru pada perubahan
+     * PERTAMA.
+     *
+     * Kesepuluh kunci `hr.timesheet.*` dikirim sebagai bawaan config tanpa
+     * baris `core_settings`. Perubahan pertamanya karena itu tercatat pengamat
+     * sebagai `created` dengan `value: {from: null, to: "175"}` — nol jejak
+     * bahwa yang berlaku sebelumnya adalah 150% yang disebut pemilik. Padahal
+     * itulah satu-satunya perubahan yang meninggalkan kebijakan pemilik.
+     *
+     * Rumah ini SUDAH tahu cacat ini: komentar `SettingService::set()`
+     * menuliskannya kata demi kata untuk `approvals.*` dan membangun jalur
+     * audit "efektif dari→ke" untuk menutupnya. F-5 menambahkan sepuluh kunci
+     * yang menggerakkan upah lembur setiap orang dan tidak memperluasnya;
+     * PANDUAN-ADMINISTRATOR §14 menjanjikan "nilai dari→ke".
+     *
+     * Uji lama hanya memeriksa BARISNYA ada. Ini memeriksa ISINYA.
+     */
+    public function test_the_first_change_of_a_timesheet_key_records_the_value_it_replaced(): void
+    {
+        $admin = $this->adminUser();
+
+        $this->assertFalse(
+            app(SettingService::class)->isOverridden('hr.timesheet.overtime_first_hour_pct'),
+            'Prasyarat: kuncinya belum punya baris core_settings sama sekali.',
+        );
+
+        $this->actingAs($admin, 'sanctum')
+            ->putJson('api/core/settings', ['settings' => ['hr.timesheet.overtime_first_hour_pct' => 175]])
+            ->assertOk();
+
+        $first = AuditLog::query()
+            ->where('auditable_type', Setting::class)
+            ->where('auditable_label', 'hr.timesheet.overtime_first_hour_pct')
+            ->orderBy('id')
+            ->get();
+
+        $effective = $first->pluck('changes')->filter(fn ($changes): bool => isset($changes['effective']))->first();
+
+        $this->assertNotNull(
+            $effective,
+            'Perubahan pertama sebuah kunci timesheet tidak mencatat nilai efektif yang ia gantikan. '
+            .'Penyelidikan atas "kenapa upah lembur turun bulan ini" lalu membaca satu baris log yang '
+            .'tidak menyebut angka sebelumnya.',
+        );
+        $this->assertSame(150, (int) $effective['effective']['from'], 'Bawaan config 150%, bukan null.');
+        $this->assertSame(175, (int) $effective['effective']['to']);
+    }
+
+    /** ...dan perubahan berikutnya membawa nilai yang benar-benar berlaku sebelumnya. */
+    public function test_a_later_change_records_the_value_that_was_actually_in_force(): void
+    {
+        $admin = $this->adminUser();
+
+        foreach ([175, 190] as $value) {
+            $this->actingAs($admin, 'sanctum')
+                ->putJson('api/core/settings', ['settings' => ['hr.timesheet.overtime_first_hour_pct' => $value]])
+                ->assertOk();
+        }
+
+        $effective = AuditLog::query()
+            ->where('auditable_type', Setting::class)
+            ->where('auditable_label', 'hr.timesheet.overtime_first_hour_pct')
+            ->orderByDesc('id')
+            ->get()
+            ->pluck('changes')
+            ->filter(fn ($changes): bool => isset($changes['effective']))
+            ->first();
+
+        $this->assertSame(175, (int) $effective['effective']['from']);
+        $this->assertSame(190, (int) $effective['effective']['to']);
+    }
 }

@@ -9268,8 +9268,27 @@ hasilnya nol*. Keduanya sengaja tidak sama. Hari setengah terukur ditandai di ba
 orangnya justru supaya Anda bisa memperbaikinya: buka **SDM & Payroll › Absensi Harian**,
 cari tanggalnya, lalu **Rincian → Koreksi** dengan menyebut alasannya.
 
+### Istirahat tidak dihitung jam kerja
+
+**Hari kerja delapan jam berlangsung sembilan jam di jam dinding.** UU 13/2003 Pasal 79
+menyatakan istirahat tidak termasuk jam kerja, jadi layar ini memotong **60 menit** dari
+rentang masuk→pulang sebelum menghitung lembur. Hari kerja biasa **08:00–17:00** karena
+itu berbunyi **0 jam lembur**, bukan 1 — dan kolom "Jam kerja" berbunyi 8 jam, bukan 9.
+
+Potongannya **bertahap**: ia hanya berlaku sejauh rentangnya melewati 4 jam, supaya orang
+yang pulang pukul 12:01 tidak terbaca bekerja lebih sedikit daripada yang pulang 12:00.
+Angkanya adalah setelan (**Pengaturan › SDM — Cuti, Absensi & Timesheet › Istirahat yang
+tidak dihitung jam kerja**), dan kartu kebijakan di atas tabel selalu mencetak yang
+sedang berlaku. **Diisi 0**, seluruh rentang kembali dihitung jam kerja — dan hari kerja
+biasa akan menghasilkan satu jam lembur setiap hari untuk setiap orang.
+
 ### Apa yang layar ini TIDAK hitung
 
+- **Satu jam mulai kerja untuk seluruh perusahaan.** Tidak ada shift dan tidak ada jam
+  mulai per proyek, jadi **shift malam tidak bisa dinilai keterlambatannya**: hari yang
+  jam masuknya jatuh lebih dari setengah hari dari jam mulai (22:00, misalnya)
+  mendapat kolom Terlambat yang **bergaris** dengan sebabnya, bukan angka. Jam kerja dan
+  lemburnya tetap terukur seperti biasa.
 - **Tarif akhir pekan dan hari libur** (Kepmenaker 102/2004: 2x/3x/4x sejak jam pertama)
   belum dibangun. Jam yang tercatat pada hari non-kerja **tetap ditampilkan** — supaya
   tidak hilang — tetapi **tidak pernah** diusulkan sebagai lembur hari kerja, karena
@@ -9278,6 +9297,9 @@ cari tanggalnya, lalu **Rincian → Koreksi** dengan menyebut alasannya.
   saja, jadi 17 Agustus terbaca sebagai hari kerja biasa.
 - Jam lembur yang melewati batas Kepmenaker (3 jam/hari, 14 jam/pekan) **dihitung penuh
   dan ditandai**, tidak dipotong. Angka di layar selalu jam yang benar-benar dikerjakan.
+  Pekan dihitung Senin–Minggu (ISO), dan **pekan yang terbelah antara dua bulan dihitung
+  utuh di kedua bulan** — lencananya menyebut berapa jamnya jatuh di bulan sebelah, supaya
+  angkanya bisa dicocokkan dengan tabel harian yang hanya memuat bulan ini.
 
 ### Menerapkan usulan jam lembur ke rekap
 
@@ -9309,3 +9331,16 @@ Bila rincian hariannya tidak ada — periode lama, atau bulan tanpa cap jam — 
 memakai cara lama (1,5x rata), dan slipnya **menyebutkan yang mana yang dipakai** beserta
 sebabnya. Hal yang sama terjadi bila jam ILB dan jam turunan absensi **tidak sama**:
 sistem tidak membelah jam ILB menurut bentuk hari yang berbeda jumlahnya.
+
+**Di mana dasarnya tertulis.** Satu baris kecil di bawah baris *Lembur* pada slip gaji
+PDF, dan satu baris di bawah rupiah lembur pada tabel slip di layar run gaji — jadi
+pemeriksa run melihatnya **sebelum** menyetujui, dan karyawan melihatnya di lembar yang ia
+terima. Slip yang dihitung **sebelum 14 September 2026** berbunyi *"dasar tidak dicatat"*,
+yang berbeda artinya dari *"tanpa lembur"*: kolomnya belum ada waktu itu, dan tidak ada
+yang mengisinya secara surut.
+
+**Syarat tarif 2x, dikatakan sekali lagi karena ia yang paling sering terlewat.** Tarif
+jam berikutnya hanya menyala bila total lembur turunan di layar Timesheet **sama persis**
+dengan total rekap yang dibayar. Pada alur ILB — yang memang otoritatif — keduanya jarang
+sama, dan seluruh lembur periode itu lalu dibayar dengan tarif jam pertama. Kartu
+kebijakan di layar Timesheet mencetak syarat itu di sebelah tarifnya.

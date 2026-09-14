@@ -92,6 +92,52 @@ class TimesheetApiTest extends ErpTestCase
             ->assertJsonPath('data.policy.rounding_minutes', 15);
     }
 
+    /**
+     * PROPERTI YANG MENGGANTIKAN GERBANG IZIN HARUS DIPAKU UJI.
+     *
+     * Tiga tempat menyatakan alasan yang sama untuk rute tanpa gerbang ini —
+     * docblock di atas, kepala `TimesheetController`, dan CONVENTIONS §43:
+     * "tidak ada satu parameter pun di pintu itu yang menyebut orang lain".
+     * Sampai putaran verifikasi, tidak ada SATU asersi pun untuknya.
+     *
+     * Isinya jam datang dan jam pulang orang per hari selama sebulan plus jam
+     * ILB-nya: persis data yang pintu `timesheet/{id}` di sebelahnya jawab
+     * dengan 404 untuk melindunginya. Sebuah suntingan kecil di masa depan —
+     * menambah `?employee_id=` supaya HR bisa memakai layar yang sama — lolos
+     * seluruh gerbang rilis tanpa satu warna merah. Diukur: mutasi satu baris
+     * di `mine()` membuat pengguna tanpa satu pun izin hr.* membaca jam masuk
+     * orang lain, dan `--filter 'Timesheet|Overtime'` tetap OK.
+     */
+    public function test_the_me_door_ignores_every_parameter_that_could_name_somebody_else(): void
+    {
+        $mine = $this->makeEmployee();
+        $theirs = $this->makeEmployee();
+
+        $this->clockedDay($mine, '2026-06-01', '08:00', '19:00');
+        $this->clockedDay($theirs, '2026-06-01', '06:00', '21:00');
+
+        $user = $this->userFor($mine);
+
+        foreach (['employee_id', 'employee', 'id', 'employee_code'] as $parameter) {
+            $response = $this->actingAs($user, 'sanctum')
+                ->getJson("api/hr/timesheet/me?period_year=2026&period_month=6&{$parameter}={$theirs->id}")
+                ->assertOk();
+
+            $this->assertSame(
+                $mine->id,
+                $response->json('data.summary.employee_id'),
+                sprintf(
+                    'Pintu "me" memulangkan timesheet orang lain ketika diberi `%s`. Rute ini TANPA '
+                    .'gerbang izin, dan yang menggantikan gerbangnya adalah janji bahwa tidak ada '
+                    .'satu parameter pun di sini yang bisa menyebut orang lain — janji yang harus '
+                    .'dipaku, bukan ditulis.',
+                    $parameter,
+                ),
+            );
+            $this->assertSame('2026-06-01 08:00:00', $response->json('data.days.0.check_in_at'));
+        }
+    }
+
     public function test_a_worker_can_read_their_own_timesheet_through_the_id_door_too(): void
     {
         $employee = $this->makeEmployee();
