@@ -49,8 +49,15 @@ Tidak ada sentuhan pada `bootstrap/*`, `routes/*` akar, `composer.json`, atau `D
 **Uji baru paket ini: 6 berkas, 78 metode (85 kasus dengan data provider).** Berkas lama yang
 ikut berubah: tidak satu pun asersinya digeser — 9 berkas payroll yang sudah ada
 (`PayrollOvertimeTest`, `PayrollRunCalculationTest`, `PayrollBpjsTest`, `PayrollThrTest`,
-`PayrollDecemberTrueUpTest`, `PayrollPostingTest`, `Pph21RecapTest`, `AttendanceRecapProposalTest`,
-`AttendanceIsNotPayrollInputTest`) tetap hijau apa adanya.
+`PayrollDecemberTrueUpTest`, `PayrollPostingTest`, `Pph21RecapTest`, `AttendanceRecapProposalTest`)
+tetap hijau apa adanya.
+
+> **Dikoreksi pada putaran verifikasi (§10).** Kalimat di atas semula ikut menyebut
+> `AttendanceIsNotPayrollInputTest` sebagai bukti bahwa tidak ada yang berubah. Itu bukan bukti: uji
+> itu hijau karena jaring jarumnya tidak menjangkau `TimesheetService`, dan uji perilakunya memakai
+> rekap berlembur 0 jam sehingga `overtimeComputation()` pulang lebih awal. Paket ini MEMANG
+> menyeberangi pemisahan yang dijaganya — absensi kini menggeser TARIF lembur, tidak pernah jumlah
+> jamnya — dan berkas itu dibangun ulang untuk memaku batas barunya. Lihat §10 dan CONVENTIONS §29.
 
 ---
 

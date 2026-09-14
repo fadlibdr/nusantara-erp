@@ -1586,17 +1586,30 @@ datang, dan menimpanya dengan null berarti lembar yang dikirim ulang menghapus b
 
 ## 29. Usulan rekap absensi — dan mengapa tidak ada POST-nya (F-4)
 
-`GET hr/attendance-recaps/proposal` MEMBACA. Tidak ada endpoint pasangan yang menulis, tidak ada
-jalur dari `hr_attendances` ke `hr_payroll_runs`/`hr_payslips`, dan
-`AttendanceIsNotPayrollInputTest` memakukan keduanya dari dua arah: uji perilaku (menulis 30 hari
-absen lalu menghitung ulang payroll tidak menggeser satu rupiah) DAN uji sumber (tujuh berkas
-penghasil payroll tidak menyebut register absensi, lima berkas absensi tidak menyebut payroll).
-Satu lapis tidak cukup — yang pertama hijau juga untuk jalur yang kebetulan belum ada datanya, yang
-kedua hijau juga untuk kode yang memanggilnya lewat nama tabel mentah.
+`GET hr/attendance-recaps/proposal` MEMBACA. Tidak ada endpoint pasangan yang menulis.
 
-Alasannya bukan kehati-hatian yang samar: register absensi boleh dikoreksi kapan saja (F-4 justru
-menambah pintu koreksinya), sedangkan payroll yang disetujui sudah membukukan jurnal dan membayar
-orang.
+**Sejak F-5 (14 Sep 2026) ADA satu jalur dari `hr_attendances` ke `hr_payslips`, dan ia dibatasi
+satu kalimat: absensi boleh menggeser TARIF, tidak pernah JUMLAH JAM.** Sampai F-5 kalimat di
+tempat ini berbunyi "tidak ada jalur", dan itu sudah tidak benar — `PayrollService` memanggil
+`TimesheetService::measuredOvertimeShape()` untuk tahu BENTUK harian lembur sebuah periode, lalu
+memakainya untuk membelah 1,5x jam pertama dari 2x jam berikutnya. Berapa jam yang dibayar tetap
+datang dari `hr_attendance_recaps` — dokumen yang diperiksa dan disimpan manusia, dan yang
+otoritatif atasnya tetap ILB. Mengoreksi satu cap jam karena itu bisa menggeser upah lembur
+(terukur: Rp 250.000 pada 7 jam ILB yang sama), dan tidak pernah menggeser jamnya.
+
+`AttendanceIsNotPayrollInputTest` memaku batas itu dari TIGA arah: uji sumber (tujuh berkas
+penghasil payroll tidak menyebut register absensi lewat nama tabel, model atau service; lima berkas
+absensi tidak menyebut payroll), uji JEMBATAN (`PayrollService` menyebut `TimesheetService` tepat
+sekali, lewat `measuredOvertimeShape()` dan bukan `forEmployee`/`day`/`policy`), dan uji perilaku
+pada rekap yang BENAR-BENAR BERLEMBUR (koreksi satu cap jam: `overtime_hours` diam, `overtime_pay`
+bergerak). Lapis ketiga itu ada karena bentuk lamanya memakai rekap 0 jam — dan pada rekap 0 jam
+`overtimeComputation()` pulang lebih awal, sehingga uji itu hijau untuk jalur yang menggeser
+seperempat juta rupiah.
+
+Alasan pemisahannya bukan kehati-hatian yang samar: register absensi boleh dikoreksi kapan saja
+(F-4 justru menambah pintu koreksinya), sedangkan payroll yang disetujui sudah membukukan jurnal
+dan membayar orang — dan `calculate()` menolak run yang tidak editable, jadi koreksi absensi tidak
+pernah menyentuh slip yang sudah diposting.
 
 **`whereDate`, bukan `whereBetween`.** Cast `date` MENYIMPAN tengah malam, dan SQLite membandingkan
 STRING: `'2026-06-30 00:00:00' > '2026-06-30'`, sehingga tanggal terakhir setiap bulan jatuh keluar
@@ -2796,11 +2809,30 @@ terdekat, lembur minimum 30 menit, toleransi terlambat 10 menit, jam kerja norma
 Kepmenaker 102/2004 (1,5x jam pertama, 2x jam berikutnya).
 
 **Kebijakan itu hidup di `config/erp.php` → `hr.timesheet.*` dan di registri Pengaturan grup
-`hr`** — sembilan kunci, bukan satu konstanta di kelas layanan. Kunci **kesepuluh** adalah yang
-pemilik TIDAK sebut dan yang tanpanya toleransi terlambat tidak punya acuan: `day_start`
-(bawaan `08:00`). Ia bertipe **`time`** — tipe registri baru yang divalidasi `date_format:H:i`,
-**bukan `regex`**: satu-satunya pemakai `regex` di registri adalah `document_format`, dan kalimat
-galatnya menyuruh orang menyisipkan `{N4}` ke dalam sebuah jam.
+`hr`** — sepuluh kunci, bukan satu konstanta di kelas layanan. **DUA** di antaranya adalah angka
+yang pemilik TIDAK sebut dan yang tanpanya sisanya tidak punya arti:
+
+- `day_start` (bawaan `08:00`) — tanpanya toleransi terlambat tidak punya acuan. Ia bertipe
+  **`time`**, tipe registri baru yang divalidasi `date_format:H:i`, **bukan `regex`**: satu-satunya
+  pemakai `regex` di registri adalah `document_format`, dan kalimat galatnya menyuruh orang
+  menyisipkan `{N4}` ke dalam sebuah jam.
+- `break_minutes` (bawaan `60`) — **istirahat tidak termasuk jam kerja** (UU 13/2003 Pasal 79),
+  jadi hari kerja delapan jam berlangsung sembilan jam di jam dinding. Ditambahkan pada putaran
+  verifikasi, dan sebabnya ada di bawah.
+
+Keduanya adalah keputusan pemilik yang masih terbuka (LAPORAN-PAKET-HM-F-5 §9).
+
+**RENTANG BUKAN JAM KERJA.** `worked_minutes` adalah rentang mentah masuk→pulang; yang menjadi
+calon lembur adalah `net_worked_minutes` = rentang dikurangi `break_minutes`. Tanpa potongan itu,
+hari kerja **08:00–17:00** — bentuk hari kerja yang paling biasa yang ada — menghasilkan **satu jam
+lembur setiap hari untuk setiap orang**, di bawah batas 3 jam/hari (jadi tidak ditandai) dan
+sebesar angka yang orang percaya masuk akal (jadi tidak dicurigai). Dua puluh enam hari kerja
+menjadi 26 jam lembur karangan, yang disodorkan Usulan Rekap ke formulir rekap dan dari sana
+menjadi uang. Potongannya **bertahap**, `min(istirahat, rentang − 4 jam)`: memotong 60 menit penuh
+begitu rentang melewati 4 jam membuat orang yang pulang 12:01 terbaca bekerja lebih sedikit
+daripada yang pulang 12:00. Hari membawa **ketiga** angkanya (rentang, istirahat, jam kerja), dan
+kartu kebijakan di layar mencetak kalimatnya — potongan yang tidak disebutkan adalah potongan yang
+tidak bisa diperiksa siapa pun.
 
 **Kalimat pembuka grup `hr` diubah dengan sengaja.** "TIDAK satu pun dari nilai di sini yang
 langsung menggerakkan payroll" benar sampai 13 Sep dan **bohong** sejak 14 Sep. Yang
@@ -2819,7 +2851,15 @@ bukan oleh angkanya. Keterlambatan hanya menuntut cap MASUK, jadi ia tetap teruk
 setengah terukur.
 
 **PEMBULATAN DILAKUKAN SEKALI**, di `TimesheetService::overtimeMinutes()`, pada **kelebihan menit
-di atas jam normal** — bukan pada rentang kerjanya, dan bukan dua kali. Urutannya: jam normal →
+di atas jam normal** — bukan pada rentang kerjanya, dan bukan dua kali. Yang membuat kalimat itu
+benar adalah satu aturan yang dipaku: **MENIT ADALAH SUMBERNYA, JAM HANYA TAMPILANNYA.**
+`measuredOvertimeShape()` membawa `total_minutes` dan `days[].minutes` (bilangan bulat, tepat) di
+samping jam yang dibulatkan, dan **setiap perhitungan uang wajib memakai menit**. Sampai putaran
+verifikasi, pembelahan tarif menjumlahkan `hours` yang sudah dibulatkan satu-satu sementara gerbang
+kesamaan totalnya dibandingkan terhadap total yang dihitung dari menit — dua angka berbeda untuk
+satu jumlah jam, **pada slip yang sama**. Pada pembulatan bawaan 15 menit keduanya kebetulan sama
+(seperempat jam desimalnya tepat), jadi tidak satu uji pun bisa melihatnya; pada 10 menit ia
+membayar Rp 953,76 LEBIH dan pada 20 menit Rp 953,75 KURANG. Urutannya: jam normal →
 **pembulatan ke kelipatan TERDEKAT** (ke atas maupun ke bawah; pembulatan yang selalu ke bawah
 adalah potongan upah yang menyamar sebagai aritmetika) → minimum. Tepi-tepinya pada bawaan:
 `+7 → 0`, `+8 → 15 → gugur minimum → 0`, `+22 → 15 → 0`, `+29 → 30`, `+30 → 30`.
@@ -2846,7 +2886,11 @@ yang benar-benar harus beku adalah **uang**, yang dibekukan di tempat payroll su
 tidak boleh dilanggar:
 
 1. **Total jam SELALU dari rekap bulanan.** Rincian harian menentukan **TARIF**, tidak pernah
-   jumlahnya — ILB tetap otoritatif atas berapa jam yang berhak dibayar.
+   jumlahnya — ILB tetap otoritatif atas berapa jam yang berhak dibayar. Ini adalah satu-satunya
+   jalur dari `hr_attendances` ke `hr_payslips` yang ada di sistem ini, dan §29 membawa batasnya
+   beserta tiga lapis uji yang memakunya. `PayrollService` menyebut `TimesheetService` **tepat
+   sekali**, lewat `measuredOvertimeShape()` — pintu lain di kelas itu membawa jam kerja dan
+   keterlambatan, bahan yang tidak punya urusan dengan satu rupiah pun.
 2. **Rincian harian dipakai HANYA bila totalnya SAMA PERSIS dengan rekap.** ILB 10 jam melawan
    absensi 7 jam berarti bentuk harian yang diketahui **bukan** bentuk dari jam yang dibayar;
    membelah 10 menurut bentuk 7 adalah mengarang hari lembur. Dalam keadaan itu jalur lama
