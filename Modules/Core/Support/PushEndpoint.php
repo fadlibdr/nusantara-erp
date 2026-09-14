@@ -90,6 +90,37 @@ final class PushEndpoint
         }
 
         /*
+         * BYTE KENDALI DI OTORITAS, dengan irisan yang SAMA — sebuah irisan
+         * kedua yang mirip adalah cara lubang yang sama ditutup sekali dan
+         * dibiarkan sekali (pelajaran titik ekor, 13 Sep 2026).
+         *
+         * DAN ATAS ENDPOINT APA ADANYA, BUKAN YANG SUDAH DI-`trim()` — ini
+         * satu-satunya tempat di kelas ini yang membaca string mentahnya, dan
+         * sebabnya diukur: yang DISIMPAN pendaftaran perangkat adalah string
+         * yang dikirim pemanggil, dan yang diserahkan `WebPushSender` kepada
+         * pustaka HTTP adalah string tersimpan itu — bukan hasil `trim()`.
+         * Maka `https://contoh.co.id\n` yang lolos di sini akan mati di
+         * transport pada SETIAP pemberitahuan, dan `trim()` di baris-baris
+         * lain hanya menolong `parse_url()` membacanya. Diukur lewat tabel
+         * gerbang-vs-transport: dengan `trim()` di sini, gerbang push menerima
+         * bentuk yang gerbang webhook DAN Guzzle tolak.
+         *
+         * Pertahanan berlapis, seperti dua aturan di bawahnya: `Str::isUrl()`
+         * milik Laravel menolak byte kendali lebih dulu di FormRequest —
+         * bahkan yang di path — tetapi kelas ini dipanggil juga dari kanal,
+         * dan sebuah aturan validasi yang diganti orang enam bulan lagi tidak
+         * boleh diam-diam membuka kembali bentuk yang gerbang webhook tutup.
+         */
+        if (preg_match('/[\x00-\x1F\x7F]/', WebhookUrl::rawAuthority($endpoint)) === 1) {
+            throw new LogicException(
+                "Endpoint «{$host}» memuat byte kendali (tab, ganti baris, NUL atau sejenisnya) pada bagian "
+                .'alamatnya — biasanya ikut terbawa saat menyalin-tempel. Byte itu tidak tersimpan apa adanya: ia '
+                .'berubah menjadi garis bawah, sehingga alamat yang tertulis bukan alamat yang diketik, dan pustaka '
+                .'HTTP menolak alamat seperti itu pada setiap pengiriman.'
+            );
+        }
+
+        /*
          * Aturan yang SAMA dengan gerbang webhook, dan sengaja dipasang walau
          * pintu-pintu push tidak bisa dicapai bentuk ini hari ini: aturan
          * `url` milik Laravel menolak escape persen dan huruf non-ASCII lebih

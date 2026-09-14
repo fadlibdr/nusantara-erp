@@ -293,9 +293,10 @@ diketik pemakainya adalah **proxy permintaan ke dalam jaringannya sendiri**.
 | **Bentuk samaran dari alamat yang sama** — `[::ffff:127.0.0.1]`, `[::ffff:169.254.169.254]`, `[::10.0.0.1]`, NAT64 `[64:ff9b::7f00:1]`, dan bentuk numerik `2130706433` / `0177.0.0.1` / `127.1` | Sebuah alamat ditulis dengan lebih dari satu cara dan mendarat di soket yang SAMA. `FILTER_FLAG_NO_PRIV_RANGE\|NO_RES_RANGE` milik PHP TIDAK menutup `::ffff:0:0/96`, dan `filter_var` tidak mengenali bentuk numerik sebagai IP sama sekali sehingga host-nya diperlakukan sebagai NAMA. Maka alamatnya dinormalkan lebih dulu, lalu dinilai (putaran verifikasi V-webhook-2) |
 | **Titik ekor** — `127.0.0.1.`, `kasir.local.`, `2130706433.` | Menunjuk ke soket yang persis sama, tetapi `filter_var` menolak bentuk bertitik-ekor sebagai IP dan pengurai numerik berhenti di bagian kelima yang kosong — jadi host-nya dibaca sebagai NAMA, dan yang menolaknya hanyalah DNS yang kebetulan tidak menjawab. Host dikanonkan (huruf kecil + titik ekor dibuang) sebelum apa pun dinilai, di gerbang webhook DAN gerbang endpoint push |
 | **Titik ekor pada ALAMAT, bukan nama** — `203.0.113.10.`, `8.8.8.8.` | `contoh.co.id.` adalah bentuk FQDN absolut dan tetap DITERIMA; sebuah alamat IP tidak punya bentuk absolut, dan Guzzle ≥ 7.15.2 menolaknya di transport (CVE-2026-69246). Menerimanya di layar berarti menyimpan URL yang tidak akan pernah bisa dikirimi: lima percobaan per pengiriman, kalimat pustaka berbahasa Inggris di kolom Galat, dan nonaktif otomatis sesudah 20 pengiriman gagal. Ditolak saat MENYIMPAN, dalam Bahasa Indonesia |
-| **Rentang khusus IANA** — `192.0.0.0/24` (termasuk DNS64 `192.0.0.170`/`.171`), `198.18.0.0/15` (benchmarking RFC 2544), multicast `224.0.0.0/4` | `FILTER_FLAG_NO_PRIV_RANGE\|NO_RES_RANGE` melewatkan ketiganya. Dua yang pertama dirutekan di dalam sebagian jaringan lab dan appliance dan menunjuk layanan sungguhan di sana; multicast di atas TCP tidak pernah membentuk koneksi, jadi yang ditutupnya adalah baris kiriman yang berjanji lalu mati diam. Blok dokumentasi TEST-NET (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`) SENGAJA tidak ikut — lihat catatan di bawah |
+| **Rentang khusus IANA** — `192.0.0.0/24` (termasuk DNS64 `192.0.0.170`/`.171`), `198.18.0.0/15` (benchmarking RFC 2544), multicast `224.0.0.0/4` **dan kembaran IPv6-nya `ff00::/8`** | `FILTER_FLAG_NO_PRIV_RANGE\|NO_RES_RANGE` melewatkan keempatnya. Dua yang pertama dirutekan di dalam sebagian jaringan lab dan appliance dan menunjuk layanan sungguhan di sana; multicast di atas TCP tidak pernah membentuk koneksi, jadi yang ditutupnya adalah baris kiriman yang berjanji lalu mati diam. `ff00::/8` menyusul 14 Sep 2026 ke daftar yang SAMA: sebuah gerbang yang menolak `224.0.0.1` sambil memulangkan true untuk `ff02::1` menilai hal yang sama dengan dua jawaban berbeda. Blok dokumentasi TEST-NET (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`) SENGAJA tidak ikut — lihat catatan di bawah |
 | **Host ber-escape persen** — `127.0.0.%31`, `%31%32%37.0.0.1` | `numericIpv4()` berhenti di bagian yang bukan angka, jadi host-nya dibaca sebagai NAMA dan yang menolaknya hanyalah resolver yang kebetulan gagal. libcurl memecahkan `%31` menjadi `1` dan mendarat di `127.0.0.1` — CVE-2026-69246. Ditolak di gerbang, bukan ditumpangkan pada Guzzle |
 | **Host di luar ASCII tercetak** — `ерп.contoh.co.id` | Apa yang benar-benar disambungi bergantung pada pihak mana yang menerjemahkannya ke A-label, bukan pada apa yang tertulis. Bentuk A-label yang ditulis benar (`xn--e1auc.contoh.co.id`) tetap DITERIMA, dan kalimat penolakannya menyebut bentuk itu |
+| **Byte kendali di OTORITAS** — `https://contoh<0x01>.co.id/`, juga `\x00`, `\x09`, `\x0a`, `\x0d`, `\x7f`, di host, di port, di dalam kurung siku, atau di ujung URL yang tidak punya path | `parse_url()` MENGGANTI byte kendali di host menjadi garis bawah (`contoh_.co.id`), jadi aturan ASCII-tercetak di atas tidak punya apa pun untuk ditolak, sementara Guzzle menolak URL-nya selamanya (`MalformedUriException`). Yang dibaca karena itu adalah IRISAN OTORITAS MENTAH — sesudah `://` sampai karakter pertama dari `/?#` — dan HANYA untuk menolak. **Byte kendali di PATH, QUERY dan FRAGMEN tetap DITERIMA**, karena transport menerimanya: `https://contoh.co.id/x\n` sah, `https://contoh.co.id\n` tidak, dan Guzzle menarik garis di tempat yang sama |
 
 **Diperiksa DUA KALI: saat menyimpan DAN saat mengirim.** DNS bisa berubah di
 antara keduanya — sebuah nama yang hari ini menunjuk ke alamat publik bisa besok
@@ -353,28 +354,87 @@ dikerjakan sebagai pekerjaan tersendiri sesudahnya):
   memanggil `PushEndpoint::assertShape()` langsung, sebab uji yang hanya
   menekan rutenya tetap hijau dengan kelas itu dikembalikan sepenuhnya.
 
+**DITUTUP 14 Sep 2026** (dua butir terakhir dari daftar itu, dikerjakan sebagai
+pekerjaan tersendiri sesudahnya):
+
+* **Multicast IPv6 `ff00::/8`.** `ff02::1`, `ff00::1` dan `ff05::1:3` dinilai
+  PUBLIK sampai hari itu (diukur), sementara kembaran IPv4-nya `224.0.0.0/4`
+  ditolak sejak 13 Sep. Yang ditutup karena itu **bukan lubang yang bisa
+  dieksploitasi** — multicast di atas TCP tidak pernah membentuk koneksi —
+  melainkan **inkonsistensi**: satu alamat yang sama dijawab dua cara,
+  tergantung ia ditulis sebagai empat angka desimal atau tidak. Pertanyaan yang
+  catatan lama titipkan ("sebaiknya diputuskan bersama rentang IPv6 lain")
+  DIUKUR, dan jawabannya: tidak ada yang lain — `fe80::/10` dan
+  `2001:db8::/32` sudah ditutup `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE`, dan
+  sebuah baris yang tidak bisa memerah bukan pagar melainkan hiasan.
+  `ff00::/8` masuk ke daftar yang SAMA (`REFUSED_BLOCKS`), bukan ke daftar IPv6
+  kedua di sebelahnya, dan perbandingannya pindah dari `ip2long()` ke BYTE
+  alamat — sehingga panjang prefiks berarti hal yang sama untuk 4 byte dan 16
+  byte. Yang menjaga sebuah blok IPv4 tidak menyentuh alamat IPv6 adalah
+  panjang byte itu: mutasi yang membuangnya menolak `e000::1`, `c000::1`,
+  `6440:4000::1` dan `c612:1234::5` — alamat IPv6 biasa yang byte awalnya
+  kebetulan sama dengan sebuah blok IPv4. Perubahan untuk IPv4 **nol**: 24.019
+  alamat disapu sebelum dan sesudah, dan satu-satunya beda adalah 16 alamat di
+  `ff00::/8`.
+* **Byte kendali di otoritas.** `https://contoh\x01.co.id/masuk` — juga
+  `\x00`, `\x09`, `\x0a`, `\x0d`, `\x7f` — dipulangkan `parse_url()` sebagai
+  host `contoh_.co.id`: byte kendalinya DIGANTI menjadi garis bawah, sehingga
+  aturan ASCII-tercetak tidak punya apa pun untuk ditolak. Guzzle menolaknya
+  selamanya (`MalformedUriException`), jadi ini **gagal-tertutup** — bukan
+  lubang keamanan, melainkan bentuk yang sama dengan titik-ekor-pada-alamat:
+  layar berkata "tersimpan", lalu setiap pengiriman mati dengan kalimat Inggris
+  di kolom Galat, lima percobaan per pengiriman.
+
+  **Keberatan yang catatan lama tuliskan dijawab dengan ukuran, bukan dengan
+  keyakinan.** Keberatan itu: perbaikannya menuntut membaca otoritas dari URL
+  MENTAH, yaitu pengurai kedua di samping `parse_url()` — dan dua pengurai yang
+  berselisih tentang tujuan adalah kelas kerentanan tersendiri (CVE-2026-69246
+  persis bentuk itu). Yang dibangun BUKAN pengurai, dan bedanya wewenang bukan
+  ukuran: `WebhookUrl::rawAuthority()` tidak pernah memulangkan host, tidak
+  pernah dipakai menilai alamat, tidak pernah ditanyakan kepada DNS dan tidak
+  pernah menentukan ke mana menyambung. Ia menjawab satu pertanyaan ya/tidak —
+  "ada byte kendali di wilayah ini?" — dan satu-satunya hal yang boleh terjadi
+  sesudah jawabannya adalah penolakan; tujuan tetap milik `parse_url()`,
+  sebelum dan sesudah. Untuk berselisih tentang tujuan, sebuah pengurai harus
+  punya tujuan.
+
+  Yang bisa salah karenanya hanya satu: menolak URL yang sebenarnya sah. **34
+  bentuk URL dijalankan terhadap irisan itu sebelum satu baris produksi
+  ditulis**, dan tabelnya kini hidup di dalam uji
+  (`WebhookGuardTest::authoritySlices()`). Hasilnya: pada setiap bentuk yang
+  `parse_url()` bisa baca, wilayah yang diiris memuat host yang `parse_url()`
+  pulangkan — userinfo yang memuat `/` ter-encode maupun mentah, `@` ganda,
+  IPv6 berkurung dengan zona `%25eth0`, port kosong, tanpa path, `?` atau `#`
+  sebelum `/`, skema huruf besar, spasi di awal/akhir. Satu-satunya wilayah
+  yang berbeda muncul pada URL yang `parse_url()` sendiri baca rusak
+  (`https://[::1/x` → host `[:`), dan di sana irisannya lebih LEBAR, bukan
+  lebih sempit. Irisan itu juga sengaja memuat userinfo dan port, dan itu tidak
+  mengetatkan apa pun yang belum ketat: URL ber-userinfo sudah ditolak
+  seluruhnya, dan diukur — `parse_url()` mengenali userinfo pada SETIAP bentuk
+  byte-kendali-di-userinfo yang dicoba, sehingga kalimat yang didapat orangnya
+  tetap kalimat userinfo. **Setengah keduanya sama pentingnya**: byte kendali
+  di path, query dan fragmen tetap diterima, karena transport menerimanya —
+  `https://contoh.co.id/x\n` sah, `https://contoh.co.id\n` tidak.
+
+  Di pintu push ada satu temuan tambahan yang tabel itu munculkan:
+  `PushEndpoint::assertShape()` men-`trim()` endpoint sebelum menguraikannya,
+  tetapi yang DISIMPAN adalah string yang dikirim pemanggil dan yang diserahkan
+  `WebPushSender` kepada pustaka HTTP adalah string tersimpan itu. Maka deteksi
+  byte kendali di sana membaca endpoint **apa adanya** — dengan `trim()`,
+  gerbang push menerima bentuk yang gerbang webhook dan Guzzle tolak.
+
 **Yang BELUM ditutup, dan diketahui** (masing-masing pekerjaan tersendiri):
 
-* **Byte kendali di host dicuci `parse_url`, dan gerbangnya tidak pernah
-  melihatnya** (diukur 13 Sep 2026, sewaktu mengerjakan butir kedua di atas).
-  `https://contoh\x01.co.id/masuk` — juga `\x00`, `\x09`, `\x0a`, `\x7f` —
-  dipulangkan `parse_url()` sebagai host `contoh_.co.id`: byte kendalinya
-  DIGANTI menjadi garis bawah, sehingga aturan ASCII-tercetak di atas tidak
-  punya apa pun untuk ditolak. Guzzle menolaknya di transport
-  (`MalformedUriException`), jadi ini **gagal-tertutup** — bukan lubang
-  keamanan, melainkan bentuk yang sama dengan titik ekor: layar berkata
-  "tersimpan", lalu setiap pengiriman mati dengan kalimat Inggris di kolom
-  Galat. Tidak ditutup di sini karena perbaikannya menuntut membaca bagian
-  otoritas dari URL MENTAH — pengurai kedua di samping `parse_url()`, persis
-  hal yang docblock kelas ini peringatkan — sedangkan menolak byte kendali di
-  SELURUH URL akan menolak jalur yang transport terima (diukur: byte kendali
-  di PATH diterima gerbang dan transport), yaitu gerbang yang menolak sesuatu
-  yang sebenarnya bisa dikirimi.
-* **Multicast IPv6 `ff00::/8` tetap dinilai publik.** `ff02::1` memulangkan
-  true dari `isPublicIp()`. Ia kembar dari `224.0.0.0/4` yang baru ditutup, dan
-  tidak ikut hanya karena rentangnya tidak diukur bersama ketiga rentang IPv4
-  itu; menutupnya satu baris, dan sebaiknya diputuskan bersama pertanyaan
-  apakah rentang IPv6 lain (mis. `2001:db8::/32`) ikut.
+* **Kurung siku yang tidak berpasangan lolos gerbang dan ditolak transport**
+  (diukur 14 Sep 2026, sewaktu menjalankan tabel bentuk URL di atas).
+  `https://[::1/x` dibaca `parse_url()` sebagai host `[:` — bukan alamat, bukan
+  nama — sehingga gerbang MENERIMANYA, sementara Guzzle menolaknya
+  (`MalformedUriException`). Ia keluarga yang sama dengan dua butir yang baru
+  ditutup (gagal-tertutup: layar berjanji, transport menolak selamanya) tetapi
+  BUKAN byte kendali, jadi aturan baru di atas tidak menyentuhnya. Tidak
+  ditutup di sini karena paket itu dibatasi pada dua butir yang tercatat;
+  menutupnya menuntut memutuskan apa yang sah sebagai host berkurung, dan itu
+  keputusan tersendiri.
 * **Gerbang uji tidak bisa melihat kelas regresi transport.** Setiap uji
   keluar-jaringan memakai `Http::fake()` atau MockHandler, dan
   `HostValidator::assertRequestHost()` hanya dipanggil dari handler sungguhan

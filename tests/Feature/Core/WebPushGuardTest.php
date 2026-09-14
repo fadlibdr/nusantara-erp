@@ -947,6 +947,58 @@ class WebPushGuardTest extends ErpTestCase
         PushEndpoint::assertShape('https://xn--e1auc.contoh.co.id/x');
     }
 
+    /**
+     * BYTE KENDALI DI OTORITAS, DI PINTU PERANGKAT.
+     *
+     * Sama seperti dua bentuk di atas, yang menolaknya di pintu HTTP hari ini
+     * adalah aturan `url` milik Laravel (`Str::isUrl()` menolak byte kendali
+     * di mana pun, bahkan di path) — maka uji ini memanggil kelasnya
+     * LANGSUNG, sebab uji yang hanya menekan rutenya tetap hijau dengan
+     * `PushEndpoint` dikembalikan sepenuhnya.
+     *
+     * DAN BARIS TERAKHIR ADALAH YANG PALING MUDAH HILANG. `assertShape()`
+     * men-`trim()` endpoint sebelum menguraikannya, tetapi yang DISIMPAN
+     * pendaftaran perangkat adalah string yang dikirim pemanggil, dan yang
+     * diserahkan `WebPushSender` kepada pustaka HTTP adalah string tersimpan
+     * itu. Sebuah `https://contoh.co.id\n` yang lolos di sini karena
+     * `trim()` akan mati di transport pada SETIAP pemberitahuan — jadi
+     * deteksi byte kendali membaca endpoint APA ADANYA.
+     */
+    public function test_a_control_byte_endpoint_is_refused_by_the_class_itself(): void
+    {
+        WebhookUrl::resolverUsing(static fn (): array => ['203.0.113.10']);
+
+        foreach ([
+            "https://contoh\x01.co.id/x",
+            "https://contoh\x00.co.id/x",
+            "https://contoh\x09.co.id/x",
+            "https://contoh.co.id:84\x0143/x",
+            // Ujung URL tanpa path: byte itu jatuh di OTORITAS, dan `trim()`
+            // tidak boleh menyembunyikannya.
+            "https://contoh.co.id\x0a",
+        ] as $endpoint) {
+            foreach (['assertShape', 'assertSafeToSend'] as $gate) {
+                try {
+                    PushEndpoint::{$gate}($endpoint);
+                    $this->fail(
+                        "«{$endpoint}» lolos PushEndpoint::{$gate}() — Guzzle menolak endpoint ini di transport "
+                        .'SELAMANYA, jadi menerimanya berarti menyimpan perangkat yang tidak akan pernah bisa '
+                        .'dikirimi pemberitahuan.',
+                    );
+                } catch (\LogicException $e) {
+                    $this->assertStringContainsString('byte kendali', $e->getMessage());
+                }
+            }
+        }
+
+        // Dan DI LUAR otoritas ia tetap diterima — transport menerimanya
+        // (diukur), dan gerbang yang menolak sesuatu yang sebenarnya bisa
+        // dikirimi sama salahnya dengan gerbang yang meloloskan alamat
+        // internal.
+        PushEndpoint::assertShape("https://contoh.co.id/x\x01y");
+        PushEndpoint::assertShape("https://contoh.co.id/x\x0a");
+    }
+
     /** Dan pintu perangkat menolaknya juga — walau yang menjawab 422 di sana aturan `url`. */
     public function test_the_device_door_refuses_a_percent_escaped_endpoint_too(): void
     {

@@ -128,6 +128,19 @@ class WebhookGuardTest extends ErpTestCase
             // Spasi bertahan melewati parse_url (tidak seperti byte kendali,
             // yang diganti menjadi «_» — lihat KEPUTUSAN-INTEGRASI §11.2).
             'host berspasi' => ['https://contoh .co.id/masuk', 'di luar ASCII'],
+            // BYTE KENDALI DI OTORITAS. parse_url MENCUCINYA menjadi garis
+            // bawah, jadi aturan ASCII-tercetak di atas tidak punya apa pun
+            // untuk ditolak: keenam bentuk di bawah DITERIMA gerbang ini
+            // sampai perbaikan 14 Sep 2026, dan ditolak Guzzle SELAMANYA.
+            'byte kendali di host' => ["https://contoh\x01.co.id/masuk", 'byte kendali'],
+            'byte kendali NUL di host' => ["https://contoh\x00.co.id/masuk", 'byte kendali'],
+            'byte kendali TAB di host' => ["https://contoh\x09.co.id/masuk", 'byte kendali'],
+            // Tanpa path, tidak ada "/" yang menghentikan irisan — dan byte
+            // kendali di ujung URL memang jatuh di otoritas. Transport
+            // menolaknya juga (diukur).
+            'ganti baris di ujung URL tanpa path' => ["https://contoh.co.id\x0a", 'byte kendali'],
+            'byte kendali di port' => ["https://contoh.co.id:84\x0143/masuk", 'byte kendali'],
+            'byte kendali di dalam kurung siku' => ["https://[2606:4700::\x011111]/masuk", 'byte kendali'],
         ];
     }
 
@@ -364,6 +377,214 @@ class WebhookGuardTest extends ErpTestCase
         // menolak bentuk yang ambigu, bukan nama yang bukan bahasa Inggris.
         WebhookUrl::assertShape('https://xn--e1auc.contoh.co.id/masuk');
         WebhookUrl::assertSafeToSend('https://xn--e1auc.contoh.co.id/masuk');
+    }
+
+    /* ------------------------------------ byte kendali di otoritas (§11.2) */
+
+    /**
+     * TABEL YANG MEMUTUSKAN APAKAH IRISAN OTORITAS BOLEH DIBANGUN.
+     *
+     * `WebhookUrl::rawAuthority()` membaca URL MENTAH — dan §11.2 mencatat
+     * itu sebagai SEBAB butir ini tidak ditutup pada 13 Sep: sebuah pengurai
+     * kedua di samping `parse_url()` adalah kelas kerentanan tersendiri
+     * (CVE-2026-69246 persis bentuk itu). Keberatan itu dijawab dengan ukuran,
+     * bukan dengan keyakinan: setiap bentuk di bawah dijalankan SEBELUM satu
+     * baris produksi ditulis, dan yang dibandingkan adalah WILAYAH — apakah
+     * host yang `parse_url()` pulangkan ada di dalam wilayah yang diiris.
+     *
+     * Kolom `$host` adalah host `parse_url()`, DENGAN byte kendalinya sudah
+     * dicuci menjadi «_» sebagaimana `parse_url()` mencucinya; `null` berarti
+     * `parse_url()` tidak memulangkan host sama sekali (dan gerbang menolak
+     * URL-nya jauh sebelum irisan ini dipakai).
+     *
+     * Satu baris SENGAJA berbeda: `https://[::1/x`, yang `parse_url()` sendiri
+     * baca rusak menjadi host «[:». Di sana irisannya LEBIH LEBAR dari host,
+     * dan arah itulah yang aman — sebuah detektor yang hanya menolak tidak
+     * bisa membuat apa pun LOLOS dengan mengiris terlalu lebar.
+     *
+     * @return array<string, array{0: string, 1: string, 2: ?string}>
+     */
+    public static function authoritySlices(): array
+    {
+        return [
+            // Bentuk sehari-hari.
+            'nama biasa' => ['https://contoh.co.id/masuk', 'contoh.co.id', 'contoh.co.id'],
+            'tanpa path sama sekali' => ['https://contoh.co.id', 'contoh.co.id', 'contoh.co.id'],
+            'dengan port' => ['https://contoh.co.id:8443/x', 'contoh.co.id:8443', 'contoh.co.id'],
+            'port kosong' => ['https://contoh.co.id:/x', 'contoh.co.id:', 'contoh.co.id'],
+            'skema huruf besar' => ['HTTPS://contoh.co.id/x', 'contoh.co.id', 'contoh.co.id'],
+            'spasi di akhir URL' => ['https://contoh.co.id/x ', 'contoh.co.id', 'contoh.co.id'],
+            // "?" dan "#" mengakhiri otoritas sama seperti "/".
+            '"?" sebelum "/"' => ['https://contoh.co.id?a=1', 'contoh.co.id', 'contoh.co.id'],
+            '"#" sebelum "/"' => ['https://contoh.co.id#bagian', 'contoh.co.id', 'contoh.co.id'],
+            '"://" kedua di dalam path' => ['https://contoh.co.id/a://b/c', 'contoh.co.id', 'contoh.co.id'],
+            // Userinfo — irisannya memuatnya, dan itu disengaja: URL
+            // ber-userinfo sudah ditolak seluruhnya oleh aturan di atasnya.
+            'userinfo biasa' => ['https://admin:rahasia@contoh.co.id/x', 'admin:rahasia@contoh.co.id', 'contoh.co.id'],
+            'userinfo dengan "/" ter-encode' => ['https://us%2Fer:s@contoh.co.id/x', 'us%2Fer:s@contoh.co.id', 'contoh.co.id'],
+            // "/" MENTAH mengakhiri otoritas — dan `parse_url()` membaca
+            // wilayah yang sama persis: host «us», bukan «contoh.co.id».
+            'userinfo dengan "/" mentah' => ['https://us/er@contoh.co.id/x', 'us', 'us'],
+            'userinfo dengan "@" ganda' => ['https://a@b@contoh.co.id/x', 'a@b@contoh.co.id', 'contoh.co.id'],
+            'backslash sesudah host' => ['https://contoh.co.id\\@jahat.co.id/x', 'contoh.co.id\\@jahat.co.id', 'jahat.co.id'],
+            // IPv6 berkurung, termasuk zona ter-encode.
+            'IPv6 berkurung' => ['https://[2606:4700:4700::1111]/x', '[2606:4700:4700::1111]', '[2606:4700:4700::1111]'],
+            'IPv6 berkurung dengan zona %25eth0' => ['https://[fe80::1%25eth0]/x', '[fe80::1%25eth0]', '[fe80::1%25eth0]'],
+            // Byte kendali — di otoritas, dan DI LUARNYA.
+            'byte kendali di host' => ["https://contoh\x01.co.id/masuk", "contoh\x01.co.id", 'contoh_.co.id'],
+            'byte kendali NUL di host' => ["https://contoh\x00.co.id/masuk", "contoh\x00.co.id", 'contoh_.co.id'],
+            'byte kendali di host, tanpa path' => ["https://contoh\x01.co.id", "contoh\x01.co.id", 'contoh_.co.id'],
+            'byte kendali di host, "?" sebelum "/"' => ["https://contoh\x01.co.id?a=1", "contoh\x01.co.id", 'contoh_.co.id'],
+            'byte kendali di host, dengan port' => ["https://contoh\x01.co.id:8443/x", "contoh\x01.co.id:8443", 'contoh_.co.id'],
+            'byte kendali di port' => ["https://contoh.co.id:84\x0143/x", "contoh.co.id:84\x0143", 'contoh.co.id'],
+            'byte kendali di userinfo' => ["https://us\x01er@contoh.co.id/x", "us\x01er@contoh.co.id", 'contoh.co.id'],
+            'byte kendali di PATH' => ["https://contoh.co.id/masuk\x01x", 'contoh.co.id', 'contoh.co.id'],
+            'byte kendali di QUERY' => ["https://contoh.co.id/masuk?a=\x01", 'contoh.co.id', 'contoh.co.id'],
+            'byte kendali di FRAGMEN' => ["https://contoh.co.id/masuk#\x01", 'contoh.co.id', 'contoh.co.id'],
+            'ganti baris di ujung URL berpath' => ["https://contoh.co.id/x\x0a", 'contoh.co.id', 'contoh.co.id'],
+            'ganti baris di ujung URL tanpa path' => ["https://contoh.co.id\x0a", "contoh.co.id\x0a", 'contoh.co.id_'],
+            'titik ekor + byte kendali di host' => ["https://contoh\x01.co.id./x", "contoh\x01.co.id.", 'contoh_.co.id.'],
+            // URL yang `parse_url()` sendiri tidak bisa baca, atau baca rusak.
+            'parse_url gagal (port bukan angka)' => ['https://contoh.co.id:port/x', 'contoh.co.id:port', null],
+            'spasi di awal URL' => [' https://contoh.co.id/x', 'contoh.co.id', null],
+            'kurung siku ganjil — WILAYAHNYA BERBEDA' => ['https://[::1/x', '[::1', '[:'],
+        ];
+    }
+
+    /**
+     * IRISAN ITU MEMUAT HOST YANG `parse_url()` PULANGKAN — atau lebih lebar.
+     *
+     * Ini uji yang memutuskan bahwa irisan otoritas boleh ada: kalau ada satu
+     * saja bentuk URL yang wilayah irisannya LEBIH SEMPIT dari host
+     * `parse_url()`, maka sebuah byte kendali bisa duduk di host tanpa pernah
+     * terlihat — dan gerbang yang berjanji menolaknya berbohong.
+     */
+    #[DataProvider('authoritySlices')]
+    public function test_the_raw_authority_slice_covers_the_host_parse_url_returns(string $url, string $authority, ?string $host): void
+    {
+        $this->assertSame(
+            $authority,
+            WebhookUrl::rawAuthority($url),
+            "Irisan otoritas «{$url}» berubah. Tabel ini adalah bukti yang memutuskan bahwa irisan mentah boleh ada.",
+        );
+
+        $parsed = parse_url($url);
+        $parsedHost = ($parsed === false || ! isset($parsed['host'])) ? null : $parsed['host'];
+
+        $this->assertSame($host, $parsedHost, "parse_url() membaca «{$url}» berbeda dari yang tabel ini catat.");
+
+        if ($parsedHost === null) {
+            return;
+        }
+
+        /*
+         * WILAYAH, BUKAN STRING. `parse_url()` MENCUCI byte kendali menjadi
+         * «_», jadi host-nya tidak pernah menjadi substring harfiah dari
+         * irisan mentah. Yang dibandingkan karena itu adalah irisan yang
+         * dicuci dengan cara yang sama, dipotong userinfo-nya (sesudah «@»
+         * TERAKHIR) dan port-nya. Pemotongan ini hidup DI DALAM UJI dengan
+         * sengaja: ia bukti, bukan perilaku — produksi tidak pernah memotong
+         * apa pun dari irisan, ia hanya bertanya "ada byte kendali di sini?".
+         */
+        $washed = (string) preg_replace('/[\x00-\x1F\x7F]/', '_', $authority);
+
+        $at = strrpos($washed, '@');
+        $hostPort = $at === false ? $washed : substr($washed, $at + 1);
+
+        if (str_starts_with($hostPort, '[')) {
+            $close = strpos($hostPort, ']');
+            $sliced = $close === false ? $hostPort : substr($hostPort, 0, $close + 1);
+        } else {
+            $colon = strrpos($hostPort, ':');
+            $sliced = $colon === false ? $hostPort : substr($hostPort, 0, $colon);
+        }
+
+        if ($url === 'https://[::1/x') {
+            // SATU-SATUNYA wilayah yang berbeda, dan arahnya aman: irisannya
+            // «[::1» memuat host rusak «[:» yang `parse_url()` pulangkan.
+            $this->assertStringStartsWith($parsedHost, $sliced);
+
+            return;
+        }
+
+        $this->assertSame(
+            strtolower($parsedHost),
+            strtolower($sliced),
+            "Irisan otoritas dan `parse_url()` tidak sependapat tentang DI MANA host «{$url}» berada. Sebuah "
+            .'detektor yang membaca wilayah lain dari yang dinilai adalah pengurai kedua, dan §11.2 melarangnya.',
+        );
+    }
+
+    /**
+     * DAN BYTE KENDALI DI LUAR OTORITAS TETAP DITERIMA.
+     *
+     * Ini setengah kedua keputusannya, dan tanpa ia paket ini menolak sesuatu
+     * yang sebenarnya bisa dikirimi. Diukur: byte kendali di path, query dan
+     * fragmen diterima Guzzle — jadi ia harus diterima gerbang juga.
+     *
+     * Pasangan terakhir adalah yang paling terang: byte yang SAMA (`\x0a` di
+     * ujung URL) diterima ketika URL-nya berpath dan ditolak ketika tidak,
+     * karena tanpa path ia jatuh di otoritas. Guzzle membedakan keduanya
+     * dengan cara yang persis sama.
+     */
+    public function test_a_control_byte_outside_the_authority_is_still_accepted(): void
+    {
+        WebhookUrl::resolverUsing(static fn (): array => ['203.0.113.10']);
+
+        foreach ([
+            "https://contoh.co.id/masuk\x01x",
+            "https://contoh.co.id/masuk?a=\x01",
+            "https://contoh.co.id/masuk#\x01",
+            "https://contoh.co.id/x\x0a",
+        ] as $url) {
+            WebhookUrl::assertShape($url);
+            WebhookUrl::assertSafeToSend($url);
+            PushEndpoint::assertShape($url);
+        }
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessageMatches('/byte kendali/');
+
+        // Byte yang sama, tanpa path: ia jatuh di otoritas.
+        WebhookUrl::assertShape("https://contoh.co.id\x0a");
+    }
+
+    /**
+     * DAN BYTE KENDALI DI HOST DITOLAK TANPA BERTANYA KEPADA DNS.
+     *
+     * Uji provider di atas hijau juga bila yang menolaknya hanyalah resolver
+     * yang tidak menjawab nama `contoh_.co.id`. Di sini resolvernya menjawab
+     * SETIAP nama dengan alamat publik, jadi satu-satunya yang bisa menolak
+     * adalah aturan di gerbang — di KEDUA kelas, dan pada KEDUA pintu.
+     */
+    public function test_a_control_byte_in_the_authority_is_refused_without_asking_dns(): void
+    {
+        WebhookUrl::resolverUsing(static fn (): array => ['203.0.113.10']);
+
+        foreach ([
+            "https://contoh\x01.co.id/masuk",
+            "https://contoh\x00.co.id/masuk",
+            "https://contoh\x09.co.id/masuk",
+            "https://contoh\x0d.co.id/masuk",
+            "https://contoh\x7f.co.id/masuk",
+            "https://contoh.co.id:84\x0143/masuk",
+        ] as $url) {
+            foreach ([WebhookUrl::class, PushEndpoint::class] as $class) {
+                foreach (['assertShape', 'assertSafeToSend'] as $gate) {
+                    try {
+                        $class::{$gate}($url);
+                        $this->fail(
+                            "«{$url}» lolos {$class}::{$gate}() ketika resolver menjawab setiap nama dengan alamat "
+                            .'publik — artinya yang menolaknya hanyalah DNS, bukan gerbangnya. Guzzle menolak URL '
+                            .'ini di transport SELAMANYA, jadi menerimanya di layar berarti menyimpan alamat yang '
+                            .'tidak akan pernah bisa dikirimi.',
+                        );
+                    } catch (LogicException $e) {
+                        $this->assertStringContainsString('byte kendali', $e->getMessage());
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -889,6 +1110,23 @@ class WebhookGuardTest extends ErpTestCase
             // Dan bentuk A-label-nya diterima ketiganya — kalau tidak, aturan
             // di atas menolak setiap nama yang bukan bahasa Inggris.
             'nama internasional bentuk A-label' => ['https://xn--e1auc.contoh.co.id/x', true],
+            // BYTE KENDALI — dan GARIS antara otoritas dan bukan otoritas.
+            // Baris-baris ini merah pada kolom GERBANG sebelum 14 Sep 2026:
+            // Guzzle sudah menolak keempat bentuk pertama, gerbangnya belum.
+            'byte kendali di host' => ["https://contoh\x01.co.id/x", false],
+            'byte kendali NUL di host' => ["https://contoh\x00.co.id/x", false],
+            'byte kendali di port' => ["https://contoh.co.id:84\x0143/x", false],
+            'byte kendali di dalam kurung siku' => ["https://[2606:4700::\x011111]/x", false],
+            // DAN SETENGAH KEDUANYA: di luar otoritas transport MENERIMA, jadi
+            // gerbang yang menolaknya menolak sesuatu yang bisa dikirimi.
+            'byte kendali di path' => ["https://contoh.co.id/masuk\x01x", true],
+            'byte kendali di query' => ["https://contoh.co.id/masuk?a=\x01", true],
+            'byte kendali di fragmen' => ["https://contoh.co.id/masuk#\x01", true],
+            // Byte yang SAMA di ujung URL: diterima bila ada path, ditolak
+            // bila tidak — sebab tanpa path ia jatuh di otoritas. Guzzle
+            // membedakan keduanya dengan cara yang persis sama.
+            'ganti baris di ujung URL berpath' => ["https://contoh.co.id/x\x0a", true],
+            'ganti baris di ujung URL tanpa path' => ["https://contoh.co.id\x0a", false],
         ];
     }
 }

@@ -121,6 +121,35 @@ final class WebhookUrl
         }
 
         /*
+         * BYTE KENDALI DI OTORITAS — DICUCI `parse_url()` MENJADI GARIS BAWAH.
+         *
+         * `https://contoh\x01.co.id/masuk` dipulangkan `parse_url()` sebagai
+         * host `contoh_.co.id`: byte kendalinya DIGANTI, bukan ditolak.
+         * Akibatnya aturan ASCII-tercetak di bawah tidak punya apa pun untuk
+         * ditolak — `_` tercetak — dan gerbang ini berkata "tersimpan" atas
+         * URL yang Guzzle tolak SELAMANYA (`MalformedUriException`; diukur
+         * untuk \x00, \x01, \x09, \x0a, \x0d dan \x7f). Itu bukan lubang
+         * keamanan melainkan bentuk yang sama dengan titik-ekor-pada-alamat:
+         * layar berjanji, lalu setiap pengiriman mati dengan kalimat Inggris
+         * di kolom Galat, lima percobaan penuh per pengiriman.
+         *
+         * Yang dibaca di sini adalah OTORITAS MENTAH dan bukan `$host`, sebab
+         * `$host` justru sudah tidak memuat byte itu lagi. `rawAuthority()`
+         * menjelaskan mengapa membaca URL mentah UNTUK MENOLAK bukan pengurai
+         * kedua — dan mengapa ia berhenti di `/?#`: byte kendali di path,
+         * query dan fragmen DITERIMA transport, jadi menolaknya berarti
+         * menolak sesuatu yang sebenarnya bisa dikirimi.
+         */
+        if (preg_match('/[\x00-\x1F\x7F]/', self::rawAuthority($url)) === 1) {
+            throw new LogicException(
+                "Alamat «{$host}» memuat byte kendali (tab, ganti baris, NUL atau sejenisnya) pada bagian alamatnya "
+                .'— biasanya ikut terbawa saat menyalin-tempel. Byte itu tidak tersimpan apa adanya: ia berubah '
+                .'menjadi garis bawah, sehingga alamat yang tertulis di layar bukan alamat yang diketik, dan pustaka '
+                .'HTTP menolak alamat seperti itu pada setiap pengiriman. Ketiklah alamatnya sekali lagi dengan tangan.'
+            );
+        }
+
+        /*
          * HOST YANG KAMI DAN TRANSPORT BACA BERBEDA — DUA JARING, BUKAN SATU.
          *
          * `https://127.0.0.%31/masuk` lolos seluruh penilaian di bawah:
@@ -282,6 +311,73 @@ final class WebhookUrl
     public static function canonicalHost(string $host): string
     {
         return rtrim(strtolower($host), '.');
+    }
+
+    /**
+     * IRISAN OTORITAS MENTAH: sesudah `://`, sampai karakter pertama dari
+     * `/?#`. HANYA untuk MENOLAK — tidak pernah untuk menentukan tujuan.
+     *
+     * INI BUKAN PENGURAI KEDUA, DAN KEBERATANNYA DIJAWAB DI SINI, BUKAN
+     * DILEWATI. Docblock kelas ini dan KEPUTUSAN-INTEGRASI §11.2 melarang
+     * pengurai kedua di samping `parse_url()`, dan larangan itu serius: dua
+     * pengurai yang BERSELISIH tentang ke mana sebuah permintaan pergi adalah
+     * kelas kerentanan tersendiri — CVE-2026-69246 yang baru saja ditambal
+     * Guzzle persis bentuk itu.
+     *
+     * YANG MEMBEDAKAN IRISAN INI DARI SEBUAH PENGURAI ADALAH WEWENANGNYA,
+     * bukan ukurannya. Sebuah pengurai MEMULANGKAN TUJUAN: host yang
+     * dipulangkannya dinilai publik atau tidak, ditanyakan kepada DNS, dan
+     * pada akhirnya disambungi. Irisan ini tidak memulangkan satu pun dari itu
+     * dan tidak pernah dipanggil untuk itu. Ia dipakai untuk menjawab SATU
+     * pertanyaan ya/tidak — "ada byte kendali di wilayah ini?" — dan
+     * satu-satunya hal yang boleh terjadi sesudah jawabannya adalah
+     * PENOLAKAN. Host yang dinilai, yang ditanyakan ke DNS dan yang
+     * disambungi tetap milik `parse_url()`, sebelum dan sesudah baris ini.
+     * Untuk berselisih tentang tujuan, sebuah pengurai harus punya tujuan.
+     *
+     * YANG BISA SALAH karenanya hanya SATU hal: menolak URL yang sebenarnya
+     * sah. Itu diukur, bukan diandaikan — 34 bentuk URL dijalankan terhadap
+     * irisan ini SEBELUM satu baris produksi ditulis (14 Sep 2026), dan
+     * tabelnya hidup di dalam uji sebagai `WebhookGuardTest::authoritySlices()`:
+     *
+     *  - Pada SETIAP bentuk yang `parse_url()` bisa baca, wilayah yang diiris
+     *    memuat host yang `parse_url()` pulangkan — userinfo yang memuat "/"
+     *    ter-encode maupun mentah, "@" ganda, IPv6 berkurung dengan zona
+     *    `%25eth0`, port kosong, tanpa path sama sekali, "?" atau "#" sebelum
+     *    "/", skema huruf besar, dan spasi di awal/akhir URL. Satu-satunya
+     *    wilayah yang BERBEDA muncul pada URL yang `parse_url()` sendiri baca
+     *    rusak (`https://[::1/x` → host `[:`), dan di sana irisannya lebih
+     *    LEBAR, bukan lebih sempit.
+     *  - Irisan ini sengaja lebih lebar daripada host: ia memuat userinfo dan
+     *    port. Itu tidak mengetatkan apa pun yang belum ketat — URL
+     *    ber-userinfo sudah ditolak seluruhnya di `assertShape()`, dan diukur:
+     *    `parse_url()` mengenali userinfo pada SETIAP bentuk
+     *    byte-kendali-di-userinfo yang dicoba (NUL, TAB, LF, DEL, dan
+     *    penyamaran `contoh.co.id\x01@jahat.co.id`), sehingga kalimat yang
+     *    didapat orangnya tetap kalimat userinfo.
+     *  - Berhenti di `/?#` juga bukan kerapian. Byte kendali di PATH, QUERY
+     *    dan FRAGMEN DITERIMA transport (diukur), jadi menolaknya berarti
+     *    gerbang yang menolak sesuatu yang sebenarnya bisa dikirimi.
+     *    Pasangan yang paling terang: `https://contoh.co.id\n` ditolak Guzzle
+     *    sedangkan `https://contoh.co.id/x\n` diterimanya — byte yang sama,
+     *    dan yang membedakan hanyalah ia jatuh di otoritas atau di path.
+     *    Irisan ini menarik garis di tempat yang sama.
+     *
+     * PUBLIK karena `PushEndpoint` memakainya: ia mengurai URL-nya sendiri dan
+     * men-`trim()` lebih dulu, jadi ia memanggil irisan ini atas string yang
+     * IA urai. Satu gerbang berarti satu irisan.
+     */
+    public static function rawAuthority(string $url): string
+    {
+        $scheme = strpos($url, '://');
+
+        // Tanpa "://" tidak ada otoritas untuk dipisahkan — dan URL seperti
+        // itu tidak pernah sampai ke sini, sebab `parse_url()` tidak
+        // memulangkan host untuknya. Bila ragu, yang diperiksa adalah SELURUH
+        // sisanya: sebuah detektor yang hanya menolak boleh terlalu lebar.
+        $rest = $scheme === false ? $url : substr($url, $scheme + 3);
+
+        return substr($rest, 0, strcspn($rest, '/?#'));
     }
 
     /**
