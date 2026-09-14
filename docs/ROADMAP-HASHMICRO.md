@@ -197,7 +197,7 @@ ke Fase 2 (kolomnya tidak ada — impor MPP-XML mengabaikan PredecessorLink, leg
 Target metrik Fase 1: dasbor direktur ≤10 permintaan (11), warehouse ≤5 (6); 0 peran tanpa ubin
 (2); ketuk ke Lapangan ≤2 (3); widget gagal tidak pernah "Rp 0"; report run = 1 kueri SQL;
 drop kanban tertolak selalu bersebab; vendor ≤60 KB gzip; 0 respons API dari cache SW.
-### Fase 2 — Fitur modul (≈42 h-o, urutan F-1 → F-2 → F-3 → F-4 → F-6 → F-7 → F-8 → F-9; F-5 ditunda)
+### Fase 2 — Fitur modul (≈ 42 h-o, urutan F-1 → F-2 → F-3 → F-4 → F-6 → F-7 → F-8 → F-9 → **F-5**)
 
 Fakta yang mengubah desain: kunci `approvals.purchase_order/subcontract.threshold_two_level` SUDAH
 ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengarang); `crm_leads
@@ -214,7 +214,19 @@ ada di SettingService (layar matriks memperluas mekanisme yang ada, bukan mengar
 | **F-7** Servis alat per hour-meter (+ log perjalanan bila ada kendaraan) | `next_due_hour_meter`; ambang dari log hour-meter terakhir; aset tanpa pembacaan → digaris | 2–3 |
 | **F-8** Kedaluwarsa lampiran umum; sikap e-sign | `core_attachments.valid_until` + watcher Core-only; e-sign: PERTAHANKAN tautan persetujuan eksternal + tanda tangan basah (PSrE = integrasi berbayar, ditolak sekarang) | 2 |
 | **F-9** CSAT tiket via tautan sekali pakai; basis pengetahuan DITUNDA | pola token `ExternalApprovalService`, bukan portal; rata-rata hanya dari yang dinilai | 2 |
-| **F-5** Timesheet & lembur dari absensi | DITUNDA sampai ≥ 1 bulan data F-4 — tanpa itu aturan pembulatan lembur dikarang; ILB tetap otoritatif | (3) |
+| **F-5** Timesheet & lembur dari absensi | **PENUNDAANNYA DICABUT PEMILIK 14 Sep 2026** — lihat catatan di bawah tabel. Turunan jam kerja/terlambat/lembur dari `check_in_at`/`check_out_at`; kebijakan pembulatan sebagai SETELAN (`hr.timesheet.*`); payroll membayar 1,5x/2x per hari bila rincian hariannya ada; ILB tetap otoritatif dan usulan tetap diterapkan HR | 3 |
+
+> **Penundaan F-5 dicabut — 14 September 2026.** Sebab penundaannya adalah satu kalimat:
+> "tanpa [≥ 1 bulan data F-4] aturan pembulatan lembur **dikarang**". Pemilik mencabutnya dengan
+> **menghapus sebabnya, bukan mengabaikannya**: ia MENYEBUTKAN aturannya sendiri — bulat ke 15
+> menit terdekat, lembur minimum 30 menit, toleransi terlambat 10 menit, jam kerja normal 8 jam,
+> dan tarif Kepmenaker 102/2004 (1,5x jam pertama, 2x jam berikutnya). Karena aturannya datang
+> dari pemilik dan bukan dari pola data, satu bulan data tidak lagi menjadi prasyarat. Kelimanya
+> dikirim sebagai **setelan** dengan nilai-nilai itu sebagai bawaan (`hr.timesheet.*`, grup
+> Pengaturan `hr`), jadi kebijakan yang berbeda adalah **satu suntingan, bukan satu rilis** —
+> dan produksi masih memegang **nol baris** `hr_attendances` pada tanggal itu, sehingga setiap
+> layar paket ini memang pertama kali dilihat orang dalam keadaan KOSONG. Rinciannya di
+> `docs/LAPORAN-PAKET-HM-F-5.md` dan CONVENTIONS §43.
 
 ## 4. Verifikasi
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use LogicException;
 use Modules\Core\Enums\DocumentStatus;
 use Modules\Core\Support\Erp;
+use Modules\HrPayroll\Enums\OvertimeBasis;
 use Modules\HrPayroll\Enums\PayrollRunType;
 use Modules\HrPayroll\Models\AttendanceRecap;
 use Modules\HrPayroll\Models\Employee;
@@ -160,14 +161,27 @@ class PayrollService
         $allowances = $employee->fixed_allowances ?? [];
         $allowancesTotal = $employee->fixedAllowancesTotal();
 
-        // Kepmenaker 102/2004: hourly wage = 1/173 x monthly wage, where monthly wage
-        // includes tunjangan tetap (same basic + fixed allowances base as BPJS below);
-        // OT pays 1.5x for the first hour of each overtime day and 2x for subsequent
-        // hours. The monthly recap only stores total hours, so a flat 1.5x is applied —
-        // the per-day 1.5x/2x split needs daily attendance detail (future enhancement).
+        /*
+         * Kepmenaker 102/2004: upah sejam = 1/173 x upah sebulan, dan upah
+         * sebulan memuat tunjangan tetap (basis yang sama dengan BPJS di
+         * bawah). Lembur dibayar 1,5x untuk jam PERTAMA setiap hari lembur dan
+         * 2x untuk jam berikutnya.
+         *
+         * SAMPAI F-5 baris ini menerapkan 1,5x RATA atas total bulanan, dan
+         * komentar di tempat ini mengakui sendiri itu kurang: rekap bulanan
+         * hanya menyimpan TOTAL jam, jadi tidak ada yang tahu jam mana yang
+         * jam pertama. F-5 memberi rincian hariannya — lihat
+         * overtimeComputation() untuk kapan ia dipakai, kapan jalur lama tetap
+         * dipakai, dan kenapa slipnya harus menyebutkan yang mana.
+         *
+         * TOTAL JAMNYA TETAP DARI REKAP BULANAN. Rincian harian menentukan
+         * TARIF-nya, tidak pernah jumlahnya: ILB tetap otoritatif atas berapa
+         * jam lembur yang berhak dibayar, dan rekap tetap tempat payroll
+         * membacanya.
+         */
         $overtimeHours = round((float) ($recap?->overtime_hours ?? 0), 2);
-        $divisor = Erp::int('payroll.overtime.divisor', 173);
-        $overtimePay = round($overtimeHours * (($basic + $allowancesTotal) / $divisor) * 1.5, 2);
+        $overtime = $this->overtimeComputation($run, $employee, $overtimeHours, $basic + $allowancesTotal);
+        $overtimePay = $overtime['pay'];
 
         $gross = round($basic + $allowancesTotal + $overtimePay, 2);
 
@@ -194,6 +208,12 @@ class PayrollService
             'allowances_total' => $allowancesTotal,
             'overtime_hours' => $overtimeHours,
             'overtime_pay' => $overtimePay,
+            // Dibekukan, seperti project_id dan has_tax_id di bawah: pertanyaan
+            // "dengan dasar apa slip ini dibayar" adalah pertanyaan tentang uang
+            // yang sudah keluar, dan jawabannya tidak boleh berubah karena
+            // absensi bulan itu dikoreksi sesudahnya.
+            'overtime_basis' => $overtime['basis'],
+            'overtime_rate_detail' => $overtime['detail'],
             'thr_amount' => 0,
             'gross_income' => $gross,
             'bpjs' => $bpjs['breakdown'],
@@ -206,6 +226,156 @@ class PayrollService
             'has_tax_id' => $hasTaxId,
             'total_deductions' => $totalDeductions,
             'net_pay' => round($gross - $totalDeductions, 2),
+        ];
+    }
+
+    /**
+     * UPAH LEMBUR, DAN DASAR YANG DIPAKAI MENGHITUNGNYA (F-5, T5.3).
+     *
+     * INI MENYENTUH UANG, jadi aturannya ditulis di sini lengkap.
+     *
+     * 1. TOTAL JAM SELALU DARI REKAP BULANAN. Rincian harian tidak pernah
+     *    menambah atau mengurangi satu jam pun — ILB tetap otoritatif atas
+     *    berapa jam yang berhak dibayar. Yang diputuskan di sini hanya TARIF.
+     *
+     * 2. RINCIAN HARIAN DIPAKAI HANYA BILA TOTALNYA SAMA PERSIS dengan total
+     *    rekap. Kalau keduanya berbeda — ILB menulis 10 jam sementara absensi
+     *    mengukur 7 — maka bentuk harian yang diketahui BUKAN bentuk dari jam
+     *    yang dibayar, dan membelah 10 jam menurut bentuk 7 jam adalah
+     *    mengarang hari lembur yang tidak ada catatannya. Dalam keadaan itu
+     *    jalur lama tetap dipakai apa adanya.
+     *
+     * 3. JALUR LAMA TETAP HIDUP, dan slipnya MENGATAKAN ia yang dipakai
+     *    beserta sebabnya. Dua periode yang dibayar dengan tarif berbeda tanpa
+     *    ada yang bisa melihat sebabnya adalah persis cacat yang kolom
+     *    `overtime_basis` dibuat untuk mencegahnya.
+     *
+     * MAJU-SAJA ikut dari pemanggilnya: calculate() menolak run yang statusnya
+     * tidak editable (assertEditable), jadi periode yang payroll-nya sudah
+     * approved atau closed tidak pernah sampai ke fungsi ini sama sekali. Tidak
+     * ada perhitungan ulang surut, dan tidak ada backfill kolom pada slip lama.
+     *
+     * @param  float  $monthlyWage  gaji pokok + tunjangan tetap
+     * @return array{pay: float, basis: string, detail: array<string, mixed>|null}
+     */
+    private function overtimeComputation(PayrollRun $run, Employee $employee, float $overtimeHours, float $monthlyWage): array
+    {
+        $divisor = Erp::int('payroll.overtime.divisor', 173);
+        $hourlyWage = $monthlyWage / $divisor;
+        $firstRate = Erp::float('hr.timesheet.overtime_first_hour_pct', 150) / 100;
+        $nextRate = Erp::float('hr.timesheet.overtime_next_hours_pct', 200) / 100;
+
+        if ($overtimeHours <= 0) {
+            return ['pay' => 0.0, 'basis' => OvertimeBasis::TanpaLembur->value, 'detail' => null];
+        }
+
+        $shape = app(TimesheetService::class)->measuredOvertimeShape(
+            (int) $employee->id,
+            (int) $run->period_year,
+            (int) $run->period_month,
+        );
+
+        $flat = fn (string $reason): array => [
+            'pay' => round($overtimeHours * $hourlyWage * $firstRate, 2),
+            'basis' => OvertimeBasis::RataJamPertama->value,
+            'detail' => [
+                'divisor' => $divisor,
+                'first_hour_pct' => round($firstRate * 100, 2),
+                'next_hours_pct' => round($nextRate * 100, 2),
+                // Jalur lama membayar dari JAM rekap, bukan dari menit absensi:
+                // rekap bulanan memang menyimpan jam desimal, dan tidak ada
+                // bentuk harian yang boleh dipakai membelahnya.
+                'minutes_at_first_rate' => (int) round($overtimeHours * 60),
+                'minutes_at_next_rate' => 0,
+                'hours_at_first_rate' => $overtimeHours,
+                'hours_at_next_rate' => 0.0,
+                'days' => [],
+                'reason' => $reason,
+            ],
+        ];
+
+        if ($shape === null) {
+            return $flat(
+                'Tidak ada satu hari pun dengan cap jam masuk DAN pulang pada periode ini, jadi tidak '
+                .'ada rincian harian yang bisa membelah jam pertama dari jam berikutnya. Seluruh jam '
+                .'dibayar dengan tarif jam pertama — jalur yang berlaku sebelum 14 September 2026.'
+            );
+        }
+
+        if (round($shape['total_hours'], 2) !== $overtimeHours) {
+            return $flat(sprintf(
+                'Rincian harian dari absensi berjumlah %s jam, sementara rekap bulanan yang dibayar '
+                .'berjumlah %s jam. Karena keduanya tidak sama, bentuk harian yang diketahui bukan '
+                .'bentuk dari jam yang dibayar, dan membelahnya akan mengarang hari lembur. Seluruh '
+                .'jam dibayar dengan tarif jam pertama.',
+                rtrim(rtrim(number_format($shape['total_hours'], 2, ',', '.'), '0'), ','),
+                rtrim(rtrim(number_format($overtimeHours, 2, ',', '.'), '0'), ','),
+            ));
+        }
+
+        /*
+         * Jam PERTAMA tiap hari lembur pada tarif pertama, sisanya pada tarif
+         * berikutnya. Sebuah hari berlembur 0,5 jam menyumbang 0,5 jam ke tarif
+         * pertama dan tidak satu pun ke tarif berikutnya.
+         *
+         * DIJUMLAHKAN DALAM MENIT, DIBAGI 60 SEKALI DI AKHIR. Menjumlahkan
+         * `hours` yang sudah dibulatkan per hari adalah pembulatan KEDUA, dan
+         * gerbang di atas membandingkan rekap terhadap total yang dihitung dari
+         * MENIT — jadi slip akan membayar jumlah jam yang berbeda dari jumlah
+         * jam yang tertulis pada slip itu sendiri. Pada pembulatan bawaan 15
+         * menit selisihnya nol dan tidak ada uji yang bisa melihatnya; pada
+         * pembulatan 10 menit, tiga hari x 10 menit membayar Rp 953,76 LEBIH
+         * dari 0,5 jam yang tertulis di kolom `overtime_hours`, dan pada 20
+         * menit ia membayar Rp 953,75 KURANG. Arahnya bolak-balik, jadi ia juga
+         * tidak bisa dibaca sebagai kebijakan.
+         */
+        $firstMinutes = 0;
+        $nextMinutes = 0;
+
+        foreach ($shape['days'] as $day) {
+            $firstMinutes += min(60, (int) $day['minutes']);
+            $nextMinutes += max(0, (int) $day['minutes'] - 60);
+        }
+
+        $firstHours = $firstMinutes / 60;
+        $nextHours = $nextMinutes / 60;
+
+        /*
+         * SETIAP ANGKA JAM DI SINI DITURUNKAN DARI MENITNYA SENDIRI (putaran
+         * penutup, V-3).
+         *
+         * Versi sebelumnya menghitung `hours_at_next_rate` sebagai SISA dari
+         * `overtime_hours` REKAP, demi invarian "kedua angka harus berjumlah
+         * persis jam yang dibayar". Invarian itu SALAH sesudah A-2/B-1
+         * memindahkan sumber uang ke MENIT: kolom rekap adalah jam bulanan yang
+         * disetujui HR, sementara yang dibayar adalah menit absensi. Ketika
+         * keduanya tidak habis dibagi — 110 + 50 menit dengan rekap 2,67 jam,
+         * yang bisa dicapai operator lewat `rounding_minutes` 10 atau 20 —
+         * catatannya membantah dirinya sendiri: `minutes_at_next_rate` 50
+         * (= 0,83 jam) berdampingan dengan `hours_at_next_rate` 0,84, dan
+         * menghitung ulang upah dari kedua angka jam itu tidak memulangkan
+         * `overtime_pay`.
+         *
+         * Sekarang keduanya dibulatkan dari menitnya masing-masing, dan
+         * `minutes_paid` dibawa supaya catatan ini bisa menghasilkan kembali
+         * upahnya SENDIRIAN — tanpa meminjam angka dari kolom rekap yang bukan
+         * sumber uangnya.
+         */
+        return [
+            'pay' => round(($firstHours * $firstRate + $nextHours * $nextRate) * $hourlyWage, 2),
+            'basis' => OvertimeBasis::RincianHarian->value,
+            'detail' => [
+                'divisor' => $divisor,
+                'first_hour_pct' => round($firstRate * 100, 2),
+                'next_hours_pct' => round($nextRate * 100, 2),
+                'minutes_at_first_rate' => $firstMinutes,
+                'minutes_at_next_rate' => $nextMinutes,
+                'minutes_paid' => $firstMinutes + $nextMinutes,
+                'hours_at_first_rate' => round($firstHours, 2),
+                'hours_at_next_rate' => round($nextHours, 2),
+                'days' => $shape['days'],
+                'reason' => null,
+            ],
         ];
     }
 
@@ -245,6 +415,11 @@ class PayrollService
             'allowances_total' => 0,
             'overtime_hours' => 0,
             'overtime_pay' => 0,
+            // Run THR tidak pernah membayar lembur — dan itu dikatakan, bukan
+            // dibiarkan kosong: kolom kosong berarti "slip dihitung sebelum
+            // F-5", keadaan yang sama sekali berbeda.
+            'overtime_basis' => OvertimeBasis::TanpaLembur->value,
+            'overtime_rate_detail' => null,
             'thr_amount' => $thr,
             'gross_income' => $thr,
             'bpjs' => $this->zeroBpjsBreakdown(),

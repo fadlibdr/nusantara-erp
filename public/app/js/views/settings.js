@@ -112,6 +112,21 @@ function buildControl(setting, ctx) {
       };
     }
 
+    /* F-5 — jam dinding 'HH:MM' (hr.timesheet.day_start). Kotak teks biasa
+       menerima "8 pagi" dan baru ditolak server sesudah Simpan ditekan;
+       <input type="time"> memberi pemilih jam milik peramban dan mengirim
+       bentuk yang sama persis dengan yang divalidasi (date_format:H:i). */
+    case 'time': {
+      const input = el('input', { type: 'time', step: '60' });
+      input.value = setting.value ?? '';
+      return {
+        node: input,
+        input,
+        read: () => (input.value.trim() === '' ? null : input.value.trim()),
+        write: (next) => { input.value = next ?? ''; },
+      };
+    }
+
     case 'boolean': {
       const input = el('input', { type: 'checkbox' });
       input.checked = Boolean(setting.value);

@@ -4,7 +4,6 @@ namespace Modules\Core\Services;
 
 use InvalidArgumentException;
 use Modules\Core\Support\XlsxSheetWriter;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;

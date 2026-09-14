@@ -349,4 +349,49 @@ class AttendanceCorrectionTest extends ErpTestCase
 
         $this->getJson("/api/hr/attendances/{$row->id}/corrections")->assertStatus(403);
     }
+
+    /**
+     * V-5 — `after:check_in_at` ADA, DAN BATASNYA DIKATAKAN APA ADANYA.
+     *
+     * Aturan itu ditambahkan putaran verifikasi dan tidak punya satu pun uji:
+     * menghapusnya meninggalkan seluruh `tests/Feature/HrPayroll` hijau. Ia
+     * juga hanya menyala bila KEDUA kunci dikirim — sementara pintu ini
+     * dianjurkan panduan justru untuk "lupa absen pulang", koreksi yang HANYA
+     * mengirim `check_out_at`. Uji ini memaku keduanya: apa yang ditolaknya,
+     * DAN apa yang lolos melewatinya.
+     *
+     * Yang lolos tidak menjadi uang: `TimesheetService` menolak mengangkat hari
+     * itu menjadi Terukur (keadaan `setengah_terukur`, tidak ada jam kerja dan
+     * tidak ada lembur yang diukur darinya). Lapis kedua itulah yang benar-benar
+     * menjaga angkanya; aturan validasi ini hanya menangkap yang paling jelas.
+     */
+    public function test_the_clock_out_after_clock_in_rule_catches_both_keys_and_lets_the_one_key_path_through(): void
+    {
+        $this->actAsAdmin();
+
+        $keduanya = $this->row(['check_in_at' => null, 'check_out_at' => null]);
+        $this->putJson("/api/hr/attendances/{$keduanya->id}", [
+            'status' => 'hadir',
+            'check_in_at' => '2026-06-01 17:00:00',
+            'check_out_at' => '2026-06-01 08:00:00',
+            'reason' => 'Salah ketik.',
+        ])->assertStatus(422)->assertJsonValidationErrors('check_out_at');
+
+        // Satu kunci saja: aturan `after:` tidak punya pembanding, jadi ia
+        // DITERIMA. Itu batasnya, dan batas yang tidak ditulis akan dibaca
+        // sebagai jaminan.
+        $satu = $this->row(['check_in_at' => '2026-06-01 17:00:00', 'check_out_at' => null]);
+        $this->putJson("/api/hr/attendances/{$satu->id}", [
+            'status' => 'hadir',
+            'check_out_at' => '2026-06-01 08:00:00',
+            'reason' => 'Lupa absen pulang.',
+        ])->assertOk();
+
+        $this->assertSame(
+            '2026-06-01 08:00:00',
+            $satu->refresh()->check_out_at?->format('Y-m-d H:i:s'),
+            'Baris tersimpan terbalik — dan itu memang yang terjadi. Yang menjaga uangnya adalah '
+            .'TimesheetService, bukan aturan validasi ini.',
+        );
+    }
 }

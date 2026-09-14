@@ -243,12 +243,24 @@ class SettingService
              * satu paket penuh memastikan register absensi TIDAK menjadi
              * masukan payroll. Sebuah ambang yang ditaruh di bawah kalimat itu
              * akan dibaca sebagai ambang yang menggerakkan gaji.
+             *
+             * …dan F-5 membawa masuk enam kunci yang JUSTRU menggerakkan gaji
+             * (hr.timesheet.*), jadi kalimat pembuka grup ini tidak bisa lagi
+             * berbunyi "tidak satu pun". Yang benar hari ini adalah PEMBEDAAN,
+             * bukan penyangkalan menyeluruh: cuti dan radius geofence tidak
+             * menyentuh rupiah, aturan timesheet menyentuhnya. Menyeragamkan
+             * keduanya ke satu kalimat berarti salah satu separuhnya bohong.
              */
             'hr' => [
-                'label' => 'SDM — Cuti & Absensi',
-                'description' => 'Hak cuti dan aturan absensi lapangan. TIDAK satu pun dari nilai di '
-                    .'sini yang langsung menggerakkan payroll: rekap bulanan tetap dokumen yang '
-                    .'diperiksa dan disimpan manusia.',
+                'label' => 'SDM — Cuti, Absensi & Timesheet',
+                'description' => 'Hak cuti, aturan absensi lapangan, dan kebijakan timesheet/lembur. '
+                    .'Radius absensi TIDAK menggerakkan payroll — rekap bulanan tetap dokumen yang '
+                    .'diperiksa dan disimpan manusia. Kebijakan timesheet di bagian bawah MENGGERAKKANNYA: '
+                    .'ia menentukan berapa menit yang dihitung lembur dan dengan tarif berapa dibayar, '
+                    .'jadi setiap perubahannya menggeser uang pada payroll yang DIHITUNG sesudahnya. '
+                    .'DAN SATU KUNCI CUTI IKUT: "Hari kerja per pekan" menentukan hari mana yang '
+                    .'non-kerja, dan lembur pada hari non-kerja ditahan — jadi ia menggeser jam lembur '
+                    .'turunan juga, bukan hanya saldo cuti.',
                 'settings' => [
                     [
                         'key' => 'hr.leave.annual_days',
@@ -266,11 +278,15 @@ class SettingService
                     ],
                     [
                         'key' => 'hr.leave.workweek_days',
-                        'label' => 'Hari kerja per pekan (hitung cuti)',
+                        'label' => 'Hari kerja per pekan (cuti DAN timesheet)',
                         'type' => 'integer',
                         'min' => 5,
                         'max' => 6,
-                        'help' => '6 = hanya Minggu libur (rezim proyek); 5 = Sabtu juga tidak memotong saldo cuti.',
+                        'help' => '6 = hanya Minggu libur (rezim proyek); 5 = Sabtu juga tidak memotong saldo cuti. '
+                            .'SEJAK F-5 KUNCI INI JUGA MENGGESER UANG: ia menentukan hari mana yang non-kerja di '
+                            .'layar Timesheet, dan lembur pada hari non-kerja DITAHAN (tarif akhir pekan Kepmenaker '
+                            .'belum dibangun). Menurunkannya dari 6 ke 5 memindahkan setiap Sabtu ke "hari non-kerja", '
+                            .'jadi jam lembur Sabtu berhenti diusulkan ke rekap — pada upah dan jam yang sama persis.',
                     ],
                     [
                         'key' => 'hr.attendance.geofence_metres',
@@ -284,6 +300,129 @@ class SettingService
                             .'barisnya, jadi mengubah angka ini tidak menghapus tanda pada hari-hari '
                             .'yang sudah lewat. Proyek tanpa titik peta, dan ponsel yang tidak memberi '
                             .'posisi, tidak menghasilkan jarak sama sekali: barisnya bergaris, bukan 0 m.',
+                    ],
+
+                    /*
+                     * F-5 — kebijakan timesheet & lembur yang DISEBUT PEMILIK
+                     * 14 Sep 2026. Setiap `help` di bawah menyebutkan AKIBATNYA
+                     * pada uang, bukan mengulang nama kuncinya: yang membaca
+                     * layar ini sedang memutuskan berapa yang dibayarkan kepada
+                     * orang, dan "pembulatan lembur ke 15 menit" tidak memberi
+                     * tahu siapa pun apa yang terjadi kalau ia menjadi 30.
+                     */
+                    [
+                        'key' => 'hr.timesheet.day_start',
+                        'label' => 'Jam mulai kerja (acuan terlambat)',
+                        'type' => 'time',
+                        'help' => 'Satu-satunya angka yang membuat "terlambat" punya arti. Menaikkannya '
+                            .'menghapus keterlambatan yang sudah tercatat dari layar timesheet secara '
+                            .'surut — jam masuk yang tersimpan tidak berubah, tetapi penilaiannya '
+                            .'dihitung ulang setiap kali layar dibuka. Tidak ada jam mulai per proyek '
+                            .'atau per regu: satu jam untuk seluruh perusahaan.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.late_tolerance_minutes',
+                        'label' => 'Toleransi terlambat (menit)',
+                        'type' => 'integer',
+                        'min' => 0,
+                        'max' => 120,
+                        'help' => 'Datang dalam toleransi = tidak terlambat sama sekali, dan menit '
+                            .'terlambat dihitung dari BATAS toleransi, bukan dari jam mulai. Angka ini '
+                            .'tidak memotong upah sendiri — ia menentukan apa yang terbaca di layar '
+                            .'timesheet dan di ekspornya, tempat keputusan potongan itu diambil orang.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.normal_hours_per_day',
+                        'label' => 'Jam kerja normal per hari',
+                        'type' => 'integer',
+                        'min' => 1,
+                        'max' => 12,
+                        'help' => 'Menit kerja DI ATAS angka inilah yang menjadi calon lembur. '
+                            .'Menaikkannya satu jam menghapus satu jam lembur dari setiap hari setiap '
+                            .'orang — pada tarif 150% itu adalah pengurangan upah lembur terbesar yang '
+                            .'bisa dilakukan satu kotak isian di layar ini. Yang dibandingkan dengannya '
+                            .'adalah JAM KERJA — rentang masuk→pulang yang sudah dikurangi istirahat '
+                            .'di bawah ini, bukan rentang mentahnya.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.break_minutes',
+                        'label' => 'Istirahat yang tidak dihitung jam kerja (menit)',
+                        'type' => 'integer',
+                        'min' => 0,
+                        'max' => 240,
+                        'help' => 'UU 13/2003 Pasal 79: istirahat TIDAK termasuk jam kerja, jadi hari '
+                            .'kerja 8 jam berlangsung 9 jam di jam dinding. Angka ini dipotong dari '
+                            .'rentang masuk→pulang sebelum lembur dihitung, dan hanya sejauh rentang '
+                            .'itu melewati 4 jam — supaya pulang lebih larut tidak pernah menghasilkan '
+                            .'jam kerja yang lebih pendek. Diisi 0, hari kerja biasa 08:00–17:00 akan '
+                            .'menghasilkan SATU JAM LEMBUR setiap hari untuk setiap orang; pilih 0 '
+                            .'hanya bila regu Anda memang bekerja tanpa istirahat.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.rounding_minutes',
+                        'label' => 'Pembulatan lembur (menit)',
+                        'type' => 'integer',
+                        'min' => 1,
+                        'max' => 60,
+                        'help' => 'Kelebihan menit di atas jam normal dibulatkan ke kelipatan TERDEKAT '
+                            .'sekali saja — ke atas maupun ke bawah, jadi ia tidak memihak. Pada 15 '
+                            .'menit: 7 menit menjadi 0 dan 8 menit menjadi 15. Membesarkannya membuat '
+                            .'lembur pendek lebih sering hilang sama sekali.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.overtime_minimum_minutes',
+                        'label' => 'Lembur minimum (menit)',
+                        'type' => 'integer',
+                        'min' => 0,
+                        'max' => 240,
+                        'help' => 'Di bawah ini tidak dibayar lembur sama sekali, dan diterapkan '
+                            .'SESUDAH pembulatan: pada pembulatan 15 dan minimum 30, kerja 22 menit '
+                            .'lewat membulat ke 15 lalu gugur di sini. Diisi 0, setiap menit lebih '
+                            .'yang tersisa sesudah pembulatan ikut dibayar.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.overtime_daily_cap_hours',
+                        'label' => 'Batas lembur per hari (jam)',
+                        'type' => 'integer',
+                        'min' => 1,
+                        'max' => 12,
+                        'help' => 'Kepmenaker 102/2004 Pasal 3. Melewatinya TIDAK memotong jam dan '
+                            .'TIDAK menolak harinya: jamnya tetap dihitung penuh dan dibayar penuh, '
+                            .'barisnya saja ditandai agar terlihat. Memotong diam-diam akan membuat '
+                            .'layar mengatakan angka yang berbeda dari yang benar-benar dikerjakan.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.overtime_weekly_cap_hours',
+                        'label' => 'Batas lembur per minggu (jam)',
+                        'type' => 'integer',
+                        'min' => 1,
+                        'max' => 60,
+                        'help' => 'Pasangan batas harian di atas, dihitung per pekan Senin–Minggu, '
+                            .'dan diperlakukan sama: ditandai, tidak dipotong. Pekan yang melewatinya '
+                            .'adalah bahan percakapan dengan pengawas, bukan angka yang hilang.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.overtime_first_hour_pct',
+                        'label' => 'Tarif lembur jam pertama (% upah sejam)',
+                        'type' => 'percent',
+                        'min' => 100,
+                        'max' => 400,
+                        'help' => 'Kepmenaker 102/2004 Pasal 11: 150% = 1,5x upah sejam untuk jam '
+                            .'PERTAMA setiap hari lembur. Upah sejam = upah sebulan dibagi pembagi '
+                            .'lembur di grup "BPJS & Lembur". Berlaku pada payroll yang DIHITUNG '
+                            .'sesudahnya; slip yang sudah diposting tidak berubah.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.overtime_next_hours_pct',
+                        'label' => 'Tarif lembur jam berikutnya (% upah sejam)',
+                        'type' => 'percent',
+                        'min' => 100,
+                        'max' => 400,
+                        'help' => '200% = 2x upah sejam untuk jam kedua dan seterusnya dalam SATU '
+                            .'hari lembur. Tarif ini hanya terpakai bila periodenya punya rincian '
+                            .'harian yang totalnya sama dengan rekap bulanan; bila tidak, seluruh '
+                            .'lembur periode itu dibayar dengan tarif jam pertama dan slipnya '
+                            .'menyebutkan yang mana yang dipakai.',
                     ],
                 ],
             ],
@@ -885,12 +1024,11 @@ class SettingService
         $this->assertMayChangeApprovalPolicy($key);
 
         // F-1 — nilai EFEKTIF sebelum tulisan, untuk jejak audit "dari → ke".
-        // Dibaca sebelum apa pun berubah, dan hanya untuk approvals.*: baris
-        // core_settings sendiri sudah diamati AuditService, tetapi sebuah
-        // override yang BARU LAHIR tercatat sebagai 'created' tanpa "dari",
-        // dan "dari" adalah separuh yang penting ketika yang berubah adalah
-        // siapa boleh menyetujui berapa.
-        $approvalBefore = self::isApprovalPolicyKey($key) ? $this->get($key) : null;
+        // Dibaca sebelum apa pun berubah: baris core_settings sendiri sudah
+        // diamati AuditService, tetapi sebuah override yang BARU LAHIR tercatat
+        // sebagai 'created' tanpa "dari", dan "dari" adalah separuh yang
+        // penting ketika yang berubah adalah uang.
+        $effectiveBefore = self::auditsEffectiveChange($key) ? $this->get($key) : null;
 
         // P8 — riwayat tarif (D5): tarif efektif SEBELUM tulisan, dibaca di
         // sini karena set() adalah satu-satunya jalur tulis Pengaturan. Yang
@@ -911,8 +1049,8 @@ class SettingService
 
         $this->flush();
 
-        if (self::isApprovalPolicyKey($key) && $row !== null) {
-            $this->auditApprovalPolicyChange($row, $key, $approvalBefore, $value ?? $this->default($key));
+        if (self::auditsEffectiveChange($key) && $row !== null) {
+            $this->auditEffectiveChange($row, $key, $effectiveBefore, $value ?? $this->default($key));
         }
 
         if ($rates->tracks($key)) {
@@ -937,6 +1075,42 @@ class SettingService
     public static function isApprovalPolicyKey(string $key): bool
     {
         return str_starts_with($key, 'approvals.');
+    }
+
+    /**
+     * Kunci yang jejak auditnya HARUS membawa nilai "dari", bukan hanya "ke".
+     *
+     * Sebuah override yang BARU LAHIR tercatat pengamat sebagai `created`
+     * dengan `value: {from: null, to: "175"}` — nol jejak bahwa yang berlaku
+     * sebelumnya adalah bawaan config. Itu justru perubahan yang paling
+     * penting: perubahan PERTAMA, yang meninggalkan kebijakan pemilik.
+     *
+     * `approvals.*` sudah di sini sejak F-1. `hr.timesheet.*` ikut pada
+     * putaran verifikasi F-5: kesembilan kunci itu — sepuluh dengan istirahat —
+     * dikirim sebagai bawaan config tanpa baris `core_settings`, dan semuanya
+     * MENGGERAKKAN UPAH LEMBUR setiap orang. PANDUAN-ADMINISTRATOR §14
+     * menjanjikan "nilai dari→ke"; sebelum commit ini, penyelidikan atas
+     * "kenapa upah lembur turun bulan ini" membaca satu baris log yang tidak
+     * menyebut angka sebelumnya.
+     *
+     * Awalan, bukan daftar: kunci timesheet berikutnya ikut terjaring tanpa
+     * satu suntingan pun. Ini HANYA tentang jejak — gerbang izin direktur
+     * tetap milik `approvals.*` sendiri (isApprovalPolicyKey).
+     */
+    public static function auditsEffectiveChange(string $key): bool
+    {
+        /*
+         * `hr.leave.workweek_days` ADA DI SINI MESKIPUN IA KUNCI CUTI
+         * (putaran penutup F-5, V-1). Sejak F-5 ia menentukan hari mana yang
+         * NON-KERJA bagi timesheet, dan lembur pada hari non-kerja ditahan —
+         * jadi menurunkannya dari 6 ke 5 menghentikan setiap jam lembur Sabtu
+         * diusulkan ke rekap, pada upah dan jam yang sama persis. Sebuah kunci
+         * yang menggeser uang harus meninggalkan jejak siapa yang menggesernya,
+         * dan namanya tidak menentukan hal itu — akibatnya yang menentukan.
+         */
+        return self::isApprovalPolicyKey($key)
+            || str_starts_with($key, 'hr.timesheet.')
+            || $key === 'hr.leave.workweek_days';
     }
 
     /**
@@ -1008,7 +1182,7 @@ class SettingService
      * menghapus barisnya, dan "dihapus" bukan jawaban atas "ambangnya menjadi
      * berapa".
      */
-    private function auditApprovalPolicyChange(Setting $row, string $key, mixed $from, mixed $to): void
+    private function auditEffectiveChange(Setting $row, string $key, mixed $from, mixed $to): void
     {
         if ($this->sameEffective($from, $to)) {
             return;
@@ -1362,6 +1536,17 @@ class SettingService
             'account' => ['nullable', 'string', 'max:20'],
             // scheduler.heartbeat_at (INTERNAL_KEYS): stempel waktu ISO-8601.
             'timestamp' => ['nullable', 'string', 'max:40', 'date'],
+            /*
+             * F-5 — jam dinding 24 jam, 'HH:MM' (hr.timesheet.day_start).
+             *
+             * date_format, BUKAN regex. Satu-satunya pemakai 'regex' di sini
+             * adalah document_format, dan UpdateSettingsRequest memberi aturan
+             * itu SATU kalimat galat yang menyebut token {Y} dan {N4}: sebuah
+             * jam yang gagal lewat regex akan ditolak dengan kalimat tentang
+             * format penomoran dokumen, yang tidak ada hubungannya sama sekali
+             * dengan yang diketik orangnya.
+             */
+            'time' => ['nullable', 'string', 'date_format:H:i'],
             'document_format' => ['nullable', 'string', 'max:60', 'regex:'.self::DOCUMENT_FORMAT_PATTERN],
             default => ['nullable', 'string', 'max:255'],
         };

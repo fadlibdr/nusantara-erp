@@ -344,7 +344,25 @@ export async function renderPayrollRun(host, { id }) {
           ])),
           el('td.right.num', { text: fmt.rupiah(slip.basic_salary) }),
           el('td.right.num', { text: fmt.rupiah(slip.allowances_total) }),
-          el('td.right.num', { text: fmt.rupiah(slip.overtime_pay) }),
+          /* RUPIAHNYA DAN DASARNYA. Pemeriksa run melihat sepuluh baris dengan
+             upah lembur yang berbeda-beda, dan sampai putaran verifikasi tidak
+             ada satu pun tempat di layar ini yang mengatakan kenapa: dua orang
+             dengan jam ILB yang sama dan upah yang sama bisa berselisih
+             Rp 250.000 karena satu di antaranya lupa absen pulang sehari.
+             Sebabnya sudah ditulis ke basis data lengkap dengan kalimat Bahasa
+             Indonesia; yang kurang hanya menggambarnya — SEBELUM run disetujui.
+             Slip lama (basis NULL) mengatakan bahwa dasarnya tidak dicatat,
+             bukan diam seolah tidak ada lembur. */
+          el('td.right.num', [
+            el('span.cell-main', { text: fmt.rupiah(slip.overtime_pay) }),
+            Number(slip.overtime_pay) > 0
+              ? el('span.cell-sub', {
+                style: { whiteSpace: 'normal' },
+                text: slip.overtime_basis_label || 'dasar tidak dicatat (slip sebelum 14 Sep 2026)',
+                title: (slip.overtime_rate_detail && slip.overtime_rate_detail.reason) || undefined,
+              })
+              : null,
+          ]),
           el('td.right.num', { text: fmt.rupiah(slip.thr_amount) }),
           el('td.right.num', { text: fmt.rupiah(slip.gross_income) }),
           el('td.right.num', { text: fmt.rupiah(slip.bpjs_employee_total) }),

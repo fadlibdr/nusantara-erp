@@ -28,6 +28,7 @@ import { renderBankRecon } from './views/bankrecon.js';
 import { renderLapangan } from './views/lapangan.js';
 import { renderAbsensiSaya } from './views/absensisaya.js';
 import { renderUsulanRekap } from './views/usulanrekap.js';
+import { renderTimesheet, renderTimesheetSaya } from './views/timesheet.js';
 import { renderReorder } from './views/reorder.js';
 import { renderPindai } from './views/pindai.js';
 import { renderK3 } from './views/k3.js';
@@ -1011,6 +1012,30 @@ function registerRoutes() {
     const host = view();
     if (!session.can('hr.view')) return accessDenied(host, 'hr');
     return guard(host, () => renderUsulanRekap(host));
+  });
+
+  /* Timesheet & Lembur (F-5): turunan jam kerja/terlambat/lembur dari register
+     absensi, disandingkan dengan jam ILB yang disetujui. hr.view karena isinya
+     jam datang dan jam pulang orang — gerbang yang sama dengan register
+     absensi sejak F-4. Layar ini tidak menyimpan apa pun. */
+  route('timesheet', () => {
+    setCrumbs(['SDM & Payroll', 'Timesheet & Lembur']);
+    setActiveNav('timesheet');
+    const host = view();
+    if (!session.can('hr.view')) return accessDenied(host, 'hr');
+    return guard(host, () => renderTimesheet(host));
+  });
+
+  /* "Timesheet Saya" (F-5) TANPA gerbang izin, dengan alasan yang sama seperti
+     "Absensi Saya" di bawah: ia hanya menyentuh baris milik pemanggilnya
+     sendiri, dan orang yang paling membutuhkannya — tukang, teknisi, pengemudi
+     — tidak memegang satu pun izin hr.*. Sebuah timesheet yang hanya bisa
+     dilihat HR adalah timesheet yang orangnya tidak pernah bisa membantah. */
+  route('timesheet-saya', () => {
+    setCrumbs(['Ringkasan', 'Timesheet Saya']);
+    setActiveNav('timesheet-saya');
+    const host = view();
+    return guard(host, () => renderTimesheetSaya(host));
   });
 
   // P-3b — rekap internal PPh 21/26 bulanan (baca-saja, hr.view seperti API-nya).
