@@ -240,6 +240,25 @@ return [
             // menjadi calon lembur; menaikkannya mengecilkan lembur setiap
             // orang setiap hari.
             'normal_hours_per_day' => 8,
+            /*
+             * Istirahat yang TIDAK dihitung jam kerja (UU 13/2003 Pasal 79
+             * ayat 2 huruf b: sekurang-kurangnya setengah jam sesudah bekerja
+             * 4 jam terus-menerus, dan tidak termasuk jam kerja). Dipotong dari
+             * rentang masuk→pulang SEBELUM lembur dihitung.
+             *
+             * Tanpa angka ini, hari kerja 08:00–17:00 — bentuk hari kerja yang
+             * paling biasa yang ada — terbaca sembilan jam kerja dan
+             * menghasilkan satu jam lembur setiap hari untuk setiap orang,
+             * tanpa satu bendera pun. Pemilik tidak menyebut angka ini pada
+             * 14 Sep 2026; 60 menit dipilih DI SINI sebagai bawaan yang dicetak
+             * layar apa adanya, persis seperti day_start 08:00 — dan seperti
+             * day_start, ia keputusan pemilik yang masih terbuka.
+             *
+             * Diisi 0, rentang masuk→pulang kembali dibaca sebagai jam kerja
+             * seutuhnya. Itu pilihan yang sah untuk regu yang memang tidak
+             * beristirahat, dan layar mengatakan mana yang sedang berlaku.
+             */
+            'break_minutes' => 60,
             // Pembulatan lembur ke kelipatan terdekat, DILAKUKAN SEKALI — pada
             // kelebihan menit di atas jam normal, bukan pada rentang kerjanya
             // (TimesheetService::overtimeMinutes).

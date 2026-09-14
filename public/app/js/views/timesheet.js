@@ -71,12 +71,29 @@ function cell(text, reason, extraClass = '') {
 function policyCard(policy) {
   const rules = [
     `Jam kerja normal ${policy.normal_hours_per_day} jam/hari, mulai ${policy.day_start}.`,
+    /* Kalimat ini menjawab pertanyaan pertama yang layar ini akan terima:
+       kenapa 08:00–17:00 bukan sembilan jam kerja. Potongan istirahat yang
+       tidak disebutkan adalah potongan yang tidak bisa diperiksa siapa pun. */
+    policy.break_minutes
+      ? `Istirahat ${policy.break_minutes} menit TIDAK dihitung jam kerja (UU 13/2003 Ps. 79) — `
+        + `dipotong dari rentang masuk→pulang sejauh rentang itu melewati ${Math.round(policy.break_after_minutes / 60)} jam, `
+        + 'sebelum lembur dihitung.'
+      : 'Istirahat tidak dipotong sama sekali (setelannya kosong): seluruh rentang masuk→pulang '
+        + 'dihitung jam kerja, jadi hari kerja 08:00–17:00 menghasilkan satu jam lembur.',
     `Terlambat dihitung sesudah toleransi ${policy.late_tolerance_minutes} menit.`,
     `Lembur dibulatkan ke ${policy.rounding_minutes} menit terdekat, minimum ${policy.overtime_minimum_minutes} menit.`,
     `Batas Kepmenaker ${policy.overtime_daily_cap_hours} jam/hari dan ${policy.overtime_weekly_cap_hours} jam/pekan — `
       + 'dilampaui berarti DITANDAI, bukan dipotong.',
+    /* SYARATNYA ikut, bukan hanya tarifnya. Tarif jam berikutnya hanya menyala
+       bila total rincian harian sama persis dengan rekap bulanan yang dibayar —
+       dan pada alur ILB, yang layar ini sendiri sebut otoritatif, keduanya
+       jarang sama. Mencetak "2x jam berikutnya" sebagai fakta di layar yang
+       dibuka untuk tukang berarti menjanjikan tarif yang tidak akan ia terima. */
     `Tarif: ${fmt.num(policy.overtime_first_hour_pct / 100, 2)}x jam pertama tiap hari lembur, `
-      + `${fmt.num(policy.overtime_next_hours_pct / 100, 2)}x jam berikutnya.`,
+      + `${fmt.num(policy.overtime_next_hours_pct / 100, 2)}x jam berikutnya — TETAPI hanya bila total `
+      + 'lembur turunan di layar ini sama persis dengan rekap bulanan yang dibayar. Bila berbeda '
+      + `(mis. rekap mengikuti ILB), SELURUH lembur periode itu dibayar ${fmt.num(policy.overtime_first_hour_pct / 100, 2)}x `
+      + 'dan slipnya menyebutkan sebabnya.',
   ];
 
   /* Dua batas yang harus terbaca SEBELUM angkanya, bukan sesudah. Layar yang
@@ -127,7 +144,13 @@ const PERIOD_COLUMNS = [
   { key: 'measured_days', label: 'Hari terukur' },
   { key: 'half_measured_days', label: 'Hari setengah terukur' },
   { key: 'unrecorded_days', label: 'Hari tanpa cap jam' },
-  { key: 'worked_minutes', label: 'Menit kerja' },
+  /* TIGA kolom, bukan satu: rentang yang benar-benar terukur, istirahat yang
+     dipotong darinya, dan jam kerja yang tersisa. Satu kolom saja memaksa
+     pembaca Excel menebak yang mana — dan yang menjadi lembur adalah yang
+     ketiga. */
+  { key: 'worked_minutes', label: 'Menit masuk→pulang' },
+  { key: 'break_minutes', label: 'Menit istirahat' },
+  { key: 'net_worked_minutes', label: 'Menit kerja' },
   { key: 'late_minutes', label: 'Menit terlambat' },
   { key: 'overtime_hours', label: 'Lembur turunan (jam)' },
   { key: 'permit_hours', label: 'ILB disetujui (jam)' },
@@ -191,7 +214,7 @@ function periodTable(payload, onPick) {
           : null,
       ]),
       el('td.right.num', { text: String(row.measured_days) }),
-      cell(hoursText(row.worked_minutes), 'Tidak ada satu hari pun dengan dua cap jam pada periode ini.'),
+      cell(hoursText(row.net_worked_minutes), 'Tidak ada satu hari pun dengan dua cap jam pada periode ini.'),
       cell(hoursText(row.late_minutes), 'Tidak ada satu hari pun dengan cap jam masuk pada periode ini.'),
       el('td.right.num.timesheet-ot', {
         'data-empty': String(row.overtime_hours === null),
@@ -253,7 +276,16 @@ function dayTable(payload) {
       ]),
       el('td.mono', { text: day.check_in_at ? day.check_in_at.slice(11, 16) : '' }),
       el('td.mono', { text: day.check_out_at ? day.check_out_at.slice(11, 16) : '' }),
-      cell(hoursText(day.worked_minutes), day.note),
+      /* Jam KERJA, bukan rentang di lokasi: istirahat sudah dipotong, dan
+         title-nya menyebut berapa — supaya selisih antara cap jam di dua kolom
+         sebelah kiri dan angka ini tidak perlu ditebak. */
+      cell(
+        hoursText(day.net_worked_minutes),
+        day.break_minutes
+          ? `Rentang masuk→pulang ${hoursText(day.worked_minutes)}, dikurangi istirahat `
+            + `${day.break_minutes} menit yang tidak dihitung jam kerja.`
+          : day.note,
+      ),
       cell(hoursText(day.late_minutes), day.note),
       el('td.right.num', { 'data-empty': String(day.overtime_minutes === null), 'data-over-cap': String(Boolean(day.over_daily_cap)) },
         day.overtime_minutes === null
@@ -469,25 +501,37 @@ export async function renderTimesheetSaya(host) {
       el('.stat', [
         el('.label', { text: 'Hari terukur' }),
         el('.value', { text: String(summary.measured_days) }),
-        /* TIGA kalimat, bukan dua. Terukur di peramban (S42m, 14 Sep 2026):
-           bulan yang tidak punya satu pun catatan berbunyi "0 · setiap hari
-           bercap jam lengkap" — sebuah pujian tentang orang yang tidak pernah
-           menekan tombolnya sama sekali. Cacat yang sama persis pernah
-           ditemukan F-4 pada baris kerani murni ("0 hari · semua di dalam
-           radius"), dan tidak satu pun uji PHP bisa melihatnya: JSON-nya
-           benar, kalimatnyalah yang bohong. */
+        /* EMPAT kalimat, bukan tiga, dan pujiannya PALING AKHIR.
+           Terukur di peramban (S42m, 14 Sep 2026): bulan yang tidak punya satu
+           pun catatan berbunyi "0 · setiap hari bercap jam lengkap" — sebuah
+           pujian tentang orang yang tidak pernah menekan tombolnya sama sekali.
+           Perbaikan pertama hanya menutup measured_days === 0, dan meninggalkan
+           lubang yang bentuknya sama persis: satu hari terukur dari 26 juga
+           berbunyi "setiap hari bercap jam lengkap", karena hari yang TIDAK
+           TERCATAT SAMA SEKALI tidak masuk half_measured_days. `unrecorded_days`
+           sudah ada di muatan sejak awal dan tidak pernah dipakai.
+           Pujian sekarang menuntut ketiganya: ada yang terukur, tidak ada yang
+           setengah terukur, DAN tidak ada hari yang lewat tanpa cap jam. */
         el('.delta', {
-          text: summary.half_measured_days
-            ? `${summary.half_measured_days} hari hanya satu cap jam — belum terukur`
-            : (summary.measured_days === 0
-              ? 'belum ada satu hari pun dengan cap jam masuk dan pulang'
-              : 'setiap hari bercap jam lengkap'),
+          text: summary.measured_days === 0
+            ? 'belum ada satu hari pun dengan cap jam masuk dan pulang'
+            : (summary.half_measured_days
+              ? `${summary.half_measured_days} hari hanya satu cap jam — belum terukur`
+              : (summary.unrecorded_days
+                ? `${summary.unrecorded_days} hari kerja lewat tanpa cap jam sama sekali`
+                : 'setiap hari bercap jam lengkap')),
         }),
       ]),
       el('.stat', [
         el('.label', { text: 'Jam kerja' }),
-        el('.value.sm', { text: hoursText(summary.worked_minutes) ?? '—' }),
-        el('.delta', { text: summary.worked_minutes === null ? 'belum ada yang terukur bulan ini' : '' }),
+        el('.value.sm', { text: hoursText(summary.net_worked_minutes) ?? '—' }),
+        el('.delta', {
+          text: summary.net_worked_minutes === null
+            ? 'belum ada yang terukur bulan ini'
+            : (summary.break_minutes
+              ? `sesudah istirahat ${hoursText(summary.break_minutes)} yang tidak dihitung jam kerja`
+              : ''),
+        }),
       ]),
       el('.stat', [
         el('.label', { text: 'Lembur turunan' }),

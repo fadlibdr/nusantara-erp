@@ -82,7 +82,7 @@ class TimesheetApiTest extends ErpTestCase
     public function test_a_worker_without_any_hr_permission_can_read_their_own_timesheet(): void
     {
         $employee = $this->makeEmployee();
-        $this->clockedDay($employee, '2026-06-01', '08:00', '18:00');
+        $this->clockedDay($employee, '2026-06-01', '08:00', '19:00');
 
         $this->actingAs($this->userFor($employee), 'sanctum')
             ->getJson('api/hr/timesheet/me?period_year=2026&period_month=6')
@@ -95,7 +95,7 @@ class TimesheetApiTest extends ErpTestCase
     public function test_a_worker_can_read_their_own_timesheet_through_the_id_door_too(): void
     {
         $employee = $this->makeEmployee();
-        $this->clockedDay($employee, '2026-06-01', '08:00', '18:00');
+        $this->clockedDay($employee, '2026-06-01', '08:00', '19:00');
 
         $this->actingAs($this->userFor($employee), 'sanctum')
             ->getJson("api/hr/timesheet/{$employee->id}?period_year=2026&period_month=6")
@@ -119,7 +119,7 @@ class TimesheetApiTest extends ErpTestCase
     {
         $me = $this->makeEmployee();
         $someoneElse = $this->makeEmployee();
-        $this->clockedDay($someoneElse, '2026-06-01', '08:00', '18:00');
+        $this->clockedDay($someoneElse, '2026-06-01', '08:00', '19:00');
 
         $actor = $this->userFor($me);
 
@@ -138,7 +138,7 @@ class TimesheetApiTest extends ErpTestCase
     {
         $me = $this->makeEmployee();
         $someoneElse = $this->makeEmployee();
-        $this->clockedDay($someoneElse, '2026-06-01', '08:00', '18:00');
+        $this->clockedDay($someoneElse, '2026-06-01', '08:00', '19:00');
 
         $this->actingAs($this->userFor($me, withHrView: true), 'sanctum')
             ->getJson("api/hr/timesheet/{$someoneElse->id}?period_year=2026&period_month=6")
@@ -149,7 +149,7 @@ class TimesheetApiTest extends ErpTestCase
     public function test_the_period_wide_list_is_closed_to_anyone_without_hr_view(): void
     {
         $employee = $this->makeEmployee();
-        $this->clockedDay($employee, '2026-06-01', '08:00', '18:00');
+        $this->clockedDay($employee, '2026-06-01', '08:00', '19:00');
 
         $this->actingAs($this->userFor($employee), 'sanctum')
             ->getJson('api/hr/timesheet?period_year=2026&period_month=6')
@@ -159,7 +159,7 @@ class TimesheetApiTest extends ErpTestCase
     public function test_the_period_wide_list_opens_with_hr_view(): void
     {
         $employee = $this->makeEmployee();
-        $this->clockedDay($employee, '2026-06-01', '08:00', '18:00');
+        $this->clockedDay($employee, '2026-06-01', '08:00', '19:00');
 
         $this->actingAs($this->userFor($employee, withHrView: true), 'sanctum')
             ->getJson('api/hr/timesheet?period_year=2026&period_month=6')

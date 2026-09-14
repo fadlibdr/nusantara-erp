@@ -44,10 +44,16 @@ class AttendanceRecapOvertimeProposalTest extends ErpTestCase
         return $user;
     }
 
-    /** Hari kerja dengan dua cap jam; `$extraMinutes` menit di atas 8 jam normal. */
+    /**
+     * Hari kerja dengan dua cap jam; `$extraMinutes` menit di atas 8 jam normal.
+     *
+     * Pulang dihitung dari 17:00: hari kerja delapan jam berlangsung sembilan
+     * jam di jam dinding karena istirahat 60 menit tidak termasuk jam kerja
+     * (UU 13/2003 Pasal 79, TimesheetService::breakMinutes).
+     */
     private function measuredDay(int $employeeId, string $date, int $extraMinutes = 0): void
     {
-        $out = sprintf('%02d:%02d', 16 + intdiv($extraMinutes, 60), $extraMinutes % 60);
+        $out = sprintf('%02d:%02d', 17 + intdiv($extraMinutes, 60), $extraMinutes % 60);
 
         Attendance::query()->create([
             'employee_id' => $employeeId,

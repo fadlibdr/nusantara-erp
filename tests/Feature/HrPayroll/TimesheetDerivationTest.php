@@ -56,10 +56,17 @@ class TimesheetDerivationTest extends ErpTestCase
         ]);
     }
 
-    /** Hari kerja dengan lembur sekian menit di atas 8 jam normal. */
+    /**
+     * Hari kerja dengan lembur sekian menit di atas 8 jam NORMAL.
+     *
+     * Pulang dihitung dari 17:00, bukan 16:00: hari kerja delapan jam
+     * berlangsung sembilan jam di jam dinding, karena istirahat 60 menit tidak
+     * termasuk jam kerja (UU 13/2003 Pasal 79, TimesheetService::breakMinutes).
+     * 08:00–16:00 adalah TUJUH jam kerja.
+     */
     private function dayWithExtraMinutes(Employee $employee, string $date, int $extra): void
     {
-        $out = sprintf('%02d:%02d', 16 + intdiv($extra, 60), $extra % 60);
+        $out = sprintf('%02d:%02d', 17 + intdiv($extra, 60), $extra % 60);
         $this->clockedDay($employee, $date, '08:00', $out);
     }
 
@@ -86,9 +93,121 @@ class TimesheetDerivationTest extends ErpTestCase
         $day = $this->dayFor($employee, '2026-06-01');
 
         $this->assertSame(TimesheetDayState::Terukur->value, $day['state']);
-        $this->assertSame(540, $day['worked_minutes'], '08:00–17:00 adalah 540 menit.');
+        $this->assertSame(540, $day['worked_minutes'], '08:00–17:00 adalah 540 menit DI LOKASI.');
+        $this->assertSame(480, $day['net_worked_minutes'], '...dan 480 menit KERJA sesudah istirahat.');
         $this->assertSame(0, $day['late_minutes']);
         $this->assertNull($day['note'], 'Hari yang terukur penuh tidak perlu menjelaskan apa pun.');
+    }
+
+    // ------------------------------------------------------------ istirahat
+
+    /**
+     * SATU JAM LEMBUR SETIAP HARI, UNTUK SETIAP ORANG, TANPA SATU BENDERA PUN.
+     *
+     * Sampai putaran verifikasi 14 Sep 2026, kelas ini memperlakukan rentang
+     * masuk→pulang sebagai jam kerja dan menyebut kelebihannya di atas 8 jam
+     * sebagai lembur. Hari kerja 08:00–17:00 — bentuk hari kerja yang paling
+     * biasa yang ada di Indonesia — karena itu menghasilkan satu jam lembur
+     * setiap hari: di bawah batas 3 jam/hari (jadi tidak ditandai), sebesar
+     * angka yang orang percaya masuk akal (jadi tidak dicurigai), dan langsung
+     * masuk ke kolom yang Usulan Rekap sodorkan ke formulir rekap.
+     *
+     * Dua puluh enam hari kerja menjadi 26 jam lembur karangan, yaitu 22,5%
+     * upah sebulan — dan tidak satu pun uji, layar atau kalimat panduan yang
+     * bisa melihatnya. Berkas ini memakunya dari kedua arah: hari normal TIDAK
+     * berlembur, dan lembur yang sungguhan tetap terukur penuh.
+     */
+    public function test_a_plain_eight_hour_day_produces_no_overtime_because_the_break_is_not_working_time(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->clockedDay($employee, '2026-06-01', '08:00', '17:00');
+
+        $day = $this->dayFor($employee, '2026-06-01');
+
+        $this->assertSame(60, $day['break_minutes']);
+        $this->assertSame(
+            0,
+            $day['overtime_minutes'],
+            'UU 13/2003 Pasal 79: istirahat tidak termasuk jam kerja, jadi hari kerja delapan jam '
+            .'berlangsung sembilan jam di jam dinding. Membaca rentangnya sebagai jam kerja berarti '
+            .'mengarang satu jam lembur setiap hari untuk setiap orang.',
+        );
+    }
+
+    public function test_a_month_of_plain_working_days_derives_no_overtime_at_all(): void
+    {
+        $employee = $this->makeEmployee();
+
+        // Seluruh hari kerja Juni 2026 (Minggu dilewati), 08:00–17:00.
+        foreach (range(1, 30) as $dayOfMonth) {
+            $date = sprintf('2026-06-%02d', $dayOfMonth);
+
+            if (in_array($dayOfMonth, [7, 14, 21, 28], true)) {
+                continue;
+            }
+
+            $this->clockedDay($employee, $date, '08:00', '17:00');
+        }
+
+        $this->assertSame(
+            0.0,
+            $this->service()->forEmployee($employee, 2026, 6)['summary']['overtime_hours'],
+            'Sebulan penuh hari kerja biasa adalah nol jam lembur. Angka lain di sini adalah angka '
+            .'yang akan disodorkan Usulan Rekap ke formulir rekap, dan dari sana menjadi uang.',
+        );
+    }
+
+    public function test_real_overtime_is_still_measured_in_full_after_the_break_is_taken_out(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->clockedDay($employee, '2026-06-01', '08:00', '19:00'); // 11 jam di lokasi
+
+        $this->assertSame(
+            120,
+            $this->dayFor($employee, '2026-06-01')['overtime_minutes'],
+            'Sebelas jam di lokasi dikurangi satu jam istirahat adalah sepuluh jam kerja: dua jam '
+            .'lembur, utuh. Potongan istirahat tidak boleh ikut memakan lembur yang sungguhan.',
+        );
+    }
+
+    /**
+     * Bekerja LEBIH LAMA tidak boleh pernah menghasilkan jam kerja yang lebih
+     * pendek. Memotong 60 menit penuh begitu rentang melewati 4 jam membuat
+     * orang yang pulang pukul 12:01 terbaca bekerja 181 menit sementara orang
+     * yang pulang 12:00 terbaca 240 — tebing yang akan dipakai membantah
+     * seluruh angka di layar ini.
+     */
+    public function test_the_break_is_taken_out_gradually_so_working_longer_never_measures_shorter(): void
+    {
+        $employee = $this->makeEmployee();
+
+        $this->clockedDay($employee, '2026-06-01', '08:00', '12:00'); // 4 jam pas
+        $this->clockedDay($employee, '2026-06-02', '08:00', '12:10'); // 4 jam 10 menit
+        $this->clockedDay($employee, '2026-06-03', '08:00', '13:00'); // 5 jam
+
+        $this->assertSame([240, 0], [$this->dayFor($employee, '2026-06-01')['net_worked_minutes'], $this->dayFor($employee, '2026-06-01')['break_minutes']]);
+        $this->assertSame([240, 10], [$this->dayFor($employee, '2026-06-02')['net_worked_minutes'], $this->dayFor($employee, '2026-06-02')['break_minutes']]);
+        $this->assertSame([240, 60], [$this->dayFor($employee, '2026-06-03')['net_worked_minutes'], $this->dayFor($employee, '2026-06-03')['break_minutes']]);
+    }
+
+    public function test_the_break_comes_from_the_settings_and_not_from_the_code(): void
+    {
+        $this->setSetting('hr.timesheet.break_minutes', 0);
+
+        $employee = $this->makeEmployee();
+        $this->clockedDay($employee, '2026-06-01', '08:00', '17:00');
+
+        $day = $this->dayFor($employee, '2026-06-01');
+
+        $this->assertSame(0, $day['break_minutes']);
+        $this->assertSame(
+            540,
+            $day['net_worked_minutes'],
+            'Istirahat 0 adalah pilihan yang sah untuk regu yang memang tidak beristirahat — dan '
+            .'layar mengatakan mana yang sedang berlaku. Angka 60 yang tertanam di kode akan '
+            .'menjawab 480 di sini.',
+        );
+        $this->assertSame(60, $day['overtime_minutes']);
     }
 
     public function test_a_day_with_only_a_check_in_is_half_measured_and_its_hours_are_null_not_zero(): void
@@ -227,7 +346,8 @@ class TimesheetDerivationTest extends ErpTestCase
     public function test_a_day_worked_exactly_to_the_normal_hours_has_a_measured_zero_not_an_unknown(): void
     {
         $employee = $this->makeEmployee();
-        $this->clockedDay($employee, '2026-06-01', '08:00', '16:00');
+        // Sembilan jam di lokasi, satu jam istirahat: delapan jam kerja pas.
+        $this->clockedDay($employee, '2026-06-01', '08:00', '17:00');
 
         $day = $this->dayFor($employee, '2026-06-01');
 
@@ -243,14 +363,16 @@ class TimesheetDerivationTest extends ErpTestCase
     public function test_rounding_happens_once_and_only_on_the_minutes_above_the_normal_hours(): void
     {
         $employee = $this->makeEmployee();
-        // 08:07 sampai 16:07 = 480 menit pas: masuknya tidak dibulatkan,
-        // pulangnya tidak dibulatkan, jadi tidak ada lembur yang dikarang oleh
-        // dua pembulatan yang saling menambah.
-        $this->clockedDay($employee, '2026-06-01', '08:07', '16:07');
+        // 08:07 sampai 17:07 = 540 menit di lokasi, 480 menit kerja sesudah
+        // istirahat: masuknya tidak dibulatkan, pulangnya tidak dibulatkan,
+        // jadi tidak ada lembur yang dikarang oleh dua pembulatan yang saling
+        // menambah.
+        $this->clockedDay($employee, '2026-06-01', '08:07', '17:07');
 
         $day = $this->dayFor($employee, '2026-06-01');
 
-        $this->assertSame(480, $day['worked_minutes'], 'Menit kerja dilaporkan MENTAH; hanya lembur yang dibulatkan.');
+        $this->assertSame(540, $day['worked_minutes'], 'Rentang masuk→pulang dilaporkan MENTAH.');
+        $this->assertSame(480, $day['net_worked_minutes'], 'Jam kerja = rentang dikurangi istirahat, tanpa pembulatan.');
         $this->assertSame(0, $day['overtime_minutes']);
     }
 
@@ -285,7 +407,7 @@ class TimesheetDerivationTest extends ErpTestCase
         $this->setSetting('hr.timesheet.normal_hours_per_day', 7);
 
         $employee = $this->makeEmployee();
-        $this->clockedDay($employee, '2026-06-01', '08:00', '16:00'); // 8 jam
+        $this->clockedDay($employee, '2026-06-01', '08:00', '17:00'); // 9 jam di lokasi = 8 jam kerja
 
         $this->assertSame(
             60,

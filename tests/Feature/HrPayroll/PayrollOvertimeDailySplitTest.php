@@ -45,10 +45,17 @@ class PayrollOvertimeDailySplitTest extends ErpTestCase
         ]);
     }
 
-    /** Satu hari kerja dengan lembur sekian jam penuh di atas 8 jam normal. */
+    /**
+     * Satu hari kerja dengan lembur sekian jam penuh di atas 8 jam normal.
+     *
+     * Pulang dihitung dari 17:00, bukan 16:00: hari kerja delapan jam
+     * berlangsung sembilan jam di jam dinding karena istirahat 60 menit tidak
+     * termasuk jam kerja (UU 13/2003 Pasal 79, TimesheetService::breakMinutes).
+     * 08:00–16:00 adalah TUJUH jam kerja, bukan delapan.
+     */
     private function overtimeDay(Employee $employee, string $date, float $hours): void
     {
-        $out = sprintf('%02d:%02d', 16 + (int) floor($hours), (int) round(fmod($hours, 1) * 60));
+        $out = sprintf('%02d:%02d', 17 + (int) floor($hours), (int) round(fmod($hours, 1) * 60));
 
         Attendance::query()->create([
             'employee_id' => $employee->id,

@@ -56,6 +56,14 @@ use Modules\HrPayroll\Models\PayrollRun;
 class TimesheetService
 {
     /**
+     * Sesudah berapa menit kerja istirahat mulai berlaku (UU 13/2003 Pasal 79
+     * ayat 2 huruf b: sekurang-kurangnya setengah jam SESUDAH bekerja 4 jam
+     * terus-menerus). Bukan setelan: ia dasar hukum potongan di bawahnya, dan
+     * sebuah kotak isian di sini hanya akan dipakai untuk menggeser lantai itu.
+     */
+    private const BREAK_AFTER_MINUTES = 240;
+
+    /**
      * Kebijakan yang BERLAKU HARI INI, dibaca sekali per pemanggilan.
      *
      * Dikembalikan bersama setiap muatan, dan layar mencetaknya di sebelah
@@ -70,6 +78,12 @@ class TimesheetService
             'day_start' => Erp::string('hr.timesheet.day_start', '08:00'),
             'late_tolerance_minutes' => Erp::int('hr.timesheet.late_tolerance_minutes', 10),
             'normal_hours_per_day' => Erp::int('hr.timesheet.normal_hours_per_day', 8),
+            // Istirahat yang TIDAK dihitung jam kerja (UU 13/2003 Pasal 79).
+            // Tanpa angka ini, rentang mentah masuk→pulang dibaca sebagai jam
+            // kerja, dan hari kerja biasa 08:00–17:00 menghasilkan satu jam
+            // lembur palsu setiap hari — lihat breakMinutes().
+            'break_minutes' => max(0, Erp::int('hr.timesheet.break_minutes', 60)),
+            'break_after_minutes' => self::BREAK_AFTER_MINUTES,
             'rounding_minutes' => max(1, Erp::int('hr.timesheet.rounding_minutes', 15)),
             'overtime_minimum_minutes' => Erp::int('hr.timesheet.overtime_minimum_minutes', 30),
             'overtime_daily_cap_hours' => Erp::int('hr.timesheet.overtime_daily_cap_hours', 3),
@@ -223,6 +237,27 @@ class TimesheetService
         $worked = $state === TimesheetDayState::Terukur ? $in->diffInMinutes($out) : null;
         $worked = $worked === null ? null : (int) $worked;
 
+        /*
+         * ISTIRAHAT, dan kenapa ia harus ada di sini.
+         *
+         * `$worked` adalah RENTANG masuk→pulang, dan rentang bukan jam kerja:
+         * UU 13/2003 Pasal 79 menyatakan istirahat tidak termasuk jam kerja,
+         * jadi hari kerja 8 jam di Indonesia berlangsung 9 jam di jam dinding.
+         * Tanpa potongan ini, 08:00–17:00 — hari kerja yang paling biasa yang
+         * ada — menghasilkan satu jam lembur setiap hari, untuk setiap orang,
+         * tanpa satu bendera pun: batas 3 jam/hari tidak tersentuh dan
+         * angkanya persis sebesar yang orang percaya masuk akal. Layar Usulan
+         * Rekap lalu menyodorkan 26 jam lembur karangan ke formulir rekap, dan
+         * dari sana ia menjadi uang.
+         *
+         * KEDUA angka dibawa keluar: rentang yang benar-benar terukur DAN jam
+         * kerja sesudah istirahat. Mengganti yang satu dengan yang lain berarti
+         * layar tidak bisa lagi menjawab "kenapa 9 jam di jam dinding menjadi
+         * 8 jam kerja", dan pertanyaan itu akan diajukan pada hari pertama.
+         */
+        $break = $worked === null ? null : $this->breakMinutes($worked, $policy);
+        $netWorked = $worked === null ? null : $worked - $break;
+
         // Terlambat hanya menuntut jam MASUK, jadi ia terukur juga pada hari
         // setengah terukur: orang yang lupa absen pulang tetap datang pada jam
         // yang tercatat, dan menghapus keterlambatannya karena cap kedua hilang
@@ -244,7 +279,7 @@ class TimesheetService
                 // mahal.
                 $overtimeWithheld = 'hari_non_kerja';
             } else {
-                $overtime = $this->overtimeMinutes($worked, $policy);
+                $overtime = $this->overtimeMinutes($netWorked, $policy);
             }
         }
 
@@ -262,6 +297,8 @@ class TimesheetService
             'check_in_at' => $in?->toDateTimeString(),
             'check_out_at' => $out?->toDateTimeString(),
             'worked_minutes' => $worked,
+            'break_minutes' => $break,
+            'net_worked_minutes' => $netWorked,
             'late_minutes' => $late,
             'overtime_minutes' => $overtime,
             'overtime_withheld' => $overtimeWithheld,
@@ -326,8 +363,40 @@ class TimesheetService
     }
 
     /**
+     * Menit istirahat yang dipotong dari rentang masuk→pulang satu hari.
+     *
+     * Dipotong SECARA BERTAHAP, bukan sekaligus, supaya bekerja lebih lama
+     * tidak pernah menghasilkan jam kerja yang lebih pendek:
+     *
+     *     rentang 240 menit (4 jam) → potong 0   → 240
+     *     rentang 250 menit         → potong 10  → 240
+     *     rentang 300 menit         → potong 60  → 240
+     *     rentang 540 menit (9 jam) → potong 60  → 480
+     *
+     * Memotong 60 menit penuh begitu rentang melewati 4 jam akan membuat orang
+     * yang bekerja 4 jam 1 menit terbaca bekerja LEBIH SEDIKIT daripada orang
+     * yang pulang satu menit lebih awal — tebing yang akan dipakai membantah
+     * seluruh angka di layar ini.
+     *
+     * @param  array<string, mixed>  $policy
+     */
+    public function breakMinutes(int $workedMinutes, array $policy): int
+    {
+        $break = max(0, (int) $policy['break_minutes']);
+
+        if ($break === 0) {
+            return 0;
+        }
+
+        return (int) min($break, max(0, $workedMinutes - self::BREAK_AFTER_MINUTES));
+    }
+
+    /**
      * Menit lembur satu hari: sesudah jam normal, SESUDAH PEMBULATAN, sesudah
      * minimum — dalam urutan itu, dan pembulatannya terjadi DI SINI, sekali.
+     *
+     * Yang masuk ke sini adalah JAM KERJA — rentang masuk→pulang yang sudah
+     * dikurangi istirahat (breakMinutes), bukan rentang mentahnya.
      *
      * Contoh pada kebijakan bawaan (normal 8 jam, bulat 15, minimum 30), yang
      * dipaku tepi demi tepi di TimesheetDerivationTest:
@@ -420,7 +489,13 @@ class TimesheetService
             'half_measured_days' => count($half),
             'unrecorded_days' => count($unrecorded),
             'non_working_measured_days' => count($measuredNonWorking),
+            // Rentang mentah, istirahat yang dipotong darinya, dan jam kerja
+            // yang tersisa — ketiganya, karena yang dibandingkan orang dengan
+            // cap jam di kolom sebelahnya adalah rentangnya, sementara yang
+            // menjadi lembur adalah sisanya.
             'worked_minutes' => $measured === [] ? null : (int) array_sum(array_column($measured, 'worked_minutes')),
+            'break_minutes' => $measured === [] ? null : (int) array_sum(array_column($measured, 'break_minutes')),
+            'net_worked_minutes' => $measured === [] ? null : (int) array_sum(array_column($measured, 'net_worked_minutes')),
             'late_minutes' => $withCheckIn === [] ? null : (int) array_sum(array_column($withCheckIn, 'late_minutes')),
             'late_days' => count(array_filter($withCheckIn, fn (array $day): bool => $day['late_minutes'] > 0)),
             'overtime_minutes' => $overtimeMinutes,

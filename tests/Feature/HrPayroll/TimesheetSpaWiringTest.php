@@ -147,11 +147,54 @@ class TimesheetSpaWiringTest extends ErpTestCase
         $this->assertStringContainsString(
             'belum ada satu hari pun dengan cap jam masuk dan pulang',
             $code,
-            'Ubin "Hari terukur" harus punya TIGA kalimat, bukan dua: hari setengah terukur, '
-            .'bulan yang belum punya satu pun hari terukur, dan bulan yang lengkap. Dua kalimat '
-            .'berarti bulan kosong dipuji karena kehadiran yang tidak pernah terjadi.',
+            'Ubin "Hari terukur" harus punya EMPAT kalimat: bulan yang belum punya satu pun hari '
+            .'terukur, hari setengah terukur, hari yang lewat tanpa cap jam sama sekali, dan '
+            .'barulah bulan yang lengkap. Kalimat yang hilang berarti sebuah bulan dipuji karena '
+            .'kehadiran yang tidak pernah terjadi.',
         );
         $this->assertStringContainsString('summary.measured_days === 0', $code);
+
+        /*
+         * Lubang KETIGA, yang perbaikan pertama tinggalkan (putaran verifikasi
+         * 14 Sep 2026): satu hari terukur dari 26 juga berbunyi "setiap hari
+         * bercap jam lengkap", karena hari yang TIDAK TERCATAT SAMA SEKALI
+         * tidak masuk half_measured_days. `unrecorded_days` sudah ada di muatan
+         * sejak awal dan tidak pernah dipakai.
+         *
+         * Penjaga ini tetap penjaga TEKS — ia tidak menjalankan cabangnya, dan
+         * itu batasnya yang jujur. Yang menjalankan cabang ini sungguhan adalah
+         * harness S42m dengan muatan 1-dari-26.
+         */
+        $this->assertStringContainsString(
+            'summary.unrecorded_days',
+            $code,
+            'Pujian "setiap hari bercap jam lengkap" tidak boleh menyala selama masih ada hari '
+            .'kerja yang lewat tanpa satu cap jam pun. Tiga kalimat menutup bulan yang KOSONG dan '
+            .'meninggalkan bulan yang HAMPIR kosong dipuji dengan kalimat yang sama.',
+        );
+    }
+
+    /**
+     * Istirahat DIKATAKAN, bukan dipotong diam-diam.
+     *
+     * Potongan yang menentukan berapa jam lembur seseorang, tetapi tidak
+     * disebutkan di layar yang mencetak angkanya, adalah potongan yang tidak
+     * bisa diperiksa siapa pun — dan pertanyaan "kenapa 08:00–17:00 bukan
+     * sembilan jam kerja" akan diajukan pada hari pertama.
+     */
+    public function test_the_break_taken_out_of_the_working_hours_is_printed_on_the_screen(): void
+    {
+        $code = $this->code(self::VIEW);
+
+        $this->assertStringContainsString('policy.break_minutes', $code);
+        $this->assertStringContainsString('UU 13/2003 Ps. 79', $code);
+        $this->assertStringContainsString(
+            'TIDAK dihitung jam kerja',
+            $code,
+            'Kartu kebijakan harus menyebut istirahat, karena ia menentukan berapa menit yang '
+            .'menjadi lembur. Tanpa kalimat ini, selisih antara cap jam di layar dan jam kerja di '
+            .'sebelahnya tidak punya penjelasan di mana pun.',
+        );
     }
 
     public function test_the_two_honest_limits_are_printed_above_the_numbers(): void

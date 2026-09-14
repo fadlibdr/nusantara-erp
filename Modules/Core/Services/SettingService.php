@@ -333,7 +333,23 @@ class SettingService
                         'help' => 'Menit kerja DI ATAS angka inilah yang menjadi calon lembur. '
                             .'Menaikkannya satu jam menghapus satu jam lembur dari setiap hari setiap '
                             .'orang — pada tarif 150% itu adalah pengurangan upah lembur terbesar yang '
-                            .'bisa dilakukan satu kotak isian di layar ini.',
+                            .'bisa dilakukan satu kotak isian di layar ini. Yang dibandingkan dengannya '
+                            .'adalah JAM KERJA — rentang masuk→pulang yang sudah dikurangi istirahat '
+                            .'di bawah ini, bukan rentang mentahnya.',
+                    ],
+                    [
+                        'key' => 'hr.timesheet.break_minutes',
+                        'label' => 'Istirahat yang tidak dihitung jam kerja (menit)',
+                        'type' => 'integer',
+                        'min' => 0,
+                        'max' => 240,
+                        'help' => 'UU 13/2003 Pasal 79: istirahat TIDAK termasuk jam kerja, jadi hari '
+                            .'kerja 8 jam berlangsung 9 jam di jam dinding. Angka ini dipotong dari '
+                            .'rentang masuk→pulang sebelum lembur dihitung, dan hanya sejauh rentang '
+                            .'itu melewati 4 jam — supaya pulang lebih larut tidak pernah menghasilkan '
+                            .'jam kerja yang lebih pendek. Diisi 0, hari kerja biasa 08:00–17:00 akan '
+                            .'menghasilkan SATU JAM LEMBUR setiap hari untuk setiap orang; pilih 0 '
+                            .'hanya bila regu Anda memang bekerja tanpa istirahat.',
                     ],
                     [
                         'key' => 'hr.timesheet.rounding_minutes',
