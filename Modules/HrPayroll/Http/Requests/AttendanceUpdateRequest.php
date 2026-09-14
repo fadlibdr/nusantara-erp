@@ -42,7 +42,20 @@ class AttendanceUpdateRequest extends FormRequest
             // sentuh". null eksplisit karena itu berarti "kosongkan", dan
             // itulah yang dibutuhkan untuk membatalkan jam pulang yang salah.
             'check_in_at' => ['sometimes', 'nullable', 'date'],
-            'check_out_at' => ['sometimes', 'nullable', 'date'],
+            /*
+             * `after:check_in_at` ditambahkan pada putaran verifikasi F-5.
+             * Pintu ini dianjurkan panduan justru untuk "lupa absen pulang",
+             * jadi kerani mengetik tanggal DAN jam dengan tangan setiap kali —
+             * dan sebelum baris ini, jam pulang SEBELUM jam masuk diterima 200
+             * OK, lalu jatuh ke keadaan "setengah terukur" lima layar
+             * kemudian, di layar lain, tanpa seorang pun tahu kenapa.
+             *
+             * Aturan ini hanya menyala ketika KEDUA kunci dikirim; koreksi yang
+             * hanya mengubah jam pulang tanpa menyertakan jam masuk tidak
+             * punya pembanding di badan permintaan, dan TimesheetService yang
+             * menangkapnya (keadaan setengah terukur dengan kalimatnya).
+             */
+            'check_out_at' => ['sometimes', 'nullable', 'date', 'after:check_in_at'],
             'reason' => ['required', 'string', 'min:5', 'max:500'],
         ];
     }
@@ -52,6 +65,7 @@ class AttendanceUpdateRequest extends FormRequest
         return [
             'reason.required' => 'Alasan koreksi wajib diisi — koreksi absensi tersimpan sebagai jejak, dan jejak tanpa alasan tidak menjelaskan apa pun.',
             'reason.min' => 'Alasan koreksi terlalu pendek untuk bisa dibaca orang lain nanti.',
+            'check_out_at.after' => 'Jam pulang harus berada SESUDAH jam masuk. Dua stempel yang tidak membentuk rentang tidak mengukur apa pun, dan menolaknya di sini jauh lebih murah daripada membiarkannya muncul sebagai hari "belum terukur" di layar Timesheet minggu depan.',
         ];
     }
 }

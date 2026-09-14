@@ -107,6 +107,14 @@ function policyCard(policy) {
       ? null
       : 'Sistem ini tidak punya kalender hari libur nasional. Hari non-kerja ditentukan pola pekan '
         + `(${policy.workweek_days} hari kerja), jadi hari libur nasional terbaca sebagai hari kerja biasa.`,
+    /* BATAS KETIGA, ditambahkan pada putaran verifikasi: sistem ini hanya punya
+       SATU jam mulai kerja untuk seluruh perusahaan, jadi shift malam tidak bisa
+       dinilai keterlambatannya sama sekali. Sebelumnya pekerja shift malam yang
+       datang tepat waktu dibaca "Terlambat 13j 50m" setiap hari — di layar yang
+       dibuat supaya ia bisa membantah. */
+    `Sistem ini hanya punya SATU jam mulai kerja (${policy.day_start}) untuk seluruh perusahaan. `
+      + 'Hari yang jam masuknya jatuh jauh di luar jendela itu — shift malam, misalnya — '
+      + 'keterlambatannya TIDAK diukur sama sekali; jam kerja dan lemburnya tetap terukur.',
     'Angka di layar ini adalah USULAN dari register absensi. ILB (Izin Lembur) tetap otoritatif '
       + 'atas jam lembur yang dibayar; rekap bulanan tetap dokumen yang diperiksa dan disimpan HR.',
   ].filter(Boolean);
@@ -182,6 +190,26 @@ function deltaCell(row) {
   });
 }
 
+/* Lencana pekan yang melewati batas — DENGAN keterangan pekan mana dan berapa
+   menitnya jatuh di bulan sebelah. Pekan ISO yang terbelah antara dua bulan
+   dihitung UTUH (TimesheetService::weeksOverCap), jadi angkanya tidak akan
+   cocok dengan tabel harian di layar ini, yang hanya memuat hari bulan ini —
+   dan selisih yang tidak dijelaskan akan dibaca sebagai kesalahan. */
+function weeklyCapBadge(row, policy) {
+  const weeks = row.weeks_over_weekly_cap;
+  if (!weeks.length) return null;
+
+  const node = badge(`${weeks.length} pekan > ${policy.overtime_weekly_cap_hours} jam`, 'amber');
+  node.title = weeks
+    .map((week) => `${week.week}: ${hoursText(week.minutes)}`
+      + (week.spans_periods
+        ? ` (termasuk ${hoursText(week.minutes_outside_period)} pada bulan sebelah — pekan ISO ini terbelah)`
+        : ''))
+    .join(' · ');
+
+  return node;
+}
+
 function periodTable(payload, onPick) {
   return el('.table-wrap', el('table.data.timesheet', [
     el('thead', el('tr', [
@@ -226,9 +254,7 @@ function periodTable(payload, onPick) {
         row.days_over_daily_cap
           ? badge(`${row.days_over_daily_cap} hari > ${payload.policy.overtime_daily_cap_hours} jam`, 'amber')
           : null,
-        row.weeks_over_weekly_cap.length
-          ? badge(`${row.weeks_over_weekly_cap.length} pekan > ${payload.policy.overtime_weekly_cap_hours} jam`, 'amber')
-          : null,
+        weeklyCapBadge(row, payload.policy),
       ]),
       cell(hoursDecimal(row.permit_hours), 'Tidak ada ILB yang disetujui untuk orang ini pada periode ini.'),
       deltaCell(row),

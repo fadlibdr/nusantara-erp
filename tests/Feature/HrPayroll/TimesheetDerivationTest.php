@@ -303,6 +303,174 @@ class TimesheetDerivationTest extends ErpTestCase
         $this->assertNull($day['overtime_minutes']);
     }
 
+    // --------------------------------- cap jam yang tidak mengukur harinya
+
+    /**
+     * SATU SALAH KETIK BULAN = 721 JAM LEMBUR DALAM SATU HARI.
+     *
+     * Pintu koreksi F-4 dianjurkan panduan justru untuk "lupa absen pulang",
+     * jadi kerani mengetik tanggal DAN jam dengan tangan. Sampai putaran
+     * verifikasi, `day()` memakai kedua cap apa adanya dan `$date` hanya
+     * dipakai menghitung keterlambatan: cap yang salah bulan diterima 200 OK
+     * dan menjadi hari "terukur" 43.740 menit kerja / 43.260 menit lembur,
+     * seluruhnya dibukukan ke pekan ISO tanggal BARISNYA. Barisnya memang
+     * ditandai `over_daily_cap`, tetapi angkanya tetap masuk ke ringkasan, ke
+     * kolom yang Usulan Rekap sodorkan, dan ke bentuk yang membelah tarif.
+     */
+    public function test_stamps_a_month_away_from_the_row_date_measure_nothing_for_that_day(): void
+    {
+        $employee = $this->makeEmployee();
+
+        Attendance::query()->create([
+            'employee_id' => $employee->id,
+            'date' => '2026-06-01',
+            'status' => 'hadir',
+            'check_in_at' => '2026-06-01 08:00:00',
+            'check_out_at' => '2026-07-01 17:00:00',
+        ]);
+
+        $day = $this->dayFor($employee, '2026-06-01');
+
+        $this->assertSame(TimesheetDayState::SetengahTerukur->value, $day['state']);
+        $this->assertNull($day['worked_minutes']);
+        $this->assertNull($day['overtime_minutes']);
+        $this->assertNull($day['late_minutes']);
+        $this->assertStringContainsString('tidak jatuh pada tanggalnya', (string) $day['note']);
+        $this->assertNull(
+            $this->service()->forEmployee($employee, 2026, 6)['summary']['overtime_hours'],
+            '721 jam lembur dalam satu hari bukan pengukuran, dan bukan juga nol: tidak ada satu hari '
+            .'pun yang terukur di bulan ini. Angka yang tidak bisa dipercaya lebih baik BERGARIS '
+            .'daripada besar.',
+        );
+    }
+
+    /**
+     * Varian yang lebih halus, dan justru yang lolos tanpa satu tanda pun:
+     * cap dua hari geser tidak melewati batas harian sama sekali.
+     */
+    public function test_stamps_two_days_away_are_caught_even_though_they_look_like_an_ordinary_day(): void
+    {
+        $employee = $this->makeEmployee();
+
+        Attendance::query()->create([
+            'employee_id' => $employee->id,
+            'date' => '2026-06-01',
+            'status' => 'hadir',
+            'check_in_at' => '2026-06-03 08:00:00',
+            'check_out_at' => '2026-06-03 17:00:00',
+        ]);
+
+        $day = $this->dayFor($employee, '2026-06-01');
+
+        $this->assertSame(TimesheetDayState::SetengahTerukur->value, $day['state']);
+        $this->assertNull($day['worked_minutes'], '540 menit kerja dan 2.870 menit terlambat pada hari '
+            .'yang orangnya tidak ada di sana lolos tanpa satu tanda pun sebelum putaran verifikasi.');
+        $this->assertNull($day['late_minutes']);
+    }
+
+    /** Shift malam 22:00 → 06:00 keesokan harinya TETAP sah dan tetap terukur. */
+    public function test_a_night_shift_that_ends_the_next_morning_is_still_measured(): void
+    {
+        $employee = $this->makeEmployee();
+
+        Attendance::query()->create([
+            'employee_id' => $employee->id,
+            'date' => '2026-06-01',
+            'status' => 'hadir',
+            'check_in_at' => '2026-06-01 22:00:00',
+            'check_out_at' => '2026-06-02 06:00:00',
+        ]);
+
+        $day = $this->dayFor($employee, '2026-06-01');
+
+        $this->assertSame(TimesheetDayState::Terukur->value, $day['state']);
+        $this->assertSame(480, $day['worked_minutes']);
+    }
+
+    /**
+     * ...DAN keterlambatannya tidak diukur sama sekali.
+     *
+     * Sistem ini hanya punya SATU jam mulai kerja, jadi pekerja shift malam
+     * yang datang tepat waktu dibaca "terlambat 13 jam 50 menit", setiap hari,
+     * di layar yang dibuat supaya ia bisa membantah — dan ikut menambah
+     * `late_days`. Itu pengukuran yang tidak pernah terjadi.
+     */
+    public function test_a_night_shift_is_never_called_late_by_a_day_start_that_does_not_apply_to_it(): void
+    {
+        $employee = $this->makeEmployee();
+
+        Attendance::query()->create([
+            'employee_id' => $employee->id,
+            'date' => '2026-06-01',
+            'status' => 'hadir',
+            'check_in_at' => '2026-06-01 22:00:00',
+            'check_out_at' => '2026-06-02 06:00:00',
+        ]);
+
+        $day = $this->dayFor($employee, '2026-06-01');
+        $summary = $this->service()->forEmployee($employee, 2026, 6)['summary'];
+
+        $this->assertNull($day['late_minutes'], 'Terlambat 830 menit adalah salah baca, bukan pengukuran.');
+        $this->assertSame('di_luar_jendela_hari_kerja', $day['late_withheld']);
+        $this->assertStringContainsString('hanya punya satu jam mulai kerja', (string) $day['note']);
+        $this->assertSame(0, $summary['late_days']);
+        $this->assertNull($summary['late_minutes'], 'Tidak ada satu hari pun yang keterlambatannya terukur.');
+    }
+
+    /**
+     * Datang sembilan jam terlambat MASIH terlambat: jendelanya setengah hari,
+     * bukan satu jam, supaya keterlambatan yang sungguhan tidak ikut terhapus.
+     */
+    public function test_arriving_nine_hours_late_is_still_measured_as_lateness(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->clockedDay($employee, '2026-06-01', '17:00', '19:00');
+
+        $this->assertSame(530, $this->dayFor($employee, '2026-06-01')['late_minutes']);
+    }
+
+    /**
+     * Sepasang cap yang TERTUKAR tidak mengukur apa pun — termasuk
+     * keterlambatannya.
+     *
+     * Enum dan catatan harinya sama-sama berbunyi "dua stempel yang tidak
+     * membentuk rentang tidak mengukur apa pun", sementara kode tetap
+     * menghitung terlambat 530 menit darinya, memasukkannya ke total bulanan,
+     * menaikkan `late_days`, dan membawanya ke CSV. Di layar, sel "8j 50m" itu
+     * diberi `title` yang justru berbunyi bahwa tidak ada yang bisa diukur hari
+     * itu: satu sel yang membantah keterangannya sendiri.
+     */
+    public function test_two_stamps_that_do_not_form_a_range_do_not_measure_lateness_either(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->clockedDay($employee, '2026-06-01', '17:00', '08:00');
+
+        $day = $this->dayFor($employee, '2026-06-01');
+        $summary = $this->service()->forEmployee($employee, 2026, 6)['summary'];
+
+        $this->assertSame(TimesheetDayState::SetengahTerukur->value, $day['state']);
+        $this->assertNull(
+            $day['late_minutes'],
+            'Pembenaran "orang yang lupa absen pulang tetap datang pada jam yang tercatat" benar '
+            .'untuk hari yang cap pulangnya HILANG, dan tidak benar untuk hari yang capnya ADA '
+            .'tetapi tertukar: 17:00 hampir pasti bukan jam datang orang itu.',
+        );
+        $this->assertSame('cap_terbalik', $day['late_withheld']);
+        $this->assertSame(0, $summary['late_days']);
+    }
+
+    /** ...tetapi hari yang cap pulangnya HILANG tetap melaporkan keterlambatannya. */
+    public function test_a_missing_check_out_still_reports_the_lateness_it_did_measure(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->clockedDay($employee, '2026-06-01', '08:25', null);
+
+        $day = $this->dayFor($employee, '2026-06-01');
+
+        $this->assertSame(15, $day['late_minutes']);
+        $this->assertNull($day['late_withheld']);
+    }
+
     // ------------------------------------------------- tepi pembulatan
 
     /**
@@ -489,9 +657,91 @@ class TimesheetDerivationTest extends ErpTestCase
 
         $summary = $this->service()->forEmployee($employee, 2026, 6)['summary'];
 
-        $this->assertSame([['week' => '2026-W23', 'minutes' => 900]], $summary['weeks_over_weekly_cap']);
+        $this->assertSame(
+            [['week' => '2026-W23', 'minutes' => 900, 'minutes_outside_period' => 0, 'spans_periods' => false]],
+            $summary['weeks_over_weekly_cap'],
+        );
         $this->assertSame(900, $summary['overtime_minutes'], 'Totalnya tetap 15 jam penuh, bukan 14.');
         $this->assertSame(0, $summary['days_over_daily_cap'], '3 jam sehari tepat di batas, belum melewatinya.');
+    }
+
+    /**
+     * PEKAN YANG TERBELAH ANTARA DUA BULAN DIHITUNG UTUH.
+     *
+     * Layar mencetak "Batas Kepmenaker 3 jam/hari dan 14 jam/pekan — dilampaui
+     * berarti DITANDAI, bukan dipotong", dan §21 panduan mengulanginya. Untuk
+     * batas HARIAN itu benar. Untuk batas PEKANAN tidak: sampai putaran
+     * verifikasi, pekan dikelompokkan atas hari-hari satu bulan saja, jadi
+     * pekan ISO yang melintasi tanggal 1 diperiksa sebagai DUA potongan dan
+     * masing-masing potongan bisa berada di bawah batas walau pekannya di atas.
+     *
+     * Pekan ISO 2026-W27 adalah Senin 29 Juni sampai Minggu 5 Juli.
+     */
+    public function test_a_week_that_straddles_two_months_is_counted_whole_in_both(): void
+    {
+        $employee = $this->makeEmployee();
+
+        $this->dayWithExtraMinutes($employee, '2026-06-29', 420); // 7 jam
+        $this->dayWithExtraMinutes($employee, '2026-06-30', 420); // 7 jam
+        $this->dayWithExtraMinutes($employee, '2026-07-01', 180); // 3 jam
+
+        $juni = $this->service()->forEmployee($employee, 2026, 6)['summary'];
+        $juli = $this->service()->forEmployee($employee, 2026, 7)['summary'];
+
+        $this->assertSame(
+            [['week' => '2026-W27', 'minutes' => 1020, 'minutes_outside_period' => 180, 'spans_periods' => true]],
+            $juni['weeks_over_weekly_cap'],
+            'Tujuh belas jam dalam satu pekan, tiga jam di atas batas Kepmenaker, dan Juni melaporkan '
+            .'14 jam saja karena tiga jamnya jatuh di bulan sebelah.',
+        );
+        $this->assertSame(
+            [['week' => '2026-W27', 'minutes' => 1020, 'minutes_outside_period' => 840, 'spans_periods' => true]],
+            $juli['weeks_over_weekly_cap'],
+            'Dan Juli melaporkan 3 jam saja. Dua potongan yang masing-masing di bawah batas adalah '
+            .'penanda kepatuhan yang diam justru pada pekan yang paling berat.',
+        );
+
+        // ...dan totalnya masing-masing tetap total BULANNYA: hari di luar bulan
+        // hanya dipakai menjumlahkan pekan, tidak pernah masuk ke jam bulanan.
+        $this->assertSame(840, $juni['overtime_minutes']);
+        $this->assertSame(180, $juli['overtime_minutes']);
+    }
+
+    /**
+     * Melebarkan jendela kueri ke pekan ISO tidak boleh melahirkan BARIS baru.
+     *
+     * Seseorang yang satu-satunya catatannya jatuh pada 29 Juni tidak punya
+     * apa pun di bulan Juli, dan sebuah baris Juli berisi null semata adalah
+     * persis tabel nol yang seluruh layar ini dibangun untuk tidak
+     * menggambarnya.
+     */
+    public function test_widening_the_window_never_adds_a_row_for_a_month_the_person_has_nothing_in(): void
+    {
+        $employee = $this->makeEmployee();
+        $this->dayWithExtraMinutes($employee, '2026-06-29', 180);
+
+        $this->assertSame(
+            [],
+            $this->service()->forPeriod(2026, 7)['rows'],
+            'Hari di luar bulan hanya dipakai MENJUMLAHKAN pekan; ia tidak pernah menjadi baris.',
+        );
+        $this->assertCount(1, $this->service()->forPeriod(2026, 6)['rows']);
+    }
+
+    /**
+     * Pekan yang SELURUHNYA di bulan sebelah adalah pekan bulan sebelah:
+     * melaporkannya di sini berarti menandai orang dua kali untuk satu pekan.
+     */
+    public function test_a_week_entirely_in_the_neighbouring_month_is_not_reported_here(): void
+    {
+        $employee = $this->makeEmployee();
+
+        // Pekan 2026-W26 (22–28 Juni) melewati batas; Juli tidak boleh melihatnya.
+        foreach (['2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'] as $date) {
+            $this->dayWithExtraMinutes($employee, $date, 180);
+        }
+
+        $this->assertSame([], $this->service()->forEmployee($employee, 2026, 7)['summary']['weeks_over_weekly_cap']);
     }
 
     public function test_hours_on_a_non_working_day_are_measured_but_never_proposed_as_weekday_overtime(): void
