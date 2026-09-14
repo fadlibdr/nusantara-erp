@@ -271,6 +271,61 @@ class TimesheetService
     }
 
     /**
+     * BENTUK HARIAN lembur satu pegawai pada satu periode — bahan yang payroll
+     * butuhkan untuk membayar 1,5x jam pertama dan 2x jam berikutnya.
+     *
+     * Memulangkan NULL ketika periode itu tidak punya SATU PUN hari kerja yang
+     * terukur penuh. Null bukan "nol jam lembur": null berarti tidak ada
+     * pengetahuan tentang bentuk bulan itu sama sekali, dan payroll harus
+     * memakai jalur lamanya. Sebuah bulan yang PUNYA hari terukur tetapi
+     * lemburnya nihil memulangkan total 0.0 dengan daftar hari kosong — itu
+     * pengetahuan, bukan ketiadaannya.
+     *
+     * Hari non-kerja tidak pernah masuk: lemburnya sengaja tidak diusulkan
+     * (tarif hari libur tidak dibangun paket ini), jadi ia juga bukan bentuk
+     * yang boleh dipakai membelah jam yang dibayar.
+     *
+     * @return array{total_hours: float, days: list<array{date: string, hours: float}>}|null
+     */
+    public function measuredOvertimeShape(int $employeeId, int $year, int $month): ?array
+    {
+        $policy = $this->policy();
+        [$start, $end] = $this->bounds($year, $month);
+
+        $attendances = Attendance::query()
+            ->where('employee_id', $employeeId)
+            ->whereDate('date', '>=', $start->toDateString())
+            ->whereDate('date', '<=', $end->toDateString())
+            ->get()
+            ->keyBy(fn (Attendance $row): string => $row->date->toDateString());
+
+        $measuredDays = 0;
+        $days = [];
+        $totalMinutes = 0;
+
+        for ($cursor = $start->copy(); $cursor->lte($end); $cursor->addDay()) {
+            $day = $this->day($cursor, $attendances->get($cursor->toDateString()), $policy);
+
+            if ($day['state'] !== TimesheetDayState::Terukur->value || $day['non_working_day']) {
+                continue;
+            }
+
+            $measuredDays++;
+
+            if ((int) $day['overtime_minutes'] > 0) {
+                $totalMinutes += (int) $day['overtime_minutes'];
+                $days[] = ['date' => $day['date'], 'hours' => round($day['overtime_minutes'] / 60, 2)];
+            }
+        }
+
+        if ($measuredDays === 0) {
+            return null;
+        }
+
+        return ['total_hours' => round($totalMinutes / 60, 2), 'days' => $days];
+    }
+
+    /**
      * Menit lembur satu hari: sesudah jam normal, SESUDAH PEMBULATAN, sesudah
      * minimum — dalam urutan itu, dan pembulatannya terjadi DI SINI, sekali.
      *

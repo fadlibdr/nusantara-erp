@@ -20,6 +20,17 @@ class PayslipResource extends JsonResource
             'allowances_total' => $this->allowances_total,
             'overtime_hours' => $this->overtime_hours,
             'overtime_pay' => $this->overtime_pay,
+            /*
+             * F-5 — dengan dasar apa lembur slip ini dibayar. Dikirim bersama
+             * LABEL-nya, seperti setiap enum lain di rumah ini: 'rata_jam_pertama'
+             * di layar orang yang sedang memeriksa gaji seseorang adalah kebocoran
+             * istilah basis data. null = slip dihitung sebelum 14 Sep 2026 dan
+             * dasarnya memang tidak pernah dicatat — keadaan yang berbeda dari
+             * 'tanpa_lembur', dan layar mengatakannya berbeda.
+             */
+            'overtime_basis' => $this->overtime_basis?->value,
+            'overtime_basis_label' => $this->overtime_basis?->label(),
+            'overtime_rate_detail' => $this->overtime_rate_detail,
             'thr_amount' => $this->thr_amount,
             'gross_income' => $this->gross_income,
             'bpjs' => $this->bpjs,
