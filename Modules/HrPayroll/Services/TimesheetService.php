@@ -297,10 +297,26 @@ class TimesheetService
          */
         $stampsBelongHere = $this->stampsBelongToDay($date, $in, $out);
 
+        /*
+         * HARI YANG BELUM TERJADI BUKAN HARI YANG DILEWATKAN (putaran penutup,
+         * V-2). Layar ini dibuka pada bulan BERJALAN, jadi tanpa cabang ini
+         * seluruh sisa bulan jatuh ke `TidakTercatat` dan orang yang bercap jam
+         * lengkap setiap hari kerja yang sudah lewat tetap dituduh melewatkan
+         * dua puluh tiga hari. Hanya tanggal SESUDAH hari ini, dan hanya bila
+         * tidak ada cap jam sama sekali: sebuah cap jam bertanggal depan adalah
+         * salah ketik yang harus tetap terlihat, bukan hari yang belum tiba.
+         */
+        $notYet = $in === null && $out === null && $date->isAfter(Carbon::today()->endOfDay());
+
         $state = match (true) {
             $in !== null && $out !== null && $out->greaterThan($in) && $stampsBelongHere => TimesheetDayState::Terukur,
             $in !== null || $out !== null => TimesheetDayState::SetengahTerukur,
+            // Hari non-kerja lebih dulu: Minggu depan memang tidak akan pernah
+            // menjadi hari kerja, dan "Hari non-kerja" mengatakan lebih banyak
+            // daripada "Belum tiba". Yang perlu keadaan baru hanyalah hari
+            // KERJA yang belum terjadi.
             $nonWorking => TimesheetDayState::NonKerja,
+            $notYet => TimesheetDayState::BelumTiba,
             default => TimesheetDayState::TidakTercatat,
         };
 
@@ -901,6 +917,7 @@ class TimesheetService
                 ? 'Tidak ada catatan apa pun untuk hari ini.'
                 : 'Kehadiran dicatat kerani tanpa cap jam, jadi tidak ada jam yang bisa diukur.',
             TimesheetDayState::NonKerja => $nonWorking ? 'Hari non-kerja menurut pola pekan yang berlaku.' : null,
+            TimesheetDayState::BelumTiba => 'Tanggal ini belum tiba.',
         };
     }
 

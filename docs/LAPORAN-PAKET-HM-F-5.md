@@ -495,9 +495,13 @@ ditambahkan ke daftar kejujuran layar dan ke §21. **M48 merah.**
 
 **B-6 · Cap jam tidak diperiksa terhadap tanggal barisnya (SEDANG) — DIPERBAIKI, `3d2ee68`.**
 Satu salah ketik bulan = 721 jam lembur dalam satu hari; varian dua hari geser lolos tanpa satu
-tanda pun. Dua lapis: `AttendanceUpdateRequest` menuntut `after:check_in_at`, dan `day()` menolak
-mengangkat hari menjadi Terukur bila capnya tidak berhubungan dengan tanggalnya — shift malam
-22:00→06:00 tetap sah. **M46 merah.**
+tanda pun. Yang benar-benar menjaga angkanya adalah `day()`, yang menolak mengangkat hari menjadi
+Terukur bila capnya tidak berhubungan dengan tanggalnya — shift malam 22:00→06:00 tetap sah.
+`AttendanceUpdateRequest::after:check_in_at` adalah lapis pertama yang menangkap kasus paling
+jelas saja: ia hanya menyala bila KEDUA kunci dikirim, sementara pintu ini dianjurkan panduan
+justru untuk "lupa absen pulang" — koreksi yang hanya mengirim `check_out_at`, dan yang karena itu
+LOLOS aturan ini (putaran penutup, V-5: keduanya kini dipaku uji, yang ditolak maupun yang lolos).
+**M46 merah.**
 
 **B-7 · Cap terbalik tetap melaporkan keterlambatan (SEDANG) — DIPERBAIKI, `3d2ee68`.**
 Satu sel yang membantah keterangannya sendiri. Kedua sebab "setengah terukur" kini dipisah: cap
@@ -597,3 +601,42 @@ Daftar §9 bertambah satu, dan ia **satu jenis** dengan `day_start` 08:00 yang s
 **`hr.timesheet.break_minutes` = 60 menit** adalah angka yang pemilik tidak sebut pada 14 September
 2026. Ia dipilih di sini karena tanpanya setiap hari kerja biasa menghasilkan lembur palsu, ia
 dicetak layar apa adanya, dan ia satu suntingan di layar Pengaturan — bukan satu rilis.
+
+---
+
+## 14. PUTARAN PENUTUP — 14 September 2026, 8 temuan
+
+Verifier penutup bekerja di worktree sendiri atas `6be46e9`, menjalankan **24 mutasinya sendiri**
+atas perbaikan §13, **menghitung ulang dengan tangan** upah lembur satu bulan campuran, dan
+menjalankan gerbang di SQLite **dan MySQL 8** (dimensi yang §13 tidak laporkan sama sekali).
+
+**Yang ia kuatkan, dan itu bagian terpenting laporan ini.** Hitungan tangannya —
+1 Jun 08:00–17:29, 2 Jun 08:00–18:00, 3 Jun 08:00–19:45, 4 Jun hanya cap masuk, 7 Jun (Minggu)
+08:00–17:00 — memulangkan **Rp 460.982,66**, dan kode memulangkan angka yang sama persis, butir
+demi butir (worked 1.874 m, istirahat 180, bersih 1.694, lembur 255, hari non-kerja terukur 480).
+Ia juga membuktikan sendiri bahwa **tidak ada satu jalur pun** yang mengubah slip terposting
+(ketiga pintu `hr_payslips` melewati `assertEditable()`), dan **tidak ada satu jalur pun** yang
+menulis rekap tanpa HR (`TimesheetController` baca-saja; satu-satunya tulisan tetap
+`POST/PUT hr/attendance-recaps` di balik izinnya).
+
+**TIGA MUTASINYA BERTAHAN — gerbang buta di tiga tempat**, dan ketiganya ditutup di sini:
+
+| # | Apa | Ditutup |
+|---|---|---|
+| **V-1** (tinggi) | `hr.leave.workweek_days` — kunci CUTI — kini menggerakkan upah lembur: ia memutuskan hari mana non-kerja, dan lembur hari non-kerja ditahan. Kalimat grup `hr` yang ditulis §13 justru MENENANGKAN orang tentang kunci itu ("Cuti dan radius absensi TIDAK menggerakkan payroll"), dan `help`-nya hanya berbicara tentang saldo cuti. Kalimat yang menenangkan orang tentang kunci berbahaya lebih buruk daripada tidak ada kalimat: ia membuat orang berani menyuntingnya | deskripsi grup + `help` + label diperbaiki; kunci masuk `auditsEffectiveChange()`; **tiga pin, tiga mutasi merah** — termasuk pin PERILAKU (dua Sabtu berlembur: 4,00 jam pada pekan enam hari, BERGARIS pada lima) |
+| **V-2** (sedang) | Bulan BERJALAN — tampilan bawaan — menuduh setiap orang atas hari yang belum terjadi: pada 3 Juni, orang yang bercap jam lengkap setiap hari kerja yang sudah lewat memulangkan `unrecorded_days = 23` | keadaan **KELIMA** `BelumTiba`; hanya hari KERJA yang belum tiba (Minggu depan tetap `NonKerja`), dan hanya bila tidak ada cap jam sama sekali — cap bertanggal depan adalah salah ketik yang harus tetap terlihat. **Mutasi merah: 23 vs 0** |
+| **V-3** (sedang) | `overtime_rate_detail` membantah dirinya sendiri: `minutes_at_next_rate` 50 (= 0,83 jam) di sebelah `hours_at_next_rate` 0,84, dan menghitung ulang upah dari angka jamnya tidak memulangkan `overtime_pay`. Sebabnya invarian yang SALAH: "kedua ember berjumlah kolom `overtime_hours`" — kolom itu jam REKAP, sedangkan yang dibayar MENIT absensi | setiap angka jam diturunkan dari menitnya sendiri; `minutes_paid` ditambahkan; **ujinya diganti** menjadi "catatan ini SENDIRIAN menghasilkan kembali upahnya". **Mutasi merah** |
+| **V-4** (sedang) | Baris «Dasar:» pada slip CETAK — seluruh pokok perbaikan A-3, dan yang PANDUAN §21 janjikan kepada karyawan — tidak dijaga satu uji pun: mengganti katanya menjadi «XXX:» meninggalkan 344 + 27 uji hijau | pin render tiga keadaan. **Mutasi merah** |
+| **V-5** (rendah) | `after:check_in_at` tidak dipaku, DAN tidak menyala pada jalur koreksi yang panduan anjurkan (hanya `check_out_at` dikirim → 200 OK, baris tersimpan terbalik) | uji memaku KEDUANYA — yang ditolak dan yang lolos — dan §13 tidak lagi menyebut "dua lapis" seolah keduanya setara. **Mutasi merah** |
+| **V-6** (rendah) | Spanduk "payroll sudah diposting" di layar yang MENULIS rekap hanya dipaku sebagai nama kelas; `if (false)` meninggalkan gerbang hijau | syaratnya yang dipaku, bukan kelasnya. **Mutasi merah** |
+| **V-7** (rendah) | Dua suntingan di luar cakupan ikut dalam paket yang menyentuh gaji | disebut di sini, bukan disembunyikan: `FormXlsxExportService.php` (impor `DataType` yang tidak terpakai dibuang) dan `ChartMigrationTest.php` (tanda kutip), keduanya murni pint dan tidak berhubungan dengan F-5 |
+| **V-8** (rendah) | `createPayslip()` menulis kedua kolom 001094 TANPA SYARAT: bila migrasi terlewat saat deploy, "Hitung Payroll" MATI alih-alih berdegradasi | bukan perubahan kode — **satu langkah runbook**, di bawah |
+
+### 14.1 Langkah deploy yang WAJIB (V-8)
+
+Migrasi `2026_09_14_001094_add_overtime_basis_to_hr_payslips_table.php` harus mendarat SEBELUM
+payroll dihitung lagi. Rumah ini sudah pernah melihat `migrate` melewati satu blok tanpa suara
+(pelajaran "deploy migration race"), dan di sini akibatnya bukan degradasi melainkan galat SQL
+«no such column» yang menghentikan perhitungan gaji. Sesudah deploy, verifikasi lewat PDO —
+persis seperti yang dilakukan untuk batch 58 — bahwa `hr_payslips` memuat `overtime_basis` DAN
+`overtime_rate_detail` sebelum mengumumkan paket ini hidup.

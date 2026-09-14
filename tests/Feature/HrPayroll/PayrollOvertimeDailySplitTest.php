@@ -259,11 +259,23 @@ class PayrollOvertimeDailySplitTest extends ErpTestCase
     }
 
     /**
-     * Tepi tampilan: 110 + 50 menit membulat sendiri-sendiri menjadi 1,83 dan
-     * 0,83 = 2,66, sementara totalnya 2,67. Jam berikutnya karena itu adalah
-     * SISA, bukan pembulatannya sendiri — dan menit yang tepat ikut dibawa.
+     * V-3 — CATATAN TARIF HARUS BISA MENGHASILKAN KEMBALI UPAHNYA SENDIRI.
+     *
+     * Versi pertama uji ini memaku invarian yang SALAH: "kedua ember jam
+     * berjumlah persis kolom `overtime_hours`". Kolom itu adalah jam REKAP yang
+     * disetujui HR; yang dibayar adalah MENIT absensi, dan keduanya tidak wajib
+     * habis dibagi sama. Pada 110 + 50 menit dengan rekap 2,67 jam, invarian itu
+     * memaksa `hours_at_next_rate` menjadi 0,84 di sebelah
+     * `minutes_at_next_rate` 50 (= 0,83) — dua angka untuk satu hal dalam satu
+     * baris, dan menghitung ulang upah dari angka jamnya TIDAK memulangkan
+     * `overtime_pay`. Sebuah catatan yang membantah dirinya sendiri tidak bisa
+     * dipakai membantah apa pun, dan itulah satu-satunya gunanya.
+     *
+     * Yang dipaku sekarang adalah yang benar-benar harus benar: setiap angka
+     * diturunkan dari menitnya sendiri, dan catatan itu SENDIRIAN — tanpa
+     * meminjam apa pun dari kolom rekap — menghasilkan kembali `overtime_pay`.
      */
-    public function test_the_two_rate_buckets_always_add_up_to_the_hours_column(): void
+    public function test_the_rate_detail_reproduces_the_pay_without_borrowing_from_the_recap(): void
     {
         $this->setSetting('hr.timesheet.rounding_minutes', 10);
         $this->setSetting('hr.timesheet.overtime_minimum_minutes', 0);
@@ -280,11 +292,26 @@ class PayrollOvertimeDailySplitTest extends ErpTestCase
         $detail = $slip->overtime_rate_detail;
 
         $this->assertSame(OvertimeBasis::RincianHarian, $slip->overtime_basis);
-        $this->assertSame(
-            round((float) $slip->overtime_hours, 2),
-            round((float) $detail['hours_at_first_rate'] + (float) $detail['hours_at_next_rate'], 2),
-        );
         $this->assertSame([110, 50], [(int) $detail['minutes_at_first_rate'], (int) $detail['minutes_at_next_rate']]);
+        $this->assertSame(160, (int) $detail['minutes_paid'], 'Menit yang dibayar harus ikut tercatat.');
+
+        // Tidak ada angka yang bertentangan: jam adalah menitnya dibagi 60.
+        $this->assertSame(round(110 / 60, 2), round((float) $detail['hours_at_first_rate'], 2));
+        $this->assertSame(round(50 / 60, 2), round((float) $detail['hours_at_next_rate'], 2));
+
+        // Dan catatan itu sendirian menghasilkan kembali upahnya.
+        $upahSejam = (11_000_000 / (int) $detail['divisor']);
+        $dihitungUlang = round(
+            ((110 / 60) * ((float) $detail['first_hour_pct'] / 100) + (50 / 60) * ((float) $detail['next_hours_pct'] / 100)) * $upahSejam,
+            2,
+        );
+
+        $this->assertSame(
+            $dihitungUlang,
+            round((float) $slip->overtime_pay, 2),
+            'Menghitung ulang dari catatan tarif harus memulangkan angka yang sama dengan yang dibayar. '
+            .'Bila tidak, slip ini memuat sebuah rincian yang tidak menjelaskan angkanya sendiri.',
+        );
     }
 
     // ------------------------------------------------ jalur lama tetap hidup

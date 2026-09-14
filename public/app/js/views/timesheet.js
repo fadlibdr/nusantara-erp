@@ -270,6 +270,11 @@ const STATE_TONE = {
   setengah_terukur: 'amber',
   tidak_tercatat: '',
   non_kerja: '',
+  // Putaran penutup (V-2): tanggal yang belum terjadi. Nada yang sama dengan
+  // hari non-kerja — tidak ada yang hilang, jadi tidak ada yang perlu
+  // ditandai. Yang salah sebelumnya bukan warnanya melainkan namanya: ia
+  // terhitung "tidak tercatat", dan itu tuduhan.
+  belum_tiba: '',
 };
 
 function dayTable(payload) {

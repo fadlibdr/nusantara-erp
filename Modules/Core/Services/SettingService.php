@@ -254,10 +254,13 @@ class SettingService
             'hr' => [
                 'label' => 'SDM — Cuti, Absensi & Timesheet',
                 'description' => 'Hak cuti, aturan absensi lapangan, dan kebijakan timesheet/lembur. '
-                    .'Cuti dan radius absensi TIDAK menggerakkan payroll — rekap bulanan tetap dokumen '
-                    .'yang diperiksa dan disimpan manusia. Kebijakan timesheet di bagian bawah BERBEDA: '
+                    .'Radius absensi TIDAK menggerakkan payroll — rekap bulanan tetap dokumen yang '
+                    .'diperiksa dan disimpan manusia. Kebijakan timesheet di bagian bawah MENGGERAKKANNYA: '
                     .'ia menentukan berapa menit yang dihitung lembur dan dengan tarif berapa dibayar, '
-                    .'jadi setiap perubahannya menggeser uang pada payroll yang DIHITUNG sesudahnya.',
+                    .'jadi setiap perubahannya menggeser uang pada payroll yang DIHITUNG sesudahnya. '
+                    .'DAN SATU KUNCI CUTI IKUT: "Hari kerja per pekan" menentukan hari mana yang '
+                    .'non-kerja, dan lembur pada hari non-kerja ditahan — jadi ia menggeser jam lembur '
+                    .'turunan juga, bukan hanya saldo cuti.',
                 'settings' => [
                     [
                         'key' => 'hr.leave.annual_days',
@@ -275,11 +278,15 @@ class SettingService
                     ],
                     [
                         'key' => 'hr.leave.workweek_days',
-                        'label' => 'Hari kerja per pekan (hitung cuti)',
+                        'label' => 'Hari kerja per pekan (cuti DAN timesheet)',
                         'type' => 'integer',
                         'min' => 5,
                         'max' => 6,
-                        'help' => '6 = hanya Minggu libur (rezim proyek); 5 = Sabtu juga tidak memotong saldo cuti.',
+                        'help' => '6 = hanya Minggu libur (rezim proyek); 5 = Sabtu juga tidak memotong saldo cuti. '
+                            .'SEJAK F-5 KUNCI INI JUGA MENGGESER UANG: ia menentukan hari mana yang non-kerja di '
+                            .'layar Timesheet, dan lembur pada hari non-kerja DITAHAN (tarif akhir pekan Kepmenaker '
+                            .'belum dibangun). Menurunkannya dari 6 ke 5 memindahkan setiap Sabtu ke "hari non-kerja", '
+                            .'jadi jam lembur Sabtu berhenti diusulkan ke rekap — pada upah dan jam yang sama persis.',
                     ],
                     [
                         'key' => 'hr.attendance.geofence_metres',
@@ -1092,7 +1099,18 @@ class SettingService
      */
     public static function auditsEffectiveChange(string $key): bool
     {
-        return self::isApprovalPolicyKey($key) || str_starts_with($key, 'hr.timesheet.');
+        /*
+         * `hr.leave.workweek_days` ADA DI SINI MESKIPUN IA KUNCI CUTI
+         * (putaran penutup F-5, V-1). Sejak F-5 ia menentukan hari mana yang
+         * NON-KERJA bagi timesheet, dan lembur pada hari non-kerja ditahan —
+         * jadi menurunkannya dari 6 ke 5 menghentikan setiap jam lembur Sabtu
+         * diusulkan ke rekap, pada upah dan jam yang sama persis. Sebuah kunci
+         * yang menggeser uang harus meninggalkan jejak siapa yang menggesernya,
+         * dan namanya tidak menentukan hal itu — akibatnya yang menentukan.
+         */
+        return self::isApprovalPolicyKey($key)
+            || str_starts_with($key, 'hr.timesheet.')
+            || $key === 'hr.leave.workweek_days';
     }
 
     /**

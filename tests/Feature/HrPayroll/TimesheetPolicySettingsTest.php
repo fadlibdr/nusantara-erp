@@ -240,4 +240,96 @@ class TimesheetPolicySettingsTest extends ErpTestCase
         $this->assertSame(175, (int) $effective['effective']['from']);
         $this->assertSame(190, (int) $effective['effective']['to']);
     }
+
+    /* --------------------------------------------------- putaran penutup (V-1) */
+
+    /**
+     * V-1 — KUNCI CUTI YANG MENGGESER UANG HARUS MENGATAKANNYA.
+     *
+     * Putaran verifikasi menutup C-2 dengan mengganti penyangkalan menyeluruh
+     * menjadi PEMBEDAAN: "cuti dan radius absensi TIDAK menggerakkan payroll —
+     * kebijakan timesheet BERBEDA". Pembedaan itu sendiri tidak benar.
+     * `hr.leave.workweek_days` adalah kunci cuti, dan sejak F-5 ia memutuskan
+     * hari mana NON-KERJA — dan lembur hari non-kerja ditahan. Akibatnya satu
+     * kotak isian di bagian Cuti menghentikan jam lembur Sabtu menjadi uang
+     * (TimesheetDerivationTest memakunya dengan angka).
+     *
+     * Sebuah kalimat yang menenangkan orang tentang kunci yang sebenarnya
+     * berbahaya lebih buruk daripada tidak ada kalimat: ia MEMBUAT orang berani
+     * menyuntingnya.
+     */
+    public function test_the_leave_workweek_key_is_named_as_one_that_moves_money(): void
+    {
+        $group = app(SettingService::class)->definitions()['hr'];
+        $description = (string) ($group['description'] ?? '');
+
+        $this->assertStringNotContainsString(
+            'Cuti dan radius absensi TIDAK menggerakkan payroll',
+            $description,
+            'Kalimat itu menyatakan seluruh bagian Cuti aman disunting. Satu kuncinya tidak aman.',
+        );
+        $this->assertStringContainsString(
+            'Hari kerja per pekan',
+            $description,
+            'Deskripsi grup harus MENYEBUT kunci cuti yang menggeser uang, bukan menyapu bersih '
+            .'seluruh bagian cuti ke sisi yang aman.',
+        );
+
+        $workweek = collect($group['settings'] ?? [])->firstWhere('key', 'hr.leave.workweek_days');
+        $this->assertNotNull($workweek, 'Kunci hr.leave.workweek_days hilang dari grup hr.');
+        $this->assertIsArray($workweek);
+
+        $this->assertStringContainsString(
+            'Timesheet',
+            (string) ($workweek['help'] ?? ''),
+            'Teks bantuan kunci ini hanya berbicara tentang saldo cuti. Orang yang membacanya tidak '
+            .'akan tahu bahwa ia sedang memegang jam lembur Sabtu milik setiap orang.',
+        );
+    }
+
+    /**
+     * V-1 — dan perubahannya meninggalkan jejak.
+     *
+     * `auditsEffectiveChange()` adalah daftar kunci yang menggeser uang. Nama
+     * kunci tidak menentukan keanggotaannya; akibatnya yang menentukan.
+     */
+    public function test_changing_the_leave_workweek_key_is_audited_like_a_money_change(): void
+    {
+        $this->assertTrue(
+            SettingService::auditsEffectiveChange('hr.leave.workweek_days'),
+            'Kunci yang menghentikan jam lembur Sabtu menjadi uang harus meninggalkan jejak siapa yang '
+            .'menggesernya, sama seperti setiap kunci hr.timesheet.*.',
+        );
+
+        // Dua arah, supaya pin ini tidak lulus hanya karena SETIAP suntingan
+        // Pengaturan kebetulan diaudit: hak cuti tahunan adalah kunci cuti yang
+        // TIDAK menggeser uang lembur, dan ia tidak boleh meninggalkan jejak
+        // "perubahan efektif" yang sama.
+        $this->assertFalse(
+            SettingService::auditsEffectiveChange('hr.leave.annual_days'),
+            'Hak cuti tahunan tidak menggeser upah lembur; memasukkannya ke daftar ini membuat daftarnya '
+            .'berhenti berarti apa-apa.',
+        );
+
+        // Yang dihitung adalah baris PERUBAHAN EFEKTIF (`updated` + kunci
+        // `effective`), bukan sembarang baris audit: menyimpan override
+        // Pengaturan pertama kali juga menulis satu baris `created` dari
+        // observer model, dan menghitung keduanya membuat pin ini lulus walau
+        // jejak uangnya hilang.
+        $efektif = fn (): int => AuditLog::query()
+            ->where('auditable_label', 'hr.leave.workweek_days')
+            ->where('event', 'updated')
+            ->count();
+
+        $sebelum = $efektif();
+        app(SettingService::class)->set('hr.leave.workweek_days', 5);
+
+        $this->assertSame(
+            $sebelum + 1,
+            $efektif(),
+            'Menyunting kunci yang menghentikan jam lembur Sabtu menjadi uang tidak meninggalkan baris '
+            .'"perubahan efektif": tidak ada yang bisa menjawab "siapa yang mengubahnya, dari berapa '
+            .'ke berapa, dan kapan".',
+        );
+    }
 }

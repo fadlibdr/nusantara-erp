@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\HrPayroll;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Modules\Core\Enums\DocumentStatus;
+use Modules\Core\Services\SettingService;
 use Modules\HrPayroll\Enums\TimesheetDayState;
 use Modules\HrPayroll\Models\Attendance;
 use Modules\HrPayroll\Models\Employee;
@@ -889,5 +891,105 @@ class TimesheetDerivationTest extends ErpTestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /* ------------------------- putaran penutup: kunci cuti yang menggeser uang */
+
+    /**
+     * V-1 — `hr.leave.workweek_days` MENGGESER UPAH LEMBUR.
+     *
+     * Ia kunci CUTI: labelnya berbicara tentang saldo cuti, dan `help`-nya
+     * sebelum putaran ini tidak menyebut payroll sama sekali. Tetapi sejak F-5
+     * ia yang memutuskan hari mana NON-KERJA, dan lembur hari non-kerja
+     * DITAHAN (tarif akhir pekan Kepmenaker belum dibangun). Jadi satu kotak
+     * isian di bagian Cuti menghentikan setiap jam lembur Sabtu diusulkan ke
+     * rekap — pada cap jam yang sama persis, untuk orang yang sama, pada upah
+     * yang sama.
+     *
+     * Uji ini memaku AKIBATNYA, bukan kalimatnya: TimesheetPolicySettingsTest
+     * memaku kalimat yang memperingatkannya, dan yang satu tanpa yang lain
+     * adalah separuh. Dua Sabtu dengan dua jam lembur masing-masing; yang
+     * berubah di antara kedua pengukuran hanya satu angka setelan.
+     */
+    public function test_the_leave_workweek_setting_decides_whether_saturday_overtime_is_money(): void
+    {
+        $employee = $this->makeEmployee();
+
+        // 6 Juni 2026 dan 13 Juni 2026 keduanya Sabtu.
+        $this->dayWithExtraMinutes($employee, '2026-06-06', 120);
+        $this->dayWithExtraMinutes($employee, '2026-06-13', 120);
+
+        app(SettingService::class)->set('hr.leave.workweek_days', 6);
+        $enam = $this->service()->forEmployee($employee, 2026, 6)['summary']['overtime_hours'];
+
+        app(SettingService::class)->set('hr.leave.workweek_days', 5);
+        $lima = $this->service()->forEmployee($employee, 2026, 6)['summary']['overtime_hours'];
+
+        $this->assertSame(
+            4.0,
+            $enam,
+            'Pada pekan kerja enam hari, Sabtu adalah hari kerja dan lemburnya terukur penuh.',
+        );
+        $this->assertNull(
+            $lima,
+            'Pada pekan kerja lima hari, kedua Sabtu menjadi hari non-kerja dan lemburnya DITAHAN — bukan '
+            .'karena orangnya tidak bekerja, melainkan karena tarif akhir pekan belum dibangun. Hasilnya '
+            .'BERGARIS, bukan nol: tidak ada satu hari KERJA pun yang terukur di bulan itu, dan nol di '
+            .'sebelah nama orang yang bekerja dua Sabtu penuh adalah angka yang berbohong.',
+        );
+        $this->assertNotSame(
+            $enam,
+            $lima,
+            'Kunci cuti ini harus terlihat menggeser jam lembur. Bila kedua angka sama, salah satu dari '
+            .'dua hal telah berubah: hari non-kerja tidak lagi menahan lembur, atau pekan kerja tidak '
+            .'lagi dibaca dari setelan — dan kalimat peringatan di Pengaturan menjadi kalimat yang '
+            .'menakuti orang tanpa sebab.',
+        );
+    }
+
+    /**
+     * V-2 — BULAN BERJALAN TIDAK MENUDUH ORANG ATAS HARI YANG BELUM TERJADI.
+     *
+     * Layar dibuka pada bulan berjalan. Sebelum putaran penutup, seluruh sisa
+     * bulan terhitung `tidak_tercatat`: pada 3 Juni seorang yang bercap jam
+     * LENGKAP pada setiap hari kerja yang sudah lewat memulangkan
+     * `unrecorded_days = 23`, dan ubin "Timesheet Saya" berbunyi "23 hari kerja
+     * lewat tanpa cap jam sama sekali" kepada orang yang tidak melewatkan satu
+     * hari pun. Itu doktrin paket ini sendiri terbalik.
+     */
+    public function test_the_current_month_does_not_count_days_that_have_not_happened(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-03 18:00:00'));
+
+        $employee = $this->makeEmployee();
+        // 1, 2, 3 Juni 2026 = Senin, Selasa, Rabu — semua hari kerja yang sudah lewat.
+        $this->clockedDay($employee, '2026-06-01', '08:00', '17:00');
+        $this->clockedDay($employee, '2026-06-02', '08:00', '17:00');
+        $this->clockedDay($employee, '2026-06-03', '08:00', '17:00');
+
+        $summary = $this->service()->forEmployee($employee, 2026, 6)['summary'];
+
+        $this->assertSame(3, $summary['measured_days']);
+        $this->assertSame(
+            0,
+            $summary['unrecorded_days'],
+            'Orang ini bercap jam lengkap pada SETIAP hari kerja yang sudah lewat. Setiap angka di atas '
+            .'nol di sini adalah tuduhan atas hari yang belum terjadi — dan ia muncul di ubin "Timesheet '
+            .'Saya" miliknya sendiri dan di kolom "Hari tanpa cap jam" yang dibaca HR.',
+        );
+
+        $belum = array_values(array_filter(
+            $this->service()->forEmployee($employee, 2026, 6)['days'],
+            fn (array $day): bool => $day['state'] === TimesheetDayState::BelumTiba->value,
+        ));
+
+        $this->assertNotSame([], $belum, 'Sisa bulan harus punya keadaannya sendiri, bukan dihapus dari daftar.');
+        $this->assertSame(
+            '2026-06-04',
+            $belum[0]['date'],
+            'Keadaan "belum tiba" harus mulai pada hari SESUDAH hari ini, bukan pada hari ini.',
+        );
+
+        Carbon::setTestNow();
     }
 }

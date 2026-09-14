@@ -272,6 +272,23 @@ class AttendanceRecapOvertimeProposalTest extends ErpTestCase
         $code = (string) file_get_contents(base_path('public/app/js/views/usulanrekap.js'));
 
         $this->assertStringContainsString('usulan-posted', $code, 'Spanduk payroll terposting tidak ada.');
+
+        /*
+         * V-6 — YANG DIPAKU ADALAH SYARATNYA, BUKAN NAMA KELASNYA.
+         *
+         * Mengganti `if (payload.period.payroll_posted)` menjadi `if (false)`
+         * membuat spanduk ini tidak pernah tergambar sementara kelasnya tetap
+         * ada di berkas — dan seluruh gerbang tetap hijau. Ini layar yang
+         * MENULIS ke rekap sesudah gaji dibayarkan; spanduknya adalah satu-
+         * satunya hal yang memberi tahu orangnya sebelum ia menekan Simpan.
+         */
+        $this->assertMatchesRegularExpression(
+            '~if\s*\(\s*payload\.period\.payroll_posted\s*\)\s*\{[^}]*usulan-posted~s',
+            $code,
+            'Spanduk "payroll sudah diposting" tidak lagi berada DI DALAM cabang yang membaca '
+            .'payload.period.payroll_posted. Kelas yang ada di berkas tanpa syarat yang menyalakannya '
+            .'adalah spanduk yang tidak pernah dilihat siapa pun.',
+        );
         $this->assertStringContainsString('usulan-half', $code);
         $this->assertStringContainsString('tanpa ILB disetujui', $code);
         $this->assertStringContainsString(

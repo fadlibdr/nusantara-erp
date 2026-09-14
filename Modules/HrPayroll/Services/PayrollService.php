@@ -341,16 +341,26 @@ class PayrollService
         $nextHours = $nextMinutes / 60;
 
         /*
-         * DUA ANGKA YANG DITAMPILKAN HARUS BERJUMLAH PERSIS JAM YANG DIBAYAR.
-         * Membulatkan keduanya sendiri-sendiri bisa meleset satu sen jam
-         * (110 + 50 menit: 1,83 + 0,83 = 2,66, sementara totalnya 2,67), dan
-         * sebuah slip yang kolom jamnya membantah rinciannya sendiri adalah
-         * slip yang tidak bisa dipakai membantah apa pun. Jam pertama
-         * dibulatkan, jam berikutnya adalah SISANYA — dan menit yang tepat ikut
-         * dibawa di sebelahnya, jadi tidak ada yang hilang.
+         * SETIAP ANGKA JAM DI SINI DITURUNKAN DARI MENITNYA SENDIRI (putaran
+         * penutup, V-3).
+         *
+         * Versi sebelumnya menghitung `hours_at_next_rate` sebagai SISA dari
+         * `overtime_hours` REKAP, demi invarian "kedua angka harus berjumlah
+         * persis jam yang dibayar". Invarian itu SALAH sesudah A-2/B-1
+         * memindahkan sumber uang ke MENIT: kolom rekap adalah jam bulanan yang
+         * disetujui HR, sementara yang dibayar adalah menit absensi. Ketika
+         * keduanya tidak habis dibagi — 110 + 50 menit dengan rekap 2,67 jam,
+         * yang bisa dicapai operator lewat `rounding_minutes` 10 atau 20 —
+         * catatannya membantah dirinya sendiri: `minutes_at_next_rate` 50
+         * (= 0,83 jam) berdampingan dengan `hours_at_next_rate` 0,84, dan
+         * menghitung ulang upah dari kedua angka jam itu tidak memulangkan
+         * `overtime_pay`.
+         *
+         * Sekarang keduanya dibulatkan dari menitnya masing-masing, dan
+         * `minutes_paid` dibawa supaya catatan ini bisa menghasilkan kembali
+         * upahnya SENDIRIAN — tanpa meminjam angka dari kolom rekap yang bukan
+         * sumber uangnya.
          */
-        $displayFirst = round($firstHours, 2);
-
         return [
             'pay' => round(($firstHours * $firstRate + $nextHours * $nextRate) * $hourlyWage, 2),
             'basis' => OvertimeBasis::RincianHarian->value,
@@ -360,8 +370,9 @@ class PayrollService
                 'next_hours_pct' => round($nextRate * 100, 2),
                 'minutes_at_first_rate' => $firstMinutes,
                 'minutes_at_next_rate' => $nextMinutes,
-                'hours_at_first_rate' => $displayFirst,
-                'hours_at_next_rate' => round($overtimeHours - $displayFirst, 2),
+                'minutes_paid' => $firstMinutes + $nextMinutes,
+                'hours_at_first_rate' => round($firstHours, 2),
+                'hours_at_next_rate' => round($nextHours, 2),
                 'days' => $shape['days'],
                 'reason' => null,
             ],

@@ -3,7 +3,7 @@
 namespace Modules\HrPayroll\Enums;
 
 /**
- * EMPAT KEADAAN SATU HARI, dan tidak satu pun boleh runtuh menjadi "0 jam".
+ * LIMA KEADAAN SATU HARI, dan tidak satu pun boleh runtuh menjadi "0 jam".
  *
  * Produksi hari ini (14 Sep 2026) memegang NOL baris `hr_attendances`: F-4
  * di-deploy 8 September dan belum ada satu orang pun yang menekan tombolnya.
@@ -33,6 +33,16 @@ namespace Modules\HrPayroll\Enums;
  *  - NonKerja        hari yang memang bukan hari kerja menurut pola pekan
  *                    (hr.leave.workweek_days). Tidak ada yang hilang di sini,
  *                    jadi tidak ada yang perlu dikoreksi.
+ *  - BelumTiba       tanggal yang BELUM TERJADI (putaran penutup, V-2). Layar
+ *                    ini dibuka pada bulan BERJALAN, jadi tanpa keadaan ini
+ *                    seluruh sisa bulan terhitung "tidak tercatat": pada 3 Juni
+ *                    seorang yang bercap jam lengkap setiap hari kerja yang
+ *                    sudah lewat dituduh melewatkan 23 hari, dan kolom "Hari
+ *                    tanpa cap jam" berbunyi 23 untuk semua orang sepanjang
+ *                    bulan berjalan. Menuduh orang atas hari yang belum tiba
+ *                    adalah bentuk yang sama dengan "0 jam" pada hari yang
+ *                    tidak diukur — angka yang menyatakan sesuatu yang tidak
+ *                    pernah terjadi.
  *
  * Hari non-kerja yang TERNYATA ada cap jamnya tidak menjadi keadaan kelima: ia
  * Terukur dengan penanda `non_working_day`, dan lemburnya sengaja TIDAK
@@ -46,6 +56,7 @@ enum TimesheetDayState: string
     case SetengahTerukur = 'setengah_terukur';
     case TidakTercatat = 'tidak_tercatat';
     case NonKerja = 'non_kerja';
+    case BelumTiba = 'belum_tiba';
 
     public function label(): string
     {
@@ -54,6 +65,7 @@ enum TimesheetDayState: string
             self::SetengahTerukur => 'Setengah terukur',
             self::TidakTercatat => 'Tidak tercatat',
             self::NonKerja => 'Hari non-kerja',
+            self::BelumTiba => 'Belum tiba',
         };
     }
 

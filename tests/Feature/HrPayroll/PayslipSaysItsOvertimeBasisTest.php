@@ -235,4 +235,35 @@ class PayslipSaysItsOvertimeBasisTest extends ErpTestCase
             .'dibaca sebagai "tidak ada lembur".',
         );
     }
+
+    /**
+     * V-4 — KATA YANG MEMPERKENALKAN BARISNYA IKUT DIPAKU.
+     *
+     * Uji-uji di atas menuntut LABEL dasarnya ada di lembar itu, dan itu benar.
+     * Tetapi verifier penutup mengganti kata "Dasar:" di blade menjadi "XXX:"
+     * dan seluruh `tests/Feature/HrPayroll` (344) serta `DocumentPdfTest` (27)
+     * tetap HIJAU: label tanpa kata yang memperkenalkannya adalah sepotong
+     * teks yang menggantung di bawah baris Lembur, dan orang yang menerimanya
+     * tidak akan tahu ia sedang membaca dasar pembayaran. PANDUAN-PENGGUNA §21
+     * menjanjikan "satu baris kecil di bawah baris Lembur" — janji itu sekarang
+     * punya penjaganya.
+     */
+    public function test_the_printed_slip_introduces_the_basis_line_by_name(): void
+    {
+        $employee = $this->makeEmployee(['base_salary' => 10_000_000, 'fixed_allowances' => ['transport' => 1_000_000]]);
+        $run = $this->makeRun();
+        $this->makeRecap($employee, $run, 2);
+        $this->measuredDay($employee->id, '2026-06-01', '19:00');
+
+        $this->payrollService()->calculate($run);
+
+        $html = $this->html($this->payslipFor($run, $employee)->id);
+
+        $this->assertStringContainsString(
+            'Dasar:',
+            $html,
+            'Baris dasar lembur kehilangan kata yang memperkenalkannya. Label yang berdiri sendiri di '
+            .'bawah angka rupiah tidak memberi tahu siapa pun bahwa ia menjelaskan angka itu.',
+        );
+    }
 }
