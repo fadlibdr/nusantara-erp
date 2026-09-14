@@ -127,6 +127,33 @@ class TimesheetSpaWiringTest extends ErpTestCase
         }
     }
 
+    /**
+     * Cacat yang HANYA peramban temukan (S42m, 14 Sep 2026), dipaku di sini
+     * supaya gerbang PHP ikut menjaganya.
+     *
+     * Ubin "Hari terukur" punya DUA kalimat sampai bukti peramban dijalankan:
+     * "N hari hanya satu cap jam" atau "setiap hari bercap jam lengkap". Pada
+     * bulan yang tidak punya satu pun catatan, yang kedua yang terpilih — dan
+     * ia berbunyi seperti PUJIAN tentang orang yang tidak pernah menekan
+     * tombolnya sama sekali. Tidak satu pun uji PHP bisa melihatnya: JSON-nya
+     * benar (measured_days 0, half 0), kalimatnyalah yang bohong. Cacat yang
+     * sama persis pernah ditemukan F-4 pada baris kerani murni ("0 hari ·
+     * semua di dalam radius").
+     */
+    public function test_an_empty_month_is_not_congratulated_for_clocking_in_every_day(): void
+    {
+        $code = $this->code(self::VIEW);
+
+        $this->assertStringContainsString(
+            'belum ada satu hari pun dengan cap jam masuk dan pulang',
+            $code,
+            'Ubin "Hari terukur" harus punya TIGA kalimat, bukan dua: hari setengah terukur, '
+            .'bulan yang belum punya satu pun hari terukur, dan bulan yang lengkap. Dua kalimat '
+            .'berarti bulan kosong dipuji karena kehadiran yang tidak pernah terjadi.',
+        );
+        $this->assertStringContainsString('summary.measured_days === 0', $code);
+    }
+
     public function test_the_two_honest_limits_are_printed_above_the_numbers(): void
     {
         $code = $this->code(self::VIEW);

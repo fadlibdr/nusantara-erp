@@ -11716,6 +11716,433 @@ def s41m(browser):
         _p3e_reset()
 
 
+
+# ---------------------------------------------------------------------------
+# S42 — F-5 timesheet & lembur dari absensi (14 Sep 2026): SDM & Payroll ›
+# Timesheet & Lembur, dan Ringkasan › Timesheet Saya.
+#
+# KENAPA SKENARIO INI MENGUKUR KEADAAN KOSONG LEBIH DULU, dan bukan sebagai
+# renungan di akhir: pada 14 Sep 2026 produksi memegang NOL baris
+# `hr_attendances` (F-4 di-deploy 8 Sep dan belum ada satu orang pun yang
+# menekan tombolnya). Keadaan kosong BUKAN kasus tepi di sini — ia keadaan
+# yang benar-benar akan dilihat orang pertama kali. Yang diukur: kalimatnya
+# ADA, tabelnya TIDAK ADA, dan tidak ada satu pun teks "0 jam" di layar.
+#
+# Yang hanya bisa diukur di peramban, dan karena itu ada di sini:
+#
+#  1. Sel yang BERGARIS vs sel yang berisi 0 — dua hal yang uji PHP hanya
+#     bisa lihat sebagai null vs 0 di JSON, sementara yang menentukan apakah
+#     seseorang dituduh bekerja nol jam adalah apa yang TERGAMBAR.
+#  2. Kartu kebijakan mencetak kelima aturan pemilik DAN dua batas
+#     kejujurannya (tarif hari libur belum dibangun; tidak ada kalender libur
+#     nasional) — di ATAS angkanya, bukan di bawahnya.
+#  3. Pita "payroll periode ini sudah disetujui" benar-benar tergambar pada
+#     periode yang payroll-nya approved (Juni 2026 pada basis data demo).
+#
+# Fixture disuntikkan langsung ke sqlite dengan alasan yang sama seperti
+# _p3e_seed_device: tombol yang mengisinya (Absen Masuk/Pulang) menuntut
+# geolokasi dan jam yang bergerak, dan yang DIUKUR skenario ini adalah
+# bagaimana hasilnya digambar. April 2026 dipilih karena basis data demo
+# tidak punya apa-apa di sana — jadi "kosong" benar-benar kosong, dan
+# fixture-nya tidak bercampur dengan benih.
+S42_SCREEN = """() => {
+  const policy = document.querySelector('.timesheet-policy');
+  const rows = [...document.querySelectorAll('table.timesheet tbody tr')].map(tr => ({
+    employee: tr.dataset.employee,
+    cells: [...tr.querySelectorAll('td')].map(td => td.innerText.trim()),
+    empty_cells: [...tr.querySelectorAll('td[data-empty="true"]')].length,
+    delta_direction: (tr.querySelector('.timesheet-delta') || {}).dataset
+      ? (tr.querySelector('.timesheet-delta') || {}).dataset.direction : null,
+    over_cap: (tr.querySelector('.timesheet-ot') || {}).dataset
+      ? (tr.querySelector('.timesheet-ot') || {}).dataset.overCap : null,
+    sub: [...tr.querySelectorAll('.cell-sub')].map(s => s.innerText.trim()),
+  }));
+  const main = document.querySelector('.main') || document.body;
+  return {
+    policy_present: !!policy,
+    policy_rules: policy ? [...policy.querySelectorAll('.timesheet-rules li')].map(li => li.innerText.trim()) : [],
+    policy_limits: policy ? [...policy.querySelectorAll('.timesheet-limit')].map(p => p.innerText.trim()) : [],
+    empty_title: (document.querySelector('.empty h3') || {}).innerText || null,
+    empty_text: (document.querySelector('.empty p') || {}).innerText || null,
+    table_present: !!document.querySelector('table.timesheet'),
+    rows,
+    posted_banner: (document.querySelector('.timesheet-posted') || {}).innerText || null,
+    zero_hours_anywhere: /\\b0 jam\\b/.test(main.innerText),
+    scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    main_scrolls_sideways: (() => { const m = document.querySelector('.main'); return !!m && m.scrollWidth > m.clientWidth; })(),
+  };
+}"""
+
+S42_DAYS = """() => {
+  const rows = [...document.querySelectorAll('table.timesheet-days tbody tr')];
+  const byState = {};
+  for (const tr of rows) byState[tr.dataset.state] = (byState[tr.dataset.state] || 0) + 1;
+  const pick = (date) => {
+    const tr = rows.find(r => r.dataset.date === date);
+    if (!tr) return null;
+    const tds = [...tr.querySelectorAll('td')];
+    return {
+      state: tr.dataset.state,
+      non_working: tr.dataset.nonWorking,
+      cells: tds.map(td => td.innerText.trim()),
+      empty_flags: tds.map(td => td.dataset.empty || ''),
+      note: tds[tds.length - 1].innerText.trim(),
+    };
+  };
+  return {
+    total: rows.length,
+    by_state: byState,
+    measured: pick('2026-04-01'),
+    late: pick('2026-04-02'),
+    half: pick('2026-04-03'),
+    sunday: pick('2026-04-05'),
+    untouched: pick('2026-04-08'),
+  };
+}"""
+
+# Teks yang TERPOTONG oleh kotaknya — idiom S41_OVERFLOW, dipakai pada layar
+# ponsel: sebuah kalimat kejujuran yang setengahnya tidak terbaca adalah
+# kalimat yang tidak dikatakan.
+S42_OVERFLOW = """() => {
+  let n = 0;
+  for (const el of document.querySelectorAll('.main, .main *')) {
+    for (const node of el.childNodes) {
+      if (node.nodeType !== 3 || !node.textContent.trim()) continue;
+      const range = document.createRange(); range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0) continue;
+      let limit = document.documentElement.clientWidth + 1;
+      for (let a = el; a && a !== document.body; a = a.parentElement) {
+        const o = getComputedStyle(a).overflowX;
+        if (o === 'visible') continue;
+        const r = a.getBoundingClientRect();
+        limit = (o === 'auto' || o === 'scroll') ? r.left + a.scrollWidth + 1 : r.right + 1;
+        break;
+      }
+      if (rect.right > limit) n++;
+    }
+  }
+  return n;
+}"""
+
+S42_SAYA = """() => {
+  const stats = [...document.querySelectorAll('.stat')].map(s => ({
+    label: (s.querySelector('.label') || {}).innerText || null,
+    value: (s.querySelector('.value, .value.sm') || {}).innerText || null,
+    delta: (s.querySelector('.delta') || {}).innerText || null,
+  }));
+  const main = document.querySelector('.main') || document.body;
+  return {
+    h1: (document.querySelector('.page-head h1') || {}).innerText || null,
+    policy_present: !!document.querySelector('.timesheet-policy'),
+    stats,
+    day_rows: document.querySelectorAll('table.timesheet-days tbody tr').length,
+    empty_title: (document.querySelector('.empty h3') || {}).innerText || null,
+    zero_hours_anywhere: /\\b0 jam\\b/.test(main.innerText),
+    scrolls_sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    main_scrolls_sideways: (() => { const m = document.querySelector('.main'); return !!m && m.scrollWidth > m.clientWidth; })(),
+  };
+}"""
+
+S42_USULAN = """() => {
+  const alert = document.querySelector('.usulan-overtime');
+  const head = [...document.querySelectorAll('table.data thead th')].map(th => th.innerText.trim());
+  const cells = [...document.querySelectorAll('table.data tbody tr')].map(tr => ({
+    employee: (tr.querySelector('.cell-sub.mono') || {}).innerText || null,
+    ot: (tr.querySelector('.usulan-ot') || {}).innerText || null,
+    ot_empty: (tr.querySelector('.usulan-ot') || {}).dataset
+      ? (tr.querySelector('.usulan-ot') || {}).dataset.empty : null,
+  }));
+  return {
+    alert_present: !!alert,
+    alert_proposed: alert ? alert.dataset.proposed : null,
+    alert_text: alert ? alert.innerText.trim() : null,
+    not_proposed: [...document.querySelectorAll('.card .cell-sub')].map(s => s.innerText.trim()),
+    head,
+    rows: cells,
+  };
+}"""
+
+
+def _f5_period(page, year, month):
+    """Pilih tahun dan bulan di kartu penyaring, lalu tunggu muatannya mendarat."""
+    page.fill("input[type=number]", str(year))
+    page.dispatch_event("input[type=number]", "change")
+    page.wait_for_timeout(400)
+    page.select_option("select", str(month))
+    page.wait_for_timeout(900)
+
+
+def _f5_reset():
+    """Buang setiap fixture F-5 — dijalankan SEBELUM dan SESUDAH, supaya
+    skenario yang jatuh di tengah tidak meninggalkan April 2026 berisi."""
+    con = sqlite3.connect(DB)
+    con.execute("delete from hr_attendances where date like '2026-04-%'")
+    con.execute("delete from prj_overtime_permit_workers where overtime_permit_id in "
+                "(select id from prj_overtime_permits where code like 'ILB/S42/%')")
+    con.execute("delete from prj_overtime_permits where code like 'ILB/S42/%'")
+    con.execute("delete from cache")
+    con.commit()
+    left = con.execute("select count(*) from hr_attendances where date like '2026-04-%'").fetchone()[0]
+    con.close()
+    return {"cleared": left == 0}
+
+
+def _f5_seed(employee_id, with_permit=True):
+    """Empat hari yang mewakili KEEMPAT keadaan, ditambah satu ILB yang disetujui.
+
+    Sengaja tidak lewat tombol Absen Masuk/Pulang: pintu itu menuntut
+    geolokasi dan jam yang bergerak, sedangkan yang diukur skenario ini adalah
+    bagaimana hasilnya DIGAMBAR (alasan yang sama dengan _p3e_seed_device).
+
+      01 Apr (Rabu)  08:00–18:00  terukur, 2 jam lembur
+      02 Apr (Kamis) 08:25–16:00  terukur, terlambat 15 menit, lembur 0 TERUKUR
+      03 Apr (Jumat) 08:00–.....  SETENGAH terukur (lupa absen pulang)
+      05 Apr (Minggu)09:00–15:00  hari non-kerja yang ada cap jamnya
+      08 Apr (Rabu)  tidak ada barisnya sama sekali → tidak tercatat
+    """
+    rows = [
+        ("2026-04-01", "hadir", "2026-04-01 08:00:00", "2026-04-01 18:00:00"),
+        ("2026-04-02", "hadir", "2026-04-02 08:25:00", "2026-04-02 16:00:00"),
+        ("2026-04-03", "hadir", "2026-04-03 08:00:00", None),
+        ("2026-04-05", "hadir", "2026-04-05 09:00:00", "2026-04-05 15:00:00"),
+    ]
+    con = sqlite3.connect(DB)
+    for date, status, cin, cout in rows:
+        con.execute(
+            "insert into hr_attendances (employee_id, date, status, check_in_at, check_out_at, created_at, updated_at) "
+            "values (?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
+            (employee_id, date, status, cin, cout))
+    if with_permit:
+        project = con.execute("select id from prj_projects order by id limit 1").fetchone()[0]
+        con.execute(
+            "insert into prj_overtime_permits (code, project_id, overtime_date, start_time, end_time, reason, status, created_at, updated_at) "
+            "values ('ILB/S42/0001', ?, '2026-04-01', '17:00', '20:00', 'Pengecoran lanjutan (fixture S42)', 'approved', datetime('now'), datetime('now'))",
+            (project,))
+        permit = con.execute("select id from prj_overtime_permits where code = 'ILB/S42/0001'").fetchone()[0]
+        con.execute(
+            "insert into prj_overtime_permit_workers (overtime_permit_id, employee_id, hours, created_at, updated_at) "
+            "values (?, ?, 3, datetime('now'), datetime('now'))", (permit, employee_id))
+    con.execute("delete from cache")
+    con.commit()
+    code = con.execute("select code from hr_employees where id = ?", (employee_id,)).fetchone()[0]
+    con.close()
+    return {"employee_code": code, "days": len(rows), "permit_hours": 3 if with_permit else None}
+
+
+@scenario("S42_timesheet_lembur_dari_absensi")
+def s42(browser):
+    """1440x900 sebagai admin@: SDM & Payroll › Timesheet & Lembur pada April 2026 yang
+    BENAR-BENAR KOSONG (keadaan produksi 14 Sep 2026) — kartu kebijakan dengan lima aturan
+    pemilik dan dua batas kejujurannya, kalimat "Register bulan ini kosong", TIDAK ADA tabel
+    dan tidak ada satu pun teks "0 jam"; lalu fixture empat keadaan + satu ILB disetujui
+    disuntikkan dan layar dimuat ulang → satu baris dengan lembur turunan 2 jam, ILB 3 jam,
+    selisih -1 berarah "kurang", sub-baris hari setengah terukur dan jam pada hari non-kerja;
+    Rincian harian menggambar 30 hari dengan KEEMPAT keadaan dan sel bergaris (bukan 0) untuk
+    yang belum terukur; Usulan Rekap Absensi bulan yang sama mengusulkan jam lembur; dan Juni
+    2026 (payroll approved di basis data demo) menggambar pita maju-saja. 0 galat konsol."""
+    reset = _f5_reset()
+    if not reset["cleared"]:
+        return {"SKIPPED": "sqlite tidak bisa dibersihkan"}
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    errors = []
+    pg.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+
+    out = {}
+    try:
+        login(pg, "admin@nusantara.test")
+        opened = nav_click(pg, "#/timesheet")
+        pg.wait_for_timeout(1200)
+        assert_screen(pg, "#/timesheet", "Timesheet")
+        _f5_period(pg, 2026, 4)
+
+        out["opened_group"] = opened
+        out["empty"] = pg.evaluate(S42_SCREEN)
+
+        out["seed"] = _f5_seed(2)   # EMP-0002 Rina Wijaya
+        pg.reload()
+        pg.wait_for_selector("nav.nav", timeout=15000)
+        pg.wait_for_timeout(1500)
+        _f5_period(pg, 2026, 4)
+        out["filled"] = pg.evaluate(S42_SCREEN)
+
+        click(pg, "table.timesheet tbody tr button")
+        pg.wait_for_selector("table.timesheet-days", timeout=10000)
+        pg.wait_for_timeout(400)
+        out["days"] = pg.evaluate(S42_DAYS)
+
+        # Usulan rekap bulan yang sama: lembur KELUAR dari "yang tidak diusulkan".
+        nav_click(pg, "#/usulan-rekap")
+        pg.wait_for_timeout(1200)
+        _f5_period(pg, 2026, 4)
+        out["usulan"] = pg.evaluate(S42_USULAN)
+
+        # Juni 2026: payroll run-nya approved di basis data demo → pita maju-saja.
+        nav_click(pg, "#/timesheet")
+        pg.wait_for_timeout(1200)
+        _f5_period(pg, 2026, 6)
+        out["posted"] = pg.evaluate(S42_SCREEN)
+
+        empty, filled, days, usulan = out["empty"], out["filled"], out["days"], out["usulan"]
+        row = filled["rows"][0] if filled["rows"] else {}
+        joined_limits = " ".join(empty["policy_limits"])
+        joined_rules = " ".join(empty["policy_rules"])
+
+        out["checks"] = {
+            # --- keadaan kosong: keadaan produksi hari ini ---
+            "empty_period_draws_no_table_at_all": empty["table_present"] is False,
+            "empty_period_says_the_register_is_empty":
+                empty["empty_title"] == "Register bulan ini kosong"
+                and "bukan berarti tidak ada yang masuk kerja" in (empty["empty_text"] or ""),
+            "empty_period_never_prints_zero_hours": empty["zero_hours_anywhere"] is False,
+            # --- kartu kebijakan, di ATAS angkanya ---
+            "the_policy_card_is_drawn_even_when_there_is_nothing_to_apply_it_to": empty["policy_present"],
+            "the_five_owner_rules_are_printed": len(empty["policy_rules"]) == 5
+                and "8 jam/hari" in joined_rules and "15 menit terdekat" in joined_rules
+                and "minimum 30 menit" in joined_rules and "3 jam/hari" in joined_rules,
+            "the_holiday_rate_limit_is_printed": "BELUM dibangun" in joined_limits,
+            "the_missing_national_holiday_calendar_is_printed":
+                "tidak punya kalender hari libur nasional" in joined_limits,
+            "ilb_is_named_authoritative_on_screen": "otoritatif" in joined_limits,
+            # --- keadaan berisi ---
+            "the_fixture_produces_exactly_one_row": len(filled["rows"]) == 1,
+            # "2,00 jam", bukan "2 jam": layar mencetak dua desimal karena
+            # seperempat jam lembur adalah angka yang nyata. Versi pertama
+            # syarat ini mencari "2 jam" dan JATUH di peramban — cacat uji,
+            # bukan cacat layar, dan hanya peramban yang bisa menunjukkannya.
+            "the_derived_overtime_is_two_hours": "2,00 jam" in " ".join(row.get("cells", [])),
+            "the_approved_permit_stands_beside_it": "3,00 jam" in " ".join(row.get("cells", [])),
+            "the_difference_says_which_way_it_goes": row.get("delta_direction") == "kurang",
+            "the_half_measured_day_is_visible_for_hr_to_fix":
+                any("belum terukur" in s for s in row.get("sub", [])),
+            "the_non_working_hours_are_reported_but_not_proposed":
+                any("hari non-kerja" in s for s in row.get("sub", [])),
+            # --- rincian harian ---
+            "the_day_table_draws_the_whole_month": days["total"] == 30,
+            "all_four_states_appear": sorted(days["by_state"].keys())
+                == ["non_kerja", "setengah_terukur", "terukur", "tidak_tercatat"],
+            "a_measured_day_carries_its_hours": days["measured"]["state"] == "terukur"
+                and "10j" in " ".join(days["measured"]["cells"]),
+            "lateness_is_counted_from_the_tolerance_boundary":
+                "15m" in " ".join(days["late"]["cells"]),
+            "a_day_measured_to_the_normal_hours_shows_a_real_zero":
+                "0m" in " ".join(days["late"]["cells"]),
+            "the_half_measured_day_is_dashed_not_zero":
+                days["half"]["state"] == "setengah_terukur"
+                and "true" in days["half"]["empty_flags"]
+                and "BELUM TERUKUR" in days["half"]["note"],
+            "the_sunday_keeps_its_hours_but_withholds_the_overtime":
+                days["sunday"]["non_working"] == "true"
+                and "6j" in " ".join(days["sunday"]["cells"])
+                and "tarif hari libur" in days["sunday"]["note"],
+            "a_day_with_no_record_at_all_says_so":
+                days["untouched"]["state"] == "tidak_tercatat"
+                and days["untouched"]["note"] == "Tidak ada catatan apa pun untuk hari ini.",
+            # --- usulan rekap ---
+            "the_recap_proposal_now_offers_overtime": usulan["alert_proposed"] == "true",
+            "the_proposal_sentence_still_names_ilb_authoritative":
+                "otoritatif" in (usulan["alert_text"] or ""),
+            # Judul kolom digambar huruf besar oleh CSS, dan innerText
+            # memulangkan apa yang TERGAMBAR — jadi syaratnya dibandingkan
+            # tanpa memandang besar-kecil huruf.
+            "the_proposal_table_grew_an_overtime_column":
+                any(h.lower() == "lembur turunan" for h in usulan["head"]),
+            "the_old_refusal_sentence_is_gone_from_the_screen":
+                not any("Register mencatat kehadiran" in s for s in usulan["not_proposed"]),
+            # --- maju-saja ---
+            "a_posted_period_says_so_before_anyone_applies_anything":
+                "sudah disetujui atau ditutup" in (out["posted"]["posted_banner"] or ""),
+            # --- kebersihan ---
+            "the_page_never_scrolls_sideways":
+                filled["scrolls_sideways"] is False and filled["main_scrolls_sideways"] is False,
+            "no_console_error": errors == [],
+        }
+        out["console_errors"] = errors
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+        _f5_reset()
+
+
+@scenario("S42_timesheet_saya_ponsel")
+def s42m(browser):
+    """390x844 sebagai teknisi@ (tertaut ke EMP-0007, dan TIDAK memegang satu pun izin hr.*):
+    Ringkasan › Timesheet Saya pada April 2026 yang kosong lalu berisi. Yang diukur di sini dan
+    tidak di mana pun lain: layar ini terbuka SAMA SEKALI tanpa izin HR, kartu kebijakannya
+    terbaca di 390 px tanpa satu teks pun terpotong, dan halamannya tidak menggulir menyamping
+    dengan tabel rincian harian 30 baris di dalamnya."""
+    reset = _f5_reset()
+    if not reset["cleared"]:
+        return {"SKIPPED": "sqlite tidak bisa dibersihkan"}
+
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    pg = ctx.new_page()
+    errors = []
+    pg.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+
+    out = {}
+    try:
+        login(pg, "teknisi@nusantara.test")
+        pg.goto(BASE + "#/timesheet-saya")
+        pg.wait_for_timeout(1800)
+        _f5_period(pg, 2026, 4)
+        out["empty"] = pg.evaluate(S42_SAYA)
+        out["empty_overflow"] = pg.evaluate(S42_OVERFLOW)
+
+        out["seed"] = _f5_seed(7, with_permit=False)  # EMP-0007 Joko Susilo
+        pg.reload()
+        pg.wait_for_timeout(1800)
+        _f5_period(pg, 2026, 4)
+        out["filled"] = pg.evaluate(S42_SAYA)
+        out["filled_overflow"] = pg.evaluate(S42_OVERFLOW)
+
+        empty, filled = out["empty"], out["filled"]
+        # Label ubin digambar HURUF BESAR oleh CSS dan innerText memulangkan
+        # apa yang tergambar; kuncinya dinormalkan supaya syarat di bawah
+        # membaca kalimat, bukan tata letak huruf.
+        stats = {s["label"].lower(): s for s in filled["stats"]}
+        empty_stats = {s["label"].lower(): s for s in empty["stats"]}
+
+        out["checks"] = {
+            "the_screen_opens_for_someone_without_any_hr_permission": filled["h1"] == "Timesheet Saya",
+            "the_policy_is_readable_on_a_phone_too": filled["policy_present"],
+            # Kalender sebulan tetap digambar walau tidak ada yang terukur: di
+            # sebuah kalender, "tidak ada data" justru yang paling perlu terlihat.
+            "an_empty_month_still_draws_its_thirty_days": empty["day_rows"] == 30,
+            "an_empty_month_never_prints_zero_hours": empty["zero_hours_anywhere"] is False,
+            "the_seeded_month_counts_two_measured_days":
+                stats.get("hari terukur", {}).get("value") == "2",
+            "the_half_measured_day_is_named_in_the_tile":
+                "belum terukur" in (stats.get("hari terukur", {}).get("delta") or ""),
+            # Terukur di peramban 14 Sep 2026 dan TIDAK oleh satu pun uji PHP:
+            # bulan kosong berbunyi "0 · setiap hari bercap jam lengkap" —
+            # pujian tentang orang yang tidak pernah menekan tombolnya.
+            "an_empty_month_is_not_congratulated_for_clocking_in_every_day":
+                empty_stats.get("hari terukur", {}).get("delta")
+                == "belum ada satu hari pun dengan cap jam masuk dan pulang",
+            "the_derived_overtime_tile_says_there_is_no_permit":
+                "tanpa ILB" in (stats.get("lembur turunan", {}).get("delta") or ""),
+            "no_text_is_clipped_when_the_month_is_empty": out["empty_overflow"] == 0,
+            "no_text_is_clipped_when_the_month_is_full": out["filled_overflow"] == 0,
+            "the_page_never_scrolls_sideways_on_a_phone":
+                filled["scrolls_sideways"] is False and filled["main_scrolls_sideways"] is False,
+            "no_console_error": errors == [],
+        }
+        out["console_errors"] = errors
+        out["failed_checks"] = [k for k, v in out["checks"].items() if not v]
+        out["ok"] = not out["failed_checks"]
+        return out
+    finally:
+        ctx.close()
+        _f5_reset()
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -11726,7 +12153,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

@@ -9213,3 +9213,88 @@ yang sebenarnya).
 
 Tekan **Cabut** pada barisnya. Klien yang masih memakainya mendapat **401** pada
 permintaan berikutnya. Pencabutan tidak bisa dibatalkan.
+
+## 21. Timesheet & lembur dari absensi (F-5)
+
+Sejak 8 September 2026 orang bisa menekan **Absen Masuk** dan **Absen Pulang** di layar
+*Absensi Saya*. Dua cap jam itulah bahan layar ini: ia menghitung **jam kerja**,
+**keterlambatan** dan **jam lembur** per orang per hari, lalu menyandingkannya dengan
+**jam ILB (Izin Lembur) yang sudah disetujui**.
+
+Layar ini **tidak menyimpan apa pun**. Jam lembur yang dibayar tetap datang dari ILB dan
+dari rekap bulanan yang **Anda** simpan; yang ditawarkan di sini adalah usulan dan
+pembanding.
+
+### Timesheet Saya — untuk semua orang
+
+**Ringkasan › Timesheet Saya** terbuka untuk siapa saja, tanpa izin HR. Isinya kalender
+sebulan berisi hari-hari Anda sendiri, dan tidak pernah baris orang lain.
+
+### Timesheet & Lembur — untuk HR
+
+**SDM & Payroll › Timesheet & Lembur** menuntut izin `hr.view` (gerbang yang sama dengan
+register absensi). Pilih tahun dan bulannya; satu baris per karyawan yang punya sesuatu di
+bulan itu.
+
+Kolom **Selisih** mengatakan berapa jam turunan absensi berbeda dari jam ILB, dan ke arah
+mana — **bukan** siapa yang benar. ILB otoritatif; selisih adalah bahan percakapan dengan
+pengawas, bukan koreksi otomatis.
+
+Tombol **Rincian harian** membuka kalender sebulan orang itu. Tombol **Unduh CSV**
+mengunduh tabelnya untuk Excel.
+
+### Empat keadaan hari — dan kenapa garis BUKAN nol
+
+| Keadaan | Artinya | Angka jamnya |
+|---|---|---|
+| **Terukur** | ada cap jam masuk DAN pulang | jam kerja dan lembur dihitung; lembur boleh **0**, dan nol itu berarti "diukur, memang tidak lembur" |
+| **Setengah terukur** | hanya satu cap jam — biasanya lupa absen pulang | **bergaris**, bukan 0: belum ada yang mengukurnya |
+| **Tidak tercatat** | hari kerja tanpa cap jam (termasuk baris kerani "hadir" tanpa jam) | bergaris |
+| **Hari non-kerja** | Minggu (atau Sabtu, bila pekan kerja 5 hari) | bergaris |
+
+Sel yang **bergaris** berarti *tidak ada yang tahu*, dan **0** berarti *sudah diukur,
+hasilnya nol*. Keduanya sengaja tidak sama. Hari setengah terukur ditandai di bawah nama
+orangnya justru supaya Anda bisa memperbaikinya: buka **SDM & Payroll › Absensi Harian**,
+cari tanggalnya, lalu **Rincian → Koreksi** dengan menyebut alasannya.
+
+### Apa yang layar ini TIDAK hitung
+
+- **Tarif akhir pekan dan hari libur** (Kepmenaker 102/2004: 2x/3x/4x sejak jam pertama)
+  belum dibangun. Jam yang tercatat pada hari non-kerja **tetap ditampilkan** — supaya
+  tidak hilang — tetapi **tidak pernah** diusulkan sebagai lembur hari kerja, karena
+  memakai tarif hari kerja untuknya berarti membayar kurang.
+- **Hari libur nasional** tidak dikenal sistem ini. Hari non-kerja ditentukan pola pekan
+  saja, jadi 17 Agustus terbaca sebagai hari kerja biasa.
+- Jam lembur yang melewati batas Kepmenaker (3 jam/hari, 14 jam/pekan) **dihitung penuh
+  dan ditandai**, tidak dipotong. Angka di layar selalu jam yang benar-benar dikerjakan.
+
+### Menerapkan usulan jam lembur ke rekap
+
+Buka **SDM & Payroll › Usulan Rekap Absensi**. Bila bulan itu punya sekurang-kurangnya
+satu hari bercap jam lengkap, kolom **Lembur turunan** terisi dan tombol **Buat rekap**
+menyodorkannya ke formulir sebagai isian awal — yang masih harus Anda periksa dan tekan
+**Simpan**.
+
+Bila bulan itu belum punya satu pun hari bercap jam lengkap, jam lembur **tidak
+diusulkan sama sekali** dan layar mengatakan sebabnya. Baris seorang karyawan yang
+sendirian tidak punya hari terukur mendapat sel bergaris, bukan 0 — nol yang disodorkan
+formulir akan tersimpan sebagai nol yang Anda putuskan.
+
+### Apa yang berubah pada slip gaji
+
+Sebelum paket ini, seluruh jam lembur sebulan dibayar **1,5x upah sejam**. Sejak ada
+rincian harian, payroll membayar **1,5x untuk jam pertama setiap hari lembur dan 2x untuk
+jam berikutnya** — sesuai Kepmenaker 102/2004, dan lebih besar daripada sebelumnya.
+
+Dua hal yang tidak berubah:
+
+- **Berapa jam** yang dibayar tetap berasal dari rekap bulanan (yaitu dari ILB). Rincian
+  harian hanya menentukan **tarifnya**.
+- **Slip yang sudah diposting tidak berubah nilainya.** Payroll yang sudah disetujui atau
+  ditutup tidak pernah dihitung ulang, dan layar timesheet mengatakannya di atas tabel
+  untuk periode seperti itu.
+
+Bila rincian hariannya tidak ada — periode lama, atau bulan tanpa cap jam — payroll tetap
+memakai cara lama (1,5x rata), dan slipnya **menyebutkan yang mana yang dipakai** beserta
+sebabnya. Hal yang sama terjadi bila jam ILB dan jam turunan absensi **tidak sama**:
+sistem tidak membelah jam ILB menurut bentuk hari yang berbeda jumlahnya.

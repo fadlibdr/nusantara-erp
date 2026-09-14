@@ -469,10 +469,19 @@ export async function renderTimesheetSaya(host) {
       el('.stat', [
         el('.label', { text: 'Hari terukur' }),
         el('.value', { text: String(summary.measured_days) }),
+        /* TIGA kalimat, bukan dua. Terukur di peramban (S42m, 14 Sep 2026):
+           bulan yang tidak punya satu pun catatan berbunyi "0 · setiap hari
+           bercap jam lengkap" — sebuah pujian tentang orang yang tidak pernah
+           menekan tombolnya sama sekali. Cacat yang sama persis pernah
+           ditemukan F-4 pada baris kerani murni ("0 hari · semua di dalam
+           radius"), dan tidak satu pun uji PHP bisa melihatnya: JSON-nya
+           benar, kalimatnyalah yang bohong. */
         el('.delta', {
           text: summary.half_measured_days
             ? `${summary.half_measured_days} hari hanya satu cap jam — belum terukur`
-            : 'setiap hari bercap jam lengkap',
+            : (summary.measured_days === 0
+              ? 'belum ada satu hari pun dengan cap jam masuk dan pulang'
+              : 'setiap hari bercap jam lengkap'),
         }),
       ]),
       el('.stat', [

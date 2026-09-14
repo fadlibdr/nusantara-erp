@@ -4063,5 +4063,548 @@
   "ok": true,
   "_ms": 8436,
   "_clicks": 0
+ },
+ "S42_timesheet_lembur_dari_absensi": {
+  "opened_group": true,
+  "empty": {
+   "policy_present": true,
+   "policy_rules": [
+    "Jam kerja normal 8 jam/hari, mulai 08:00.",
+    "Terlambat dihitung sesudah toleransi 10 menit.",
+    "Lembur dibulatkan ke 15 menit terdekat, minimum 30 menit.",
+    "Batas Kepmenaker 3 jam/hari dan 14 jam/pekan — dilampaui berarti DITANDAI, bukan dipotong.",
+    "Tarif: 1,50x jam pertama tiap hari lembur, 2,00x jam berikutnya."
+   ],
+   "policy_limits": [
+    "Tarif akhir pekan/hari libur Kepmenaker (2x/3x/4x sejak jam pertama) BELUM dibangun. Jam pada hari non-kerja tetap dihitung dan ditampilkan, tetapi tidak pernah diusulkan sebagai lembur hari kerja — memakai tarif hari kerja untuknya berarti membayar kurang.",
+    "Sistem ini tidak punya kalender hari libur nasional. Hari non-kerja ditentukan pola pekan (6 hari kerja), jadi hari libur nasional terbaca sebagai hari kerja biasa.",
+    "Angka di layar ini adalah USULAN dari register absensi. ILB (Izin Lembur) tetap otoritatif atas jam lembur yang dibayar; rekap bulanan tetap dokumen yang diperiksa dan disimpan HR."
+   ],
+   "empty_title": "Register bulan ini kosong",
+   "empty_text": "Belum ada satu pun absensi, izin lembur yang disetujui, atau rekap pada April 2026. Register memang belum berisi untuk bulan ini — bukan berarti tidak ada yang masuk kerja. Timesheet mulai terisi sendiri begitu orang menekan Absen Masuk dan Absen Pulang di layar Absensi Saya.",
+   "table_present": false,
+   "rows": [],
+   "posted_banner": null,
+   "zero_hours_anywhere": false,
+   "scrolls_sideways": false,
+   "main_scrolls_sideways": false
+  },
+  "seed": {
+   "employee_code": "EMP-0002",
+   "days": 4,
+   "permit_hours": 3
+  },
+  "filled": {
+   "policy_present": true,
+   "policy_rules": [
+    "Jam kerja normal 8 jam/hari, mulai 08:00.",
+    "Terlambat dihitung sesudah toleransi 10 menit.",
+    "Lembur dibulatkan ke 15 menit terdekat, minimum 30 menit.",
+    "Batas Kepmenaker 3 jam/hari dan 14 jam/pekan — dilampaui berarti DITANDAI, bukan dipotong.",
+    "Tarif: 1,50x jam pertama tiap hari lembur, 2,00x jam berikutnya."
+   ],
+   "policy_limits": [
+    "Tarif akhir pekan/hari libur Kepmenaker (2x/3x/4x sejak jam pertama) BELUM dibangun. Jam pada hari non-kerja tetap dihitung dan ditampilkan, tetapi tidak pernah diusulkan sebagai lembur hari kerja — memakai tarif hari kerja untuknya berarti membayar kurang.",
+    "Sistem ini tidak punya kalender hari libur nasional. Hari non-kerja ditentukan pola pekan (6 hari kerja), jadi hari libur nasional terbaca sebagai hari kerja biasa.",
+    "Angka di layar ini adalah USULAN dari register absensi. ILB (Izin Lembur) tetap otoritatif atas jam lembur yang dibayar; rekap bulanan tetap dokumen yang diperiksa dan disimpan HR."
+   ],
+   "empty_title": null,
+   "empty_text": null,
+   "table_present": true,
+   "rows": [
+    {
+     "employee": "EMP-0002",
+     "cells": [
+      "Rina Wijaya\nEMP-0002\n1 hari hanya punya satu cap jam — belum terukur, bukan nol. Lengkapi lewat Absensi Harian → Koreksi.\n6j tercatat pada hari non-kerja, tidak diusulkan sebagai lembur.",
+      "2",
+      "17j 35m",
+      "15m",
+      "2,00 jam",
+      "3,00 jam",
+      "-1,00",
+      "Rincian harian"
+     ],
+     "empty_cells": 0,
+     "delta_direction": "kurang",
+     "over_cap": "false",
+     "sub": [
+      "EMP-0002",
+      "1 hari hanya punya satu cap jam — belum terukur, bukan nol. Lengkapi lewat Absensi Harian → Koreksi.",
+      "6j tercatat pada hari non-kerja, tidak diusulkan sebagai lembur."
+     ]
+    }
+   ],
+   "posted_banner": null,
+   "zero_hours_anywhere": false,
+   "scrolls_sideways": false,
+   "main_scrolls_sideways": false
+  },
+  "days": {
+   "total": 30,
+   "by_state": {
+    "terukur": 3,
+    "setengah_terukur": 1,
+    "tidak_tercatat": 23,
+    "non_kerja": 3
+   },
+   "measured": {
+    "state": "terukur",
+    "non_working": "false",
+    "cells": [
+     "01 Apr 2026",
+     "Terukur",
+     "08:00",
+     "18:00",
+     "10j",
+     "0m",
+     "2j",
+     "3,00 jam",
+     ""
+    ],
+    "empty_flags": [
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "false",
+     "",
+     ""
+    ],
+    "note": ""
+   },
+   "late": {
+    "state": "terukur",
+    "non_working": "false",
+    "cells": [
+     "02 Apr 2026",
+     "Terukur",
+     "08:25",
+     "16:00",
+     "7j 35m",
+     "15m",
+     "0m",
+     "—",
+     ""
+    ],
+    "empty_flags": [
+     "",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "false",
+     "true",
+     ""
+    ],
+    "note": ""
+   },
+   "half": {
+    "state": "setengah_terukur",
+    "non_working": "false",
+    "cells": [
+     "03 Apr 2026",
+     "Setengah terukur\nkerani: hadir",
+     "08:00",
+     "",
+     "—",
+     "0m",
+     "—",
+     "—",
+     "Absen masuk ada, absen pulang tidak. Jam kerja dan lembur hari ini BELUM TERUKUR — bukan nol. Lengkapi lewat Rincian → Koreksi."
+    ],
+    "empty_flags": [
+     "",
+     "",
+     "",
+     "",
+     "true",
+     "",
+     "true",
+     "true",
+     ""
+    ],
+    "note": "Absen masuk ada, absen pulang tidak. Jam kerja dan lembur hari ini BELUM TERUKUR — bukan nol. Lengkapi lewat Rincian → Koreksi."
+   },
+   "sunday": {
+    "state": "terukur",
+    "non_working": "true",
+    "cells": [
+     "05 Apr 2026\nhari non-kerja",
+     "Terukur",
+     "09:00",
+     "15:00",
+     "6j",
+     "—",
+     "—",
+     "—",
+     "Jam pada hari non-kerja tercatat, tetapi tidak diusulkan sebagai lembur: tarif hari libur Kepmenaker (2x/3x/4x) belum dibangun sistem ini."
+    ],
+    "empty_flags": [
+     "",
+     "",
+     "",
+     "",
+     "",
+     "true",
+     "true",
+     "true",
+     ""
+    ],
+    "note": "Jam pada hari non-kerja tercatat, tetapi tidak diusulkan sebagai lembur: tarif hari libur Kepmenaker (2x/3x/4x) belum dibangun sistem ini."
+   },
+   "untouched": {
+    "state": "tidak_tercatat",
+    "non_working": "false",
+    "cells": [
+     "08 Apr 2026",
+     "Tidak tercatat",
+     "",
+     "",
+     "—",
+     "—",
+     "—",
+     "—",
+     "Tidak ada catatan apa pun untuk hari ini."
+    ],
+    "empty_flags": [
+     "",
+     "",
+     "",
+     "",
+     "true",
+     "true",
+     "true",
+     "true",
+     ""
+    ],
+    "note": "Tidak ada catatan apa pun untuk hari ini."
+   }
+  },
+  "usulan": {
+   "alert_present": true,
+   "alert_proposed": "true",
+   "alert_text": "Jam lembur di kolom terakhir DITURUNKAN dari cap jam masuk/pulang menurut kebijakan timesheet yang berlaku (lihat layar Timesheet & Lembur). Ia USULAN: Izin Lembur (ILB) yang disetujui tetap otoritatif, dan yang menyimpannya ke rekap tetap Anda.",
+   "not_proposed": [
+    "Hari sakit: Sakit tercatat di pengajuan cuti/izin, bukan di register absensi.",
+    "Hari cuti: Cuti tercatat di pengajuan cuti/izin yang punya persetujuannya sendiri.",
+    "Hari kerja sebulan: Register tidak tahu kalender kerja bulan ini — hari libur dan hari kerja pengganti tidak ada di dalamnya.",
+    "Hari setengah: Rekap bulanan tidak punya kolom setengah hari. Hari setengah terhitung di layar ini supaya terlihat, tetapi ke mana ia dibukukan adalah keputusan HR — membaginya sendiri menjadi setengah hadir dan setengah alpa akan menggeser gaji tanpa seorang pun memutuskannya.",
+    "EMP-0002",
+    "tidak ada absen dari ponsel bulan ini",
+    "ILB 3,00 jam"
+   ],
+   "head": [
+    "KARYAWAN",
+    "TERCATAT",
+    "HADIR",
+    "½ HARI",
+    "ABSEN",
+    "ABSEN PONSEL",
+    "LEMBUR TURUNAN",
+    ""
+   ],
+   "rows": [
+    {
+     "employee": "EMP-0002",
+     "ot": "2,00 jam\nILB 3,00 jam",
+     "ot_empty": "false"
+    }
+   ]
+  },
+  "posted": {
+   "policy_present": true,
+   "policy_rules": [
+    "Jam kerja normal 8 jam/hari, mulai 08:00.",
+    "Terlambat dihitung sesudah toleransi 10 menit.",
+    "Lembur dibulatkan ke 15 menit terdekat, minimum 30 menit.",
+    "Batas Kepmenaker 3 jam/hari dan 14 jam/pekan — dilampaui berarti DITANDAI, bukan dipotong.",
+    "Tarif: 1,50x jam pertama tiap hari lembur, 2,00x jam berikutnya."
+   ],
+   "policy_limits": [
+    "Tarif akhir pekan/hari libur Kepmenaker (2x/3x/4x sejak jam pertama) BELUM dibangun. Jam pada hari non-kerja tetap dihitung dan ditampilkan, tetapi tidak pernah diusulkan sebagai lembur hari kerja — memakai tarif hari kerja untuknya berarti membayar kurang.",
+    "Sistem ini tidak punya kalender hari libur nasional. Hari non-kerja ditentukan pola pekan (6 hari kerja), jadi hari libur nasional terbaca sebagai hari kerja biasa.",
+    "Angka di layar ini adalah USULAN dari register absensi. ILB (Izin Lembur) tetap otoritatif atas jam lembur yang dibayar; rekap bulanan tetap dokumen yang diperiksa dan disimpan HR."
+   ],
+   "empty_title": null,
+   "empty_text": null,
+   "table_present": true,
+   "rows": [
+    {
+     "employee": "EMP-0001",
+     "cells": [
+      "Budi Santoso\nEMP-0001",
+      "0",
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+      "Rincian harian"
+     ],
+     "empty_cells": 5,
+     "delta_direction": null,
+     "over_cap": "false",
+     "sub": [
+      "EMP-0001"
+     ]
+    },
+    {
+     "employee": "EMP-0002",
+     "cells": [
+      "Rina Wijaya\nEMP-0002",
+      "0",
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+      "Rincian harian"
+     ],
+     "empty_cells": 5,
+     "delta_direction": null,
+     "over_cap": "false",
+     "sub": [
+      "EMP-0002"
+     ]
+    },
+    {
+     "employee": "EMP-0003",
+     "cells": [
+      "Agus Prasetyo\nEMP-0003",
+      "0",
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+      "Rincian harian"
+     ],
+     "empty_cells": 5,
+     "delta_direction": null,
+     "over_cap": "false",
+     "sub": [
+      "EMP-0003"
+     ]
+    },
+    {
+     "employee": "EMP-0004",
+     "cells": [
+      "Dewi Lestari\nEMP-0004",
+      "0",
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+      "Rincian harian"
+     ],
+     "empty_cells": 5,
+     "delta_direction": null,
+     "over_cap": "false",
+     "sub": [
+      "EMP-0004"
+     ]
+    },
+    {
+     "employee": "EMP-0005",
+     "cells": [
+      "Andi Kurniawan\nEMP-0005",
+      "0",
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+      "Rincian harian"
+     ],
+     "empty_cells": 5,
+     "delta_direction": null,
+     "over_cap": "false",
+     "sub": [
+      "EMP-0005"
+     ]
+    },
+    {
+     "employee": "EMP-0006",
+     "cells": [
+      "Siti Rahayu\nEMP-0006",
+      "0",
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+      "Rincian harian"
+     ],
+     "empty_cells": 5,
+     "delta_direction": null,
+     "over_cap": "false",
+     "sub": [
+      "EMP-0006"
+     ]
+    },
+    {
+     "employee": "EMP-0007",
+     "cells": [
+      "Joko Susilo\nEMP-0007",
+      "0",
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+      "Rincian harian"
+     ],
+     "empty_cells": 5,
+     "delta_direction": null,
+     "over_cap": "false",
+     "sub": [
+      "EMP-0007"
+     ]
+    },
+    {
+     "employee": "EMP-0008",
+     "cells": [
+      "Made Wirawan\nEMP-0008",
+      "0",
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+      "Rincian harian"
+     ],
+     "empty_cells": 5,
+     "delta_direction": null,
+     "over_cap": "false",
+     "sub": [
+      "EMP-0008"
+     ]
+    }
+   ],
+   "posted_banner": "Payroll Juni 2026 sudah disetujui atau ditutup. Slip yang sudah terbit tidak berubah oleh angka di layar ini, dan mengubah rekapnya sekarang tidak akan menghitung ulang gaji yang sudah dibayarkan.",
+   "zero_hours_anywhere": false,
+   "scrolls_sideways": false,
+   "main_scrolls_sideways": false
+  },
+  "checks": {
+   "empty_period_draws_no_table_at_all": true,
+   "empty_period_says_the_register_is_empty": true,
+   "empty_period_never_prints_zero_hours": true,
+   "the_policy_card_is_drawn_even_when_there_is_nothing_to_apply_it_to": true,
+   "the_five_owner_rules_are_printed": true,
+   "the_holiday_rate_limit_is_printed": true,
+   "the_missing_national_holiday_calendar_is_printed": true,
+   "ilb_is_named_authoritative_on_screen": true,
+   "the_fixture_produces_exactly_one_row": true,
+   "the_derived_overtime_is_two_hours": true,
+   "the_approved_permit_stands_beside_it": true,
+   "the_difference_says_which_way_it_goes": true,
+   "the_half_measured_day_is_visible_for_hr_to_fix": true,
+   "the_non_working_hours_are_reported_but_not_proposed": true,
+   "the_day_table_draws_the_whole_month": true,
+   "all_four_states_appear": true,
+   "a_measured_day_carries_its_hours": true,
+   "lateness_is_counted_from_the_tolerance_boundary": true,
+   "a_day_measured_to_the_normal_hours_shows_a_real_zero": true,
+   "the_half_measured_day_is_dashed_not_zero": true,
+   "the_sunday_keeps_its_hours_but_withholds_the_overtime": true,
+   "a_day_with_no_record_at_all_says_so": true,
+   "the_recap_proposal_now_offers_overtime": true,
+   "the_proposal_sentence_still_names_ilb_authoritative": true,
+   "the_proposal_table_grew_an_overtime_column": true,
+   "the_old_refusal_sentence_is_gone_from_the_screen": true,
+   "a_posted_period_says_so_before_anyone_applies_anything": true,
+   "the_page_never_scrolls_sideways": true,
+   "no_console_error": true
+  },
+  "console_errors": [],
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 14757,
+  "_clicks": 5
+ },
+ "S42_timesheet_saya_ponsel": {
+  "empty": {
+   "h1": "Timesheet Saya",
+   "policy_present": true,
+   "stats": [
+    {
+     "label": "HARI TERUKUR",
+     "value": "0",
+     "delta": "belum ada satu hari pun dengan cap jam masuk dan pulang"
+    },
+    {
+     "label": "JAM KERJA",
+     "value": "—",
+     "delta": "belum ada yang terukur bulan ini"
+    },
+    {
+     "label": "LEMBUR TURUNAN",
+     "value": "—",
+     "delta": "tanpa ILB disetujui"
+    }
+   ],
+   "day_rows": 30,
+   "empty_title": null,
+   "zero_hours_anywhere": false,
+   "scrolls_sideways": false,
+   "main_scrolls_sideways": false
+  },
+  "empty_overflow": 0,
+  "seed": {
+   "employee_code": "EMP-0007",
+   "days": 4,
+   "permit_hours": null
+  },
+  "filled": {
+   "h1": "Timesheet Saya",
+   "policy_present": true,
+   "stats": [
+    {
+     "label": "HARI TERUKUR",
+     "value": "2",
+     "delta": "1 hari hanya satu cap jam — belum terukur"
+    },
+    {
+     "label": "JAM KERJA",
+     "value": "17j 35m",
+     "delta": null
+    },
+    {
+     "label": "LEMBUR TURUNAN",
+     "value": "2,00 jam",
+     "delta": "tanpa ILB disetujui"
+    }
+   ],
+   "day_rows": 30,
+   "empty_title": null,
+   "zero_hours_anywhere": false,
+   "scrolls_sideways": false,
+   "main_scrolls_sideways": false
+  },
+  "filled_overflow": 0,
+  "checks": {
+   "the_screen_opens_for_someone_without_any_hr_permission": true,
+   "the_policy_is_readable_on_a_phone_too": true,
+   "an_empty_month_still_draws_its_thirty_days": true,
+   "an_empty_month_never_prints_zero_hours": true,
+   "the_seeded_month_counts_two_measured_days": true,
+   "the_half_measured_day_is_named_in_the_tile": true,
+   "an_empty_month_is_not_congratulated_for_clocking_in_every_day": true,
+   "the_derived_overtime_tile_says_there_is_no_permit": true,
+   "no_text_is_clipped_when_the_month_is_empty": true,
+   "no_text_is_clipped_when_the_month_is_full": true,
+   "the_page_never_scrolls_sideways_on_a_phone": true,
+   "no_console_error": true
+  },
+  "console_errors": [],
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 9212,
+  "_clicks": 0
  }
 }

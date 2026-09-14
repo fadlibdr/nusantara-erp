@@ -2786,3 +2786,93 @@ menghapus langganan korban), alamatnya bukan alamat internal, dan lajunya dibata
 dengan kunci milik peramban penerima, jadi layanan push **tidak bisa membacanya**. Yang TETAP
 dilihatnya: **bahwa ada pesan, kapan, dan untuk endpoint mana**. Uji kabel SPA memaku daftar frasa
 yang tidak boleh muncul di layar ("tidak ada yang tahu", "sepenuhnya pribadi", …).
+
+## 43. Timesheet & lembur dari absensi — kebijakan sebagai setelan, dan empat keadaan hari (F-5)
+
+**Penundaan F-5 dicabut pemilik 14 September 2026, dan sebabnya dihapus, bukan diabaikan.** Baris
+roadmap berbunyi "DITUNDA sampai ≥ 1 bulan data F-4 — tanpa itu aturan pembulatan lembur
+**dikarang**". Aturan itu tidak lagi dikarang karena **pemilik menyebutkannya**: bulat ke 15 menit
+terdekat, lembur minimum 30 menit, toleransi terlambat 10 menit, jam kerja normal 8 jam, tarif
+Kepmenaker 102/2004 (1,5x jam pertama, 2x jam berikutnya).
+
+**Kebijakan itu hidup di `config/erp.php` → `hr.timesheet.*` dan di registri Pengaturan grup
+`hr`** — sembilan kunci, bukan satu konstanta di kelas layanan. Kunci **kesepuluh** adalah yang
+pemilik TIDAK sebut dan yang tanpanya toleransi terlambat tidak punya acuan: `day_start`
+(bawaan `08:00`). Ia bertipe **`time`** — tipe registri baru yang divalidasi `date_format:H:i`,
+**bukan `regex`**: satu-satunya pemakai `regex` di registri adalah `document_format`, dan kalimat
+galatnya menyuruh orang menyisipkan `{N4}` ke dalam sebuah jam.
+
+**Kalimat pembuka grup `hr` diubah dengan sengaja.** "TIDAK satu pun dari nilai di sini yang
+langsung menggerakkan payroll" benar sampai 13 Sep dan **bohong** sejak 14 Sep. Yang
+menggantikannya adalah **pembedaan**: cuti dan radius geofence tidak menyentuh rupiah, aturan
+timesheet menyentuhnya. Perubahan setiap kunci tercatat di Log Audit (`core_settings` sudah
+diamati `AuditedModels`).
+
+**EMPAT KEADAAN SATU HARI (`TimesheetDayState`), dan tidak satu pun boleh runtuh menjadi "0 jam".**
+`terukur` (dua cap jam, pulang sesudah masuk) · `setengah_terukur` (satu cap jam — "lupa absen
+pulang", dan sepasang stempel yang tidak membentuk rentang) · `tidak_tercatat` (hari kerja tanpa
+cap jam; baris kerani "hadir" tanpa jam ikut ke sini, keterangannya dibawa terpisah di
+`attendance_status`) · `non_kerja` (pola pekan `hr.leave.workweek_days`). Hanya `terukur` yang
+boleh membawa angka jam; ketiga lainnya memulangkan **NULL, bukan 0**. Sebaliknya, hari yang diukur
+penuh dan tidak berlembur memulangkan **0 yang sungguhan** — bedanya dijaga oleh KEADAAN harinya,
+bukan oleh angkanya. Keterlambatan hanya menuntut cap MASUK, jadi ia tetap terukur pada hari
+setengah terukur.
+
+**PEMBULATAN DILAKUKAN SEKALI**, di `TimesheetService::overtimeMinutes()`, pada **kelebihan menit
+di atas jam normal** — bukan pada rentang kerjanya, dan bukan dua kali. Urutannya: jam normal →
+**pembulatan ke kelipatan TERDEKAT** (ke atas maupun ke bawah; pembulatan yang selalu ke bawah
+adalah potongan upah yang menyamar sebagai aritmetika) → minimum. Tepi-tepinya pada bawaan:
+`+7 → 0`, `+8 → 15 → gugur minimum → 0`, `+22 → 15 → 0`, `+29 → 30`, `+30 → 30`.
+
+**Batas Kepmenaker DICATAT DAN DITANDAI, TIDAK DIPOTONG** (3 jam/hari, 14 jam/pekan Senin–Minggu).
+Pola yang sama dengan geofence F-4: memotong diam-diam membuat layar mengatakan angka yang berbeda
+dari yang benar-benar dikerjakan orangnya.
+
+**Tarif hari libur TIDAK dibangun, dan itu DIKATAKAN.** Kepmenaker 102/2004 Pasal 11 ayat 2 memberi
+hari istirahat skala 2x/3x/4x **sejak jam pertama**. Karena itu hari non-kerja yang ada cap jamnya
+**tetap diukur dan dilaporkan terpisah** (`non_working_measured_minutes`) tetapi **tidak pernah
+diusulkan sebagai lembur** dan **tidak pernah masuk ke rincian bayar**. Memakai rumus hari kerja
+untuknya berarti membayar kurang, diam-diam, pada hari yang paling mahal. Sistem ini juga **tidak
+punya kalender hari libur nasional** (`policy.holidays_known = false`), dan layar mencetak itu.
+
+**TIDAK ADA TABEL TURUNAN.** Rincian harian dihitung ulang setiap kali ditanya. Tiga sebab:
+cap jam boleh dikoreksi kapan saja (F-4 justru membangun pintunya, dan migrasi 001091 sudah
+menolak menyimpan `outside_geofence` dengan kalimat yang sama); aturannya **setelan** yang boleh
+berubah, sehingga baris yang ditinggalkan di tabel akan terbaca sebagai hasil aturan hari ini; dan
+yang benar-benar harus beku adalah **uang**, yang dibekukan di tempat payroll sudah membekukan
+`project_id`, `has_tax_id` dan `ter_rate` — **pada slip**.
+
+**UANG: `hr_payslips.overtime_basis` + `overtime_rate_detail` (migrasi 001094).** Tiga aturan yang
+tidak boleh dilanggar:
+
+1. **Total jam SELALU dari rekap bulanan.** Rincian harian menentukan **TARIF**, tidak pernah
+   jumlahnya — ILB tetap otoritatif atas berapa jam yang berhak dibayar.
+2. **Rincian harian dipakai HANYA bila totalnya SAMA PERSIS dengan rekap.** ILB 10 jam melawan
+   absensi 7 jam berarti bentuk harian yang diketahui **bukan** bentuk dari jam yang dibayar;
+   membelah 10 menurut bentuk 7 adalah mengarang hari lembur. Dalam keadaan itu jalur lama
+   (`rata_jam_pertama`) dipakai apa adanya, dan `reason` menyebut **kedua angka**.
+3. **MAJU-SAJA**, dan ia sudah ada: `PayrollService::calculate()` menolak run yang tidak editable,
+   jadi periode approved/closed tidak pernah sampai ke perhitungan ini. **Tidak ada backfill** —
+   `overtime_basis` NULL berarti "slip dihitung sebelum 14 Sep 2026", keadaan yang **berbeda** dari
+   `tanpa_lembur`. Menebak dasar slip yang sudah diposting adalah mengarang bukti tentang uang yang
+   sudah keluar.
+
+**Usulan rekap: `overtime_hours` keluar dari `not_proposed` — DENGAN SYARAT.** Ia diusulkan hanya
+ketika periode punya ≥ 1 hari bercap jam lengkap; bila tidak, ia **tetap** ditolak dengan kalimat
+yang benar SEKARANG ("Belum ada satu hari pun dengan cap jam masuk DAN pulang di periode ini"),
+bukan kalimat lama ("Register mencatat kehadiran, bukan jam lembur yang disetujui") yang berhenti
+benar sejak F-4. Baris seorang pegawai yang tidak punya hari terukur mendapat **NULL**, dan
+formulir rekap **tidak disodori kuncinya sama sekali**: nol yang disodorkan akan disimpan sebagai
+nol yang diputuskan.
+
+**Tiga pintu, dan yang ketiga menjawab 404.** `hr/timesheet/me` tanpa gerbang izin (pola
+`attendances/me`; tidak ada satu parameter pun yang bisa menyebut orang lain) · `hr/timesheet` di
+balik `hr.view` · `hr/timesheet/{id}` **tanpa middleware** karena izinnya bersyarat, menolak dengan
+**404 yang sama persis** untuk "bukan milik Anda" dan "id tidak ada" (pola
+`PushSubscriptionEndpointTest`). 403 memberi tahu pemanggil bahwa id itu **ADA**, dan menyapu
+id 1..N lalu menghitung jumlah karyawan tanpa memegang izin apa pun. Karena itu pengikat model rute
+**tidak dipakai**: 404 bawaannya berbentuk lain.
+
+**Jam ILB dibaca lewat query builder atas nama tabelnya** (`prj_overtime_permits`), bukan lewat
+model `Modules\Projects` — preseden `PayrollService::projectAssignments`. HrPayroll tetap **nol
+impor** dari Projects, dan arah ketergantungan tetap Projects → HrPayroll.

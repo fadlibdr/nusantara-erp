@@ -4104,3 +4104,59 @@ direktur, jurnal, pergerakan stok dan pemberitahuan berjalan persis seperti
 menyetujui satu-satu. Angka yang Anda isi hanya membatasi berapa banyak boleh
 dipilih sekali jalan; pilih dengan mempertimbangkan bahwa tiap dokumen adalah
 satu permintaan dan laju API dibatasi 120 permintaan per menit.
+
+## 14. Kebijakan timesheet & lembur — sembilan angka yang menggeser upah (F-5)
+
+**Sistem › Pengaturan › SDM — Cuti, Absensi & Timesheet.** Bagian atas grup ini (hak cuti,
+radius absensi ponsel) **tidak menyentuh satu rupiah pun**. Bagian bawah — sembilan kunci
+`hr.timesheet.*` — **menggerakkan upah lembur**, dan kalimat pembuka grupnya mengatakan
+perbedaan itu apa adanya sejak 14 September 2026.
+
+Setiap perubahan di sini tercatat di **Log Audit** dengan nama pelaku, tanggal dan nilai
+dari→ke, karena baris `core_settings` diamati seperti tarif pajak dan nomor rekening.
+
+### Kesembilan angkanya, dan apa akibatnya pada uang
+
+| Setelan | Bawaan | Akibatnya bila diubah |
+|---|---|---|
+| Jam mulai kerja (acuan terlambat) | `08:00` | Satu-satunya angka yang membuat "terlambat" punya arti. Menaikkannya **menghapus keterlambatan yang sudah tercatat dari layar secara surut** — jam masuk yang tersimpan tidak berubah, tetapi penilaiannya dihitung ulang setiap kali layar dibuka. |
+| Toleransi terlambat | 10 menit | Menit terlambat dihitung dari **batas toleransi**, bukan dari jam mulai. Tidak memotong upah sendiri; ia menentukan apa yang terbaca di layar tempat keputusan itu diambil orang. |
+| Jam kerja normal per hari | 8 jam | Menit **di atas** angka ini yang menjadi calon lembur. Menaikkannya satu jam **menghapus satu jam lembur dari setiap hari setiap orang** — pengurangan upah terbesar yang bisa dilakukan satu kotak isian di layar ini. |
+| Pembulatan lembur | 15 menit | Kelebihan menit dibulatkan ke kelipatan **terdekat**, sekali saja (7 menit → 0, 8 menit → 15). Membesarkannya membuat lembur pendek lebih sering hilang. |
+| Lembur minimum | 30 menit | Di bawah ini tidak dibayar, dan diterapkan **sesudah** pembulatan: 22 menit membulat ke 15 lalu gugur. Diisi 0, setiap menit sisa ikut dibayar. |
+| Batas lembur per hari | 3 jam | Kepmenaker 102/2004 Pasal 3. Melewatinya **tidak memotong jam dan tidak menolak harinya** — jamnya dibayar penuh, barisnya ditandai agar terlihat. |
+| Batas lembur per minggu | 14 jam | Pasangan batas harian, per pekan Senin–Minggu, diperlakukan sama: ditandai, tidak dipotong. |
+| Tarif lembur jam pertama | 150 % | 1,5x upah sejam untuk jam **pertama** setiap hari lembur. |
+| Tarif lembur jam berikutnya | 200 % | 2x upah sejam untuk jam kedua dan seterusnya **dalam satu hari**. |
+
+**Upah sejam** sendiri = upah sebulan ÷ **pembagi lembur**, dan pembagi itu setelan
+tersendiri di grup **BPJS & Lembur** (`payroll.overtime.divisor`, bawaan 173). Mengubah
+tarif tanpa memeriksa pembagi berarti mengubah separuh rumus.
+
+### Kapan perubahannya berlaku
+
+**Pada payroll yang DIHITUNG sesudahnya.** Slip yang sudah diposting tidak berubah: setiap
+slip menyimpan tarif dan pembagi yang berlaku saat ia dihitung (`overtime_rate_detail`),
+seperti `ter_rate` dan radius geofence sebelumnya. Payroll yang sudah disetujui atau
+ditutup tidak pernah dihitung ulang sama sekali.
+
+Angka di layar **Timesheet & Lembur** dihitung ulang setiap kali layar dibuka, jadi
+perubahan setelan langsung terlihat di sana — termasuk untuk bulan yang sudah lewat.
+Itu disengaja: layar selalu menampilkan kebijakan yang berlaku, dan ia **mencetak
+kebijakan itu di sebelah angkanya** supaya bisa diperiksa.
+
+### Dua batas yang tidak bisa Anda setel
+
+- **Tarif akhir pekan/hari libur** (Kepmenaker 102/2004 Pasal 11 ayat 2: 2x/3x/4x sejak
+  jam pertama) **tidak dibangun**. Jam yang tercatat pada hari non-kerja tetap diukur dan
+  dilaporkan, tetapi tidak pernah diusulkan sebagai lembur — memakai tarif hari kerja
+  untuknya akan membayar kurang tanpa ada yang bisa melihat sebabnya. Sampai ia dibangun,
+  lembur hari libur adalah keputusan manual lewat ILB.
+- **Kalender hari libur nasional** tidak ada di sistem ini. Hari non-kerja ditentukan
+  `hr.leave.workweek_days` saja (6 = hanya Minggu libur, 5 = Sabtu ikut). Layar
+  mengatakannya sendiri.
+
+### Jam mulai kerja hanya SATU untuk seluruh perusahaan
+
+Tidak ada jam mulai per proyek, per regu, atau per shift. Bila pemasangan ini butuh
+keduanya, jangan mengakali jam mulai: ia akan salah untuk salah satu kelompok setiap hari.
