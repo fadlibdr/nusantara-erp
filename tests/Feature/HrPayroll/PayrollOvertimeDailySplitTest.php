@@ -170,6 +170,121 @@ class PayrollOvertimeDailySplitTest extends ErpTestCase
         );
     }
 
+    // ------------------------------------- satu sumber jam, bukan dua
+
+    /**
+     * SLIP TIDAK BOLEH MEMBANTAH DIRINYA SENDIRI.
+     *
+     * Sampai putaran verifikasi 14 Sep 2026, bentuk harian membulatkan menit
+     * menjadi jam DUA KALI dengan cara berbeda: `total_hours` dari jumlah
+     * menit, tetapi tiap `days[].hours` dari menit HARI ITU. Gerbang kesamaan
+     * total membandingkan rekap terhadap yang pertama, sementara uang dihitung
+     * dari jumlah yang kedua — jadi jumlah jam yang DIBAYAR slip berbeda dari
+     * jumlah jam yang TERTULIS pada slip yang sama.
+     *
+     * Pada pembulatan bawaan 15 menit ini tidak pernah menggigit: seperempat
+     * jam desimalnya tepat, jadi seluruh uji paket ini hijau. `rounding_minutes`
+     * adalah setelan operator dengan rentang 1..60 yang `help`-nya justru
+     * mengundang orang mengubahnya, dan pada 10 menit ia membayar LEBIH,
+     * pada 20 menit ia membayar KURANG. Kedua arah dipaku di bawah.
+     */
+    public function test_ten_minute_rounding_pays_exactly_the_hours_the_slip_says_it_pays(): void
+    {
+        $this->setSetting('hr.timesheet.rounding_minutes', 10);
+        $this->setSetting('hr.timesheet.overtime_minimum_minutes', 0);
+
+        $employee = $this->employeeOnElevenMillion();
+        $run = $this->makeRun();
+
+        // Tiga hari x 10 menit = 30 menit = 0,5 jam tepat. Dibulatkan per hari
+        // menjadi jam, tiap hari berbunyi 0,17 dan jumlahnya 0,51.
+        foreach (['2026-06-01', '2026-06-02', '2026-06-03'] as $date) {
+            $this->overtimeDay($employee, $date, 10 / 60);
+        }
+        $this->makeRecap($employee, $run, 0.5);
+
+        $this->payrollService()->calculate($run);
+        $slip = $this->payslipFor($run, $employee);
+        $detail = $slip->overtime_rate_detail;
+
+        $this->assertSame(OvertimeBasis::RincianHarian, $slip->overtime_basis);
+        $this->assertMoney(
+            47_687.86, // 0,5 jam x 1,5 x 63.583,815028901736
+            $slip->overtime_pay,
+            'Setengah jam lembur dibayar sebagai setengah jam. Menjumlahkan jam yang sudah '
+            .'dibulatkan per hari membayar 0,51 jam di sini — Rp 953,76 untuk satu menit yang '
+            .'tidak pernah ada.',
+        );
+        $this->assertSame(
+            0.5,
+            round((float) $detail['hours_at_first_rate'] + (float) $detail['hours_at_next_rate'], 2),
+            'Rincian tarif HARUS berjumlah persis kolom overtime_hours slip yang sama.',
+        );
+        $this->assertSame(0.5, round((float) $slip->overtime_hours, 2));
+        $this->assertSame(30, (int) $detail['minutes_at_first_rate']);
+    }
+
+    public function test_twenty_minute_rounding_does_not_pay_less_than_the_hours_the_slip_says(): void
+    {
+        $this->setSetting('hr.timesheet.rounding_minutes', 20);
+        $this->setSetting('hr.timesheet.overtime_minimum_minutes', 0);
+
+        $employee = $this->employeeOnElevenMillion();
+        $run = $this->makeRun();
+
+        // Tiga hari x 20 menit = 60 menit = 1 jam tepat; per hari 0,33 dan
+        // jumlahnya 0,99 — arah yang berlawanan dengan uji di atas.
+        foreach (['2026-06-01', '2026-06-02', '2026-06-03'] as $date) {
+            $this->overtimeDay($employee, $date, 20 / 60);
+        }
+        $this->makeRecap($employee, $run, 1);
+
+        $this->payrollService()->calculate($run);
+        $slip = $this->payslipFor($run, $employee);
+        $detail = $slip->overtime_rate_detail;
+
+        $this->assertMoney(
+            95_375.72, // 1 jam x 1,5 x upah sejam
+            $slip->overtime_pay,
+            'Satu jam lembur dibayar sebagai satu jam. Menjumlahkan jam yang sudah dibulatkan per '
+            .'hari membayar 0,99 jam di sini — Rp 953,75 KURANG, pada slip yang kolomnya berbunyi '
+            .'1,00 jam.',
+        );
+        $this->assertSame(
+            1.0,
+            round((float) $detail['hours_at_first_rate'] + (float) $detail['hours_at_next_rate'], 2),
+        );
+    }
+
+    /**
+     * Tepi tampilan: 110 + 50 menit membulat sendiri-sendiri menjadi 1,83 dan
+     * 0,83 = 2,66, sementara totalnya 2,67. Jam berikutnya karena itu adalah
+     * SISA, bukan pembulatannya sendiri — dan menit yang tepat ikut dibawa.
+     */
+    public function test_the_two_rate_buckets_always_add_up_to_the_hours_column(): void
+    {
+        $this->setSetting('hr.timesheet.rounding_minutes', 10);
+        $this->setSetting('hr.timesheet.overtime_minimum_minutes', 0);
+
+        $employee = $this->employeeOnElevenMillion();
+        $run = $this->makeRun();
+
+        $this->overtimeDay($employee, '2026-06-01', 110 / 60);
+        $this->overtimeDay($employee, '2026-06-02', 50 / 60);
+        $this->makeRecap($employee, $run, 2.67);
+
+        $this->payrollService()->calculate($run);
+        $slip = $this->payslipFor($run, $employee);
+        $detail = $slip->overtime_rate_detail;
+
+        $this->assertSame(OvertimeBasis::RincianHarian, $slip->overtime_basis);
+        $this->assertSame(
+            round((float) $slip->overtime_hours, 2),
+            round((float) $detail['hours_at_first_rate'] + (float) $detail['hours_at_next_rate'], 2),
+        );
+        $this->assertSame([110, 50], [(int) $detail['minutes_at_first_rate'], (int) $detail['minutes_at_next_rate']]);
+    }
+
     // ------------------------------------------------ jalur lama tetap hidup
 
     public function test_a_period_without_any_daily_detail_still_uses_the_old_flat_path_and_says_so(): void

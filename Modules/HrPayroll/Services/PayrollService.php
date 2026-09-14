@@ -282,6 +282,11 @@ class PayrollService
                 'divisor' => $divisor,
                 'first_hour_pct' => round($firstRate * 100, 2),
                 'next_hours_pct' => round($nextRate * 100, 2),
+                // Jalur lama membayar dari JAM rekap, bukan dari menit absensi:
+                // rekap bulanan memang menyimpan jam desimal, dan tidak ada
+                // bentuk harian yang boleh dipakai membelahnya.
+                'minutes_at_first_rate' => (int) round($overtimeHours * 60),
+                'minutes_at_next_rate' => 0,
                 'hours_at_first_rate' => $overtimeHours,
                 'hours_at_next_rate' => 0.0,
                 'days' => [],
@@ -308,16 +313,43 @@ class PayrollService
             ));
         }
 
-        // Jam PERTAMA tiap hari lembur pada tarif pertama, sisanya pada tarif
-        // berikutnya. Sebuah hari berlembur 0,5 jam menyumbang 0,5 jam ke tarif
-        // pertama dan tidak satu pun ke tarif berikutnya.
-        $firstHours = 0.0;
-        $nextHours = 0.0;
+        /*
+         * Jam PERTAMA tiap hari lembur pada tarif pertama, sisanya pada tarif
+         * berikutnya. Sebuah hari berlembur 0,5 jam menyumbang 0,5 jam ke tarif
+         * pertama dan tidak satu pun ke tarif berikutnya.
+         *
+         * DIJUMLAHKAN DALAM MENIT, DIBAGI 60 SEKALI DI AKHIR. Menjumlahkan
+         * `hours` yang sudah dibulatkan per hari adalah pembulatan KEDUA, dan
+         * gerbang di atas membandingkan rekap terhadap total yang dihitung dari
+         * MENIT — jadi slip akan membayar jumlah jam yang berbeda dari jumlah
+         * jam yang tertulis pada slip itu sendiri. Pada pembulatan bawaan 15
+         * menit selisihnya nol dan tidak ada uji yang bisa melihatnya; pada
+         * pembulatan 10 menit, tiga hari x 10 menit membayar Rp 953,76 LEBIH
+         * dari 0,5 jam yang tertulis di kolom `overtime_hours`, dan pada 20
+         * menit ia membayar Rp 953,75 KURANG. Arahnya bolak-balik, jadi ia juga
+         * tidak bisa dibaca sebagai kebijakan.
+         */
+        $firstMinutes = 0;
+        $nextMinutes = 0;
 
         foreach ($shape['days'] as $day) {
-            $firstHours += min(1.0, (float) $day['hours']);
-            $nextHours += max(0.0, (float) $day['hours'] - 1.0);
+            $firstMinutes += min(60, (int) $day['minutes']);
+            $nextMinutes += max(0, (int) $day['minutes'] - 60);
         }
+
+        $firstHours = $firstMinutes / 60;
+        $nextHours = $nextMinutes / 60;
+
+        /*
+         * DUA ANGKA YANG DITAMPILKAN HARUS BERJUMLAH PERSIS JAM YANG DIBAYAR.
+         * Membulatkan keduanya sendiri-sendiri bisa meleset satu sen jam
+         * (110 + 50 menit: 1,83 + 0,83 = 2,66, sementara totalnya 2,67), dan
+         * sebuah slip yang kolom jamnya membantah rinciannya sendiri adalah
+         * slip yang tidak bisa dipakai membantah apa pun. Jam pertama
+         * dibulatkan, jam berikutnya adalah SISANYA — dan menit yang tepat ikut
+         * dibawa di sebelahnya, jadi tidak ada yang hilang.
+         */
+        $displayFirst = round($firstHours, 2);
 
         return [
             'pay' => round(($firstHours * $firstRate + $nextHours * $nextRate) * $hourlyWage, 2),
@@ -326,8 +358,10 @@ class PayrollService
                 'divisor' => $divisor,
                 'first_hour_pct' => round($firstRate * 100, 2),
                 'next_hours_pct' => round($nextRate * 100, 2),
-                'hours_at_first_rate' => round($firstHours, 2),
-                'hours_at_next_rate' => round($nextHours, 2),
+                'minutes_at_first_rate' => $firstMinutes,
+                'minutes_at_next_rate' => $nextMinutes,
+                'hours_at_first_rate' => $displayFirst,
+                'hours_at_next_rate' => round($overtimeHours - $displayFirst, 2),
                 'days' => $shape['days'],
                 'reason' => null,
             ],

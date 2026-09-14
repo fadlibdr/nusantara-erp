@@ -322,7 +322,20 @@ class TimesheetService
      * (tarif hari libur tidak dibangun paket ini), jadi ia juga bukan bentuk
      * yang boleh dipakai membelah jam yang dibayar.
      *
-     * @return array{total_hours: float, days: list<array{date: string, hours: float}>}|null
+     * MENIT ADALAH SUMBERNYA, JAM HANYA TAMPILANNYA.
+     *
+     * Setiap hari membawa `minutes` (bilangan bulat, tepat) DAN `hours`
+     * (dibulatkan ke 2 desimal, untuk layar dan untuk slip). Yang menghitung
+     * uang WAJIB memakai `minutes`: sampai putaran verifikasi 14 Sep 2026,
+     * pembelahan tarif menjumlahkan `hours` yang sudah dibulatkan satu-satu,
+     * sementara gerbang kesamaan totalnya dibandingkan terhadap `total_hours`
+     * yang dihitung dari menit — dua angka berbeda untuk satu jumlah jam, pada
+     * slip yang sama. Pada pembulatan bawaan 15 menit keduanya kebetulan sama
+     * persis (seperempat jam desimalnya tepat), jadi tidak satu uji pun bisa
+     * melihatnya; pada pembulatan 10 atau 20 menit — nilai yang layar
+     * Pengaturan terima dengan HTTP 200 — selisihnya nyata dan BOLAK-BALIK.
+     *
+     * @return array{total_minutes: int, total_hours: float, days: list<array{date: string, minutes: int, hours: float}>}|null
      */
     public function measuredOvertimeShape(int $employeeId, int $year, int $month): ?array
     {
@@ -351,7 +364,11 @@ class TimesheetService
 
             if ((int) $day['overtime_minutes'] > 0) {
                 $totalMinutes += (int) $day['overtime_minutes'];
-                $days[] = ['date' => $day['date'], 'hours' => round($day['overtime_minutes'] / 60, 2)];
+                $days[] = [
+                    'date' => $day['date'],
+                    'minutes' => (int) $day['overtime_minutes'],
+                    'hours' => round($day['overtime_minutes'] / 60, 2),
+                ];
             }
         }
 
@@ -359,7 +376,11 @@ class TimesheetService
             return null;
         }
 
-        return ['total_hours' => round($totalMinutes / 60, 2), 'days' => $days];
+        return [
+            'total_minutes' => $totalMinutes,
+            'total_hours' => round($totalMinutes / 60, 2),
+            'days' => $days,
+        ];
     }
 
     /**
