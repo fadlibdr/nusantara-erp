@@ -14,9 +14,21 @@
  * Kolom yang TIDAK diusulkan ditulis di layar beserta alasannya, bukan
  * dikosongkan diam-diam: sakit dan cuti hidup di pengajuan cuti dengan
  * persetujuannya sendiri, hari kerja butuh kalender yang register tidak punya,
- * lembur bukan kehadiran, dan rekap bulanan tidak punya kolom setengah hari
- * sama sekali. Mengisi keempatnya dengan 0 akan terlihat seperti jawaban dan
- * terbawa ke slip gaji sebagai hak yang hilang.
+ * dan rekap bulanan tidak punya kolom setengah hari sama sekali. Mengisi
+ * ketiganya dengan 0 akan terlihat seperti jawaban dan terbawa ke slip gaji
+ * sebagai hak yang hilang.
+ *
+ * F-5 — JAM LEMBUR PINDAH SISI, DENGAN SYARAT. Sampai 13 Sep 2026 lembur ikut
+ * di daftar "yang tidak diusulkan" dengan alasan "register mencatat kehadiran,
+ * bukan jam lembur". Sejak cap jam masuk/pulang F-4 dihitung F-5, register
+ * BISA menurunkannya — jadi ia diusulkan KETIKA ada hari yang benar-benar
+ * terukur, dan tetap ditolak (dengan kalimat baru yang benar) ketika tidak.
+ * Keputusan itu diambil SERVER dan dibaca di sini lewat payload.overtime;
+ * layar tidak menyusun syaratnya sendiri.
+ *
+ * Angka lemburnya KOSONG, bukan 0, untuk orang yang tidak punya satu pun hari
+ * terukur di bulan yang orang lain punya — nol yang disodorkan formulir akan
+ * disimpan sebagai nol yang diputuskan.
  */
 
 import { api, session } from '../api.js';
@@ -82,6 +94,13 @@ export async function renderUsulanRekap(host) {
     if (token !== loadToken) return;
     clear(body);
 
+    /* Syarat lembur DULU, di atas tabelnya: kalimat yang muncul di bawah angka
+       adalah kalimat yang dibaca sesudah orang memutuskan. */
+    body.appendChild(el(`.alert.${payload.overtime.proposed ? 'info' : 'warn'}.usulan-overtime`, {
+      'data-proposed': String(payload.overtime.proposed),
+      text: payload.overtime.why,
+    }));
+
     body.appendChild(el('.card', [
       el('.card-head', [el('h2', { text: 'Yang tidak diusulkan — dan kenapa' }), el('.spacer')]),
       /* Label datang dari server bersama alasannya. Layar yang menyusun
@@ -115,6 +134,7 @@ export async function renderUsulanRekap(host) {
         el('th', { text: '½ hari' }),
         el('th', { text: 'Absen' }),
         el('th', { text: 'Absen ponsel' }),
+        el('th.right', { text: 'Lembur turunan' }),
         el('th', { text: '' }),
       ])),
       el('tbody', payload.rows.map((row) => el('tr', [
@@ -144,6 +164,23 @@ export async function renderUsulanRekap(host) {
               ].filter(Boolean).join(' · ') || 'semuanya di dalam radius'),
           }),
         ]),
+        /* KOSONG, bukan 0: orang yang tidak punya satu pun hari terukur bulan
+           ini tidak berlembur nol jam — tidak ada yang pernah mengukurnya. */
+        el('td.right.usulan-ot', { 'data-empty': String(row.overtime_hours === null) },
+          row.overtime_hours === null
+            ? el('span.muted', {
+              text: '—',
+              title: row.half_measured_days
+                ? `${row.half_measured_days} hari hanya punya satu cap jam — belum terukur. `
+                  + 'Lengkapi lewat Absensi Harian → Koreksi.'
+                : 'Belum ada hari dengan cap jam masuk DAN pulang untuk orang ini bulan ini.',
+            })
+            : el('span', [
+              el('span.cell-main', { text: `${fmt.num(row.overtime_hours, 2)} jam` }),
+              row.permit_hours === null
+                ? null
+                : el('span.cell-sub', { text: `ILB ${fmt.num(row.permit_hours, 2)} jam` }),
+            ])),
         el('td', row.has_recap
           ? badge('Rekap sudah ada', 'green')
           : (canCreate ? button('Buat rekap', {
@@ -161,6 +198,12 @@ export async function renderUsulanRekap(host) {
                 period_month: payload.period.month,
                 present_days: row.present_days,
                 alpha_days: row.absent_days,
+                /* F-5 — hanya bila BENAR-BENAR diturunkan. `null` akan
+                   tersodor ke formulir sebagai kotak kosong yang orang isi
+                   sendiri; 0 akan tersodor sebagai jawaban yang bukan
+                   jawaban. Karena itu kuncinya tidak ada sama sekali ketika
+                   tidak ada yang terukur. */
+                ...(row.overtime_hours === null ? {} : { overtime_hours: row.overtime_hours }),
               },
               onSaved: () => { toast('Rekap tersimpan.'); load(); },
             }),

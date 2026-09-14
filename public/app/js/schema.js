@@ -6435,7 +6435,7 @@ export const NAV = [
        sumbernya sendiri. Tanpa `perm`: katalognya menyaring dirinya per entri,
        dan peran yang tidak punya satu sumber pun mendapat kalimat yang
        mengatakannya — bukan baris menu yang hilang tanpa sebab. */
-    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Absensi Saya', route: 'absensi-saya' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }, { label: 'Profil & Notifikasi', route: 'profil' }],
+    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Absensi Saya', route: 'absensi-saya' }, { label: 'Timesheet Saya', route: 'timesheet-saya' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }, { label: 'Profil & Notifikasi', route: 'profil' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',
@@ -6676,6 +6676,10 @@ export const NAV = [
       { label: 'Sertifikat & PKWT', route: 'sertifikat' },
       { label: 'Cuti & Izin', route: 'r/hr/leave-requests' },
       { label: 'Absensi Harian', route: 'absensi' },
+      // F-5 — tepat di bawah registernya: layar ini MENGHITUNG dari jam
+      // masuk/pulang yang ditulis layar di atasnya, dan menyandingkan
+      // hasilnya dengan jam ILB yang disetujui.
+      { label: 'Timesheet & Lembur', route: 'timesheet' },
       // Tepat di antara register dan rekapnya, karena itulah hubungannya:
       // layar ini membaca yang pertama dan mengisikan formulir yang kedua.
       { label: 'Usulan Rekap Absensi', route: 'usulan-rekap' },

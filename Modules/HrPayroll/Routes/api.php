@@ -8,6 +8,7 @@ use Modules\HrPayroll\Http\Controllers\EmployeeController;
 use Modules\HrPayroll\Http\Controllers\LeaveRequestController;
 use Modules\HrPayroll\Http\Controllers\PayrollRunController;
 use Modules\HrPayroll\Http\Controllers\Pph21RecapController;
+use Modules\HrPayroll\Http\Controllers\TimesheetController;
 
 Route::middleware('auth:sanctum')->group(function (): void {
     // Employees
@@ -93,6 +94,24 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('attendances/{attendance}/corrections', [AttendanceController::class, 'corrections'])->middleware('permission:hr.view');
     Route::put('attendances/{attendance}', [AttendanceController::class, 'update'])->middleware('permission:hr.update');
     Route::delete('attendances/{attendance}', [AttendanceController::class, 'destroy'])->middleware('permission:hr.delete');
+
+    /*
+     * Timesheet & lembur dari absensi (F-5) — baca-saja, tanpa satu pun pintu
+     * tulis, dengan alasan yang sama seperti usulan rekap di atas.
+     *
+     * URUTANNYA ADALAH ATURANNYA. 'timesheet/me' didaftarkan DI ATAS
+     * 'timesheet/{employee}', atau ia ditelan pola berparameter dan menjawab
+     * 404 untuk setiap orang — jebakan yang sama dengan 'attendances/me' dan
+     * 'attendance-recaps/proposal'.
+     *
+     * 'timesheet/{employee}' sengaja TANPA middleware izin: izinnya bersyarat
+     * (milik sendiri selalu boleh, milik orang lain menuntut hr.view) dan
+     * ditegakkan di controller-nya, yang menjawab 404 yang SAMA untuk keduanya.
+     * Lihat kepala TimesheetController.
+     */
+    Route::get('timesheet', [TimesheetController::class, 'index'])->middleware('permission:hr.view');
+    Route::get('timesheet/me', [TimesheetController::class, 'mine']);
+    Route::get('timesheet/{employee}', [TimesheetController::class, 'show']);
 
     // Payroll runs
     Route::get('payroll-runs', [PayrollRunController::class, 'index']);

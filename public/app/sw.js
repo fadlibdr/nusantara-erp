@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '14';
+const SHELL_VERSION = '15';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -178,6 +178,8 @@ const SHELL = [
   'js/views/taxexport.js',
   'js/views/tender.js',
   'js/views/tenggat.js',
+  // F-5 — layar Timesheet & Lembur (HR) dan Timesheet Saya (pemiliknya sendiri).
+  'js/views/timesheet.js',
   'js/views/ambang.js',
   'js/views/anggaran.js',
   'js/views/tugas.js',
