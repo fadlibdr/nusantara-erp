@@ -121,6 +121,35 @@ final class WebhookUrl
         }
 
         /*
+         * BYTE KENDALI DI OTORITAS — DICUCI `parse_url()` MENJADI GARIS BAWAH.
+         *
+         * `https://contoh\x01.co.id/masuk` dipulangkan `parse_url()` sebagai
+         * host `contoh_.co.id`: byte kendalinya DIGANTI, bukan ditolak.
+         * Akibatnya aturan ASCII-tercetak di bawah tidak punya apa pun untuk
+         * ditolak — `_` tercetak — dan gerbang ini berkata "tersimpan" atas
+         * URL yang Guzzle tolak SELAMANYA (`MalformedUriException`; diukur
+         * untuk \x00, \x01, \x09, \x0a, \x0d dan \x7f). Itu bukan lubang
+         * keamanan melainkan bentuk yang sama dengan titik-ekor-pada-alamat:
+         * layar berjanji, lalu setiap pengiriman mati dengan kalimat Inggris
+         * di kolom Galat, lima percobaan penuh per pengiriman.
+         *
+         * Yang dibaca di sini adalah OTORITAS MENTAH dan bukan `$host`, sebab
+         * `$host` justru sudah tidak memuat byte itu lagi. `rawAuthority()`
+         * menjelaskan mengapa membaca URL mentah UNTUK MENOLAK bukan pengurai
+         * kedua — dan mengapa ia berhenti di `/?#`: byte kendali di path,
+         * query dan fragmen DITERIMA transport, jadi menolaknya berarti
+         * menolak sesuatu yang sebenarnya bisa dikirimi.
+         */
+        if (preg_match('/[\x00-\x1F\x7F]/', self::rawAuthority($url)) === 1) {
+            throw new LogicException(
+                "Alamat «{$host}» memuat byte kendali (tab, ganti baris, NUL atau sejenisnya) pada bagian alamatnya "
+                .'— biasanya ikut terbawa saat menyalin-tempel. Byte itu tidak tersimpan apa adanya: ia berubah '
+                .'menjadi garis bawah, sehingga alamat yang tertulis di layar bukan alamat yang diketik, dan pustaka '
+                .'HTTP menolak alamat seperti itu pada setiap pengiriman. Ketiklah alamatnya sekali lagi dengan tangan.'
+            );
+        }
+
+        /*
          * HOST YANG KAMI DAN TRANSPORT BACA BERBEDA — DUA JARING, BUKAN SATU.
          *
          * `https://127.0.0.%31/masuk` lolos seluruh penilaian di bawah:
@@ -285,6 +314,77 @@ final class WebhookUrl
     }
 
     /**
+     * IRISAN OTORITAS MENTAH: sesudah `://`, sampai karakter pertama dari
+     * `/?#`. HANYA untuk MENOLAK — tidak pernah untuk menentukan tujuan.
+     *
+     * INI BUKAN PENGURAI KEDUA, DAN KEBERATANNYA DIJAWAB DI SINI, BUKAN
+     * DILEWATI. KEPUTUSAN-INTEGRASI §11.2 MENCATAT keberatan itu pada 13 Sep
+     * 2026 sebagai sebab butir ini tidak ditutup — ia mencatat, bukan
+     * melarang; tidak ada larangan bernomor tentangnya di docblock kelas ini
+     * maupun di §11.2, dan menulis "melarang" akan mengirim pembaca berikutnya
+     * mencari aturan yang tidak pernah ada (putaran penutup, V-6). Keberatan
+     * itu serius: dua
+     * pengurai yang BERSELISIH tentang ke mana sebuah permintaan pergi adalah
+     * kelas kerentanan tersendiri — CVE-2026-69246 yang baru saja ditambal
+     * Guzzle persis bentuk itu.
+     *
+     * YANG MEMBEDAKAN IRISAN INI DARI SEBUAH PENGURAI ADALAH WEWENANGNYA,
+     * bukan ukurannya. Sebuah pengurai MEMULANGKAN TUJUAN: host yang
+     * dipulangkannya dinilai publik atau tidak, ditanyakan kepada DNS, dan
+     * pada akhirnya disambungi. Irisan ini tidak memulangkan satu pun dari itu
+     * dan tidak pernah dipanggil untuk itu. Ia dipakai untuk menjawab SATU
+     * pertanyaan ya/tidak — "ada byte kendali di wilayah ini?" — dan
+     * satu-satunya hal yang boleh terjadi sesudah jawabannya adalah
+     * PENOLAKAN. Host yang dinilai, yang ditanyakan ke DNS dan yang
+     * disambungi tetap milik `parse_url()`, sebelum dan sesudah baris ini.
+     * Untuk berselisih tentang tujuan, sebuah pengurai harus punya tujuan.
+     *
+     * YANG BISA SALAH karenanya hanya SATU hal: menolak URL yang sebenarnya
+     * sah. Itu diukur, bukan diandaikan — 34 bentuk URL dijalankan terhadap
+     * irisan ini SEBELUM satu baris produksi ditulis (14 Sep 2026), dan
+     * tabelnya hidup di dalam uji sebagai `WebhookGuardTest::authoritySlices()`:
+     *
+     *  - Pada SETIAP bentuk yang `parse_url()` bisa baca, wilayah yang diiris
+     *    memuat host yang `parse_url()` pulangkan — userinfo yang memuat "/"
+     *    ter-encode maupun mentah, "@" ganda, IPv6 berkurung dengan zona
+     *    `%25eth0`, port kosong, tanpa path sama sekali, "?" atau "#" sebelum
+     *    "/", skema huruf besar, dan spasi di awal/akhir URL. Satu-satunya
+     *    wilayah yang BERBEDA muncul pada URL yang `parse_url()` sendiri baca
+     *    rusak (`https://[::1/x` → host `[:`), dan di sana irisannya lebih
+     *    LEBAR, bukan lebih sempit.
+     *  - Irisan ini sengaja lebih lebar daripada host: ia memuat userinfo dan
+     *    port. Itu tidak mengetatkan apa pun yang belum ketat — URL
+     *    ber-userinfo sudah ditolak seluruhnya di `assertShape()`, dan diukur:
+     *    `parse_url()` mengenali userinfo pada SETIAP bentuk
+     *    byte-kendali-di-userinfo yang dicoba (NUL, TAB, LF, DEL, dan
+     *    penyamaran `contoh.co.id\x01@jahat.co.id`), sehingga kalimat yang
+     *    didapat orangnya tetap kalimat userinfo.
+     *  - Berhenti di `/?#` juga bukan kerapian. Byte kendali di PATH, QUERY
+     *    dan FRAGMEN DITERIMA transport (diukur), jadi menolaknya berarti
+     *    gerbang yang menolak sesuatu yang sebenarnya bisa dikirimi.
+     *    Pasangan yang paling terang: `https://contoh.co.id\n` ditolak Guzzle
+     *    sedangkan `https://contoh.co.id/x\n` diterimanya — byte yang sama,
+     *    dan yang membedakan hanyalah ia jatuh di otoritas atau di path.
+     *    Irisan ini menarik garis di tempat yang sama.
+     *
+     * PUBLIK karena `PushEndpoint` memakainya: ia mengurai URL-nya sendiri dan
+     * men-`trim()` lebih dulu, jadi ia memanggil irisan ini atas string yang
+     * IA urai. Satu gerbang berarti satu irisan.
+     */
+    public static function rawAuthority(string $url): string
+    {
+        $scheme = strpos($url, '://');
+
+        // Tanpa "://" tidak ada otoritas untuk dipisahkan — dan URL seperti
+        // itu tidak pernah sampai ke sini, sebab `parse_url()` tidak
+        // memulangkan host untuknya. Bila ragu, yang diperiksa adalah SELURUH
+        // sisanya: sebuah detektor yang hanya menolak boleh terlalu lebar.
+        $rest = $scheme === false ? $url : substr($url, $scheme + 3);
+
+        return substr($rest, 0, strcspn($rest, '/?#'));
+    }
+
+    /**
      * Alamat IP yang benar-benar dituju host ini tanpa bertanya kepada DNS,
      * atau null bila host-nya sebuah NAMA.
      *
@@ -386,12 +486,30 @@ final class WebhookUrl
             return (string) inet_ntop($embedded);
         }
 
+        /*
+         * 6to4 (RFC 3056): `2002:<ipv4 dalam heksa>::/48` — dan ALAMAT IPv4-nya
+         * ada di byte 2..5, bukan di empat byte terakhir seperti ketiga bentuk
+         * di atas (putaran penutup, V-1).
+         *
+         * Tanpa baris ini `2002:7f00:1::1` dinilai PUBLIK, padahal ia membungkus
+         * 127.0.0.1 — dan `2002:a00:5::1` membungkus 10.0.0.5. Docblock §2 kelas
+         * ini menjanjikan bahwa "setiap bentuk yang membungkus IPv4 diturunkan
+         * lebih dulu"; janji itu tidak benar untuk 6to4 sampai sekarang.
+         *
+         * DITURUNKAN, BUKAN DITOLAK SEBAGAI RENTANG: sebuah alamat 6to4 yang
+         * membungkus IPv4 PUBLIK memang publik, dan menolak `2002::/16` utuh
+         * akan menolak alamat yang sebenarnya bisa dikirimi.
+         */
+        if (substr($packed, 0, 2) === "\x20\x02") {
+            return (string) inet_ntop(substr($packed, 2, 4));
+        }
+
         return $address;
     }
 
     /**
-     * Rentang IPv4 yang DILEWATKAN `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE`,
-     * dan sebabnya masing-masing.
+     * Rentang yang DILEWATKAN `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE`, dan
+     * sebabnya masing-masing.
      *
      * SATU DAFTAR, BUKAN SATU PENGECUALIAN DITAMBAH TIGA. Sebelum ini CGNAT
      * berdiri sendiri sebagai satu `if` di dalam `isPublicIp()`; menambahkan
@@ -399,6 +517,14 @@ final class WebhookUrl
      * ditulis di tempat yang salah enam bulan lagi. Masknya DITURUNKAN dari
      * panjang prefiks dan tidak ditulis tangan — `0xFFE00000` dan
      * `0xFFFE0000` berbeda satu huruf dan berbeda 128 kali lipat besarnya.
+     *
+     * SATU DAFTAR untuk KEDUA keluarga, dan itu juga bukan kerapian belaka:
+     * `ff00::/8` masuk ke sini sebagai baris kelima, bukan sebagai daftar
+     * IPv6 kedua di sebelahnya, karena dua daftar yang mirip adalah cara
+     * sebuah rentang ditutup sekali dan dibiarkan sekali. Perbandingannya
+     * dilakukan atas BYTE alamat (`inRefusedBlock()`), sehingga panjang
+     * prefiks berlaku sama untuk 4 byte maupun 16 byte dan sebuah blok IPv4
+     * tidak pernah bisa cocok dengan alamat IPv6.
      *
      *  - `100.64.0.0/10` — ruang alamat bersama operator (RFC 6598). Di banyak
      *    jaringan operator ini adalah "di dalam".
@@ -413,6 +539,18 @@ final class WebhookUrl
      *    ditutup baris ini bukan kebocoran melainkan sebuah baris kiriman yang
      *    berjanji lalu gagal — dan sebuah gerbang yang menjawab "alamat ini
      *    tidak dikirimi" lebih jujur daripada lima percobaan yang mati diam.
+     *  - `ff00::/8` — multicast IPv6 (RFC 4291 §2.7), KEMBARAN dari
+     *    `224.0.0.0/4` tepat di atas. Sebabnya sama dan bobotnya sama rendah:
+     *    multicast di atas TCP tidak pernah membentuk koneksi. Yang ditutup
+     *    baris ini karena itu bukan lubang yang bisa dieksploitasi melainkan
+     *    INKONSISTENSI — gerbang yang menolak `224.0.0.1` sambil memulangkan
+     *    true untuk `ff02::1` menilai alamat yang sama dengan dua jawaban yang
+     *    berbeda, hanya karena yang satu ditulis dalam empat angka desimal.
+     *    Diukur 14 Sep 2026 sebelum baris ini ada: `ff02::1`, `ff00::1` dan
+     *    `ff05::1:3` ketiganya dinilai PUBLIK. Rentang IPv6 lain SENGAJA tidak
+     *    ikut karena tidak perlu: `fe80::/10` dan `2001:db8::/32` sudah
+     *    ditutup `FILTER_FLAG_NO_RES_RANGE` (diukur pada hari yang sama), dan
+     *    sebuah baris yang tidak bisa memerah bukan pagar melainkan hiasan.
      *
      * YANG SENGAJA TIDAK IKUT: blok dokumentasi TEST-NET `192.0.2.0/24`,
      * `198.51.100.0/24` dan `203.0.113.0/24` (RFC 5737). Ketiganya memang
@@ -426,11 +564,17 @@ final class WebhookUrl
      *
      * @var list<string>
      */
-    private const REFUSED_V4_BLOCKS = [
+    private const REFUSED_BLOCKS = [
         '100.64.0.0/10',
         '192.0.0.0/24',
         '198.18.0.0/15',
         '224.0.0.0/4',
+        'ff00::/8',
+        'fec0::/10',
+        '2001:2::/48',
+        '2001::/32',
+        '100::/64',
+        '64:ff9b:1::/48',
     ];
 
     /**
@@ -438,14 +582,9 @@ final class WebhookUrl
      *
      * `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE` milik PHP menutup loopback,
      * privat RFC1918, link-local dan rentang yang dicadangkan sekaligus —
-     * termasuk 169.254.169.254 dan ::1. Yang TIDAK ditutupnya ada dua:
-     * REFUSED_V4_BLOCKS di atas, dan ::ffff:0:0/96 — alamat IPv4 yang ditulis
-     * sebagai IPv6. Keduanya diperiksa sendiri.
-     *
-     * MULTICAST IPv6 (`ff00::/8`) BELUM ditutup, dan itu dicatat apa adanya di
-     * KEPUTUSAN-INTEGRASI §11.2: `ff02::1` memulangkan true dari baris-baris
-     * di bawah. Ia kembar dari `224.0.0.0/4` dan tidak ikut ditutup di sini
-     * karena rentangnya tidak diukur bersama ketiga rentang IPv4 itu.
+     * termasuk 169.254.169.254, ::1, fe80::/10 dan 2001:db8::/32. Yang TIDAK
+     * ditutupnya ada dua: REFUSED_BLOCKS di atas, dan ::ffff:0:0/96 — alamat
+     * IPv4 yang ditulis sebagai IPv6. Keduanya diperiksa sendiri.
      */
     public static function isPublicIp(string $address): bool
     {
@@ -459,21 +598,57 @@ final class WebhookUrl
             return false;
         }
 
-        if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
-            $long = ip2long($address);
-
-            foreach (self::REFUSED_V4_BLOCKS as $block) {
-                [$network, $bits] = explode('/', $block);
-
-                $mask = (-1 << (32 - (int) $bits)) & 0xFFFFFFFF;
-
-                if ($long !== false && ($long & $mask) === (ip2long($network) & $mask)) {
-                    return false;
-                }
+        foreach (self::REFUSED_BLOCKS as $block) {
+            if (self::inRefusedBlock($address, $block)) {
+                return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Alamat ini ada di dalam blok CIDR itu?
+     *
+     * DIBANDINGKAN SEBAGAI BYTE, BUKAN SEBAGAI BILANGAN. `ip2long()` hanya
+     * tahu IPv4, jadi sebuah rentang IPv6 yang dibandingkan dengannya menuntut
+     * cabang kedua — dan cabang kedua itulah yang menjadi daftar kedua. Bentuk
+     * byte membuat panjang prefiks berarti hal yang sama untuk 4 byte dan 16
+     * byte: `/8` adalah satu byte utuh pada keduanya.
+     *
+     * KELUARGA YANG BERBEDA TIDAK PERNAH COCOK, dan itu dijaga oleh panjang:
+     * `inet_pton()` memulangkan 4 byte untuk IPv4 dan 16 byte untuk IPv6,
+     * sehingga `224.0.0.0/4` tidak bisa menyentuh alamat IPv6 mana pun dan
+     * `ff00::/8` tidak bisa menyentuh alamat IPv4 mana pun — termasuk
+     * `255.x.x.x`, yang byte pertamanya kebetulan juga 0xff.
+     */
+    private static function inRefusedBlock(string $address, string $block): bool
+    {
+        [$network, $bits] = explode('/', $block);
+
+        $packed = @inet_pton($address);
+        $base = @inet_pton($network);
+
+        if ($packed === false || $base === false || strlen($packed) !== strlen($base)) {
+            return false;
+        }
+
+        $whole = intdiv((int) $bits, 8);
+        $rest = (int) $bits % 8;
+
+        if (strncmp($packed, $base, $whole) !== 0) {
+            return false;
+        }
+
+        if ($rest === 0) {
+            return true;
+        }
+
+        // Bit yang TERSISA sesudah byte-byte utuh: masknya diturunkan dari
+        // panjang prefiks, tidak ditulis tangan.
+        $mask = (0xFF << (8 - $rest)) & 0xFF;
+
+        return (ord($packed[$whole]) & $mask) === (ord($base[$whole]) & $mask);
     }
 
     /** @return list<string> */
