@@ -94,6 +94,23 @@ export async function renderUsulanRekap(host) {
     if (token !== loadToken) return;
     clear(body);
 
+    /* MAJU-SAJA, dikatakan sebelum orang mencoba — dan kalimatnya DIPAKAI
+       ULANG dari layar Timesheet, bukan disusun kedua kalinya: dua kalimat
+       tentang satu keadaan akan menyimpang.
+
+       Layar Timesheet F-5 memasang spanduk ini dan layar INI, yang justru
+       menulis ke rekap, tidak memasangnya sama sekali sampai putaran
+       verifikasi. Rekap bulanan adalah catatan tentang dari apa run yang sudah
+       diposting dihitung; membuatnya SESUDAH uangnya keluar menghasilkan
+       dokumen bukti yang tidak ada yang bisa melihat sebabnya. */
+    if (payload.period.payroll_posted) {
+      body.appendChild(el('.alert.warn.usulan-posted', {
+        text: `Payroll ${payload.period.label} sudah disetujui atau ditutup. Slip yang sudah terbit `
+          + 'tidak berubah oleh angka di layar ini, dan menyimpan rekapnya sekarang tidak akan '
+          + 'menghitung ulang gaji yang sudah dibayarkan.',
+      }));
+    }
+
     /* Syarat lembur DULU, di atas tabelnya: kalimat yang muncul di bawah angka
        adalah kalimat yang dibaca sesudah orang memutuskan. */
     body.appendChild(el(`.alert.${payload.overtime.proposed ? 'info' : 'warn'}.usulan-overtime`, {
@@ -141,6 +158,23 @@ export async function renderUsulanRekap(host) {
         el('td', [
           el('span.cell-main', { text: row.employee_name }),
           el('span.cell-sub.mono', { text: row.employee_code }),
+          /* DI LUAR cabang null, karena justru ketika ADA angka untuk
+             disimpan peringatan ini paling dibutuhkan. Sampai putaran
+             verifikasi ia hanya disusun sebagai `title` sel kosong: seseorang
+             dengan 1 hari terukur (2 jam) dan 10 hari yang hanya punya cap
+             masuk menghasilkan `overtime_hours: 2` dan `half_measured_days: 10`
+             — dan layar mencetak "2,00 jam" sambil MEMBUANG peringatan sepuluh
+             harinya. HR menekan "Buat rekap", formulir terisi 2 jam, dan bulan
+             dengan sepuluh hari belum terukur tersimpan sebagai bulan yang
+             lemburnya 2 jam. Layar Timesheet menampilkannya tanpa syarat; layar
+             yang MENULIS adalah yang menyembunyikannya. */
+          row.half_measured_days
+            ? el('span.cell-sub.usulan-half', {
+              style: { display: 'block', color: 'var(--warning)', whiteSpace: 'normal' },
+              text: `${row.half_measured_days} hari hanya punya satu cap jam — belum terukur, bukan nol. `
+                + 'Lengkapi lewat Absensi Harian → Koreksi sebelum menyimpan rekap.',
+            })
+            : null,
         ]),
         el('td', { text: String(row.recorded_days) }),
         el('td', { text: String(row.present_days) }),
@@ -177,8 +211,23 @@ export async function renderUsulanRekap(host) {
             })
             : el('span', [
               el('span.cell-main', { text: `${fmt.num(row.overtime_hours, 2)} jam` }),
+              /* KETIADAAN ILB DIGAMBAR, bukan dibiarkan sebagai ketiadaan
+                 baris. Pita di atas tabel berbunyi "Izin Lembur (ILB) yang
+                 disetujui tetap otoritatif"; sebuah baris tanpa ILB sama
+                 sekali karena itu adalah baris yang, kalau disimpan, membayar
+                 jam lembur yang tidak pernah lewat satu persetujuan pun. Layar
+                 Timesheet di sebelahnya menggambar sel bergaris dengan
+                 sebabnya untuk keadaan yang sama persis; layar tempat angkanya
+                 benar-benar DITERAPKAN ke payroll sampai putaran verifikasi
+                 tidak menggambar apa pun. */
               row.permit_hours === null
-                ? null
+                ? el('span.cell-sub', {
+                  style: { color: 'var(--warning)', whiteSpace: 'normal' },
+                  text: 'tanpa ILB disetujui',
+                  title: 'Tidak ada Izin Lembur yang disetujui untuk orang ini pada periode ini. '
+                    + 'Menyimpan angka ini ke rekap berarti membayar jam lembur yang belum pernah '
+                    + 'disetujui siapa pun.',
+                })
                 : el('span.cell-sub', { text: `ILB ${fmt.num(row.permit_hours, 2)} jam` }),
             ])),
         el('td', row.has_recap

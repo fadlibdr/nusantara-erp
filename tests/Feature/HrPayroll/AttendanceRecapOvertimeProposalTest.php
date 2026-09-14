@@ -4,8 +4,11 @@ namespace Tests\Feature\HrPayroll;
 
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
+use Modules\Core\Enums\DocumentStatus;
+use Modules\HrPayroll\Enums\PayrollRunType;
 use Modules\HrPayroll\Models\Attendance;
 use Modules\HrPayroll\Models\AttendanceRecap;
+use Modules\HrPayroll\Models\PayrollRun;
 use Tests\ErpTestCase;
 
 /**
@@ -218,6 +221,79 @@ class AttendanceRecapOvertimeProposalTest extends ErpTestCase
             $code,
             'Formulir rekap hanya boleh disodori jam lembur yang BENAR-BENAR diturunkan. Sebuah 0 '
             .'yang disodorkan akan disimpan sebagai nol yang diputuskan.',
+        );
+    }
+
+    /**
+     * LAYAR YANG MENULIS HARUS TAHU PERIODENYA SUDAH DIBAYAR.
+     *
+     * Rekap bulanan adalah catatan tentang dari apa run yang sudah diposting
+     * dihitung — `OvertimeRecapService` dan `LeaveService` MEMBEKUKANNYA bila
+     * payroll periodenya sudah diposting, dengan kalimat itu ditulis di
+     * keduanya. Layar Timesheet F-5 menanyakannya dan memasang spanduk; layar
+     * ini, yang justru menaruh jam lembur ke dalam dokumen itu, tidak
+     * menanyakannya sama sekali sampai putaran verifikasi.
+     */
+    public function test_the_proposal_says_when_the_payroll_of_that_period_is_already_posted(): void
+    {
+        $this->actAsAdmin();
+        $employee = $this->makeEmployee();
+        $this->measuredDay($employee->id, '2026-06-01', 120);
+
+        $this->assertFalse(
+            $this->proposal()['period']['payroll_posted'],
+            'Prasyarat: belum ada run yang diposting untuk periode ini.',
+        );
+
+        PayrollRun::query()->create([
+            'code' => 'PYR/TEST/POSTED',
+            'period_year' => 2026,
+            'period_month' => 6,
+            'run_type' => PayrollRunType::Regular,
+            'payment_date' => '2026-06-25',
+            'status' => DocumentStatus::Closed,
+        ]);
+
+        $this->assertTrue(
+            $this->proposal()['period']['payroll_posted'],
+            'Periode yang payroll-nya sudah ditutup harus MENGATAKANNYA di muatan usulan. Tanpa itu, '
+            .'HR membuat dokumen bukti sesudah uangnya keluar tanpa satu peringatan pun — dan '
+            .'kalimat `overtime.why` di layar yang sama justru mengundangnya menyimpan.',
+        );
+    }
+
+    /**
+     * Peringatan hari setengah terukur DI LUAR cabang null, dan ketiadaan ILB
+     * DIGAMBAR — dua kalimat yang layar ini sembunyikan tepat ketika ada angka
+     * untuk disimpan.
+     */
+    public function test_the_proposal_screen_warns_about_half_measured_days_and_missing_permits_beside_the_number(): void
+    {
+        $code = (string) file_get_contents(base_path('public/app/js/views/usulanrekap.js'));
+
+        $this->assertStringContainsString('usulan-posted', $code, 'Spanduk payroll terposting tidak ada.');
+        $this->assertStringContainsString('usulan-half', $code);
+        $this->assertStringContainsString('tanpa ILB disetujui', $code);
+        $this->assertStringContainsString(
+            'disetujui siapa pun',
+            $code,
+            'Baris tanpa ILB harus mengatakan apa artinya menyimpannya. Pita di atas tabel berjanji '
+            .'"ILB tetap otoritatif"; sebuah sel yang diam tentang ketiadaan ILB membuat janji itu '
+            .'tidak bisa diperiksa di baris mana pun.',
+        );
+
+        /*
+         * ...dan peringatan setengah terukur tidak boleh kembali masuk ke
+         * cabang `overtime_hours === null`. Di sana ia hanya muncul ketika
+         * TIDAK ADA angka — yaitu tepat ketika tidak ada yang bisa disimpan.
+         */
+        $cell = (int) strpos($code, "el('td.right.usulan-ot'");
+        $this->assertGreaterThan(0, $cell, 'Sel lembur tidak ditemukan — penjaga di bawah tidak menjaga apa pun.');
+        $this->assertStringNotContainsString(
+            'usulan-half',
+            substr($code, $cell, 900),
+            'Peringatan hari setengah terukur kembali masuk ke dalam sel lembur, tempat ia hanya '
+            .'muncul ketika TIDAK ADA angka — yaitu tepat ketika tidak ada yang bisa disimpan.',
         );
     }
 

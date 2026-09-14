@@ -54,7 +54,7 @@ class AttendanceRecapProposalService
 
     /**
      * @return array{
-     *     period: array{year: int, month: int, label: string},
+     *     period: array{year: int, month: int, label: string, payroll_posted: bool},
      *     not_proposed: list<array{field: string, why: string}>,
      *     rows: list<array<string, mixed>>
      * }
@@ -159,6 +159,27 @@ class AttendanceRecapProposalService
                 'year' => $year,
                 'month' => $month,
                 'label' => $start->translatedFormat('F Y'),
+                /*
+                 * SUDAH DIBAYAR ATAU BELUM — dan INI layar yang menulis.
+                 *
+                 * Sejak F-5 memindahkan `overtime_hours` ke kolom yang tombol
+                 * "Buat rekap" sodorkan ke formulir, layar ini adalah tempat
+                 * angka lembur masuk ke sebuah dokumen yang — menurut
+                 * OvertimeRecapService dan LeaveService — "adalah catatan
+                 * tentang dari apa run yang sudah diposting dihitung", dan yang
+                 * karena itu DIBEKUKAN kedua layanan itu bila payroll
+                 * periodenya sudah diposting. Layar Timesheet dari paket yang
+                 * sama tahu menanyakannya dan memasang spanduk; layar yang
+                 * justru MENULIS tidak menanyakannya sama sekali, dan kalimat
+                 * `overtime.why` malah mengundang orang menyimpan.
+                 *
+                 * Risiko uangnya terbatas — indeks unik satu run per periode
+                 * per jenis mencegah pembayaran kedua, dan tombolnya hanya
+                 * muncul bila rekapnya belum ada — tetapi hasilnya tetap
+                 * dokumen bukti yang dibuat SESUDAH uangnya keluar, tanpa ada
+                 * yang bisa melihat sebabnya.
+                 */
+                'payroll_posted' => $this->timesheets->periodPayrollPosted($year, $month),
             ],
             // `label` ikut dikirim, bukan disusun layar: nama kolom bukan bahasa
             // manusia, dan "sick_days" di layar HR adalah kebocoran istilah

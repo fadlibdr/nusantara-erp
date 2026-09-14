@@ -175,6 +175,33 @@ class TimesheetSpaWiringTest extends ErpTestCase
     }
 
     /**
+     * TARIF 2x DIJANJIKAN DENGAN SYARATNYA, atau tidak dijanjikan sama sekali.
+     *
+     * Kartu kebijakan mencetak "2,00x jam berikutnya" sebagai FAKTA, tanpa satu
+     * kata syarat — di layar yang sama yang berkata "jam lembur yang dibayar
+     * tetap mengikuti Izin Lembur (ILB) yang disetujui", dan di layar yang
+     * sengaja dibuka untuk tukang, teknisi dan pengemudi supaya orangnya bisa
+     * membantah. Tetapi tarif itu hanya menyala bila total rincian harian sama
+     * PERSIS dengan total rekap — dan pada alur ILB, yang layar itu sendiri
+     * sebut otoritatif, keduanya jarang sama. Terukur: absensi 2,5 jam melawan
+     * ILB 2 jam membayar 190.751,45, sementara layar menjanjikan 222.543,35.
+     */
+    public function test_the_second_hour_rate_is_promised_with_its_condition_attached(): void
+    {
+        $code = $this->code(self::VIEW);
+
+        $this->assertStringContainsString('jam berikutnya', $code);
+        $this->assertStringContainsString(
+            'TETAPI hanya bila total',
+            $code,
+            'Tarif jam berikutnya dicetak tanpa syarat. Pada alur ILB ia TIDAK PERNAH menyala, dan '
+            .'sebuah janji tarif yang tidak akan terjadi di layar yang dibuka supaya orangnya bisa '
+            .'membantah adalah angka yang ia bantah dengan salah.',
+        );
+        $this->assertStringContainsString('sama persis dengan rekap bulanan yang dibayar', $code);
+    }
+
+    /**
      * Istirahat DIKATAKAN, bukan dipotong diam-diam.
      *
      * Potongan yang menentukan berapa jam lembur seseorang, tetapi tidak
