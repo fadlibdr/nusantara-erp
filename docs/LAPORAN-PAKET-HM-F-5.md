@@ -415,9 +415,13 @@ Tiga lensa verifikasi menjalankan paket ini di tiga pohon terpisah dan mengembal
 Setiap temuan di bawah berakhir **DIPERBAIKI** (dengan pin yang dibuktikan merah oleh mutasi) atau
 **DITOLAK** (dengan bukti). Tidak ada keadaan ketiga.
 
-Enam commit verifikasi: `91b9801` `2f28a20` `e6e3909` `1bb977f` `cbe54e3` `3d2ee68` (+ commit ini).
-**Dua puluh lima mutasi baru dijalankan (M31–M55), dua puluh lima merah**, kecuali satu yang dicatat
-apa adanya di bawah.
+Tujuh commit verifikasi: `91b9801` `2f28a20` `e6e3909` `1bb977f` `cbe54e3` `3d2ee68` `f046afc`
+(+ commit ini). **Dua puluh enam mutasi baru dijalankan (M31–M56, termasuk satu mutasi PERAMBAN),
+dua puluh enam merah** — kecuali satu yang dicatat apa adanya di §13.5.
+
+Gerbang sesudahnya: `tests/Feature/HrPayroll + tests/Unit` **974 hijau**, `tests/Feature/Core`
+hijau, `tests/Feature/Projects` hijau, pint bersih pada `Modules/ tests/ config/`, dan harness
+peramban S42/S42m dijalankan sungguhan (§13.7).
 
 ### 13.1 Uang — diperiksa paling dulu dan paling teliti
 
@@ -561,7 +565,33 @@ langkah reproduksi. Ia **tidak** diperbaiki dan **tidak** ditolak — menebak is
 temuan, dan menutupnya diam-diam berarti melaporkan pekerjaan yang tidak dikerjakan. Kirim ulang
 butir C-7 dan ia akan ditutup dengan aturan yang sama seperti dua puluh satu lainnya.
 
-### 13.7 Keputusan pemilik yang bertambah
+### 13.7 Bukti peramban, dijalankan lagi
+
+Enam dari dua puluh satu perbaikan di atas hanya ada di JavaScript, jadi tidak satu pun uji PHP bisa
+membuktikannya bekerja. Harness dijalankan sungguhan (venv playwright + `artisan serve` atas salinan
+DB demo di direktori kerja sementara, port 8391):
+
+| Skenario | Syarat | Sebelumnya | `console_errors` |
+|---|---|---|---|
+| `S42_timesheet_lembur_dari_absensi` | **35** | 29 | `[]` |
+| `S42_timesheet_saya_ponsel` | **14** | 12 | `[]` |
+
+Syarat baru yang ditambahkan: istirahat tercetak di kartu kebijakan · tarif jam berikutnya membawa
+syaratnya · satu jam mulai kerja disebut sebagai batas · peringatan hari setengah terukur berdiri di
+baris yang punya angka untuk disimpan · baris usulan menyebut jam ILB-nya · layar yang MENULIS rekap
+memasang spanduk payroll terposting · ubin "Hari terukur" tidak memuji bulan 1-dari-sekian · ubin
+"Jam kerja" menyebut istirahat yang dipotong darinya.
+
+Fikstur S42 digeser dari `08:00–18:00` ke `08:00–19:00` untuk hari 1 April: dengan istirahat
+dipotong, "dua jam lembur" yang skenario itu ukur menuntut sebelas jam di lokasi, bukan sepuluh.
+Hari Minggu berbunyi 5 jam kerja dari 6 jam di lokasi, karena kolomnya memang jam kerja.
+
+**M56 (mutasi peramban)**: baris istirahat dibuang dari kartu kebijakan DAN spanduk terposting
+dibuang dari `usulanrekap.js` → S42 **GAGAL** dengan tiga syarat merah
+(`the_six_owner_rules_are_printed`, `the_unpaid_break_is_printed_above_the_numbers`,
+`the_screen_that_writes_the_recap_says_it_too`). Dikembalikan, hijau lagi.
+
+### 13.8 Keputusan pemilik yang bertambah
 
 Daftar §9 bertambah satu, dan ia **satu jenis** dengan `day_start` 08:00 yang sudah ada di sana:
 **`hr.timesheet.break_minutes` = 60 menit** adalah angka yang pemilik tidak sebut pada 14 September

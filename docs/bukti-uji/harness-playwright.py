@@ -11858,6 +11858,9 @@ S42_USULAN = """() => {
     alert_proposed: alert ? alert.dataset.proposed : null,
     alert_text: alert ? alert.innerText.trim() : null,
     not_proposed: [...document.querySelectorAll('.card .cell-sub')].map(s => s.innerText.trim()),
+    posted_banner: (document.querySelector('.usulan-posted') || {}).innerText || null,
+    half_warnings: [...document.querySelectorAll('.usulan-half')].map(s => s.innerText.trim()),
+    row_text: [...document.querySelectorAll('table.data tbody tr')].map(tr => tr.innerText.trim()),
     head,
     rows: cells,
   };
@@ -11888,6 +11891,25 @@ def _f5_reset():
     return {"cleared": left == 0}
 
 
+def _f5_seed_one_of_many(employee_id):
+    """SATU hari bercap jam lengkap di bulan yang punya banyak hari kerja.
+
+    Bentuk inilah yang ubin "Hari terukur" puji dengan "setiap hari bercap jam
+    lengkap" sampai putaran verifikasi: measured_days = 1, half = 0, dan dua
+    puluh sekian hari kerja yang lewat tanpa satu cap jam pun tidak masuk
+    half_measured_days sama sekali.
+    """
+    con = sqlite3.connect(DB)
+    con.execute(
+        "insert into hr_attendances (employee_id, date, status, check_in_at, check_out_at, created_at, updated_at) "
+        "values (?, '2026-04-01', 'hadir', '2026-04-01 08:00:00', '2026-04-01 17:00:00', datetime('now'), datetime('now'))",
+        (employee_id,))
+    con.execute("delete from cache")
+    con.commit()
+    con.close()
+    return {"measured_days": 1}
+
+
 def _f5_seed(employee_id, with_permit=True):
     """Empat hari yang mewakili KEEMPAT keadaan, ditambah satu ILB yang disetujui.
 
@@ -11895,14 +11917,14 @@ def _f5_seed(employee_id, with_permit=True):
     geolokasi dan jam yang bergerak, sedangkan yang diukur skenario ini adalah
     bagaimana hasilnya DIGAMBAR (alasan yang sama dengan _p3e_seed_device).
 
-      01 Apr (Rabu)  08:00–18:00  terukur, 2 jam lembur
+      01 Apr (Rabu)  08:00–19:00  terukur, 11 jam di lokasi = 10 jam kerja, 2 jam lembur
       02 Apr (Kamis) 08:25–16:00  terukur, terlambat 15 menit, lembur 0 TERUKUR
       03 Apr (Jumat) 08:00–.....  SETENGAH terukur (lupa absen pulang)
       05 Apr (Minggu)09:00–15:00  hari non-kerja yang ada cap jamnya
       08 Apr (Rabu)  tidak ada barisnya sama sekali → tidak tercatat
     """
     rows = [
-        ("2026-04-01", "hadir", "2026-04-01 08:00:00", "2026-04-01 18:00:00"),
+        ("2026-04-01", "hadir", "2026-04-01 08:00:00", "2026-04-01 19:00:00"),
         ("2026-04-02", "hadir", "2026-04-02 08:25:00", "2026-04-02 16:00:00"),
         ("2026-04-03", "hadir", "2026-04-03 08:00:00", None),
         ("2026-04-05", "hadir", "2026-04-05 09:00:00", "2026-04-05 15:00:00"),
@@ -11980,7 +12002,11 @@ def s42(browser):
         _f5_period(pg, 2026, 4)
         out["usulan"] = pg.evaluate(S42_USULAN)
 
-        # Juni 2026: payroll run-nya approved di basis data demo → pita maju-saja.
+        # Juni 2026: payroll run-nya approved di basis data demo → pita maju-saja
+        # di KEDUA layar, termasuk yang menulis rekapnya.
+        _f5_period(pg, 2026, 6)
+        out["usulan_posted"] = pg.evaluate(S42_USULAN)
+
         nav_click(pg, "#/timesheet")
         pg.wait_for_timeout(1200)
         _f5_period(pg, 2026, 6)
@@ -12000,12 +12026,27 @@ def s42(browser):
             "empty_period_never_prints_zero_hours": empty["zero_hours_anywhere"] is False,
             # --- kartu kebijakan, di ATAS angkanya ---
             "the_policy_card_is_drawn_even_when_there_is_nothing_to_apply_it_to": empty["policy_present"],
-            "the_five_owner_rules_are_printed": len(empty["policy_rules"]) == 5
+            # ENAM aturan sejak putaran verifikasi: istirahat masuk daftar, karena
+            # potongan yang tidak disebutkan adalah potongan yang tidak bisa
+            # diperiksa siapa pun (A-1).
+            "the_six_owner_rules_are_printed": len(empty["policy_rules"]) == 6
                 and "8 jam/hari" in joined_rules and "15 menit terdekat" in joined_rules
                 and "minimum 30 menit" in joined_rules and "3 jam/hari" in joined_rules,
+            "the_unpaid_break_is_printed_above_the_numbers":
+                "Istirahat 60 menit TIDAK dihitung jam kerja" in joined_rules
+                and "UU 13/2003 Ps. 79" in joined_rules,
+            # A-5: tarif 2x TIDAK pernah dijanjikan tanpa syaratnya, di layar
+            # yang juga menyebut ILB otoritatif.
+            "the_second_hour_rate_carries_its_condition":
+                "TETAPI hanya bila total" in joined_rules
+                and "sama persis dengan rekap bulanan yang dibayar" in joined_rules,
             "the_holiday_rate_limit_is_printed": "BELUM dibangun" in joined_limits,
             "the_missing_national_holiday_calendar_is_printed":
                 "tidak punya kalender hari libur nasional" in joined_limits,
+            # B-5: satu jam mulai untuk seluruh perusahaan, dikatakan sebagai
+            # batas — bukan hanya di panduan administrator.
+            "the_single_day_start_is_named_as_a_limit":
+                "hanya punya SATU jam mulai kerja" in joined_limits,
             "ilb_is_named_authoritative_on_screen": "otoritatif" in joined_limits,
             # --- keadaan berisi ---
             "the_fixture_produces_exactly_one_row": len(filled["rows"]) == 1,
@@ -12024,8 +12065,11 @@ def s42(browser):
             "the_day_table_draws_the_whole_month": days["total"] == 30,
             "all_four_states_appear": sorted(days["by_state"].keys())
                 == ["non_kerja", "setengah_terukur", "terukur", "tidak_tercatat"],
+            # 11 jam di lokasi, 10 jam KERJA sesudah istirahat: kolom "Jam kerja"
+            # mencetak yang kedua, dan cap jamnya ada di dua kolom sebelahnya.
             "a_measured_day_carries_its_hours": days["measured"]["state"] == "terukur"
-                and "10j" in " ".join(days["measured"]["cells"]),
+                and "10j" in " ".join(days["measured"]["cells"])
+                and "19:00" in " ".join(days["measured"]["cells"]),
             "lateness_is_counted_from_the_tolerance_boundary":
                 "15m" in " ".join(days["late"]["cells"]),
             "a_day_measured_to_the_normal_hours_shows_a_real_zero":
@@ -12034,9 +12078,11 @@ def s42(browser):
                 days["half"]["state"] == "setengah_terukur"
                 and "true" in days["half"]["empty_flags"]
                 and "BELUM TERUKUR" in days["half"]["note"],
+            # 6 jam di lokasi, 5 jam kerja sesudah istirahat — dan jamnya tetap
+            # DITAMPILKAN, hanya tidak pernah diusulkan sebagai lembur.
             "the_sunday_keeps_its_hours_but_withholds_the_overtime":
                 days["sunday"]["non_working"] == "true"
-                and "6j" in " ".join(days["sunday"]["cells"])
+                and "5j" in " ".join(days["sunday"]["cells"])
                 and "tarif hari libur" in days["sunday"]["note"],
             "a_day_with_no_record_at_all_says_so":
                 days["untouched"]["state"] == "tidak_tercatat"
@@ -12052,9 +12098,24 @@ def s42(browser):
                 any(h.lower() == "lembur turunan" for h in usulan["head"]),
             "the_old_refusal_sentence_is_gone_from_the_screen":
                 not any("Register mencatat kehadiran" in s for s in usulan["not_proposed"]),
+            # B-4 — peringatan hari setengah terukur BERDIRI DI BARISNYA justru
+            # ketika ada angka untuk disimpan. Sampai putaran verifikasi ia
+            # hanya disusun di dalam cabang sel kosong.
+            "the_half_measured_warning_stands_beside_the_number_that_can_be_saved":
+                any("hanya punya satu cap jam" in s for s in usulan["half_warnings"])
+                and any("2,00 jam" in t for t in usulan["row_text"]),
+            # C-5 — ketiadaan ILB DIGAMBAR. Baris ini PUNYA ILB, jadi yang
+            # dipaku di sini adalah kebalikannya: ia menyebut jam ILB-nya.
+            "a_row_with_a_permit_names_its_permit_hours":
+                any("ILB 3,00 jam" in t for t in usulan["row_text"]),
             # --- maju-saja ---
             "a_posted_period_says_so_before_anyone_applies_anything":
                 "sudah disetujui atau ditutup" in (out["posted"]["posted_banner"] or ""),
+            # A-7 — dan layar yang benar-benar MENULIS ke rekap mengatakannya
+            # juga. Sampai putaran verifikasi hanya layar yang membaca yang
+            # memasang spanduk ini.
+            "the_screen_that_writes_the_recap_says_it_too":
+                "sudah disetujui atau ditutup" in (out["usulan_posted"]["posted_banner"] or ""),
             # --- kebersihan ---
             "the_page_never_scrolls_sideways":
                 filled["scrolls_sideways"] is False and filled["main_scrolls_sideways"] is False,
@@ -12102,6 +12163,16 @@ def s42m(browser):
         out["filled"] = pg.evaluate(S42_SAYA)
         out["filled_overflow"] = pg.evaluate(S42_OVERFLOW)
 
+        # SATU hari terukur dari sebulan penuh hari kerja — bentuk yang ubin
+        # "Hari terukur" puji dengan "setiap hari bercap jam lengkap" sampai
+        # putaran verifikasi (B-3). Bulan lain supaya April tetap seperti di atas.
+        _f5_reset()
+        out["one_of_many_seed"] = _f5_seed_one_of_many(7)
+        pg.reload()
+        pg.wait_for_timeout(1800)
+        _f5_period(pg, 2026, 4)
+        out["one_of_many"] = pg.evaluate(S42_SAYA)
+
         empty, filled = out["empty"], out["filled"]
         # Label ubin digambar HURUF BESAR oleh CSS dan innerText memulangkan
         # apa yang tergambar; kuncinya dinormalkan supaya syarat di bawah
@@ -12126,6 +12197,20 @@ def s42m(browser):
             "an_empty_month_is_not_congratulated_for_clocking_in_every_day":
                 empty_stats.get("hari terukur", {}).get("delta")
                 == "belum ada satu hari pun dengan cap jam masuk dan pulang",
+            # B-3 — LUBANG KETIGA. Perbaikan 14 Sep hanya menutup measured_days
+            # === 0; satu hari terukur dari dua puluh sekian hari kerja juga
+            # berbunyi "setiap hari bercap jam lengkap", karena hari yang tidak
+            # tercatat SAMA SEKALI tidak masuk half_measured_days.
+            "a_month_with_one_measured_day_out_of_many_is_not_congratulated_either":
+                ({s["label"].lower(): s for s in out["one_of_many"]["stats"]}
+                 .get("hari terukur", {}).get("value") == "1")
+                and "hari kerja lewat tanpa cap jam sama sekali" in (
+                    {s["label"].lower(): s for s in out["one_of_many"]["stats"]}
+                    .get("hari terukur", {}).get("delta") or ""),
+            # A-1 — ubin "Jam kerja" menyebut istirahat yang dipotong darinya,
+            # supaya selisih antara cap jam dan angka ini punya penjelasan.
+            "the_working_hours_tile_names_the_break_taken_out_of_it":
+                "sesudah istirahat" in (stats.get("jam kerja", {}).get("delta") or ""),
             "the_derived_overtime_tile_says_there_is_no_permit":
                 "tanpa ILB" in (stats.get("lembur turunan", {}).get("delta") or ""),
             "no_text_is_clipped_when_the_month_is_empty": out["empty_overflow"] == 0,

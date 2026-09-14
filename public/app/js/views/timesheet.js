@@ -163,7 +163,7 @@ const PERIOD_COLUMNS = [
   { key: 'overtime_hours', label: 'Lembur turunan (jam)' },
   { key: 'permit_hours', label: 'ILB disetujui (jam)' },
   { key: 'delta_hours', label: 'Selisih (jam)' },
-  { key: 'non_working_measured_minutes', label: 'Menit pada hari non-kerja' },
+  { key: 'non_working_measured_minutes', label: 'Menit kerja pada hari non-kerja' },
 ];
 
 function deltaCell(row) {
@@ -236,7 +236,7 @@ function periodTable(payload, onPick) {
         row.non_working_measured_minutes
           ? el('span.cell-sub.timesheet-holiday', {
             style: { display: 'block', whiteSpace: 'normal' },
-            text: `${hoursText(row.non_working_measured_minutes)} tercatat pada hari non-kerja, `
+            text: `${hoursText(row.non_working_measured_minutes)} jam kerja tercatat pada hari non-kerja, `
               + 'tidak diusulkan sebagai lembur.',
           })
           : null,

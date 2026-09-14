@@ -675,7 +675,7 @@ class TimesheetService
             'weeks_over_weekly_cap' => $this->weeksOverCap($measured, $weekOverflowDays, $policy),
             // Jam pada hari non-kerja: DIUKUR, DILAPORKAN, dan sengaja TIDAK
             // diusulkan sebagai lembur (tarif hari libur tidak dibangun).
-            'non_working_measured_minutes' => $measuredNonWorking === [] ? null : (int) array_sum(array_column($measuredNonWorking, 'worked_minutes')),
+            'non_working_measured_minutes' => $measuredNonWorking === [] ? null : (int) array_sum(array_column($measuredNonWorking, 'net_worked_minutes')),
             // Pembanding, bukan hakim: ILB tetap otoritatif.
             'permit_hours' => $permitHours,
             'recap_overtime_hours' => $recap === null ? null : round((float) $recap->overtime_hours, 2),

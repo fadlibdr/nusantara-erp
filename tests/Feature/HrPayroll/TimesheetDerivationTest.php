@@ -763,7 +763,13 @@ class TimesheetDerivationTest extends ErpTestCase
         $this->assertStringContainsString('tarif hari libur', (string) $day['note']);
 
         $summary = $this->service()->forEmployee($employee, 2026, 6)['summary'];
-        $this->assertSame(600, $summary['non_working_measured_minutes']);
+        $this->assertSame(
+            540,
+            $summary['non_working_measured_minutes'],
+            'Sepuluh jam DI LOKASI, sembilan jam KERJA: istirahat dipotong pada hari non-kerja juga, '
+            .'karena kolom itu berbunyi jam kerja di mana pun ia muncul. Angka mentahnya tetap ada '
+            .'pada harinya (`worked_minutes` = 600, dipaku di atas).',
+        );
         $this->assertNull($summary['overtime_minutes'], 'Tidak ada satu pun hari KERJA yang terukur bulan itu.');
     }
 
