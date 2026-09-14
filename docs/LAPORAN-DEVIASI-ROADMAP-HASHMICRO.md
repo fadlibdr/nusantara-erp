@@ -1,16 +1,25 @@
 # Deviasi: ROADMAP-HASHMICRO.md vs keadaan nyata
 
-**Tanggal: 14 September 2026.** Basis: `main` di `b05f1d5`, produksi `erp1.pi2.co.id` (disinkronkan
-14 Sep 2026). Rencana yang dibandingkan: `docs/ROADMAP-HASHMICRO.md`, disetujui pemilik 5 Sep 2026.
+**Tanggal: 14 September 2026, direvisi 14 September 2026 malam.** Basis: `main` di `4301df9`
+(= `origin/main`), produksi `erp1.pi2.co.id` disinkronkan 14 Sep 2026 sesudah F-5 dan perbaikan
+gerbang alamat. Rencana yang dibandingkan: `docs/ROADMAP-HASHMICRO.md`, disetujui pemilik 5 Sep 2026.
+
+> **Apa yang berubah sejak revisi pertama** (basis waktu itu `b05f1d5`): **F-5 dibangun, digabung dan
+> di-deploy** — penundaan satu-satunya di seluruh rencana dicabut, jadi Fase 2 kini 9/9 dan seluruh
+> 25 paket terbangun (§2, §3.7). Dua butir gerbang alamat yang audit keamanan tinggalkan **ditutup**,
+> dan putaran penutupnya menemukan tujuh bentuk IPv6 lagi (§2 "Di luar rencana"). Migrasi 001094
+> mendarat di produksi (batch 59) dan `SHELL_VERSION` 15 tayang — **diverifikasi lewat PDO**, bukan
+> diasumsikan. **Tidak satu pun dari sepuluh prasyarat pemilik di §4 berubah**, dan kedua deviasi
+> terbesar (§3.1, §3.2) berdiri persis seperti sebelumnya.
 
 Dokumen ini membandingkan APA YANG DIRENCANAKAN dengan APA YANG ADA. Ia bukan laporan kemajuan:
 paket yang selesai disebut satu baris, dan yang mendapat tempat adalah **selisihnya**.
 
 ## 0. Ringkasan dalam satu paragraf
 
-Rencana memuat **25 paket** (Fase 0: 2 · Fase 1: 9 · Fase 2: 9 · Fase 3: 5). **Dua puluh empat
-dibangun, digabung, dan di-deploy**; satu (**F-5**) ditunda dengan sebab yang ditulis sejak awal.
-Tetapi dua hal membuat "24 dari 25" menyesatkan bila dibaca sendirian. **Pertama: prasyarat teknis Fase 0 — pindah ke MySQL — tidak pernah dijalankan di
+Rencana memuat **25 paket** (Fase 0: 2 · Fase 1: 9 · Fase 2: 9 · Fase 3: 5). **Kedua puluh limanya
+kini dibangun, digabung, dan di-deploy** — F-5, satu-satunya yang ditunda, dicabut penundaannya 14
+Sep (§3.7). Tetapi dua hal membuat "25 dari 25" menyesatkan bila dibaca sendirian. **Pertama: prasyarat teknis Fase 0 — pindah ke MySQL — tidak pernah dijalankan di
 produksi.** Rencana menyebutnya "prasyarat teknis yang harus mendahului apa pun yang menambah beban
 baca/tulis"; Fase 1, 2 dan 3 tetap dibangun dan dikirim di atas SQLite, dan produksi hari ini masih
 `DB_CONNECTION=sqlite` (diukur). **Kedua: setiap kanal luar Fase 3 hidup di kode dan mati di
@@ -23,7 +32,7 @@ pemilik.
 
 | Bagaimana sebuah baris di bawah bisa dipercaya | |
 |---|---|
-| **Diukur hari ini** | perintah dijalankan 14 Sep 2026 pada pohon `main` `b05f1d5` dan/atau pada `/var/www/erp1.pi2.co.id` — ditandai *(diukur)* |
+| **Diukur hari ini** | perintah dijalankan 14 Sep 2026 pada pohon `main` `4301df9` dan/atau pada `/var/www/erp1.pi2.co.id` — ditandai *(diukur)* |
 | **Dari gerbang rilis** | angka uji dua driver yang tercatat di pesan commit gabungan paket itu |
 | **Dari laporan paket** | `docs/LAPORAN-PAKET-HM-<id>.md`, yang masing-masing memuat bagian "Yang TIDAK dikerjakan" |
 
@@ -78,7 +87,7 @@ disembunyikan.
 | **F-7** servis alat per hour-meter | dikirim | SESUAI |
 | **F-8** kedaluwarsa lampiran; sikap e-sign | dikirim; e-sign tetap DITOLAK tertulis seperti rencana | SESUAI |
 | **F-9** CSAT tiket | dikirim | SESUAI |
-| **F-5** timesheet & lembur | **tidak dibangun** — menunggu ≥ 1 bulan data F-4, persis sebab yang ditulis 5 Sep. F-4 di-deploy 8 Sep; satu bulan data jatuh **sesudah 8 Okt 2026** | **DITUNDA** |
+| **F-5** timesheet & lembur | **dibangun, digabung `9ea59c4`, di-deploy 14 Sep.** Penundaannya dicabut dengan cara yang menghapus sebabnya: pemilik MENYEBUTKAN aturan pembulatannya sendiri, jadi tidak ada yang dikarang (§3.7). Ia juga memperbaiki kekurangan yang payroll akui sendiri sejak P0: 1,5x rata atas total bulanan menjadi 1,5x/2x per hari | **SESUAI** |
 
 ### Fase 3 — Integrasi & kepatuhan (rencana 35 h-o)
 
@@ -95,6 +104,8 @@ disembunyikan.
 | Pekerjaan | Sebab |
 |---|---|
 | Kenaikan `guzzlehttp/guzzle` 7.15.2, `league/commonmark` 2.10.1, `maatwebsite/excel` 3.1.70 | `composer audit` melaporkan 13 nasihat keamanan; sekarang **nol** |
+| **Dua butir §11.2 terakhir ditutup** (`4301df9`): byte kendali di otoritas, dan multicast IPv6 `ff00::/8` | Ditinggalkan audit keamanan sebagai "BELUM ditutup, dan diketahui". Keberatan "itu pengurai kedua" dijawab dengan 32 bentuk URL yang dijalankan sebelum satu baris produksi ditulis |
+| **Tujuh bentuk IPv6 lagi**, ditemukan putaran penutup butir di atas | Paket itu menulis "tidak ada rentang IPv6 lain" dan klaimnya SALAH: `fec0::1`, `2001:2::1`, dua bentuk 6to4 yang membungkus `127.0.0.1` dan `10.0.0.5`, NAT64 local-use, Teredo, discard-only — semuanya tersimpan di kedua pintu |
 | Empat perbaikan gerbang alamat keluar (SSRF) | ditemukan saat menaikkan pustaka dan saat menggabungkan: bentuk samaran titik ekor, kelas kedua yang tidak ikut tertambal, gerbang vs transport yang berselisih, rentang IANA yang PHP anggap publik |
 
 ## 3. Deviasi yang penting — enam, dengan akibatnya
@@ -155,13 +166,40 @@ baris Inventory 001700–001799 yang ditetapkan F-6.
 | Ditulis 5 Sep | Diukur 14 Sep |
 |---|---|
 | 776 rute API | **865 di bawah `api/`** (880 total) |
-| 3.768 uji | **5.178** (gerbang rilis dua driver di `749ed1c`) |
+| 3.768 uji | **5.366** (gerbang rilis dua driver di `d83f2ef`) |
 | ~35.000 baris JS | **49.087** |
 | 1.503 baris CSS | **2.374** |
 | "793 rute tak terkurasi" (teks P-3d) | 862 saat paket itu, 865 hari ini |
 
-Modul tetap **14**; migrasi berjumlah **258**. Angka-angka ini bukan deviasi — ia ukuran pertumbuhan,
+Modul tetap **14**; migrasi berjumlah **259** (batch 59 di produksi). Angka-angka ini bukan deviasi — ia ukuran pertumbuhan,
 dan dicatat supaya rencana berikutnya tidak dihitung dari basis yang salah.
+
+### 3.7 Penundaan satu-satunya dicabut — dan sebabnya layak dicatat
+
+F-5 ditunda 5 Sep dengan sebab yang ditulis LEBIH DULU: "tanpa ≥ 1 bulan data F-4 aturan pembulatan
+lembur dikarang". Prasyarat itu **diukur sebelum membangun, dan ia tidak terpenuhi** — produksi
+memegang NOL baris `hr_attendances` enam hari sesudah F-4 di-deploy, NOL izin lembur ILB, dan 8
+baris rekap benih bertanggal 26 Juli. Menunggu sampai 8 Oktober tidak akan mengubahnya kalau tidak
+ada yang mengabsen.
+
+Yang mencabut penundaan bukan waktu melainkan **pemilik menyebutkan aturannya sendiri** (15 menit,
+minimum 30, toleransi 10, hari 8 jam, Kepmenaker 1,5x/2x). Dengan itu tidak ada satu aturan pun yang
+dikarang, dan aturannya dikirim sebagai SETELAN — kebijakan yang berbeda adalah satu suntingan,
+bukan rilis.
+
+**Pelajarannya, dan ia berlaku untuk setiap paket yang ditunda:** periksa prasyaratnya dengan
+MENGUKUR, bukan dengan membaca tanggal.
+
+F-5 juga menutup kekurangan yang payroll **akui sendiri** sejak P0 — komentarnya berbunyi "the
+per-day 1.5x/2x split needs daily attendance detail (future enhancement)". Dan putaran verifikasinya
+menangkap cacat uang terbesar kampanye ini: istirahat tidak dipotong, sehingga hari kerja 08:00–17:00
+menghasilkan **satu jam lembur palsu setiap hari untuk setiap orang** — Rp 2.479.768 pada upah
+sebulan Rp 11 juta, yaitu 22,5 % upahnya, untuk lembur yang tidak ada. Ia gagal DIAM-DIAM: tidak ada
+bendera, batas 3 jam/hari tidak tersentuh, dan angkanya persis sebesar yang orang percaya masuk akal.
+
+**Satu hal yang harus diketahui pemilik:** F-5 dikirim ke register yang KOSONG. Layarnya benar dalam
+keadaan itu — ia mengatakan registernya belum berisi alih-alih menggambar tabel nol — tetapi paket
+ini tidak akan menghasilkan satu angka pun sampai ada yang benar-benar mengabsen (§4 baris 11).
 
 ## 4. Prasyarat pemilik yang belum terpenuhi
 
@@ -179,6 +217,7 @@ Semuanya di luar kode, dan masing-masing memblokir sesuatu yang sudah dibangun d
 | 8 | Pengesahan ledger #5: Core 001800–001899, Inventory 001700–001799 | kebersihan blok migrasi berikutnya | roadmap §5 belum diubah |
 | 9 | Lima keputusan rancangan Fase 1 (termasuk dasbor 12 permintaan) | metrik Fase 1 | LAPORAN-RILIS-FASE-1 §keputusan |
 | 10 | Kebijakan pemangkasan `core_notification_deliveries` | pertumbuhan tabel; P-3e mengalikannya per perangkat | terbuka sejak P-3a |
+| 11 | **Seseorang benar-benar mengabsen lewat layar F-4** | seluruh F-5: timesheet, lembur turunan, usulan rekap | `hr_attendances` **0 baris**, enam hari sesudah F-4 di-deploy *(diukur)* |
 
 ## 5. Status ledger keputusan pemilik (§5 roadmap)
 
@@ -223,6 +262,8 @@ Urut menurut nilai per usaha:
 3. **Dua folder berisi berkas** (`docs/samples/pajak/`, `docs/samples/bank/`) plus satu `mkdir` di
    erp1. Ini membuka separuh P-3b dan preset bawaan P-3c.
 4. **Satu suntingan ledger** (#5) supaya paket berikutnya tidak membaca rentang yang bertabrakan.
-5. **F-5** sesudah 8 Okt 2026, ketika data absensi satu bulan benar-benar ada.
+5. ~~**F-5** sesudah 8 Okt 2026~~ — **SELESAI 14 Sep 2026**, tanpa menunggu, karena yang kurang
+   ternyata sebuah keputusan dan bukan sebulan data (§3.7). Yang menggantikannya di daftar ini:
+   **seseorang mengabsen lewat layar F-4**, karena tanpa itu F-5 tidak menghasilkan satu angka pun.
 
 Tidak satu pun dari lima butir di atas menuntut kode baru.
