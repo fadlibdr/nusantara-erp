@@ -318,8 +318,12 @@ final class WebhookUrl
      * `/?#`. HANYA untuk MENOLAK — tidak pernah untuk menentukan tujuan.
      *
      * INI BUKAN PENGURAI KEDUA, DAN KEBERATANNYA DIJAWAB DI SINI, BUKAN
-     * DILEWATI. Docblock kelas ini dan KEPUTUSAN-INTEGRASI §11.2 melarang
-     * pengurai kedua di samping `parse_url()`, dan larangan itu serius: dua
+     * DILEWATI. KEPUTUSAN-INTEGRASI §11.2 MENCATAT keberatan itu pada 13 Sep
+     * 2026 sebagai sebab butir ini tidak ditutup — ia mencatat, bukan
+     * melarang; tidak ada larangan bernomor tentangnya di docblock kelas ini
+     * maupun di §11.2, dan menulis "melarang" akan mengirim pembaca berikutnya
+     * mencari aturan yang tidak pernah ada (putaran penutup, V-6). Keberatan
+     * itu serius: dua
      * pengurai yang BERSELISIH tentang ke mana sebuah permintaan pergi adalah
      * kelas kerentanan tersendiri — CVE-2026-69246 yang baru saja ditambal
      * Guzzle persis bentuk itu.
@@ -482,6 +486,24 @@ final class WebhookUrl
             return (string) inet_ntop($embedded);
         }
 
+        /*
+         * 6to4 (RFC 3056): `2002:<ipv4 dalam heksa>::/48` — dan ALAMAT IPv4-nya
+         * ada di byte 2..5, bukan di empat byte terakhir seperti ketiga bentuk
+         * di atas (putaran penutup, V-1).
+         *
+         * Tanpa baris ini `2002:7f00:1::1` dinilai PUBLIK, padahal ia membungkus
+         * 127.0.0.1 — dan `2002:a00:5::1` membungkus 10.0.0.5. Docblock §2 kelas
+         * ini menjanjikan bahwa "setiap bentuk yang membungkus IPv4 diturunkan
+         * lebih dulu"; janji itu tidak benar untuk 6to4 sampai sekarang.
+         *
+         * DITURUNKAN, BUKAN DITOLAK SEBAGAI RENTANG: sebuah alamat 6to4 yang
+         * membungkus IPv4 PUBLIK memang publik, dan menolak `2002::/16` utuh
+         * akan menolak alamat yang sebenarnya bisa dikirimi.
+         */
+        if (substr($packed, 0, 2) === "\x20\x02") {
+            return (string) inet_ntop(substr($packed, 2, 4));
+        }
+
         return $address;
     }
 
@@ -548,6 +570,11 @@ final class WebhookUrl
         '198.18.0.0/15',
         '224.0.0.0/4',
         'ff00::/8',
+        'fec0::/10',
+        '2001:2::/48',
+        '2001::/32',
+        '100::/64',
+        '64:ff9b:1::/48',
     ];
 
     /**

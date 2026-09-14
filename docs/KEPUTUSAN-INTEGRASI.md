@@ -318,7 +318,8 @@ dikerjakan sebagai pekerjaan tersendiri sesudahnya):
   dan multicast `224.0.0.0/4`, di samping `100.64.0.0/10` yang sudah ada.
   Cacatnya **PRA-ADA**: badan `isPublicIp()` identik byte-per-byte dengan
   keadaan sebelum kenaikan paket itu. Keempatnya kini satu daftar
-  (`REFUSED_V4_BLOCKS`) dengan mask yang DITURUNKAN dari panjang prefiks —
+  (`REFUSED_BLOCKS`; waktu itu bernama `REFUSED_V4_BLOCKS`, ketika daftarnya
+  memang hanya berisi rentang IPv4) dengan mask yang DITURUNKAN dari panjang prefiks —
   `0xFFE00000` dan `0xFFFE0000` berbeda satu huruf dan berbeda 128 kali lipat
   besarnya. Bobot nyatanya rendah dan dikatakan apa adanya: multicast di atas
   TCP tidak pernah membentuk koneksi (diukur: cURL galat 7 dalam 0,00 detik)
@@ -364,9 +365,12 @@ pekerjaan tersendiri sesudahnya):
   melainkan **inkonsistensi**: satu alamat yang sama dijawab dua cara,
   tergantung ia ditulis sebagai empat angka desimal atau tidak. Pertanyaan yang
   catatan lama titipkan ("sebaiknya diputuskan bersama rentang IPv6 lain")
-  DIUKUR, dan jawabannya: tidak ada yang lain — `fe80::/10` dan
-  `2001:db8::/32` sudah ditutup `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE`, dan
-  sebuah baris yang tidak bisa memerah bukan pagar melainkan hiasan.
+  pertama kali dijawab "tidak ada yang lain", dan **jawaban itu SALAH** —
+  verifier penutup mengukur TUJUH bentuk IPv6 yang masih tersimpan di kedua
+  pintu. Ketujuhnya kini ditutup (§11.2.1 di bawah); `fe80::/10` dan
+  `2001:db8::/32` memang sudah ditutup
+  `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE`, dan itulah satu-satunya bagian
+  dari jawaban lama yang bertahan.
   `ff00::/8` masuk ke daftar yang SAMA (`REFUSED_BLOCKS`), bukan ke daftar IPv6
   kedua di sebelahnya, dan perbandingannya pindah dari `ip2long()` ke BYTE
   alamat — sehingga panjang prefiks berarti hal yang sama untuk 4 byte dan 16
@@ -398,7 +402,7 @@ pekerjaan tersendiri sesudahnya):
   sebelum dan sesudah. Untuk berselisih tentang tujuan, sebuah pengurai harus
   punya tujuan.
 
-  Yang bisa salah karenanya hanya satu: menolak URL yang sebenarnya sah. **34
+  Yang bisa salah karenanya hanya satu: menolak URL yang sebenarnya sah. **32
   bentuk URL dijalankan terhadap irisan itu sebelum satu baris produksi
   ditulis**, dan tabelnya kini hidup di dalam uji
   (`WebhookGuardTest::authoritySlices()`). Hasilnya: pada setiap bentuk yang
@@ -416,17 +420,73 @@ pekerjaan tersendiri sesudahnya):
   di path, query dan fragmen tetap diterima, karena transport menerimanya —
   `https://contoh.co.id/x\n` sah, `https://contoh.co.id\n` tidak.
 
-  Di pintu push ada satu temuan tambahan yang tabel itu munculkan:
-  `PushEndpoint::assertShape()` men-`trim()` endpoint sebelum menguraikannya,
-  tetapi yang DISIMPAN adalah string yang dikirim pemanggil dan yang diserahkan
-  `WebPushSender` kepada pustaka HTTP adalah string tersimpan itu. Maka deteksi
-  byte kendali di sana membaca endpoint **apa adanya** — dengan `trim()`,
-  gerbang push menerima bentuk yang gerbang webhook dan Guzzle tolak.
+  **Yang benar-benar dirasakan orang adalah byte kendali di TENGAH otoritas**
+  (host, port, di dalam kurung siku). Byte kendali di UJUNG URL tanpa path
+  ditolak oleh kelas ini, tetapi kedua pintu HTTP men-`trim()` lebih dulu —
+  `WebhookSubscriptionRequest`, `PushSubscriptions::register()`,
+  `PushSubscription::hashFor()` dan pintu rotasi semuanya menyimpan hasil
+  `trim()` — sehingga di layar bentuk itu dipangkas dan disimpan bersih, bukan
+  ditolak. Catatan pertama paket ini menyatakan sebaliknya, dan itu keliru
+  (putaran penutup, V-2/V-3). Deteksi di pintu push TETAP membaca string
+  mentah, tetapi karena sebab yang berbeda dari yang ditulis pertama kali: agar
+  kelas itu menjawab bentuk yang sama dengan yang dijawab gerbang webhook, yang
+  juga tidak men-`trim()`. Dua gerbang yang berselisih tentang satu string
+  adalah cacat tersendiri. Batas yang diketahui dan kini tertulis:
+  `rawAuthority()` membuang segala sesuatu sebelum `://`, jadi byte kendali di
+  DEPAN skema tidak terlihat — tidak terjangkau hari ini (aturan `url` Laravel
+  di kedua pintu HTTP menolaknya, dan Guzzle memulangkan host kosong), tetapi
+  titik buta yang lebih baik ditulis daripada dibaca sebagai jaminan.
+
+#### 11.2.1 Tujuh bentuk IPv6, dan dua di antaranya bukan "rentang" melainkan samaran
+
+Putaran penutup 14 Sep 2026 mengukur bahwa jawaban "tidak ada rentang IPv6 lain"
+SALAH: tujuh bentuk masih tersimpan di kedua pintu. Ketujuhnya ditutup, dan
+sengaja dengan DUA mekanisme yang berbeda, karena bobotnya berbeda.
+
+**Empat baris baru di `REFUSED_BLOCKS`** — rentang bertujuan khusus yang tidak
+pernah menjadi tujuan webhook yang sah:
+
+| Rentang | Sebab |
+|---|---|
+| `fec0::/10` | site-local: alamat di dalam satu situs, tidak pernah dijangkau dari luar |
+| `2001:2::/48` | benchmarking — **kembaran IPv6 PERSIS dari `198.18.0.0/15`** yang daftar ini sudah tutup 14 Sep |
+| `2001::/32` | Teredo: terowongan, bukan tempat sebuah layanan webhook duduk |
+| `100::/64` | discard-only (RFC 6666): lalu lintas ke sana dibuang |
+| `64:ff9b:1::/48` | NAT64 **prefiks local-use** (RFC 8215) |
+
+**Satu bentuk diturunkan di `normalize()`, bukan ditolak sebagai rentang:**
+6to4 `2002::/16` (RFC 3056) membawa alamat IPv4-nya di byte 2..5 — bukan di
+empat byte terakhir seperti `::ffff:`, `::a.b.c.d` dan NAT64 well-known. Karena
+itu `2002:7f00:1::1` dinilai publik padahal ia membungkus `127.0.0.1`, dan
+`2002:a00:5::1` membungkus `10.0.0.5`. Menolak `2002::/16` utuh akan menolak
+alamat yang sebenarnya bisa dikirimi: sebuah alamat 6to4 yang membungkus IPv4
+PUBLIK memang publik, dan `2002:cb00:7101::1` (= `203.0.113.1`) tetap diterima.
+
+**Yang paling menusuk dari ketujuhnya**, dan sebabnya dicatat di sini supaya
+tidak terulang: prefiks NAT64 **well-known** `64:ff9b::7f00:1` sudah ditolak
+sejak P-3d dan disebut NAMANYA di tabel §11.2 sebagai contoh bentuk samaran yang
+ditutup — sementara saudaranya di prefiks **local-use**, yang membungkus alamat
+`127.0.0.1` yang SAMA, lolos. Sebuah daftar yang menyebutkan satu anggota
+keluarga sebagai bukti bahwa keluarganya tertutup adalah daftar yang menenangkan
+pembacanya tanpa hak.
+
+Bobotnya dikatakan apa adanya: tanpa 6to4/NAT64/site-local yang benar-benar
+dirutekan di jaringan itu, tidak ada rute ke sana, jadi hari ini ketujuhnya
+**gagal-tertutup** — derajat risiko yang sama yang dipakai 13 Sep untuk
+membenarkan penutupan `192.0.0.0/24` dan `198.18.0.0/15`.
 
 **Yang BELUM ditutup, dan diketahui** (masing-masing pekerjaan tersendiri):
 
-* **Kurung siku yang tidak berpasangan lolos gerbang dan ditolak transport**
-  (diukur 14 Sep 2026, sewaktu menjalankan tabel bentuk URL di atas).
+* **Karakter struktural di host — `[`, `\`, `]` — dan kurung siku yang tidak
+  berpasangan lolos gerbang dan ditolak transport** (diukur 14 Sep 2026 di
+  tabel bentuk URL di atas; diperluas putaran penutup, V-5: keluarganya ENAM
+  bentuk, bukan satu — `https://[::1/x`, `https://[/x`,
+  `https://[contoh.co.id/masuk`, `https://]contoh.co.id/masuk`,
+  `https://\contoh.co.id/masuk`, `https://c\ontoh.co.id/masuk`, semuanya
+  tersimpan 201 di pintu webhook dan semuanya `MalformedUriException` di
+  transport; ditambah `https://[v1.fe80::1]/x`, URI yang sah bagi Guzzle tetapi
+  tidak bisa disambung siapa pun. Pintu push sudah menolak bentuk-bentuk itu,
+  jadi ini ketimpangan antar-pintu juga).
   `https://[::1/x` dibaca `parse_url()` sebagai host `[:` — bukan alamat, bukan
   nama — sehingga gerbang MENERIMANYA, sementara Guzzle menolaknya
   (`MalformedUriException`). Ia keluarga yang sama dengan dua butir yang baru

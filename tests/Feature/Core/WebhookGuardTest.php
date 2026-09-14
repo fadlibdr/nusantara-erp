@@ -290,13 +290,22 @@ class WebhookGuardTest extends ErpTestCase
             );
         }
 
-        // SATU ALAMAT DI LUAR TIAP BATAS.
-        foreach (['feff::1', 'ff::1', '2606:4700:4700::1111'] as $address) {
+        /*
+         * SATU ALAMAT DI LUAR TIAP BATAS.
+         *
+         * `feff::1` DULU berdiri di sini sebagai "satu byte di bawah ff00::/8",
+         * dan ia harus pindah (putaran penutup, V-1): sejak `fec0::/10`
+         * ditutup, `feff::1` memang site-local — fec0::/10 membentang sampai
+         * feff:ffff:…. Penggantinya `fe00::1` menjaga maksud yang sama dengan
+         * lebih tepat: ia di luar fe80::/10 DAN di luar fec0::/10, tetapi
+         * SEBUAH `ff00::/7` yang meleset satu bit akan menangkapnya.
+         */
+        foreach (['fe00::1', 'ff::1', '2606:4700:4700::1111'] as $address) {
             $this->assertTrue(
                 WebhookUrl::isPublicIp($address),
-                "«{$address}» ditolak: ia ada DI LUAR ff00::/8 («ff::1» adalah 00ff::1, dan «feff::1» satu byte di "
-                .'bawah rentangnya), dan gerbang yang menolak alamat yang sebenarnya bisa dikirimi sama salahnya '
-                .'dengan gerbang yang meloloskan alamat internal.',
+                "«{$address}» ditolak: ia ada DI LUAR ff00::/8 («ff::1» adalah 00ff::1, dan «fe00::1» di luar "
+                .'fe80::/10 maupun fec0::/10), dan gerbang yang menolak alamat yang sebenarnya bisa dikirimi sama '
+                .'salahnya dengan gerbang yang meloloskan alamat internal.',
             );
         }
 
@@ -511,7 +520,8 @@ class WebhookGuardTest extends ErpTestCase
             strtolower($parsedHost),
             strtolower($sliced),
             "Irisan otoritas dan `parse_url()` tidak sependapat tentang DI MANA host «{$url}» berada. Sebuah "
-            .'detektor yang membaca wilayah lain dari yang dinilai adalah pengurai kedua, dan §11.2 melarangnya.',
+            .'detektor yang membaca wilayah lain dari yang dinilai adalah pengurai kedua — dan §11.2 mencatat '
+            .'keberatan itu sebagai sebab butir ini sempat tidak ditutup.',
         );
     }
 
@@ -1127,6 +1137,57 @@ class WebhookGuardTest extends ErpTestCase
             // membedakan keduanya dengan cara yang persis sama.
             'ganti baris di ujung URL berpath' => ["https://contoh.co.id/x\x0a", true],
             'ganti baris di ujung URL tanpa path' => ["https://contoh.co.id\x0a", false],
+        ];
+    }
+
+    /* ------------------------------------- putaran penutup: keluarga IPv6 (V-1) */
+
+    /**
+     * V-1 — TUJUH BENTUK IPv6 YANG MASIH TERSIMPAN, dan jawaban "tidak ada
+     * yang lain" yang keliru.
+     *
+     * Paket ini menutup `ff00::/8` dan menjawab pertanyaan lama §11.2
+     * ("sebaiknya diputuskan bersama rentang IPv6 lain") dengan "tidak ada yang
+     * lain". Verifier penutup mengukur TUJUH, dan dua di antaranya bukan
+     * sekadar rentang yang dicadangkan melainkan **bentuk samaran yang
+     * membungkus alamat IPv4 internal** — hal yang docblock §2 kelas ini
+     * JANJIKAN diturunkan lebih dulu.
+     *
+     * Yang paling menusuk: prefiks NAT64 well-known `64:ff9b::7f00:1` ditolak
+     * dan disebut NAMANYA di tabel §11.2 sebagai contoh yang ditutup, sementara
+     * saudaranya di prefiks local-use RFC 8215 — alamat 127.0.0.1 yang SAMA —
+     * lolos.
+     *
+     * Dua baris terakhir tabel adalah kendali yang harus TETAP publik: sebuah
+     * alamat IPv6 sungguhan, dan sebuah alamat 6to4 yang membungkus IPv4 PUBLIK
+     * — karena 6to4 DITURUNKAN, bukan ditolak sebagai rentang. Menolak
+     * `2002::/16` utuh akan menolak alamat yang sebenarnya bisa dikirimi.
+     */
+    #[DataProvider('ipv6FormsThatMustNotBePublic')]
+    public function test_the_ipv6_family_is_judged_the_same_way_as_its_ipv4_twins(string $address, bool $public, string $why): void
+    {
+        $this->assertSame(
+            $public,
+            WebhookUrl::isPublicIp($address),
+            "«{$address}» — {$why}",
+        );
+    }
+
+    /** @return array<string, array{0: string, 1: bool, 2: string}> */
+    public static function ipv6FormsThatMustNotBePublic(): array
+    {
+        return [
+            'multicast (kembaran 224.0.0.0/4)' => ['ff02::1', false, 'multicast, kembaran IPv6 dari 224.0.0.0/4 yang sudah ditutup.'],
+            'site-local fec0::/10' => ['fec0::1', false, 'site-local: alamat di dalam satu situs, tidak pernah dari luar.'],
+            'benchmarking 2001:2::/48' => ['2001:2::1', false, 'benchmarking — kembaran IPv6 PERSIS dari 198.18.0.0/15 yang daftar ini sendiri tutup.'],
+            '6to4 membungkus loopback' => ['2002:7f00:1::1', false, '6to4 yang membungkus 127.0.0.1; docblock §2 menjanjikan bentuk pembungkus IPv4 diturunkan lebih dulu.'],
+            '6to4 membungkus privat' => ['2002:a00:5::1', false, '6to4 yang membungkus 10.0.0.5.'],
+            'NAT64 local-use RFC 8215' => ['64:ff9b:1::7f00:1', false, 'NAT64 prefiks local-use — 127.0.0.1 yang SAMA dengan 64:ff9b::7f00:1 yang sudah ditolak dan disebut namanya di §11.2.'],
+            'Teredo 2001::/32' => ['2001:0:1::1', false, 'Teredo: terowongan, bukan alamat yang layanan webhook mana pun duduk di atasnya.'],
+            'discard-only 100::/64' => ['100::1', false, 'discard-only (RFC 6666): lalu lintas ke sini dibuang, jadi ia tidak pernah tujuan yang sah.'],
+            'NAT64 well-known (sudah ditutup sebelum paket ini)' => ['64:ff9b::7f00:1', false, 'kendali: yang ini memang sudah ditolak, dan saudaranya di atas tidak.'],
+            'KENDALI — IPv6 publik sungguhan' => ['2606:4700:4700::1111', true, 'kendali: alamat publik harus TETAP publik.'],
+            'KENDALI — 6to4 membungkus IPv4 PUBLIK' => ['2002:cb00:7101::1', true, 'kendali: 6to4 diturunkan, bukan ditolak sebagai rentang — ia membungkus 203.0.113.1 yang publik.'],
         ];
     }
 }

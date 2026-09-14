@@ -94,16 +94,27 @@ final class PushEndpoint
          * kedua yang mirip adalah cara lubang yang sama ditutup sekali dan
          * dibiarkan sekali (pelajaran titik ekor, 13 Sep 2026).
          *
-         * DAN ATAS ENDPOINT APA ADANYA, BUKAN YANG SUDAH DI-`trim()` — ini
-         * satu-satunya tempat di kelas ini yang membaca string mentahnya, dan
-         * sebabnya diukur: yang DISIMPAN pendaftaran perangkat adalah string
-         * yang dikirim pemanggil, dan yang diserahkan `WebPushSender` kepada
-         * pustaka HTTP adalah string tersimpan itu — bukan hasil `trim()`.
-         * Maka `https://contoh.co.id\n` yang lolos di sini akan mati di
-         * transport pada SETIAP pemberitahuan, dan `trim()` di baris-baris
-         * lain hanya menolong `parse_url()` membacanya. Diukur lewat tabel
-         * gerbang-vs-transport: dengan `trim()` di sini, gerbang push menerima
-         * bentuk yang gerbang webhook DAN Guzzle tolak.
+         * DAN ATAS ENDPOINT APA ADANYA, BUKAN YANG SUDAH DI-`trim()` — supaya
+         * kelas ini menjawab bentuk yang sama dengan yang dijawab gerbang
+         * webhook. Dua gerbang yang berselisih tentang satu string adalah cacat
+         * tersendiri, dan `WebhookUrl::assertShape()` tidak men-`trim()`.
+         *
+         * SEBAB YANG DITULIS PERTAMA KALI DI SINI TIDAK BENAR, dan diperbaiki
+         * pada putaran penutup (V-2): ia menyatakan bahwa "yang DISIMPAN
+         * pendaftaran perangkat adalah string yang dikirim pemanggil". Tidak —
+         * `PushSubscriptions::register()` menyimpan `trim($endpoint)`,
+         * `PushSubscription::hashFor()` mem-hash `trim($endpoint)`, dan pintu
+         * rotasi melakukan hal yang sama. Maka bentuk yang hanya punya byte
+         * kendali DI UJUNG tidak pernah sampai ke transport lewat pintu mana
+         * pun; yang benar-benar dirasakan orang adalah byte kendali di TENGAH
+         * otoritas. Aturan ini tetap membaca string mentah karena alasan yang
+         * PERTAMA, bukan yang kedua.
+         *
+         * Batas yang diketahui: `rawAuthority()` membuang segala sesuatu sebelum
+         * `://`, jadi byte kendali di DEPAN skema tidak terlihat di sini. Ia
+         * tidak terjangkau hari ini — aturan `url` Laravel di kedua pintu HTTP
+         * menolaknya, dan Guzzle memulangkan host kosong — tetapi ia titik buta,
+         * dan titik buta yang tidak ditulis akan dibaca sebagai jaminan.
          *
          * Pertahanan berlapis, seperti dua aturan di bawahnya: `Str::isUrl()`
          * milik Laravel menolak byte kendali lebih dulu di FormRequest —
@@ -116,7 +127,8 @@ final class PushEndpoint
                 "Endpoint «{$host}» memuat byte kendali (tab, ganti baris, NUL atau sejenisnya) pada bagian "
                 .'alamatnya — biasanya ikut terbawa saat menyalin-tempel. Byte itu tidak tersimpan apa adanya: ia '
                 .'berubah menjadi garis bawah, sehingga alamat yang tertulis bukan alamat yang diketik, dan pustaka '
-                .'HTTP menolak alamat seperti itu pada setiap pengiriman.'
+                .'HTTP menolak alamat seperti itu pada setiap pengiriman. Daftarkan ulang perangkat ini dari '
+                .'perambannya; endpoint push dibuat peramban, bukan diketik.'
             );
         }
 
