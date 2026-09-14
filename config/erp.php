@@ -207,6 +207,72 @@ return [
             // daripada catatan bertanda.
             'geofence_metres' => 500,
         ],
+
+        /*
+         * Timesheet & lembur dari absensi (F-5) — KEBIJAKAN PEMILIK, 14 Sep 2026.
+         *
+         * Baris roadmap F-5 menunda paket ini "sampai >= 1 bulan data F-4,
+         * tanpa itu aturan pembulatan lembur dikarang". Penundaan itu dicabut
+         * dengan menghapus sebabnya: angka-angka di bawah DISEBUT pemilik, dan
+         * ia tinggal di sini — bukan tertanam di kode — supaya kebijakan yang
+         * berbeda adalah satu suntingan di layar Pengaturan, bukan satu rilis.
+         *
+         * Semua nilai di blok ini MENGGESER UANG, tidak seperti tetangganya
+         * `attendance.geofence_metres` yang tidak menyentuh satu rupiah pun.
+         * Karena itu registri Pengaturan memberinya kalimat pembuka sendiri,
+         * dan setiap perubahannya tercatat di Log Audit (baris core_settings
+         * sudah diamati AuditedModels).
+         */
+        'timesheet' => [
+            /*
+             * Jam mulai kerja yang menjadi acuan "terlambat". Pemilik menyebut
+             * TOLERANSI-nya (10 menit), bukan jam mulainya; tanpa jam mulai,
+             * toleransi tidak punya apa pun untuk diukur. 08:00 adalah bawaan
+             * yang dipilih di sini dan dicetak di layar timesheet apa adanya —
+             * bukan angka yang diam-diam dianggap berlaku di mana-mana.
+             */
+            'day_start' => '08:00',
+            // Datang di dalam toleransi = tidak terlambat sama sekali, dan
+            // menit terlambat dihitung dari BATAS toleransi, bukan dari jam
+            // mulai: 08:12 dengan toleransi 10 menit = terlambat 2 menit.
+            'late_tolerance_minutes' => 10,
+            // Jam kerja normal sehari. Menit kerja DI ATAS angka inilah yang
+            // menjadi calon lembur; menaikkannya mengecilkan lembur setiap
+            // orang setiap hari.
+            'normal_hours_per_day' => 8,
+            // Pembulatan lembur ke kelipatan terdekat, DILAKUKAN SEKALI — pada
+            // kelebihan menit di atas jam normal, bukan pada rentang kerjanya
+            // (TimesheetService::overtimeMinutes).
+            'rounding_minutes' => 15,
+            // Di bawah ini tidak dihitung lembur sama sekali. Diterapkan
+            // SESUDAH pembulatan: 22 menit membulat ke 15, lalu gugur di sini.
+            'overtime_minimum_minutes' => 30,
+            /*
+             * Batas Kepmenaker 102/2004 Pasal 3: 3 jam sehari dan 14 jam
+             * seminggu. Melebihinya DICATAT DAN DITANDAI, tidak dipotong
+             * diam-diam dan tidak ditolak — pola yang sama dengan geofence
+             * F-4. Memotong diam-diam berarti layar mengatakan angka yang
+             * berbeda dari yang benar-benar dikerjakan orangnya.
+             */
+            'overtime_daily_cap_hours' => 3,
+            'overtime_weekly_cap_hours' => 14,
+            /*
+             * Tarif Kepmenaker 102/2004 Pasal 11, dalam PERSEN upah sejam:
+             * 150% untuk jam pertama tiap hari lembur, 200% untuk jam
+             * berikutnya. Upah sejam sendiri = upah sebulan / pembagi, dan
+             * pembaginya setelan tersendiri (payroll.overtime.divisor, grup
+             * "BPJS & Lembur") karena ia sudah ada sejak P0 dan dibaca jalur
+             * lama yang tetap hidup.
+             *
+             * Tarif akhir pekan/hari libur (skala 2x/3x/4x, Pasal 11 ayat 2)
+             * TIDAK dibangun paket ini, dan hari non-kerja karena itu TIDAK
+             * ikut diusulkan sebagai lembur — memakai tarif hari kerja untuk
+             * hari libur berarti membayar kurang tanpa ada yang bisa melihat
+             * sebabnya.
+             */
+            'overtime_first_hour_pct' => 150,
+            'overtime_next_hours_pct' => 200,
+        ],
     ],
 
     'projects' => [

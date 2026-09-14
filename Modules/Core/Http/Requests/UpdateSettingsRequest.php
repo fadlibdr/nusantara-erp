@@ -71,6 +71,11 @@ class UpdateSettingsRequest extends FormRequest
             'boolean' => 'Nilai :attribute harus bernilai true atau false.',
             'string' => 'Nilai :attribute harus berupa teks.',
             'in' => 'Nilai :attribute tidak termasuk pilihan yang tersedia.',
+            // F-5 — satu-satunya pemakai date_format adalah tipe 'time'
+            // (hr.timesheet.day_start). Bentuknya disebut beserta contohnya:
+            // "format tidak cocok" tidak memberi tahu siapa pun bahwa yang
+            // diminta adalah jam 24 tanpa detik.
+            'date_format' => 'Nilai :attribute harus berupa jam 24 dan menit, mis. 08:00 atau 17:30.',
             'min' => 'Nilai :attribute tidak boleh kurang dari :min.',
             'max' => 'Nilai :attribute tidak boleh lebih dari :max.',
             'regex' => 'Format :attribute harus memuat token tahun {Y} dan salah satu token nomor '
