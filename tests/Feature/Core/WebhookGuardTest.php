@@ -108,6 +108,9 @@ class WebhookGuardTest extends ErpTestCase
             'akhir 198.18.0.0/15' => ['https://198.19.255.255/masuk', 'jaringan server ini'],
             'multicast 224.0.0.0/4' => ['https://224.0.0.1/masuk', 'jaringan server ini'],
             'akhir multicast 224.0.0.0/4' => ['https://239.255.255.255/masuk', 'jaringan server ini'],
+            // KEMBARAN IPv6-nya, yang menyusul sehari kemudian: `ff02::1`
+            // dinilai PUBLIK sampai `ff00::/8` masuk ke daftar yang sama.
+            'multicast IPv6 ff00::/8' => ['https://[ff02::1]/masuk', 'jaringan server ini'],
             // Dan bentuk samarannya ikut, tanpa satu baris pun tambahan:
             // penilaiannya dilakukan SESUDAH normalize().
             'multicast bertopeng v4' => ['https://[::ffff:224.0.0.1]/masuk', 'jaringan server ini'],
@@ -241,6 +244,81 @@ class WebhookGuardTest extends ErpTestCase
         $this->assertFalse(WebhookUrl::isPublicIp('::ffff:192.0.0.171'));
         $this->assertFalse(WebhookUrl::isPublicIp('::ffff:198.18.0.1'));
         $this->assertFalse(WebhookUrl::isPublicIp('::ffff:224.0.0.1'));
+    }
+
+    /**
+     * MULTICAST IPv6 — KEMBARAN `224.0.0.0/4`, DAN INKONSISTENSI YANG DITUTUP.
+     *
+     * Diukur 14 Sep 2026 sebelum perbaikan: `ff02::1`, `ff00::1` dan
+     * `ff05::1:3` dinilai PUBLIK sementara `224.0.0.1` sudah ditolak. Yang
+     * ditutup di sini karena itu BUKAN lubang yang bisa dieksploitasi —
+     * multicast di atas TCP tidak pernah membentuk koneksi — melainkan sebuah
+     * gerbang yang menjawab dua hal berbeda tentang alamat yang sama, hanya
+     * karena yang satu ditulis dalam empat angka desimal.
+     *
+     * SETENGAH KEDUA UJI INI SAMA PENTINGNYA, dan lebih daripada pada kembaran
+     * IPv4-nya. `ff00::/8` adalah satu byte utuh, dan sebuah pemeriksaan yang
+     * ditulis sebagai teks alih-alih sebagai byte menelan `ff::1` — yaitu
+     * `00ff::1`, alamat yang huruf awalnya kebetulan «ff» dan letaknya di
+     * ujung lain ruang alamat. `feff::1` menjaga batas bawahnya: ia SATU BYTE
+     * di bawah rentang, dan ia harus tetap publik.
+     *
+     * Rentang IPv6 lain SENGAJA tidak ikut. `fe80::/10` dan `2001:db8::/32`
+     * sudah ditutup `FILTER_FLAG_NO_RES_RANGE` — dua baris terakhir uji ini
+     * mengukurnya — dan menambahkannya ke REFUSED_BLOCKS hanya menambah baris
+     * yang tidak bisa memerah.
+     */
+    public function test_ipv6_multicast_is_refused_like_its_ipv4_twin(): void
+    {
+        foreach (['ff00::', 'ff00::1', 'ff02::1', 'ff05::1:3', 'ff0e::1', 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'] as $address) {
+            $this->assertFalse(
+                WebhookUrl::isPublicIp($address),
+                "«{$address}» dinilai publik: ia multicast IPv6 (ff00::/8), kembaran 224.0.0.0/4 yang sudah ditolak.",
+            );
+        }
+
+        // SATU ALAMAT DI LUAR TIAP BATAS.
+        foreach (['feff::1', 'ff::1', '2606:4700:4700::1111'] as $address) {
+            $this->assertTrue(
+                WebhookUrl::isPublicIp($address),
+                "«{$address}» ditolak: ia ada DI LUAR ff00::/8 («ff::1» adalah 00ff::1, dan «feff::1» satu byte di "
+                .'bawah rentangnya), dan gerbang yang menolak alamat yang sebenarnya bisa dikirimi sama salahnya '
+                .'dengan gerbang yang meloloskan alamat internal.',
+            );
+        }
+
+        /*
+         * SATU DAFTAR UNTUK DUA KELUARGA — DAN GARIS YANG MEMISAHKANNYA.
+         *
+         * Blok IPv4 dan alamat IPv6 hidup di daftar yang sama sejak
+         * `ff00::/8` masuk, dan yang menjaga mereka tidak saling menyentuh
+         * adalah PANJANG BYTE (4 vs 16), bukan urutan daftar. Keempat alamat
+         * IPv6 di bawah ini adalah kasus terburuknya: byte-byte awalnya
+         * PERSIS sama dengan sebuah blok IPv4 di REFUSED_BLOCKS —
+         * `e000::` dengan multicast `224.0.0.0/4`, `c000::` dengan
+         * `192.0.0.0/24`, `6440:4000::` dengan CGNAT `100.64.0.0/10`,
+         * `c612::` dengan benchmarking `198.18.0.0/15`. Keempatnya alamat
+         * IPv6 biasa dan harus tetap publik; mutasi yang membuang penjaga
+         * panjang byte menolak keempatnya (diukur).
+         */
+        foreach (['e000::1', 'c000::1', '6440:4000::1', 'c612:1234::5'] as $address) {
+            $this->assertTrue(
+                WebhookUrl::isPublicIp($address),
+                "«{$address}» ditolak: byte awalnya kebetulan sama dengan sebuah blok IPv4 di REFUSED_BLOCKS, tetapi "
+                .'ia alamat IPv6 — sebuah blok IPv4 tidak boleh bisa menyentuh keluarga yang lain.',
+            );
+        }
+
+        // Dan sebaliknya: alamat IPv4 yang byte pertamanya kebetulan juga
+        // 0xff ditolak oleh FILTER_FLAG_NO_RES_RANGE (240.0.0.0/4), bukan
+        // oleh `ff00::/8`.
+        $this->assertFalse(WebhookUrl::isPublicIp('255.255.255.254'));
+        $this->assertFalse(WebhookUrl::isPublicIp('224.0.0.1'));
+
+        // Kembaran IPv4-nya tetap ditolak, dan blok IPv6 yang SUDAH ditutup
+        // PHP tetap tertutup tanpa satu baris pun di REFUSED_BLOCKS.
+        $this->assertFalse(WebhookUrl::isPublicIp('fe80::1'));
+        $this->assertFalse(WebhookUrl::isPublicIp('2001:db8::1'));
     }
 
     /**

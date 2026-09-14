@@ -871,11 +871,12 @@ class WebPushGuardTest extends ErpTestCase
      * RENTANG KHUSUS IANA, DI PINTU PERANGKAT.
      *
      * `PushEndpoint` tidak menilai alamat sendiri: ia memanggil
-     * `WebhookUrl::isPublicIp()`. Maka ketiga rentang yang baru ditutup
-     * (`192.0.0.0/24`, `198.18.0.0/15`, `224.0.0.0/4`) ikut tertutup di sini
-     * TANPA satu baris pun di kelas ini — dan uji ini ada supaya kalimat itu
-     * diukur, bukan diandaikan. Sebuah `PushEndpoint` yang suatu hari menilai
-     * alamat dengan daftarnya sendiri memerahkan uji ini.
+     * `WebhookUrl::isPublicIp()`. Maka rentang yang ditutup di sana
+     * (`192.0.0.0/24`, `198.18.0.0/15`, `224.0.0.0/4`, dan sejak 14 Sep 2026
+     * kembaran IPv6-nya `ff00::/8`) ikut tertutup di sini TANPA satu baris pun
+     * di kelas ini — dan uji ini ada supaya kalimat itu diukur, bukan
+     * diandaikan. Sebuah `PushEndpoint` yang suatu hari menilai alamat dengan
+     * daftarnya sendiri memerahkan uji ini.
      */
     public function test_a_special_iana_range_is_never_accepted_as_a_device(): void
     {
@@ -886,6 +887,7 @@ class WebPushGuardTest extends ErpTestCase
             'https://198.18.0.1/x',
             'https://224.0.0.1/x',
             'https://[::ffff:224.0.0.1]/x',
+            'https://[ff02::1]/x',
         ];
 
         foreach ($candidates as $candidate) {

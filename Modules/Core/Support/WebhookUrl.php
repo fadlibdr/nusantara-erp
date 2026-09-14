@@ -390,8 +390,8 @@ final class WebhookUrl
     }
 
     /**
-     * Rentang IPv4 yang DILEWATKAN `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE`,
-     * dan sebabnya masing-masing.
+     * Rentang yang DILEWATKAN `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE`, dan
+     * sebabnya masing-masing.
      *
      * SATU DAFTAR, BUKAN SATU PENGECUALIAN DITAMBAH TIGA. Sebelum ini CGNAT
      * berdiri sendiri sebagai satu `if` di dalam `isPublicIp()`; menambahkan
@@ -399,6 +399,14 @@ final class WebhookUrl
      * ditulis di tempat yang salah enam bulan lagi. Masknya DITURUNKAN dari
      * panjang prefiks dan tidak ditulis tangan — `0xFFE00000` dan
      * `0xFFFE0000` berbeda satu huruf dan berbeda 128 kali lipat besarnya.
+     *
+     * SATU DAFTAR untuk KEDUA keluarga, dan itu juga bukan kerapian belaka:
+     * `ff00::/8` masuk ke sini sebagai baris kelima, bukan sebagai daftar
+     * IPv6 kedua di sebelahnya, karena dua daftar yang mirip adalah cara
+     * sebuah rentang ditutup sekali dan dibiarkan sekali. Perbandingannya
+     * dilakukan atas BYTE alamat (`inRefusedBlock()`), sehingga panjang
+     * prefiks berlaku sama untuk 4 byte maupun 16 byte dan sebuah blok IPv4
+     * tidak pernah bisa cocok dengan alamat IPv6.
      *
      *  - `100.64.0.0/10` — ruang alamat bersama operator (RFC 6598). Di banyak
      *    jaringan operator ini adalah "di dalam".
@@ -413,6 +421,18 @@ final class WebhookUrl
      *    ditutup baris ini bukan kebocoran melainkan sebuah baris kiriman yang
      *    berjanji lalu gagal — dan sebuah gerbang yang menjawab "alamat ini
      *    tidak dikirimi" lebih jujur daripada lima percobaan yang mati diam.
+     *  - `ff00::/8` — multicast IPv6 (RFC 4291 §2.7), KEMBARAN dari
+     *    `224.0.0.0/4` tepat di atas. Sebabnya sama dan bobotnya sama rendah:
+     *    multicast di atas TCP tidak pernah membentuk koneksi. Yang ditutup
+     *    baris ini karena itu bukan lubang yang bisa dieksploitasi melainkan
+     *    INKONSISTENSI — gerbang yang menolak `224.0.0.1` sambil memulangkan
+     *    true untuk `ff02::1` menilai alamat yang sama dengan dua jawaban yang
+     *    berbeda, hanya karena yang satu ditulis dalam empat angka desimal.
+     *    Diukur 14 Sep 2026 sebelum baris ini ada: `ff02::1`, `ff00::1` dan
+     *    `ff05::1:3` ketiganya dinilai PUBLIK. Rentang IPv6 lain SENGAJA tidak
+     *    ikut karena tidak perlu: `fe80::/10` dan `2001:db8::/32` sudah
+     *    ditutup `FILTER_FLAG_NO_RES_RANGE` (diukur pada hari yang sama), dan
+     *    sebuah baris yang tidak bisa memerah bukan pagar melainkan hiasan.
      *
      * YANG SENGAJA TIDAK IKUT: blok dokumentasi TEST-NET `192.0.2.0/24`,
      * `198.51.100.0/24` dan `203.0.113.0/24` (RFC 5737). Ketiganya memang
@@ -426,11 +446,12 @@ final class WebhookUrl
      *
      * @var list<string>
      */
-    private const REFUSED_V4_BLOCKS = [
+    private const REFUSED_BLOCKS = [
         '100.64.0.0/10',
         '192.0.0.0/24',
         '198.18.0.0/15',
         '224.0.0.0/4',
+        'ff00::/8',
     ];
 
     /**
@@ -438,14 +459,9 @@ final class WebhookUrl
      *
      * `FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE` milik PHP menutup loopback,
      * privat RFC1918, link-local dan rentang yang dicadangkan sekaligus —
-     * termasuk 169.254.169.254 dan ::1. Yang TIDAK ditutupnya ada dua:
-     * REFUSED_V4_BLOCKS di atas, dan ::ffff:0:0/96 — alamat IPv4 yang ditulis
-     * sebagai IPv6. Keduanya diperiksa sendiri.
-     *
-     * MULTICAST IPv6 (`ff00::/8`) BELUM ditutup, dan itu dicatat apa adanya di
-     * KEPUTUSAN-INTEGRASI §11.2: `ff02::1` memulangkan true dari baris-baris
-     * di bawah. Ia kembar dari `224.0.0.0/4` dan tidak ikut ditutup di sini
-     * karena rentangnya tidak diukur bersama ketiga rentang IPv4 itu.
+     * termasuk 169.254.169.254, ::1, fe80::/10 dan 2001:db8::/32. Yang TIDAK
+     * ditutupnya ada dua: REFUSED_BLOCKS di atas, dan ::ffff:0:0/96 — alamat
+     * IPv4 yang ditulis sebagai IPv6. Keduanya diperiksa sendiri.
      */
     public static function isPublicIp(string $address): bool
     {
@@ -459,21 +475,57 @@ final class WebhookUrl
             return false;
         }
 
-        if (filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
-            $long = ip2long($address);
-
-            foreach (self::REFUSED_V4_BLOCKS as $block) {
-                [$network, $bits] = explode('/', $block);
-
-                $mask = (-1 << (32 - (int) $bits)) & 0xFFFFFFFF;
-
-                if ($long !== false && ($long & $mask) === (ip2long($network) & $mask)) {
-                    return false;
-                }
+        foreach (self::REFUSED_BLOCKS as $block) {
+            if (self::inRefusedBlock($address, $block)) {
+                return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Alamat ini ada di dalam blok CIDR itu?
+     *
+     * DIBANDINGKAN SEBAGAI BYTE, BUKAN SEBAGAI BILANGAN. `ip2long()` hanya
+     * tahu IPv4, jadi sebuah rentang IPv6 yang dibandingkan dengannya menuntut
+     * cabang kedua — dan cabang kedua itulah yang menjadi daftar kedua. Bentuk
+     * byte membuat panjang prefiks berarti hal yang sama untuk 4 byte dan 16
+     * byte: `/8` adalah satu byte utuh pada keduanya.
+     *
+     * KELUARGA YANG BERBEDA TIDAK PERNAH COCOK, dan itu dijaga oleh panjang:
+     * `inet_pton()` memulangkan 4 byte untuk IPv4 dan 16 byte untuk IPv6,
+     * sehingga `224.0.0.0/4` tidak bisa menyentuh alamat IPv6 mana pun dan
+     * `ff00::/8` tidak bisa menyentuh alamat IPv4 mana pun — termasuk
+     * `255.x.x.x`, yang byte pertamanya kebetulan juga 0xff.
+     */
+    private static function inRefusedBlock(string $address, string $block): bool
+    {
+        [$network, $bits] = explode('/', $block);
+
+        $packed = @inet_pton($address);
+        $base = @inet_pton($network);
+
+        if ($packed === false || $base === false || strlen($packed) !== strlen($base)) {
+            return false;
+        }
+
+        $whole = intdiv((int) $bits, 8);
+        $rest = (int) $bits % 8;
+
+        if (strncmp($packed, $base, $whole) !== 0) {
+            return false;
+        }
+
+        if ($rest === 0) {
+            return true;
+        }
+
+        // Bit yang TERSISA sesudah byte-byte utuh: masknya diturunkan dari
+        // panjang prefiks, tidak ditulis tangan.
+        $mask = (0xFF << (8 - $rest)) & 0xFF;
+
+        return (ord($packed[$whole]) & $mask) === (ord($base[$whole]) & $mask);
     }
 
     /** @return list<string> */
