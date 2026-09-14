@@ -21,8 +21,29 @@
             <tr><td>Gaji pokok</td><td class="num">{{ $money($payslip->basic_salary) }}</td></tr>
             <tr><td>Tunjangan tetap</td><td class="num">{{ $money($payslip->allowances_total) }}</td></tr>
             @if ((float) $payslip->overtime_pay > 0)
+                {{-- DASAR BAYAR LEMBURNYA, di lembar yang orangnya benar-benar
+                     terima. Seluruh pembenaran migrasi 001094 adalah satu
+                     kalimat: "sebuah slip yang tidak mengatakan jalur mana yang
+                     dipakainya membuat dua periode dibayar berbeda tanpa ada
+                     yang bisa melihat sebabnya". Kolomnya diisi dan dibekukan
+                     dengan benar sejak 14 Sep 2026, tetapi sampai putaran
+                     verifikasi ia tidak pernah sampai ke mata manusia: layar run
+                     gaji hanya mencetak rupiah, dan lembar ini hanya mencetak
+                     "Lembur (X,X jam)". Dua orang dengan jam ILB yang sama dan
+                     upah yang sama menerima selisih Rp 250.000 karena satu di
+                     antaranya lupa absen pulang sehari — dan PANDUAN-PENGGUNA
+                     §21 menyuruhnya melihat sebabnya di slip yang tidak
+                     memuatnya.
+
+                     NULL berbunyi BERBEDA dari "Tanpa lembur": kolom kosong
+                     berarti slip ini dihitung sebelum kolomnya ada, dan tidak
+                     ada backfill yang pernah menebaknya. --}}
                 <tr><td>Lembur ({{ number_format((float) $payslip->overtime_hours, 1, ',', '.') }} jam)</td>
                     <td class="num">{{ $money($payslip->overtime_pay) }}</td></tr>
+                <tr><td colspan="2" style="padding-top:0;font-size:9px;color:#555">
+                    Dasar:
+                    {{ $payslip->overtime_basis?->label() ?? 'tidak dicatat (slip dihitung sebelum 14 September 2026)' }}@if (($payslip->overtime_rate_detail['reason'] ?? null)) — {{ $payslip->overtime_rate_detail['reason'] }}@endif
+                </td></tr>
             @endif
             @if ((float) $payslip->thr_amount > 0)
                 <tr><td>THR</td><td class="num">{{ $money($payslip->thr_amount) }}</td></tr>

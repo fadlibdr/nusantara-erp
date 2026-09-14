@@ -7476,9 +7476,20 @@ Bila belum dihitung: *"Belum ada slip gaji. Jalankan 'Hitung Payroll' untuk memb
 karyawan **aktif** yang tanggal masuknya ≤ akhir periode.
 
 - Gaji pokok + tunjangan tetap + lembur = **bruto**.
-- **Lembur** = jam lembur dari rekap × ((gaji pokok + tunjangan tetap) ÷ 173) × **1,5**.
-  Pemisahan tarif 1,5× / 2× per hari (Kepmenaker 102/2004) **tidak diterapkan** — tarif
-  rata 1,5× dipakai karena rekap hanya menyimpan total jam.
+- **Lembur** — **berapa jamnya selalu dari rekap bulanan**; yang ditentukan absensi hanyalah
+  **tarifnya**, lewat salah satu dari dua jalur, dan **slipnya menyebutkan yang mana**:
+  - **Rincian harian** (sejak 14 Sep 2026): 1,5× untuk jam **pertama setiap hari lembur** dan
+    2× untuk jam berikutnya, sesuai Kepmenaker 102/2004. Dipakai **hanya** bila total jam
+    lembur yang diturunkan dari cap jam masuk/pulang **sama persis** dengan total rekap.
+  - **Tarif jam pertama rata**: seluruh jam rekap × 1,5×. Dipakai bila periodenya tidak punya
+    satu pun hari bercap jam lengkap, atau bila turunan absensi **berbeda** dari rekap — mis.
+    rekap mengikuti ILB. Slipnya mencetak **kedua angka itu** sebagai sebabnya.
+
+  Upah sejamnya sama pada kedua jalur: (gaji pokok + tunjangan tetap) ÷ 173. Selengkapnya di
+  **§21**; rumusnya sengaja tidak disalin ke sini, karena dua salinan akan menyimpang — dan
+  memang sudah pernah: sampai putaran verifikasi 14 Sep 2026 baris ini masih berbunyi
+  "pemisahan tarif 1,5× / 2× tidak diterapkan", seribu delapan ratus baris sebelum §21
+  mengatakan kebalikannya.
 - Dasar upah BPJS = gaji pokok + tunjangan tetap.
 - **PPh 21 = TER (PMK 168/2023)**, kecuali **Desember**, yang memakai perhitungan tahunan
   Pasal 17 dikurangi TER yang sudah dipotong Januari–November. Kedua kalimat itu tercetak

@@ -127,7 +127,7 @@ class ChartMigrationTest extends ErpTestCase
             'Kurva EVM menggambar legenda DOM di samping legenda svg-nya sendiri.');
 
         $trend = $this->spa('views/hargasatuan.js');
-        $this->assertStringContainsString("legend: false", $trend,
+        $this->assertStringContainsString('legend: false', $trend,
             'Tren harga memakai legenda DOM, jadi legenda svg-nya harus dimatikan — kalau tidak, keduanya tergambar.');
         $this->assertStringContainsString("el('.legend'", $trend);
 

@@ -30,7 +30,7 @@ class PayslipResource extends JsonResource
              */
             'overtime_basis' => $this->overtime_basis?->value,
             'overtime_basis_label' => $this->overtime_basis?->label(),
-            'overtime_rate_detail' => $this->overtime_rate_detail,
+            'overtime_rate_detail' => $this->rateDetailFor($request),
             'thr_amount' => $this->thr_amount,
             'gross_income' => $this->gross_income,
             'bpjs' => $this->bpjs,
@@ -44,5 +44,53 @@ class PayslipResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * RINCIAN TARIF, TANPA KALENDER LEMBUR HARIAN ORANG LAIN.
+     *
+     * `overtime_rate_detail.days` adalah daftar TANGGAL dan JAM LEMBUR harian
+     * seseorang — data turunan absensi yang persis sama dengan yang
+     * `TimesheetController::show()` jaga dengan 404 yang sengaja tidak bisa
+     * dibedakan dari "id tidak ada", dengan alasan yang ditulis panjang di
+     * kepala kelasnya. Sumber daya ini dilayani antara lain oleh
+     * `GET hr/employees/{employee}/payslips`, sebuah rute yang TIDAK bergerbang
+     * izin (keadaan pra-F-5; LAPORAN-DEVIASI menghitung 218 dari 862 rute
+     * seperti itu) — jadi tanpa penyaringan di sini, F-5 menaruh muatan baru
+     * ke dalam pintu yang terbuka, dan data yang satu pintu tolak keluar bebas
+     * lewat pintu di sebelahnya.
+     *
+     * Yang disaring hanya `days` — bagian yang paket ini TAMBAHKAN. Sisa
+     * rinciannya (dasar, tarif, jumlah jam per tarif, kalimat sebabnya) adalah
+     * keterangan tentang angka yang sudah ada di baris yang sama sejak P0.
+     * Menutup rute itu sendiri adalah pekerjaan gerbang izin, bukan pekerjaan
+     * paket ini.
+     *
+     * Pola bersyaratnya sama dengan yang sudah dipakai rumah ini untuk NPWP di
+     * `EmployeeResource`.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function rateDetailFor(Request $request): ?array
+    {
+        $detail = $this->overtime_rate_detail;
+
+        if (! is_array($detail) || ! array_key_exists('days', $detail)) {
+            return $detail;
+        }
+
+        $user = $request->user();
+        $isMine = $user?->employee_id !== null && (int) $this->employee_id === (int) $user->employee_id;
+
+        if ($isMine || (bool) $user?->can('hr.view')) {
+            return $detail;
+        }
+
+        // KUNCINYA DIBUANG, bukan dikosongkan: sebuah `days: []` akan terbaca
+        // sebagai "orang ini tidak berlembur satu hari pun", yang tidak benar
+        // dan tidak bisa dibedakan dari yang benar.
+        unset($detail['days']);
+
+        return $detail;
     }
 }
