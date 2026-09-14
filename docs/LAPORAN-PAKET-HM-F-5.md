@@ -336,8 +336,15 @@ dicatat di sini karena keduanya hanya bisa dibedakan dengan menjalankan peramban
 | `./vendor/bin/pint` pada berkas yang disentuh | bersih |
 | `php artisan route:list --path=hr/timesheet` | 3 rute, `timesheet/me` **di atas** `timesheet/{employee}` |
 | harness `S42 S42m` | 2 skenario `ok`, 41 syarat, 0 galat konsol |
+| *(putaran penutup)* `tests/Feature/HrPayroll` + `tests/Feature/Core` + `tests/Unit` | **2.323 uji / 15.069 asersi** hijau (11 dilewati), 7 mnt 43 dtk |
+| **GERBANG RILIS — seluruh suite, SQLite, atas `aac560d`** | **OK — 5.303 uji / 35.779 asersi, 11 dilewati**, 18 mnt 47 dtk |
+| **GERBANG RILIS — seluruh suite, MySQL 8 `erp_dryrun`, atas `aac560d`** | **OK — 5.303 uji / 35.785 asersi, 9 dilewati**, 1 jam 6 mnt |
 
-Suite penuh dijalankan sesi utama, sesuai perintah paket ini.
+**GERBANG RILIS HIJAU DI KEDUA DRIVER** (14 Sep 2026, worktree terisolasi, `vendor/` disalin nyata).
+Jumlah ujinya **sama persis — 5.303** di kedua driver; selisih asersi (35.779 vs 35.785) dan jumlah
+yang dilewati (11 vs 9) adalah dua uji khusus-MySQL yang memang dilewati di SQLite, pola yang sama
+dengan setiap gerbang kampanye ini. Main `51fb7f1` membawa **5.178** → paket ini **+125 uji**.
+Pohon bersih sebelum dan sesudah kedua jalannya.
 
 ---
 
