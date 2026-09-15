@@ -26,7 +26,7 @@ SDM/Layanan/Aset.
 | Metrik baris tabel dibekukan dan dibuktikan | ✅ | Diukur di peramban pada prototipe: 32 / 38,5 / 48, kaki Normal 41 — cocok persis dengan kesepakatan harness S21 |
 | Hanyutan token blok `@media print` | ✅ | `8d97ff9`; kontras di kertas: `--muted` di `--surface-2` **4,46 → 5,47**, di `--bg` **4,26 → 5,23**, `--success` di `--success-soft` **4,42 → 5,29**. Ketiganya teks kecil (ambang 4,5) dan ketiganya gagal sebelum ini |
 | Panah `<select>` yang warnanya dipanggang di data-URI | ✅ | `8d97ff9`; satu token `--chevron` di lima blok palet, dipakai dua kali. Diverifikasi di Chromium: terang `#5e6874`, gelap `#8b95a3`, cetak-dari-gelap dipaksa kembali ke terang |
-| CONVENTIONS §17: kisi widget 3 → 4 kolom | ✅ | `8d97ff9`; kode berkata `SPAN = { kecil: 1, sedang: 2, lebar: 4 }` dan `repeat(4, minmax(0, 1fr))`. Sapuan §35 sesudah: **0** penyebutan "kisi tiga kolom" tersisa di `docs/` |
+| CONVENTIONS §17: kisi widget 3 → 4 kolom | ✅ | `8d97ff9`; kode berkata `SPAN = { kecil: 1, sedang: 2, lebar: 4 }` dan `repeat(4, minmax(0, 1fr))`. Sapuan §35 sesudah: **2** penyebutan case-insensitive tersisa di `docs/` — baris ini sendiri, dan `LAPORAN-PAKET-HM-P1-D.md:270` yang justru MENCATAT keputusannya ("Kisi tiga kolom membuang sepertiga layar… Kisi sekarang **empat** kolom"); yang kedua benar dan harus tetap. **Koreksi:** sapuan pertama memakai `grep` case-sensitive dan melaporkan 0 — ia melewatkan huruf kapital awal kalimat. Sapuan §35 harus memakai `grep -rin`, bukan `grep -rn` |
 
 ## Verifikasi
 
@@ -103,6 +103,10 @@ komentar di tempat kejadian:
 
 Butir 5 menjadi **gerbang tetap** di verifier prototipe: ia menarik setiap `var(--x)` di berkas dan
 memastikan semuanya resolve.
+
+**Pelajaran sapuan §35:** `grep -rn` melewatkan huruf kapital awal kalimat. Pakai `grep -rin … | wc -l`,
+lalu BACA setiap kecocokan — sebagian di antaranya adalah catatan sejarah yang benar dan tidak boleh
+diubah, bukan hanyutan yang harus diperbaiki.
 
 **Satu hal yang harus diketahui pemilik:** `deploy/sync-erp1.sh` mengirim **pohon kerja** apa adanya,
 bukan `main`. Selama cabang ini atau hasil gabungannya ter-checkout, deploy akan membawa perbaikan

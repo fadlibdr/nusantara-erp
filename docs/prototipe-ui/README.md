@@ -60,5 +60,7 @@ hari pertama.
 
 ## Status
 
-Ini paket **UI-0**. Tidak satu baris pun di `public/app/` disentuh. Rencana
+Ini paket **UI-0**. Prototipenya sendiri tidak menyentuh satu baris pun di `public/app/`.
+Commit `8d97ff9` di cabang yang sama **memang** menyentuh `public/app/app.css` (+12/−5) —
+tiga cacat yang berdiri sendiri, dirinci di `docs/LAPORAN-PAKET-UI-0.md`. Rencana
 lengkapnya, beserta batasan yang dipaku uji, ada di pesan rencana kampanye ini.
