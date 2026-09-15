@@ -36,6 +36,48 @@
   --header-h: 56px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* ================================================== SKALA (UI-1)
+     Tiga skala yang selama ini tidak ada, sehingga 873 literal px dan 15
+     ukuran huruf berbeda tidak punya tempat pulang. Semuanya INDEPENDEN
+     TEMA, jadi cukup berdiri di :root sekali — tidak seperti palet yang
+     harus ditulis di kelima blok.
+
+     UI-1 hanya MENDEFINISIKAN. Memakainya menggantikan nilai yang ada
+     adalah UI-2, dan di situlah pikselnya boleh bergerak. Dua nilai di
+     bawah sengaja BUKAN nilai hari ini: --fs-section 14 px (kepala kartu
+     kini 13,5) dan --fs-kpi 22 px — keduanya target, bukan cermin. */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-7: 32px;
+
+  --fs-caption: 11px;    /* keterangan, label kolom, eyebrow — lantai huruf aplikasi */
+  --fs-secondary: 12px;  /* teks pendukung, sub-sel */
+  --fs-label: 12px;      /* label field */
+  --fs-body: 13px;       /* teks isi — ukuran kerja aplikasi */
+  --fs-table: 13px;      /* sel tabel */
+  --fs-section: 14px;    /* judul kartu/seksi — TARGET, hari ini 13,5 */
+  --fs-page: 20px;       /* judul halaman */
+  --fs-kpi: 22px;        /* angka KPI */
+  --lh-tight: 1.25; --lh-body: 1.5;
+  --fw-medium: 500; --fw-semi: 600; --fw-bold: 700;
+  --tracking-caps: .06em;
+
+  --radius-lg: 12px;     /* modal, laci, permukaan besar */
+  --radius-pill: 999px;  /* lencana, chip */
+
+  /* Peran permukaan: ALIAS, bukan warna baru. Karena nilainya var(), ia
+     mengikuti tema tanpa ditulis lima kali. */
+  --surface-sidebar: var(--surface);
+  --surface-header: var(--surface);
+  --surface-hover: var(--surface-3);
+  --surface-selected: var(--primary-soft);
+
+  /* Satu cincin fokus menggantikan dua salinan. .spotlight memakai nilai
+     yang sama secara KEBETULAN — ia sorotan panduan, bukan fokus, dan
+     karena itu tetap literal. */
+  --focus-ring: 0 0 0 3px var(--primary-soft);
+
+  --drawer-w: 264px;     /* laci nav ponsel; dulu 264px mentah di @media */
   /* Panah <select> dan combobox. Warnanya mengikuti --muted per tema; sebelum token
      ini ada, ia dipanggang di dalam data-URI dan tidak pernah berubah di tema gelap. */
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%235e6874' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -704,7 +746,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: .45; pointer-events: none; }
 
 /* --------------------------------------------------------------- inputs */
-.input, input[type=text], input[type=password], input[type=email], input[type=number],
+input[type=text], input[type=password], input[type=email], input[type=number],
 input[type=date], input[type=datetime-local], select, textarea {
   width: 100%;
   height: 34px;
@@ -730,7 +772,7 @@ select {
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  box-shadow: var(--focus-ring);
 }
 
 input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
@@ -994,7 +1036,7 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 /* .module-section = pemisah NAV yang MELABELI kisinya (aria-labelledby); judul
    "Terakhir dibuka" memakai kelas sendiri dengan gaya yang sama, karena ia tidak
    melabeli kisi mana pun dan uji struktur memeriksa persis sifat itu. */
-.module-section, .module-recent-title {
+.module-section, .module-recent-title, .home-section-title {
   margin: 0 0 8px;
   font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
   color: var(--muted);
@@ -1057,11 +1099,6 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .home-search:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
 .home-results { margin-bottom: 18px; }
 .home-section { margin-bottom: 20px; }
-.home-section-title {
-  margin: 0 0 8px;
-  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--muted);
-}
 .home-note { font-size: 12.5px; margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* Pintasan: chip mengalir, bukan kisi — jumlahnya berubah tiap hari dan sel
@@ -1188,7 +1225,6 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .progress.red > span { background: var(--danger); }
 .progress.amber > span { background: var(--warning); }
 
-.wbs-indent { display: inline-block; }
 
 /* ----------------------------------------------------------------- tabs */
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
@@ -1323,7 +1359,6 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
    mencerminkan jari-jari titiknya, jadi pembedanya selamat di kertas abu-abu —
    di mana perbedaan #222222 vs #363636 hanya 1,32:1 (verifikasi P1-E). */
 .legend i.pt { width: 8px; height: 8px; border-radius: 50%; }
-.legend i.pt.lg { width: 12px; height: 12px; }
 
 /* ------------------------------------------------- grafik charts.js (P1-A) */
 /* svg dari js/charts.js: class "chart chart-lib chart-<jenis>". .chart memberi
@@ -1483,7 +1518,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .brand { display: none; }
   .nav {
     position: fixed; inset: var(--header-h) auto 0 0; z-index: 50;
-    width: 264px;
+    width: var(--drawer-w);
     transform: translateX(-100%);
     transition: transform .18s ease-out;
     box-shadow: var(--shadow-lg);
@@ -1823,7 +1858,7 @@ table.data tbody tr.clickable:focus-visible { outline: 2px solid var(--primary);
 .combo .combo-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  box-shadow: var(--focus-ring);
 }
 
 .combo .combo-input:disabled {
