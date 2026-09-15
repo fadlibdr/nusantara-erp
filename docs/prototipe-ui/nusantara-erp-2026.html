@@ -3651,21 +3651,31 @@ table.matrix .doc small { display: block; font-size: 11.5px; color: var(--muted)
   var app   = pick('#app');
 
   /* ---- indeks layar ------------------------------------------------ */
-  var idx = pick('#idx'), lastGroup = null;
+  /* Indeks dikelompokkan menurut urutan TETAP di bawah, bukan menurut urutan
+     SCREENS. Layar ditambahkan bertahap, dan membuka judul grup hanya saat
+     grupnya BERGANTI membuat "Domain" muncul tiga kali dan "Alur kerja" dua
+     kali — indeks yang memecah kelompoknya sendiri. */
+  var GROUP_ORDER = ['Orientasi', 'Sumber daya generik', 'Alur kerja', 'Domain',
+                     'Pengaturan & laporan', 'Masih terbuka', 'Sistem desain'];
+  var idx = pick('#idx');
+  GROUP_ORDER.forEach(function (group) {
+    var inGroup = SCREENS.filter(function (s) { return s.group === group; });
+    if (!inGroup.length) return;
+    var b = document.createElement('b');
+    b.textContent = group;
+    idx.appendChild(b);
+    inGroup.forEach(function (s) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = s.label;
+      btn.dataset.screen = s.id;
+      btn.setAttribute('aria-current', String(s.id === state.screen));
+      btn.addEventListener('click', function () { show(s.id); });
+      idx.appendChild(btn);
+    });
+  });
   SCREENS.forEach(function (s) {
-    if (s.group !== lastGroup) {
-      var b = document.createElement('b');
-      b.textContent = s.group;
-      idx.appendChild(b);
-      lastGroup = s.group;
-    }
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = s.label;
-    btn.dataset.screen = s.id;
-    btn.setAttribute('aria-current', String(s.id === state.screen));
-    btn.addEventListener('click', function () { show(s.id); });
-    idx.appendChild(btn);
+    if (GROUP_ORDER.indexOf(s.group) === -1) console.warn('grup tak dikenal:', s.group, s.id);
   });
 
   /* ---- dokumen prototipe ------------------------------------------- */
