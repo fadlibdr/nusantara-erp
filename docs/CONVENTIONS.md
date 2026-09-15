@@ -610,7 +610,7 @@ ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
 `failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
 Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti membuat 18 menyimpang.
 
-**Ukuran**: `kecil` 1 kolom, `sedang` 2, `lebar` 3 (satu baris penuh) di kisi tiga kolom; dua kolom
+**Ukuran**: `kecil` 1 kolom, `sedang` 2, `lebar` 4 (satu baris penuh) di kisi **empat** kolom; dua kolom
 di bawah 1180 px, satu kolom di bawah 760 px — titik potong yang sama dengan laci nav dan aturan
 landing P1-C.
 

@@ -25,7 +25,7 @@ public/app/
   index.html            shell: boot spinner, toast host, modal overlay; <link rel=manifest> and
                         the media-scoped theme-color pair (--surface, both themes)
   app.css               design tokens (light/dark, chart tokens, --accent-1..8 module accents,
-                        --row-h density), layout, components, print
+                        --row-h density, --chevron), layout, components, print
   manifest.webmanifest  PWA manifest — id/start_url/scope all /app/, display standalone;
                         pinned by tests/Feature/Core/PwaManifestTest (CONVENTIONS §21)
   sw.js                 service worker, scope /app/ only: network-first for the shell, and an
@@ -141,6 +141,24 @@ public/app/
       reports.js        finance reports (TB, P&L, BS, aging, project P&L)
       custom.js         stock, payroll, ticket, subcontract, payment, role, …
 ```
+
+## Prototipe rancangan (UI-0)
+
+`docs/prototipe-ui/nusantara-erp-2026.html` adalah **mockup statis** dari tampilan yang
+diusulkan kampanye modernisasi UI — 20 layar, dua tema, tiga kepadatan, empat lebar, tanpa
+server dan tanpa API. Ia bukan bagian dari aplikasi dan **tidak** ada di `SHELL` `sw.js`
+(letaknya di `docs/`, bukan `public/app/`).
+
+Gunanya dua: menjadi rujukan rancangan yang disepakati sebelum paket UI berikutnya menyentuh
+`public/app/`, dan menjadi tempat mencoba pola baru tanpa risiko. `README.md` di folder yang
+sama menjelaskan cara membacanya; `docs/LAPORAN-PAKET-UI-0.md` mencatat apa yang ditutup, apa
+yang sengaja tidak dikerjakan, dan enam jebakan CSS yang ditemukan sambil membangunnya.
+
+Satu aturan yang lahir dari prototipe itu dan berlaku di seluruh SPA: **`var()` yang tidak
+terdefinisi tidak menghasilkan galat** — ia jatuh ke nilai AWAL properti, dan `fill` yang jatuh
+ke hitam menggambar balok pekat tanpa satu pun pesan. Itulah sebabnya `charts.js` memegang
+daftar putih token (§11), dan sebabnya menambah token baru berarti menambahnya di SEMUA blok
+tema yang memakainya.
 
 ## Adding a screen
 
@@ -349,6 +367,12 @@ reading, in another shape. There is no `print` action anywhere in the permission
   that has never opened the drawer gets the default set written for its role, and
   `DashboardDefaultsTest` proves — against `RoleSeeder::intended()` — that no seeded role lands on
   an empty dashboard.
+- **Panah `<select>`**: warnanya datang dari token `--chevron`, bukan dari literal di dalam
+  data-URI-nya. Ia didefinisikan di kelima blok palet (root terang, media gelap, `data-theme`
+  terang/gelap, dan blok `@media print`) dan dipakai dua kali — `select` dan `.combo-input`.
+  Sebelum token itu ada, warnanya dipanggang sebagai `stroke='%236b7684'` dan disalin
+  byte-per-byte ke keduanya: ia tidak pernah berganti di tema gelap, dan nilainya adalah abu-abu
+  yang sudah ditarik dari `--muted` pada 2 Sep 2026.
 - **Density**: `data-density` on `<html>` (compact/normal/comfortable) drives `--row-h` and the
   cell paddings; chosen in the account dialog and, since P1-C, stored per user on the SERVER
   (`core/me/preferences`, CONVENTIONS §15). `localStorage` keeps a mirror so the attribute is set

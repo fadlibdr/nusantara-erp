@@ -36,6 +36,9 @@
   --header-h: 56px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  /* Panah <select> dan combobox. Warnanya mengikuti --muted per tema; sebelum token
+     ini ada, ia dipanggang di dalam data-URI dan tidak pernah berubah di tema gelap. */
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%235e6874' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   /* Grafik (js/charts.js, P1-A). Delapan warna seri + enam struktur, didefinisikan di
      KEDUA tema dan ditukar ke abu-abu di blok cetak (§ grafik charts.js di bawah).
      Kontras WCAG terhadap --surface #ffffff, dihitung 5 Sep 2026 (rumus luminansi
@@ -136,6 +139,7 @@
     --text: #e7ebf0;
     --text-2: #b3bcc8;
     --muted: #8b95a3;
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%238b95a3' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --primary: #5b8def;
     --primary-hover: #7ba4f4;
     --primary-soft: #17263f;
@@ -200,6 +204,7 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%235e6874' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
   --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
   --muted: #5e6874; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
@@ -221,6 +226,7 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%238b95a3' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --bg: #0d1117; --surface: #151a21; --surface-2: #1a1f27; --surface-3: #212832;
   --border: #262d38; --border-strong: #38414f; --text: #e7ebf0; --text-2: #b3bcc8;
   --muted: #8b95a3; --primary: #5b8def; --primary-hover: #7ba4f4; --primary-soft: #17263f;
@@ -716,7 +722,7 @@ textarea { height: auto; min-height: 74px; padding: 8px 10px; line-height: 1.55;
 select {
   appearance: none;
   padding-right: 28px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%236b7684' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: var(--chevron);
   background-repeat: no-repeat;
   background-position: right 9px center;
 }
@@ -1545,10 +1551,11 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      yang kalau tidak akan tetap menang atas :root polos. */
   :root, :root[data-theme="dark"], :root[data-theme="light"] {
     color-scheme: light;
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%235e6874' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
     --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
-    --muted: #6b7684; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
-    --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #1b7f4d;
+    --muted: #5e6874; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
+    --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
     --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
     --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
     --shadow-sm: none; --shadow-md: none; --shadow-lg: none;
@@ -1804,7 +1811,7 @@ table.data tbody tr.clickable:focus-visible { outline: 2px solid var(--primary);
   transition: border-color .12s, box-shadow .12s;
   /* Same chevron data-URI as the native `select` rule, so the 94 fields that
      become comboboxes stay indistinguishable from the 41 that do not. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%236b7684' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: var(--chevron);
   background-repeat: no-repeat;
   background-position: right 9px center;
 }
