@@ -315,6 +315,54 @@ button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .num { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------- primitif tata letak (UI-2)
+   Pengganti gaya sebaris di lapisan view. Jaraknya mengambil dari skala
+   UI-1, jadi "gap 9px" tidak bisa lagi lahir di tengah sebuah layar.
+   Nama-nama ini diperiksa dulu terhadap seluruh public/app/js: .stack,
+   .cluster, .grid-auto, .tone-* dan .col-min nol pemakai sebelumnya, dan
+   .row nol pemakai sebagai KELAS (2.342 kecocokan "row" seluruhnya nama
+   variabel). Memeriksa lebih dulu adalah pelajaran dari prototipe, tempat
+   sebuah .pick baru diam-diam mengubah td.pick di setiap tabel. */
+.stack { display: flex; flex-direction: column; gap: var(--space-3); }   /* isi kartu */
+.stack.tight { gap: var(--space-2); }
+.stack.loose { gap: var(--space-4); }                                    /* blok halaman — angka yang sama dengan .card + .card */
+/* Di dalam .stack jarak datang dari gap. Tanpa baris ini margin
+   `.card + .card` ikut berlaku dan jaraknya BERLIPAT — jebakan yang
+   sama persis menggeser dua kartu 16 px di prototipe. */
+.stack > .card + .card { margin-top: 0; }
+.row { display: flex; align-items: center; gap: var(--space-2); }
+.row.top { align-items: flex-start; }
+.cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.grid-auto { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.stack > *, .row > *, .cluster > *, .grid-auto > * { min-width: 0; }
+
+/* Nada angka — pengganti `color: v < 0 ? 'var(--danger)' : …` sebaris.
+   Dipakai HANYA pada angka yang benar-benar merugikan; kalau setiap
+   angka berwarna, tidak ada yang terbaca. */
+.tone-pos { color: var(--success); }
+.tone-neg { color: var(--danger); }
+.tone-warn { color: var(--warning); }
+
+/* .strong sebagai utilitas, bukan hanya sebagai td.
+   cells.js:52 memasang kelas ini pada <span> DI DALAM sel, sementara
+   satu-satunya aturan yang ada `table.data td.strong` menuntutnya pada
+   <td>. Akibatnya `strong: true` di schema.js tidak menghasilkan apa pun
+   pada dua kolom yang menyatakannya — "Skor" (evaluasi vendor) dan
+   "Netto" (payroll). Dengan aturan ini keduanya akhirnya tebal, dan
+   td.strong di ~30 layar khusus tetap seperti sebelumnya. */
+.strong { font-weight: var(--fw-semi); }
+
+/* Kolom selebar isinya — pengganti `style: { width: '1%' }` sebaris. */
+.col-min { width: 1%; white-space: nowrap; }
+
+/* Baris label–nilai untuk laporan ringkas. Menyalin PERSIS nilai gaya
+   sebaris yang digantikannya di views/cashflow.js. */
+.fin-line { display: flex; justify-content: space-between; gap: var(--space-4); padding: 6px 0; font-size: var(--fs-body); }
+.fin-line.total { padding: 11px 0; border-top: 1px solid var(--border); font-weight: var(--fw-bold); font-size: var(--fs-section); }
+
+/* Baris tabel yang ditonjolkan tanpa menjadi baris TOTAL. */
+table.data tr.emphasis td { background: var(--surface-2); }
 .mono { font-family: var(--mono); font-size: .92em; }
 .muted { color: var(--muted); }
 .nowrap { white-space: nowrap; }
@@ -691,6 +739,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn.success:hover:not(:disabled) { background: var(--success-soft); }
 .btn.ghost { border-color: transparent; background: transparent; }
 .btn.ghost:hover:not(:disabled) { background: var(--surface-3); }
+/* Tersier (UI-2): terbaca, tetapi tidak bersaing dengan .primary. */
+.btn.subtle { border-color: transparent; background: var(--surface-3); color: var(--text-2); }
+.btn.subtle:hover:not(:disabled) { background: var(--border); color: var(--text); }
 .btn.sm { height: 28px; padding: 0 9px; font-size: 12.5px; }
 .btn.icon { width: 34px; padding: 0; }
 .btn.sm.icon { width: 28px; }
@@ -869,6 +920,10 @@ table.data tbody tr:last-child td { border-bottom: 0; }
 table.data tbody tr.clickable { cursor: pointer; }
 table.data tbody tr.clickable:hover { background: var(--surface-2); }
 table.data th.right, table.data td.right { text-align: right; }
+/* Temuan audit #8: sel rata-kanan dan kaki tabel SELALU tabular.
+   Sebelumnya hanya .num, dan pemanggil harus ingat DUA kelas sekaligus —
+   sehingga kolom uang yang hanya ber-align right tidak pernah berbaris. */
+table.data td.right, table.data tfoot td { font-variant-numeric: tabular-nums; }
 table.data th.center, table.data td.center { text-align: center; }
 table.data td.code { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
 table.data td.strong { font-weight: 600; }
