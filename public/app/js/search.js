@@ -5,7 +5,7 @@
    a purchase order first. */
 
 import { api, session } from './api.js';
-import { el, clear, modal, closeModal, modalDepth, toast } from './ui.js';
+import { el, clear, modal, closeModal, modalDepth, toast, svgIcon } from './ui.js';
 import { visibleNav } from './schema.js';
 
 const MIN_LENGTH = 2;
@@ -25,6 +25,9 @@ let sequence = 0;
 
 /* The search box of the palette that is currently open, if any. */
 let palette = null;
+
+/* Id unik per baris hasil, untuk aria-activedescendant. */
+let rowSeq = 0;
 
 /* The "close the modal first" banner, so a held Ctrl+K raises one, not thirty. */
 let refusal = null;
@@ -65,26 +68,67 @@ export function screenHits(term, limit = SCREEN_MAX) {
   return hits.sort((a, b) => a.rank - b.rank).slice(0, limit);
 }
 
-function resultRow(hit, onPick) {
+/*
+ * Menandai bagian yang cocok (UI-3b).
+ *
+ * Dipakai untuk kedua sumber dengan aturan yang sama — SUBSTRING, tidak
+ * peduli-huruf — walau layar dicocokkan pada AWAL KATA. Itu disengaja: yang
+ * ditandai adalah apa yang MATA cari di baris itu, bukan aturan yang membuat
+ * baris itu lolos. Menandai "po" di "Pesanan (PO)" berguna; menyembunyikannya
+ * karena kecocokannya kebetulan di kata kedua tidak.
+ *
+ * Teks dipasang lewat el({text}) dan document.createTextNode — tidak ada
+ * innerHTML di sini. Kode dokumen datang dari server dan nama pelanggan datang
+ * dari pengguna; keduanya tidak pernah boleh jadi markup.
+ */
+function marked(text, term) {
+  const value = String(text == null ? '' : text);
+  const needle = term.trim().toLowerCase();
+  if (!needle) return [document.createTextNode(value)];
+
+  const parts = [];
+  const haystack = value.toLowerCase();
+  let at = 0;
+  for (;;) {
+    const found = haystack.indexOf(needle, at);
+    if (found === -1) break;
+    if (found > at) parts.push(document.createTextNode(value.slice(at, found)));
+    parts.push(el('mark', { text: value.slice(found, found + needle.length) }));
+    at = found + needle.length;
+  }
+  if (!parts.length) return [document.createTextNode(value)];
+  if (at < value.length) parts.push(document.createTextNode(value.slice(at)));
+  return parts;
+}
+
+function resultRow(hit, onPick, term) {
+  /*
+   * Kolom kanan (.search-where) menggantikan baris kedua yang ditumpuk.
+   * Alasannya contoh yang prototipe pakai: tiga layar bernama "Opname" di tiga
+   * modul. Modulnya SUDAH ada di data sejak T2.5 — yang kurang hanya
+   * tempatnya, dan bertumpuk ia terbaca sebagai keterangan, bukan sebagai
+   * pembeda. Sebagian grup dokumen server menjawab title kosong; barisnya
+   * cukup tidak punya kolom kanan, tanpa tempat kosong yang dipesan.
+   */
   const node = el(`button.search-hit${hit.screen ? '.screen' : ''}`, { type: 'button' }, [
-    el(`span.cell-main${hit.screen ? '' : '.mono'}`, { text: hit.code || `#${hit.id}` }),
-    hit.title ? el('span.cell-sub', { text: hit.title }) : null,
+    el(`span.cell-main${hit.screen ? '' : '.mono'}`, marked(hit.code || `#${hit.id}`, term)),
+    hit.title ? el('span.search-where', { text: hit.title }) : null,
   ]);
 
   node.addEventListener('click', () => onPick(hit));
   return node;
 }
 
-function groupNode(group, onPick) {
+function groupNode(group, onPick, term) {
   return el('.search-group', [
     el('.search-group-label', { text: group.label }),
-    ...group.results.map((hit) => resultRow(hit, onPick)),
+    ...group.results.map((hit) => resultRow(hit, onPick, term)),
   ]);
 }
 
 /* Layar di atas dokumen, dan sudah tergambar selagi server masih mencari:
    hasilnya ada di memori, dan orang yang mengetik "opname" mencari layar. */
-function render(body, payload, onPick, screens = []) {
+function render(body, payload, onPick, screens = [], term = '') {
   clear(body);
 
   if (payload === null) {
@@ -92,7 +136,7 @@ function render(body, payload, onPick, screens = []) {
     return;
   }
 
-  if (screens.length) body.appendChild(groupNode({ label: 'Layar', results: screens }, onPick));
+  if (screens.length) body.appendChild(groupNode({ label: 'Layar', results: screens }, onPick, term));
 
   if (payload === 'loading') {
     body.appendChild(el('p.muted', { text: 'Mencari dokumen…' }));
@@ -109,7 +153,7 @@ function render(body, payload, onPick, screens = []) {
     return;
   }
 
-  for (const group of payload.groups) body.appendChild(groupNode(group, onPick));
+  for (const group of payload.groups) body.appendChild(groupNode(group, onPick, term));
 }
 
 export function openSearch() {
@@ -132,19 +176,19 @@ export function openSearch() {
     const term = input.value.trim();
 
     if (term.length < MIN_LENGTH) {
-      render(body, null, pick);
+      renderAndReset(body, null, pick);
       return;
     }
 
     const mine = ++sequence;
     const screens = screenHits(term);
-    render(body, 'loading', pick, screens);
+    renderAndReset(body, 'loading', pick, screens, term);
 
     try {
       const payload = await api.get('core/search', { q: term });
-      if (mine === sequence) render(body, payload, pick, screens);
+      if (mine === sequence) renderAndReset(body, payload, pick, screens, term);
     } catch {
-      if (mine === sequence) render(body, 'failed', pick, screens);
+      if (mine === sequence) renderAndReset(body, 'failed', pick, screens, term);
     }
   };
 
@@ -153,17 +197,85 @@ export function openSearch() {
     timer = setTimeout(run, DEBOUNCE_MS);
   });
 
-  // Enter opens the first hit — the reason somebody types a full document code.
+  /*
+   * Lapisan keyboard (UI-3b): panah memilih, Enter membuka yang TERPILIH.
+   *
+   * Sebelum ini Enter selalu mengklik `.search-hit` PERTAMA di DOM dan tidak ada
+   * cara memilih yang lain tanpa melepas papan ketik — padahal barisnya sudah
+   * <button>, jadi Tab + Enter bekerja. Yang hilang adalah jalan yang tangan
+   * cari: panah, tanpa memindahkan fokus keluar dari kotak ketik.
+   *
+   * Fokus SENGAJA tetap di input. Memindahkan fokus ke baris berarti huruf
+   * berikutnya yang diketik hilang — dan orang yang menekan panah bawah lalu
+   * berubah pikiran akan mengetik ke dalam sebuah tombol.
+   * Barisnya ditandai `aria-selected` + `.active`, dan input menunjuknya lewat
+   * aria-activedescendant supaya pembaca layar ikut membacanya.
+   */
+  let activeIndex = -1;
+  const rows = () => [...body.querySelectorAll('.search-hit')];
+
+  const paintActive = () => {
+    const all = rows();
+    if (activeIndex >= all.length) activeIndex = all.length - 1;
+    if (activeIndex < -1) activeIndex = -1;
+    all.forEach((row, index) => {
+      const on = index === activeIndex;
+      row.classList.toggle('active', on);
+      row.setAttribute('aria-selected', String(on));
+      if (!row.id) row.id = `search-hit-${++rowSeq}`;
+    });
+    const current = all[activeIndex];
+    if (current) {
+      input.setAttribute('aria-activedescendant', current.id);
+      current.scrollIntoView({ block: 'nearest' });
+    } else {
+      input.removeAttribute('aria-activedescendant');
+    }
+  };
+
+  // Setiap render membuang barisnya; pilihan mulai lagi dari atas.
+  const renderAndReset = (...args) => { render(...args); activeIndex = -1; paintActive(); };
+
   input.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    const first = body.querySelector('.search-hit');
-    if (first) first.click();
+    const all = rows();
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (!all.length) return;
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      // Melingkar. Dari "belum ada pilihan", panah bawah mengambil yang pertama
+      // dan panah atas mengambil yang terakhir.
+      activeIndex = activeIndex === -1
+        ? (step === 1 ? 0 : all.length - 1)
+        : (activeIndex + step + all.length) % all.length;
+      paintActive();
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      // Enter tanpa pilihan tetap membuka yang pertama — alasan orang mengetik
+      // kode dokumen lengkap lalu menekan Enter tanpa melihat daftarnya.
+      const target = all[activeIndex] || all[0];
+      if (target) { event.preventDefault(); target.click(); }
+      return;
+    }
+
+    if (event.key === 'Home' && all.length) { event.preventDefault(); activeIndex = 0; paintActive(); }
+    if (event.key === 'End' && all.length) { event.preventDefault(); activeIndex = all.length - 1; paintActive(); }
   });
 
   const dialog = modal({
     title: 'Pencarian',
-    width: 'narrow',
-    body: el('div', [input, body]),
+    width: 'palette',
+    body: el('div', [
+      el('.palette-field', [svgIcon('search', { size: 16 }), input]),
+      body,
+      el('.palette-foot', [
+        el('span', [el('kbd', { text: '↑' }), el('kbd', { text: '↓' }), ' pilih']),
+        el('span', [el('kbd', { text: 'Enter' }), ' buka']),
+        el('span', [el('kbd', { text: 'Esc' }), ' tutup']),
+      ]),
+    ]),
     footer: null,
   });
 

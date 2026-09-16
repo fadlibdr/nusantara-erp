@@ -773,6 +773,28 @@ function refreshNav() {
   setActiveNav(currentPath().split('?')[0]);
 }
 
+/*
+ * Tombol pencarian header, dan bentuk medannya di layar lebar (UI-3b).
+ *
+ * Dua hiasan ditambahkan, KEDUANYA aria-hidden supaya nama aksesibel tombolnya
+ * tetap "Cari" — yang datang dari span label dan yang aturan ≤ 760 px andalkan:
+ * petunjuk panjang yang membuatnya terbaca sebagai medan, dan chip pintasannya.
+ * Keduanya hanya tergambar ≥ 1200 px; di bawah itu tombolnya persis seperti
+ * sebelumnya, dan di bawah 760 px ia menyusut jadi ikon seperti sebelumnya.
+ */
+function commandField() {
+  const node = Object.assign(button('Cari', {
+    variant: 'ghost',
+    iconName: 'search',
+    title: 'Pencarian global (Ctrl+K)',
+    onClick: () => openSearch(),
+  }), { className: 'btn ghost global-search' });
+
+  node.appendChild(el('span.gs-hint', { text: 'menu, dokumen, pelanggan…', 'aria-hidden': 'true' }));
+  node.appendChild(el('kbd.gs-kbd', { text: navigator.platform.startsWith('Mac') ? '⌘K' : 'Ctrl K', 'aria-hidden': 'true' }));
+  return node;
+}
+
 function buildShell() {
   clear(root);
   root.className = '';
@@ -882,12 +904,21 @@ function buildShell() {
       // Kelas global-search: di ponsel labelnya disembunyikan secara VISUAL saja (app.css
       // ≤ 760 px; nama tombol tetap dari span-nya) supaya header 390 px tidak melebihi
       // lebarnya — verifikasi P1-B 5 Sep 2026: berlabel, remah 'Keuangan' pun terpotong.
-      Object.assign(button('Cari', {
-        variant: 'ghost',
-        iconName: 'search',
-        title: 'Pencarian global (Ctrl+K)',
-        onClick: () => openSearch(),
-      }), { className: 'btn ghost global-search' }),
+      //
+      // MEDAN PERINTAH (UI-3b). Ia tetap sebuah <button>, bukan <input>. Sebuah
+      // input sungguhan akan memutus tiga hal sekaligus: nama aksesibelnya tidak
+      // bisa lagi datang dari isinya (itulah yang aturan ≤ 760 px andalkan),
+      // Ctrl+K sudah punya kotak ketiknya sendiri di dalam palet sehingga yang
+      // kedua hanya menduplikasi keadaan, dan urutan fokus header bertambah satu
+      // perhentian yang tidak menuju ke mana-mana.
+      //
+      // Yang berubah hanya BENTUKNYA, dan hanya di tempat yang terbukti punya
+      // ruang. Diukur 16 Sep 2026 pada halaman dokumen: ruang bebas header
+      // 1440 → 348 px, 1280 → 188 px, tetapi 1024 → 0, 820 → 0, 768 → 0 — di
+      // ketiga lebar terakhir spacer sudah habis dan remah roti sendiri sudah
+      // dimampatkan 377 → 149 px. Karena itu medan ini hanya muncul ≥ 1200 px;
+      // di bawah itu tombolnya persis seperti sebelumnya.
+      commandField(),
       button('', {
         variant: 'ghost',
         iconName: (localStorage.getItem(THEME_KEY) || 'system') === 'dark' ? 'moon' : 'sun',
