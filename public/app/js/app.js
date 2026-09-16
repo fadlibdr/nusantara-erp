@@ -2,7 +2,7 @@
 
 import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
-import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
+import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth } from './ui.js';
 import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
@@ -794,10 +794,72 @@ function buildShell() {
 
   const menuToggle = button('', { variant: 'ghost', iconName: 'menu', title: 'Menu' });
   menuToggle.classList.add('menu-toggle');
-  menuToggle.addEventListener('click', () => document.body.classList.toggle('nav-open'));
+  menuToggle.setAttribute('aria-expanded', 'false');
+  menuToggle.setAttribute('aria-controls', 'nav-utama');
+  nav.id = 'nav-utama';
+
+  /*
+   * Laci ponsel: buka, tutup, dan SEMUA jalan keluarnya (UI-3).
+   *
+   * Sebelum ini laci hanya punya satu jalan keluar — menekan hamburger lagi, atau
+   * mengikuti sebuah tautan. Menekan Esc tidak melakukan apa-apa dan menyentuh
+   * kain gelap di sebelahnya juga tidak: kainnya `body.nav-open::after`, sebuah
+   * pseudo-element, yang tidak bisa memegang pendengar. Keduanya adalah gerak
+   * refleks orang yang membuka laci dan berubah pikiran.
+   */
+  /* Laci TERTUTUP harus keluar dari urutan Tab, bukan sekadar bergeser ke luar
+     layar. Sebelum ini ia disembunyikan `transform` saja, jadi ke-150 tautannya
+     — dan sejak UI-3a kotak saringnya juga — tetap bisa dijelajahi Tab oleh orang
+     yang tidak pernah membukanya: fokus menghilang ke dalam panel tak terlihat.
+
+     Dipakai `inert`, BUKAN `visibility: hidden`. Yang kedua sempat dicoba dan
+     menjatuhkan seluruh harness dalam satu langkah: setiap skenario masuk lewat
+     `wait_for_selector('nav.nav')`, dan nav yang visibility-hidden tidak pernah
+     "visible" bagi Playwright — ke-77 skenario gagal di baris login, bukan pada
+     hal yang diujinya. `inert` mencabut fokus tanpa menyentuh keterlihatan.
+
+     Hanya berlaku di lebar laci: di atas 760 px sidebar adalah kolom permanen
+     dan harus tetap bisa dijelajahi. */
+  const drawerQuery = window.matchMedia('(max-width: 760px)');
+  const syncInert = () => {
+    nav.inert = drawerQuery.matches && !document.body.classList.contains('nav-open');
+  };
+  drawerQuery.addEventListener('change', syncInert);
+  /* Kelasnya DIAMATI, bukan disetel dari satu tempat. Panduan onboarding membuka
+     laci dengan menulis `document.body.classList.add('nav-open')` langsung
+     (views/onboarding.js:462) dan menutupnya lagi dua detik kemudian — ia tidak
+     lewat setDrawer(). Tanpa pengamat ini laci tur akan tergambar terbuka tetapi
+     tetap inert: terlihat, dan tidak bisa disentuh siapa pun. */
+  new MutationObserver(syncInert).observe(document.body, { attributeFilter: ['class'] });
+
+  const setDrawer = (open) => {
+    document.body.classList.toggle('nav-open', open);
+    menuToggle.setAttribute('aria-expanded', String(open));
+    syncInert();
+  };
+  syncInert();
+  menuToggle.addEventListener('click', () => setDrawer(!document.body.classList.contains('nav-open')));
 
   nav.addEventListener('click', (event) => {
-    if (event.target.closest('a')) document.body.classList.remove('nav-open');
+    if (event.target.closest('a')) setDrawer(false);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    // Esc menutup laci — kecuali kalau ada dialog di atasnya, yang berhak
+    // menutup dirinya sendiri lebih dulu.
+    if (event.key !== 'Escape' || !document.body.classList.contains('nav-open')) return;
+    if (modalDepth && modalDepth()) return;
+    setDrawer(false);
+    menuToggle.focus();
+  });
+
+  document.addEventListener('pointerdown', (event) => {
+    // Sentuhan di luar laci menutupnya. Hamburger dikecualikan: ia punya
+    // pengalihnya sendiri, dan tanpa pengecualian ini keduanya saling
+    // membatalkan sehingga laci tidak pernah terbuka.
+    if (!document.body.classList.contains('nav-open')) return;
+    if (event.target.closest('nav.nav') || event.target.closest('.menu-toggle')) return;
+    setDrawer(false);
   });
 
   root.appendChild(el('.shell', [

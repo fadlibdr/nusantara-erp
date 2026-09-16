@@ -4300,6 +4300,42 @@ def module_accents(pg, tag):
 
     out["pageerrors"] = errors
     out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
+
+    # GERBANG (UI-3). Sampai di sini S21 hanya MENCATAT. Dekorator hanya menandai
+    # sebuah skenario gagal kalau hasilnya memuat `ok: False` di puncak (atau kalau
+    # ia melempar) — dan S21 tidak pernah mengembalikan kunci `ok`, jadi ia TIDAK
+    # PERNAH BISA MERAH. Diperiksa 16 Sep 2026: dari sembilan skenario yang dipakai
+    # gerbang rilis kampanye UI, TIDAK SATU PUN punya `ok` di puncak kecuali yang
+    # gerbangnya ditulis tangan.
+    #
+    # Yang dijaga di sini adalah keputusan PEMILIK: metrik baris dibekukan pada
+    # Padat 32 / Normal 38,5 / Lega 48 dengan kaki 41. Angka-angka itu sudah
+    # dihitung di atas (compact_ok, comfortable_ok, normal_equals_baseline,
+    # tfoot_normal_41, persisted) dan sampai sekarang tidak ada yang membacanya.
+    checks = []
+    d = out["density"]
+    if not d.get("compact_ok"):
+        checks.append(f"kepadatan Padat bukan {d['expected']['compact']} px ({d['compact']['all']})")
+    if not d.get("comfortable_ok"):
+        checks.append(f"kepadatan Lega bukan {d['expected']['comfortable']} px ({d['comfortable']['all']})")
+    if not d.get("normal_equals_baseline"):
+        checks.append("Normal tidak lagi sama dengan baseline — profil bawaan bergeser")
+    if d.get("tfoot_normal_41") is False:
+        checks.append(f"kaki tabel Normal bukan 41 px ({d['normal_po']['tfoot']})")
+    if not d.get("persisted"):
+        checks.append("pilihan kepadatan tidak bertahan setelah muat ulang")
+    # Aksen modul: sidebar dan beranda modul harus sepakat, dan panahnya harus benar.
+    if not out.get("admin_all_match"):
+        checks.append("beranda modul admin tidak cocok dengan sidebarnya")
+    if not out.get("admin_arrows_ok"):
+        checks.append("panah/aksen remah admin salah")
+    if not out["warehouse"].get("all_match"):
+        checks.append("beranda modul warehouse tidak cocok dengan sidebarnya")
+    if out["pageerrors"]:
+        checks.append(f"galat halaman: {out['pageerrors'][:2]}")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
     return out
 
 
