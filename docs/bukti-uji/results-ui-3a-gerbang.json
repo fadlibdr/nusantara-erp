@@ -1,0 +1,442 @@
+{
+ "S18_onboarding_dock_desktop": {
+  "dock_ms_after_login": 18,
+  "status_before": null,
+  "step1": {
+   "mode": "desktop",
+   "state": "open",
+   "left": 1040,
+   "top": 0,
+   "width": 400,
+   "height": 900,
+   "shell_right": 1040,
+   "counter": "1 dari 7",
+   "heading": "1. Siapa Anda di sistem",
+   "chips": [],
+   "steps": [
+    "1 Siapa Anda di sistem",
+    "2 Hari pertama",
+    "3 Pekerjaan Anda",
+    "4 Yang akan menolak Anda",
+    "5 Formulir yang Anda cetak",
+    "6 Daftar periksa minggu pertama",
+    "7 Bila tersangkut"
+   ],
+   "foot": [
+    {
+     "label": "Lewati",
+     "h": 34,
+     "w": 66
+    },
+    {
+     "label": "Kembali",
+     "h": 34,
+     "w": 96
+    },
+    {
+     "label": "Lanjut",
+     "h": 34,
+     "w": 67
+    }
+   ],
+   "bar": null,
+   "spotlights": [
+    {
+     "label": "Anda di sini",
+     "w": 211,
+     "h": 42,
+     "x": 5,
+     "y": 168
+    }
+   ],
+   "body_classes": [
+    "onboarding-docked"
+   ],
+   "hash": "#/dashboard",
+   "h1": "Selamat pagi, Andi"
+  },
+  "underneath_before": {
+   "visible": true,
+   "hit_is_self": true,
+   "hit": "A"
+  },
+  "underneath": {
+   "hash": "#/tenggat",
+   "dock_present": true,
+   "state": "open",
+   "shell_right_lte_dock_left": true,
+   "h1": "Tenggat",
+   "userchip_hit": {
+    "visible": true,
+    "hit_is_self": true,
+    "hit": "SPAN"
+   }
+  },
+  "step2": {
+   "hash": "#/dashboard",
+   "counter": "2 dari 7",
+   "spotlights": [
+    {
+     "label": "Sidebar Anda",
+     "w": 254,
+     "h": 1698,
+     "x": -2,
+     "y": -2
+    }
+   ],
+   "ring_covers_nav": true
+  },
+  "step3": {
+   "hash": "#/r/procurement/vendors",
+   "counter": "3 dari 7",
+   "h1": "Vendor & Subkon",
+   "chips": [
+    {
+     "text": "Buka › Pengadaan › Vendor & Subkon",
+     "route": "r/procurement/vendors",
+     "here": true
+    },
+    {
+     "text": "Buka › Pengadaan › Dokumen Vendor",
+     "route": "r/procurement/vendor-documents",
+     "here": false
+    },
+    {
+     "text": "Buka › Sistem › Impor Data Master",
+     "route": "master-data",
+     "here": false
+    },
+    {
+     "text": "Buka › Pengadaan › Permintaan (PR)",
+     "route": "r/procurement/purchase-requisitions",
+     "here": false
+    },
+    {
+     "text": "Buka › Pengadaan › RFQ (Banding Penawaran)",
+     "route": "r/procurement/rfqs",
+     "here": false
+    },
+    {
+     "text": "Buka › Pengadaan › BA Negosiasi",
+     "route": "r/procurement/negotiation-minutes",
+     "here": false
+    },
+    {
+     "text": "Buka › Pengadaan › Keputusan Pemenang",
+     "route": "r/procurement/award-decisions",
+     "here": false
+    },
+    {
+     "text": "Buka › Pengadaan › Pesanan (PO)",
+     "route": "r/procurement/purchase-orders",
+     "here": false
+    }
+   ],
+   "spotlights": [
+    {
+     "label": "Anda di sini",
+     "w": 211,
+     "h": 42,
+     "x": 5,
+     "y": 472
+    },
+    {
+     "label": "Mulai dari sini",
+     "w": 156,
+     "h": 44,
+     "x": 867,
+     "y": 15
+    }
+   ],
+   "hash_changed": true,
+   "route_permitted": true,
+   "chip_here": [
+    "Buka › Pengadaan › Vendor & Subkon"
+   ],
+   "active_nav": "Vendor & Subkon"
+  },
+  "chip_click": {
+   "hash": "#/r/procurement/vendor-documents",
+   "h1": "Dokumen Vendor",
+   "chip_here": [
+    "Buka › Pengadaan › Dokumen Vendor"
+   ],
+   "spotlights": [
+    {
+     "label": "Anda di sini",
+     "w": 211,
+     "h": 42,
+     "x": 5,
+     "y": 504
+    },
+    {
+     "label": "Mulai dari sini",
+     "w": 218,
+     "h": 44,
+     "x": 805,
+     "y": 15
+    }
+   ]
+  },
+  "collapsed": {
+   "state": "collapsed",
+   "bar": {
+    "text": "Onboarding 3/7",
+    "h": 39
+   },
+   "width": 135,
+   "body_classes": [],
+   "shell_right": 1440
+  },
+  "reopened_state": "open",
+  "escape": {
+   "dock_gone": true,
+   "spotlights_gone": true,
+   "toasts": [
+    "Panduan onboarding dilewati — bisa dibuka lagi dari menu akun."
+   ],
+   "status_after": "skipped",
+   "body_classes": []
+  },
+  "reopen": {
+   "foot": [
+    "Tutup",
+    "Kembali",
+    "Lanjut"
+   ],
+   "again_button": true,
+   "hash": "#/dashboard",
+   "escape_status": "skipped",
+   "dock_gone": true
+  },
+  "pageerrors": [],
+  "galat": [],
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 12242,
+  "_clicks": 8
+ },
+ "S43_primitif_ui2": {
+  "screen": {
+   "hash": "#/r/procurement/purchase-orders",
+   "h1": "Pesanan Pembelian (PO)",
+   "dock": false
+  },
+  "light": {
+   "stack": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "12px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "stack_tight": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "stack_loose": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "16px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "row": {
+    "display": "flex",
+    "flexDirection": "row",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "cluster": {
+    "display": "flex",
+    "flexDirection": "row",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "grid_auto": {
+    "display": "grid",
+    "flexDirection": "row",
+    "gap": "16px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "spacer": {
+    "display": "block",
+    "flexDirection": "row",
+    "gap": "normal",
+    "fontSize": "14px",
+    "flexGrow": "1",
+    "fontWeight": "400"
+   },
+   "strong": {
+    "display": "block",
+    "flexDirection": "row",
+    "gap": "normal",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "600"
+   },
+   "fs": {
+    "caption": "11px",
+    "secondary": "12px",
+    "body": "13px",
+    "section": "14px"
+   },
+   "fs_bukan_utilitas": {
+    "label": "14px",
+    "table": "14px",
+    "page": "14px",
+    "kpi": "14px"
+   },
+   "fs_warisan": "14px",
+   "mono_cascade": {
+    "mono_only": "12.88px",
+    "mono_secondary": "12px",
+    "mono_body": "13px"
+   },
+   "flat_shadow": {
+    ".card": "none",
+    ".module-head": null,
+    ".module-card": null,
+    ".module-kpi": null,
+    ".home-tile": null,
+    ".stat": null
+   },
+   "table": {
+    "th_border_color": "rgb(203, 210, 218)",
+    "border_strong": "rgb(203, 210, 218)",
+    "td_right_numeric": "tabular-nums"
+   },
+   "token": {
+    "dipakai": 81,
+    "kosong": [],
+    "beraksen": true
+   }
+  },
+  "dark": {
+   "stack": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "12px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "stack_tight": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "stack_loose": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "16px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "row": {
+    "display": "flex",
+    "flexDirection": "row",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "cluster": {
+    "display": "flex",
+    "flexDirection": "row",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "grid_auto": {
+    "display": "grid",
+    "flexDirection": "row",
+    "gap": "16px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400"
+   },
+   "spacer": {
+    "display": "block",
+    "flexDirection": "row",
+    "gap": "normal",
+    "fontSize": "14px",
+    "flexGrow": "1",
+    "fontWeight": "400"
+   },
+   "strong": {
+    "display": "block",
+    "flexDirection": "row",
+    "gap": "normal",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "600"
+   },
+   "fs": {
+    "caption": "11px",
+    "secondary": "12px",
+    "body": "13px",
+    "section": "14px"
+   },
+   "fs_bukan_utilitas": {
+    "label": "14px",
+    "table": "14px",
+    "page": "14px",
+    "kpi": "14px"
+   },
+   "fs_warisan": "14px",
+   "mono_cascade": {
+    "mono_only": "12.88px",
+    "mono_secondary": "12px",
+    "mono_body": "13px"
+   },
+   "flat_shadow": {
+    ".card": "none",
+    ".module-head": null,
+    ".module-card": null,
+    ".module-kpi": null,
+    ".home-tile": null,
+    ".stat": null
+   },
+   "table": {
+    "th_border_color": "rgb(56, 65, 79)",
+    "border_strong": "rgb(56, 65, 79)",
+    "td_right_numeric": "tabular-nums"
+   },
+   "token": {
+    "dipakai": 81,
+    "kosong": [],
+    "beraksen": true
+   }
+  },
+  "print": {
+   "token": {
+    "dipakai": 81,
+    "kosong": [],
+    "beraksen": true
+   }
+  },
+  "galat": [],
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 6692,
+  "_clicks": 0
+ }
+}

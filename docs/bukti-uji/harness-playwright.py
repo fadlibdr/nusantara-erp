@@ -778,9 +778,13 @@ def s43(pg):
             galat.append(f"{tema}: tepi th {t['th_border_color']} != --border-strong {t['border_strong']}")
         if t["td_right_numeric"] not in (None, "tabular-nums"):
             galat.append(f"{tema}: td.right font-variant-numeric {t['td_right_numeric']} != tabular-nums")
+    # Dipakai mekanisme ok/failed_checks milik dekorator, BUKAN FAILED.append():
+    # dengan FAILED.append baris per-skenario tetap mencetak "ok" dan kegagalannya
+    # hanya muncul di baris GAGAL terakhir — seorang pembaca yang memindai daftar
+    # skenario melihat "ok" pada skenario yang baru saja gagal.
     out["galat"] = galat
-    if galat:
-        FAILED.append("S43_primitif_ui2")
+    out["failed_checks"] = galat
+    out["ok"] = not galat
     return out
 
 
@@ -1324,8 +1328,8 @@ def s18(pg):
     if out["pageerrors"]:
         galat.append(f"S18: galat halaman {out['pageerrors'][:2]}")
     out["galat"] = galat
-    if galat:
-        FAILED.append("S18_onboarding_dock_desktop")
+    out["failed_checks"] = galat
+    out["ok"] = not galat
     return out
 
 @scenario("S19_onboarding_sheet_mobile")
