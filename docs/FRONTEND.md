@@ -313,6 +313,29 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **One icon system (UI-3c)**: `icon(name, size)` now delegates to `svgIcon(name, {size})`, so every icon in
+  the SPA comes from the vendored Lucide sprite. The two functions' signatures do **not** match — one takes a
+  number, the other an object — so a mechanical `icon(` → `svgIcon(` rename is valid JavaScript that silently
+  resizes 67 icons to 16px; delegating inside `icon()` avoids touching any of the 79 call sites, and
+  `LUCIDE_ALIAS` already maps the legacy names. Two of those call sites are funnels — `button({iconName})` and
+  `menuButton` — carrying 212 more icons between them, so flipping one line moves 291 icons at once.
+  `LauncherWiringTest` now checks that **every** name reaching an icon resolves to a real symbol in the sprite:
+  a `<use href="…#lucide-nope">` draws nothing and raises nothing, which is how `bell`, `camera`, `copy` and
+  `list` shipped invisible on six buttons for months. **CSS must never reach inside an icon.** A `<use>` has no
+  `<path>` in the DOM, and `fill` does not cross that boundary — each sprite symbol carries its own
+  `fill="none"` — so a state like the favourite star's must live on the icon's own box (`.star.on` uses a
+  `--primary-soft` chip), never on its internals.
+- **The page head (UI-3c)**: `.page-head` is built 69 times across 54 files and there is **no shared builder** —
+  unifying them belongs to UI-4/UI-6, not to a shell package. What is fixed is the standard itself, pinned by
+  `SpaPageHeadStandardTest`: the title and description take `--fs-page` and `--fs-body` from the UI-1 scale
+  rather than raw px (`--fs-page` had existed since UI-1 with zero consumers), and the action bar finally has a
+  phone behaviour — before UI-3c `.page-head` had no responsive rule anywhere in app.css, and at 390px the
+  eight flat buttons on `#/d/projects/1` produced a 256px page head, nearly a third of the screen before any
+  content. Crowded bars (three or more buttons, or any zoned bar) become one horizontally scrolling row:
+  172px, with every button still reachable. Bars with one or two buttons are left exactly as they were — the
+  first version of the rule applied to all of them and made the single-button case *worse*.
+  The three-zone bar (`.zone.navigasi` / `.keluaran` / `.keputusan`) still has exactly one producer,
+  `views/detail.js`; that count is a **floor** in the test, free to rise as screens adopt it.
 - **The command field and the palette (UI-3b)**: the header's search control stays a `<button>`,
   never an `<input>`. Its accessible name comes from the `<span>Cari</span>` inside it — that is what
   the `≤760px` rule hides visually while keeping the name — and an input's name cannot come from its
