@@ -50,7 +50,7 @@ function accountCard(user) {
     el('.card-body', [
       el('div', { style: { display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '12px' } }, [
         el('.avatar', { text: initials(user.name), style: { width: '42px', height: '42px', fontSize: '15px' } }),
-        el('div', [el('b', { text: user.name }), el('.muted', { text: user.email, style: { fontSize: '12.5px' } })]),
+        el('div', [el('b', { text: user.name }), el('.muted.fs-body', { text: user.email })]),
       ]),
       el('dl.kv', [
         el('dt', { text: 'Peran' }),
@@ -109,8 +109,8 @@ function channelsCard(state, reload) {
   return el('.card', [
     el('.card-head', [el('h2', { text: 'Kanal notifikasi' }), el('.spacer')]),
     el('.card-body', [
-      el('.muted', {
-        style: { fontSize: '12.5px', marginBottom: '6px' },
+      el('.muted.fs-body', {
+        style: { marginBottom: '6px' },
         text: 'Pemberitahuan di dalam aplikasi (lonceng) selalu aktif dan tidak bisa dimatikan — ia kanal kebenaran. '
           + 'Di bawah ini kanal LUAR: lencana menunjukkan apa yang benar-benar akan terjadi hari ini, bukan apa yang Anda pilih.',
       }),
@@ -240,17 +240,18 @@ function quietHoursCard(state, reload) {
           el('div', { text: `Sekarang di dalam jam tenang Anda: e-mail, WhatsApp dan web push yang ditulis saat ini berangkat ${wib(state.postponed_until)}.` }),
         ])
         : null,
-      el('.check-row', [on, el('label', { for: 'quiet-on', text: 'Aktifkan jam tenang (WIB)' })]),
-      el('.form-grid', { style: { marginTop: '8px' } }, [
-        el('.field', [el('label', { for: 'quiet-start', text: 'Mulai' }), start]),
-        el('.field', [el('label', { for: 'quiet-end', text: 'Selesai' }), end]),
+      el('.stack.tight', [
+        el('.check-row', [on, el('label', { for: 'quiet-on', text: 'Aktifkan jam tenang (WIB)' })]),
+        el('.form-grid', [
+          el('.field', [el('label', { for: 'quiet-start', text: 'Mulai' }), start]),
+          el('.field', [el('label', { for: 'quiet-end', text: 'Selesai' }), end]),
+        ]),
+        el('.cell-sub', {
+          text: 'Selama jam tenang, KETIGA kanal luar — e-mail, WhatsApp dan web push — DITUNDA sampai jam selesai, tidak pernah dibuang. '
+            + 'Pemberitahuan di dalam aplikasi tetap masuk seketika. Jendela boleh melintasi tengah malam (mis. 22:00–06:00). '
+            + 'Zona waktu Asia/Jakarta (WIB).',
+        }),
       ]),
-      el('.cell-sub', {
-        style: { marginTop: '8px' },
-        text: 'Selama jam tenang, KETIGA kanal luar — e-mail, WhatsApp dan web push — DITUNDA sampai jam selesai, tidak pernah dibuang. '
-          + 'Pemberitahuan di dalam aplikasi tetap masuk seketika. Jendela boleh melintasi tengah malam (mis. 22:00–06:00). '
-          + 'Zona waktu Asia/Jakarta (WIB).',
-      }),
       el('.row-actions', { style: { marginTop: '12px' } }, [save]),
     ]),
   ]);
@@ -562,8 +563,8 @@ function pushCard(state, thisEndpoint, reload) {
   return el('.card.profil-push', [
     el('.card-head', [el('h2', { text: 'Pemberitahuan di luar aplikasi (web push)' }), el('.spacer')]),
     el('.card-body', [
-      el('.muted', {
-        style: { fontSize: '12.5px', marginBottom: '8px' },
+      el('.muted.fs-body', {
+        style: { marginBottom: '8px' },
         text: 'Pemberitahuan yang muncul di layar ponsel atau komputer Anda walau Nusantara ERP tidak sedang dibuka. '
           + 'Tidak ada aplikasi yang perlu dipasang dari toko aplikasi; setiap perangkat didaftarkan sekali, dari '
           + 'perangkat itu sendiri. Isi pesannya dienkripsi untuk perangkat Anda — layanan push tidak bisa membacanya.',
@@ -608,7 +609,7 @@ function tokenSecretCard(payload) {
   return el('.card.token-secret', { dataset: { state: 'shown' } }, [
     el('.card-head', [el('h2', { text: 'Token baru — tampil sekali' }), el('.spacer')]),
     el('.card-body', [
-      el('.row-actions', { style: { gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
+      el('.row-actions', { style: { gap: '8px' } }, [
         field,
         button('Salin', {
           iconName: 'copy',
@@ -692,8 +693,8 @@ function tokensCard(state, reload) {
   return el('.card.profil-tokens', [
     el('.card-head', [el('h2', { text: 'Token API' }), el('.spacer')]),
     el('.card-body', [
-      el('.muted', {
-        style: { fontSize: '12.5px', marginBottom: '8px' },
+      el('.muted.fs-body', {
+        style: { marginBottom: '8px' },
         text: 'Token dipakai sistem lain untuk memanggil API atas nama Anda. Teksnya tampil SEKALI saat dibuat. '
           + `Masa berlaku paling lama ${state.max_lifetime_days} hari, dan batas lajunya ${state.rate_limit_per_minute} permintaan per menit per token.`,
       }),

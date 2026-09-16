@@ -364,6 +364,27 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Baris tabel yang ditonjolkan tanpa menjadi baris TOTAL. */
 table.data tr.emphasis td { background: var(--surface-2); }
 .mono { font-family: var(--mono); font-size: .92em; }
+
+/* Utilitas ukuran huruf (UI-2) — pengganti `fontSize:` sebaris.
+   Hanya EMPAT, sengaja: begitu ada kelas untuk setiap ukuran, skala
+   berhenti menjadi skala. Nilai setengah-piksel yang berserak di lapisan
+   view (12,5 dan 11,5) dibulatkan KE ATAS saat disapu — 12,5 -> 13 dan
+   11,5 -> 12 — supaya hierarkinya utuh dan tidak ada teks yang menyusut
+   mendekati lantai 11 px. */
+.fs-caption { font-size: var(--fs-caption); }
+.fs-secondary { font-size: var(--fs-secondary); }
+.fs-body { font-size: var(--fs-body); }
+.fs-section { font-size: var(--fs-section); }
+/* URUTAN INI PENTING. `.mono` menyetel `font-size: .92em` dengan
+   spesifisitas yang SAMA (0,1,0). Ditulis sebelum .mono, keempat kelas di
+   atas kalah diam-diam pada setiap elemen mono — `.mono.fs-caption` akan
+   jatuh ke .92em dari ukuran warisannya, bukan 11 px, tanpa satu pun
+   tanda. Ditemukan agen penyapu custom.js, bukan oleh pembacaan CSS. */
+
+/* Pengisi ruang di baris flex. Sebelum ini hanya ada DELAPAN salinan
+   berlingkup (.header .spacer, .card-head .spacer, …), jadi `.spacer` di
+   dalam .alert atau di view mana pun diam-diam inert. */
+.spacer { flex: 1; }
 .muted { color: var(--muted); }
 .nowrap { white-space: nowrap; }
 .right { text-align: right; }
@@ -755,9 +776,11 @@ table.data tr.emphasis td { background: var(--surface-2); }
 /* ----------------------------------------------------------------- cards */
 .card {
   background: var(--surface);
+  /* Tepi, bukan bayangan (UI-2). Di layar ERP yang penuh kartu, enam
+     bayangan kecil hanya mengotori halaman; elevasi disimpan untuk yang
+     benar-benar melayang — modal, popover, laci, toast, label sorotan. */
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
 }
 
 .card + .card { margin-top: 16px; }
@@ -893,7 +916,7 @@ table.data th {
   text-align: left;
   padding: var(--cell-py) var(--cell-px);
   background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-strong);
   font-size: 11px; font-weight: 700; color: var(--muted);
   text-transform: uppercase; letter-spacing: .05em;
   white-space: nowrap;
@@ -919,6 +942,12 @@ table.data td {
 table.data tbody tr:last-child td { border-bottom: 0; }
 table.data tbody tr.clickable { cursor: pointer; }
 table.data tbody tr.clickable:hover { background: var(--surface-2); }
+/* Terpilih menang atas hover, dan membawa penanda tepi supaya ia
+   terbaca juga ketika warnanya tidak bisa dibedakan. Dipakai seleksi
+   baris UI-4. */
+table.data tbody tr.selected td,
+table.data tbody tr.selected:hover td { background: var(--surface-selected); }
+table.data tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
 table.data th.right, table.data td.right { text-align: right; }
 /* Temuan audit #8: sel rata-kanan dan kaki tabel SELALU tabular.
    Sebelumnya hanya .num, dan pemanggil harus ingat DUA kelas sekaligus —
@@ -1056,7 +1085,6 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   border-left: 4px solid var(--module-accent);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
 }
 .module-head .module-icon {
   width: 44px; height: 44px; flex: none;
@@ -1103,7 +1131,6 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-sm);
   text-decoration: none;
   min-height: 56px;
 }
@@ -1123,7 +1150,6 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
   min-width: 0;
 }
 .module-kpi-value { font-size: 20px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
@@ -1201,7 +1227,6 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-sm);
   text-decoration: none;
   min-height: 92px;
   align-content: start;
@@ -1245,7 +1270,6 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 13px 15px;
-  box-shadow: var(--shadow-sm);
 }
 .stat .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .stat .value { font-size: 20px; font-weight: 650; letter-spacing: -.02em; margin-top: 5px; font-variant-numeric: tabular-nums; }

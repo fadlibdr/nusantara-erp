@@ -52,7 +52,7 @@ function pageHead(title, subtitle, actions, status) {
 
   return el('.page-head', [
     el('div', [
-      el('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } }, [
+      el('.cluster', [
         el('h1', { text: title }),
         status || null,
       ]),
@@ -259,7 +259,7 @@ export async function renderStock(host) {
                   : row.threshold_source_label,
               }),
             ])),
-            el('td.right.num', { text: fmt.qty(row.shortage_qty), style: { color: 'var(--danger)' } }),
+            el('td.right.num.tone-neg', { text: fmt.qty(row.shortage_qty) }),
             /* "Usulan pesan" = jumlah pesan aturan bila aturan itu menyebutnya,
                selain itu kekurangannya sendiri. Keduanya berdampingan dengan
                "Kurang" supaya jumlah pesan yang LEBIH KECIL daripada kekurangan
@@ -369,7 +369,7 @@ export async function renderPayrollRun(host, { id }) {
           el('td.center', slip.ter_category ? badge(`${slip.ter_category} · ${fmt.percent(slip.ter_rate)}`) : el('span.muted', { text: 'Ps. 17' })),
           el('td.right.num', {
             text: fmt.rupiah(slip.pph21_amount),
-            style: Number(slip.pph21_amount) < 0 ? { color: 'var(--success)' } : {},
+            class: Number(slip.pph21_amount) < 0 ? 'tone-pos' : '',
           }),
           el('td.right.num.strong', { text: fmt.rupiah(slip.net_pay) }),
           // The slip an employee is actually handed. One per row rather than a
@@ -442,7 +442,7 @@ export async function renderTicket(host, { id }) {
 
   const slaCard = (label, dueAt, doneAt, breached) => el('.stat', [
     el('.label', { text: label }),
-    el('.value.sm', { text: doneAt ? fmt.dateTime(doneAt) : fmt.dateTime(dueAt), style: breached && !doneAt ? { color: 'var(--danger)' } : {} }),
+    el('.value.sm', { text: doneAt ? fmt.dateTime(doneAt) : fmt.dateTime(dueAt), class: breached && !doneAt ? 'tone-neg' : '' }),
     el('.delta', {
       text: doneAt ? 'Tercapai' : (breached ? 'SLA terlampaui' : `Target ${fmt.relativeDays(dueAt)}`),
       class: doneAt ? 'up' : (breached ? 'down' : ''),
@@ -525,7 +525,7 @@ export async function renderTicket(host, { id }) {
         el('span.mono', { text: report.code, style: { fontSize: '12.5px' } }),
         badge(report.status_label || report.status, fmt.statusTone(report.status)),
       ])))
-      : el('p.muted', { text: 'Belum ada berita acara.', style: { margin: 0, fontSize: '13px' } })),
+      : el('p.muted.fs-body', { text: 'Belum ada berita acara.', style: { margin: 0 } })),
   ]));
 
   host.appendChild(el('.detail-grid', [main, side]));
@@ -701,7 +701,7 @@ export async function renderSubcontract(host, { id }) {
           el('td.right.num', { text: fmt.rupiah(item.unit_price) }),
           el('td.right.num', { text: fmt.rupiah(item.amount) }),
           el('td', { style: { minWidth: '120px' } }, el('div', [
-            el('div.num', { text: fmt.percent(item.progress_pct), style: { fontSize: '11.5px', marginBottom: '3px' } }),
+            el('div.num.fs-secondary', { text: fmt.percent(item.progress_pct), style: { marginBottom: '3px' } }),
             progressBar(item.progress_pct, Number(item.progress_pct) >= 100 ? 'green' : ''),
           ])),
         ]))),
@@ -860,7 +860,7 @@ export async function renderPayment(host, { id }) {
       icon('warn', 16),
       el('div', { style: { flex: '1' } }, [
         el('div', { text: error.message || String(error) }),
-        ...(error.details || []).map((line) => el('.muted', { text: line, style: { fontSize: '12px' } })),
+        ...(error.details || []).map((line) => el('.muted.fs-secondary', { text: line })),
       ]),
       button('', { size: 'sm', variant: 'ghost', iconName: 'close', title: 'Tutup', onClick: clearRefusal }),
     ]));
@@ -998,10 +998,9 @@ export async function renderPayment(host, { id }) {
       el('div', { style: { flex: '1' } }, [
         el('div', { text: `Dibalik ${payment.reversed_at ? fmt.dateTime(payment.reversed_at) : ''}` }),
         payment.reversal_reason ? el('div', { text: payment.reversal_reason, style: { marginTop: '3px' } }) : null,
-        el('.muted', {
+        el('.muted.fs-secondary', {
           text: 'Jurnal aslinya tetap berdiri dan jurnal pembaliknya diposting di sebelahnya; '
             + 'dokumen yang dilunasinya sudah dibuka kembali.',
-          style: { fontSize: '12px' },
         }),
       ]),
     ]));
@@ -1016,7 +1015,7 @@ export async function renderPayment(host, { id }) {
         el('div', { text: `Ditolak oleh ${lastRejection.user ? lastRejection.user.name : 'Sistem'} · ${fmt.dateTime(lastRejection.created_at)}` }),
         lastRejection.note ? el('div', { text: lastRejection.note, style: { marginTop: '3px' } }) : null,
         storedAllocations.length
-          ? el('.muted', { text: 'Perbaiki lalu ajukan ulang; alokasi yang sebelumnya diajukan tetap tersimpan.', style: { fontSize: '12px' } })
+          ? el('.muted.fs-secondary', { text: 'Perbaiki lalu ajukan ulang; alokasi yang sebelumnya diajukan tetap tersimpan.' })
           : null,
       ]),
     ]));
@@ -1180,7 +1179,7 @@ export async function renderPayment(host, { id }) {
       el('span', [el('span.muted', { text: 'Kas diterima: ' }), el('span.num', { text: fmt.rupiah(cash) })]),
       el('span', {
         text: Math.abs(diff) <= 0.01 ? 'Sesuai mutasi bank ✓' : `Selisih ${fmt.rupiah(diff)}`,
-        style: { color: Math.abs(diff) <= 0.01 ? 'var(--success)' : 'var(--danger)' },
+        class: Math.abs(diff) <= 0.01 ? 'tone-pos' : 'tone-neg',
       }),
     ].filter(Boolean));
   }
@@ -1219,7 +1218,7 @@ export async function renderPayment(host, { id }) {
 
       const total = entry.withholdings.reduce((sum, w) => sum + Number(w.amount || 0), 0);
       potonganCell.append(
-        el('div', { text: `Potongan ${fmt.rupiah(total)}`, style: { color: 'var(--warning)' } }),
+        el('div.tone-warn', { text: `Potongan ${fmt.rupiah(total)}` }),
         el('div', { text: entry.withholdings.map((w) => `${LABEL_POTONGAN[w.type] || w.type} ${fmt.rupiah(w.amount)}`).join(' · ') }),
       );
     }
@@ -1397,7 +1396,7 @@ export async function renderPayment(host, { id }) {
           ? el('span.cell-sub', { text: 'Tidak ada saldo yang bisa dilunasi s.d. akhir bulan tanggal pembayaran.' })
           : null,
       ])),
-      el('td.right.num', { text: fmt.rupiah(ceiling), style: ceiling <= 0 ? { color: 'var(--muted)' } : null }),
+      el('td.right.num', { text: fmt.rupiah(ceiling), class: ceiling <= 0 ? 'muted' : '' }),
       el('td', { style: { width: '170px' } }, input),
       el('td', { style: { width: '210px' } }, remark),
       el('td', el('.row-actions', [entry.fill])),
@@ -1611,7 +1610,7 @@ export async function renderRole(host, { id }) {
           })
           : null,
       ]),
-      el('.card-body', { style: { display: 'grid', gap: '7px' } }, names.map((name) => {
+      el('.card-body.stack.tight', names.map((name) => {
         const action = name.split('.')[1];
         const checkbox = el('input', { type: 'checkbox', disabled: !canEdit });
         checkbox.checked = selected.has(name);
@@ -1620,8 +1619,8 @@ export async function renderRole(host, { id }) {
           else selected.delete(name);
         });
         boxes.push(checkbox);
-        return el('label', {
-          style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: canEdit ? 'pointer' : 'default' },
+        return el('label.row.fs-body', {
+          style: { cursor: canEdit ? 'pointer' : 'default' },
         }, [checkbox, ACTION_LABELS[action] || action, el('span.muted.mono', { text: name, style: { marginLeft: 'auto', fontSize: '11px' } })]);
       })),
     ]);
@@ -1925,7 +1924,7 @@ export async function renderAsset(host, { id }) {
                 : (due.remaining_hours < 0
                   ? `lewat ${fmt.qty(Math.abs(due.remaining_hours), 'jam')}`
                   : fmt.qty(due.remaining_hours, 'jam')),
-              style: due.state === 'lampau' ? { color: 'var(--danger)' } : (due.state === 'mendekati' ? { color: 'var(--warning)' } : {}),
+              class: due.state === 'lampau' ? 'tone-neg' : (due.state === 'mendekati' ? 'tone-warn' : ''),
             }),
             el('.delta', {
               text: due.remaining_hours === null
@@ -1939,7 +1938,7 @@ export async function renderAsset(host, { id }) {
             el('.label', { text: 'Pemicu tanggal' }),
             el('.value.sm', {
               text: due.next_due_date ? fmt.date(due.next_due_date) : '—',
-              style: tanggalLewat ? { color: 'var(--danger)' } : {},
+              class: tanggalLewat ? 'tone-neg' : '',
             }),
             /* Umur relatifnya, seperti kolom "Jadwal berikut" di daftar
                Perawatan ("14 Des 2026 · 96 hari lagi"). Sebuah tanggal 86
@@ -1949,7 +1948,7 @@ export async function renderAsset(host, { id }) {
               text: due.next_due_date
                 ? (tanggalLewat ? `lewat — ${fmt.relativeDays(due.next_due_date)}` : fmt.relativeDays(due.next_due_date))
                 : 'belum dijadwalkan menurut tanggal',
-              style: tanggalLewat ? { color: 'var(--danger)' } : {},
+              class: tanggalLewat ? 'tone-neg' : '',
             }),
           ]),
         ]),
@@ -2255,7 +2254,7 @@ export async function renderRevenueRun(host, { id }) {
           el('td.right.num', { text: fmt.rupiah(line.billed_cumulative) }),
           el('td.right.num', {
             text: fmt.rupiah(balance),
-            style: balance < 0 ? { color: 'var(--warning)' } : {},
+            class: balance < 0 ? 'tone-warn' : '',
             title: balance >= 0 ? 'Aset kontrak 1-1360' : 'Liabilitas kontrak 2-1410',
           }),
           el('td.right.num.strong', { text: fmt.rupiah(line.revenue_adjustment) }),

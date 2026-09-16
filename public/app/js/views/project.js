@@ -176,10 +176,10 @@ function wbsTree(tasks, { canUpdate, onProgress }) {
 
       rows.push(el('tr', [
         el('td.code', { text: task.wbs_code || '' }),
-        el('td', el('span', { style: { paddingLeft: `${depth * 18}px`, fontWeight: isLeaf ? '400' : '600' }, text: task.name })),
+        el('td', el(`span${isLeaf ? '' : '.strong'}`, { style: { paddingLeft: `${depth * 18}px` }, text: task.name })),
         el('td.right.num', { text: fmt.percent(task.weight_pct) }),
         el('td', { style: { minWidth: '150px' } }, el('div', [
-          el('div.num', { text: fmt.percent(task.progress_pct), style: { fontSize: '11.5px', marginBottom: '3px' } }),
+          el('div.num.fs-secondary', { text: fmt.percent(task.progress_pct), style: { marginBottom: '3px' } }),
           progressBar(task.progress_pct, Number(task.progress_pct) >= 100 ? 'green' : ''),
         ])),
         el('td.right', isLeaf && canUpdate
@@ -223,11 +223,11 @@ const IZIN_REGISTERS = [
 function izinLapanganCard() {
   return el('.card', [
     el('.card-head', el('h2', { text: 'Izin lapangan (IKL / ILB / IMK)' })),
-    el('.card-body', [
-      el('p.muted', {
+    el('.card-body.stack', [
+      el('p.muted.fs-body', {
         text: 'Ketiga izin kini dicatat sebagai dokumen bernomor dan lembarnya dicetak DARI datanya '
           + '(baris kosong tetap bergaris untuk diisi tangan). Buat dan cetak dari registernya:',
-        style: { margin: '0 0 12px', fontSize: '12.5px' },
+        style: { margin: 0 },
       }),
       el('div', { style: { display: 'flex', flexDirection: 'column', gap: '9px' } }, IZIN_REGISTERS.map((izin) => el('div', [
         el('a', { href: izin.route, text: izin.label }),
@@ -255,20 +255,20 @@ function openMppXmlImport(project, { onImported } = {}) {
   const makeBaseline = el('input', { type: 'checkbox', checked: true });
   const bac = buildInput({ type: 'currency' }, '');
 
-  const body = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } }, [
-    el('p', {
-      style: { margin: '0', fontSize: '13px', color: 'var(--text-2)' },
+  const body = el('.stack', [
+    el('p.fs-body', {
+      style: { margin: '0', color: 'var(--text-2)' },
       text: 'Ekspor jadwal dari Microsoft Project sebagai XML (File > Save As > XML Format) — '
         + 'bukan .mpp biner. Hierarki outline menjadi pohon WBS, tanggal mulai/selesai menjadi '
         + 'tanggal tugas; bobot daun dihitung dari porsi durasinya. Maksimal 5 MB.',
     }),
-    el('p', {
-      style: { margin: '0', fontSize: '13px', color: 'var(--text-2)' },
+    el('p.fs-body', {
+      style: { margin: '0', color: 'var(--text-2)' },
       text: 'Impor hanya menata proyek yang belum ber-WBS — proyek yang sudah punya tugas ditolak '
         + 'dengan menyebut apa yang ada, bukan ditimpa.',
     }),
     el('.field', [el('label', { text: 'Berkas XML' }), picker]),
-    el('label', { style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' } }, [
+    el('label.row.fs-body', [
       makeBaseline,
       el('span', { text: 'Bekukan baseline (kurva S) dari jadwal ini' }),
     ]),
@@ -530,11 +530,8 @@ export async function renderProject(host, { id }) {
        demo: "Sisa Rp 1,7 M" pada proyek yang sisi PO-nya menolak Rp 1. */
     budget ? el('.stat', [
       el('.label', { text: 'Anggaran terpakai' }),
-      el('.value', {
+      el(`.value${budget.worst_state === 'lampau' ? '.tone-neg' : (budget.worst_state === 'mendekati' ? '.tone-warn' : '')}`, {
         text: budgetTilePct(budget),
-        style: budget.worst_state === 'lampau'
-          ? { color: 'var(--danger)' }
-          : (budget.worst_state === 'mendekati' ? { color: 'var(--warning)' } : {}),
       }),
       el('.delta', { text: budgetTileNote(budget) }),
     ]) : null,
@@ -662,28 +659,28 @@ export async function renderProject(host, { id }) {
     ]),
     rows.length
       ? el('div', { style: { padding: '4px 16px 12px' } }, rows.map(render))
-      : el('.card-body', el('p.muted', { text: 'Belum ada data.', style: { margin: 0, fontSize: '13px' } })),
+      : el('.card-body', el('p.muted.fs-body', { text: 'Belum ada data.', style: { margin: 0 } })),
   ]);
 
   side.appendChild(listCard('Milestone', milestones, (row) => el('div', {
     style: { display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '7px 0', borderBottom: '1px solid var(--border)' },
   }, [
     el('div', { style: { flex: '1', minWidth: '0' } }, [
-      el('div', { text: row.name, style: { fontSize: '13px' } }),
+      el('div.fs-body', { text: row.name }),
       el('.cell-sub', { text: `${fmt.date(row.due_date)} · ${fmt.relativeDays(row.due_date)}` }),
     ]),
     row.is_achieved ? badge('Tercapai', 'green') : (row.is_overdue ? badge('Terlambat', 'red') : badge('Berjalan')),
   ])));
 
-  side.appendChild(listCard('Personel di proyek', manpower, (row) => el('div', {
-    style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: '13px' },
+  side.appendChild(listCard('Personel di proyek', manpower, (row) => el('div.fs-body', {
+    style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '7px 0', borderBottom: '1px solid var(--border)' },
   }, [
     el('span', { text: row.role_on_project }),
     el('span.muted', { text: `sejak ${fmt.date(row.assigned_from)}` }),
   ])));
 
-  side.appendChild(listCard('BAST', bast, (row) => el('div', {
-    style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: '13px' },
+  side.appendChild(listCard('BAST', bast, (row) => el('div.fs-body', {
+    style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '7px 0', borderBottom: '1px solid var(--border)' },
   }, [
     el('span.mono', { text: row.code }),
     badge(row.status_label || row.status, fmt.statusTone(row.status)),
@@ -709,7 +706,7 @@ export async function renderProject(host, { id }) {
         badge(sevLabel, sevTone),
         row.is_overdue ? badge('Lewat target', 'red') : null,
       ]),
-      el('div', { text: row.title, style: { fontSize: '13px', marginTop: '2px' } }),
+      el('div.fs-body', { text: row.title, style: { marginTop: '2px' } }),
       el('.cell-sub', {
         text: [
           row.responsible_employee ? row.responsible_employee.name : 'belum ditunjuk',
@@ -725,11 +722,11 @@ export async function renderProject(host, { id }) {
     style: { padding: '9px 0', borderBottom: '1px solid var(--border)' },
   }, [
     el('div', { style: { display: 'flex', gap: '10px', alignItems: 'center' } }, [
-      el('b', { text: fmt.date(row.report_date), style: { fontSize: '13px' } }),
-      el('span.muted', { text: `${row.manpower_count} orang`, style: { fontSize: '12px' } }),
+      el('b.fs-body', { text: fmt.date(row.report_date) }),
+      el('span.muted.fs-secondary', { text: `${row.manpower_count} orang` }),
       row.weather_am_label ? badge(`${row.weather_am_label} / ${row.weather_pm_label || '—'}`) : null,
     ]),
-    el('div', { text: row.activities, style: { fontSize: '12.5px', color: 'var(--text-2)', marginTop: '3px' } }),
+    el('div.fs-body', { text: row.activities, style: { color: 'var(--text-2)', marginTop: '3px' } }),
   ]), 'r/projects/daily-reports'));
 
   const attachments = attachmentsCard('projects/projects', Number(id), 'prj');
