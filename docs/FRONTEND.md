@@ -313,6 +313,26 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **Layout primitives and the type scale (UI-2)**: compose spacing with `.stack` (12 px, card
+  contents), `.stack.tight` (8), `.stack.loose` (16, page blocks — the same step as `.card + .card`),
+  `.row`, `.row.top`, `.cluster` (wrapping) and `.grid-auto`; all four gaps come from the UI-1
+  `--space-*` scale, so nothing re-invents a number. `.spacer { flex: 1 }` is now defined
+  **unscoped** — before UI-2 there were only nine scoped copies (`.header .spacer`,
+  `.card-head .spacer`, …), so a `.spacer` written anywhere else was silently inert; two of them,
+  in the EVM and bank-reconciliation toolbars, had been dead since they were written.
+  Font-size utilities are deliberately **only four** — `.fs-caption` 11, `.fs-secondary` 12,
+  `.fs-body` 13, `.fs-section` 14. `--fs-label`, `--fs-table`, `--fs-page` and `--fs-kpi` are used
+  directly in component rules: once there is a class for every size, the scale stops being a scale
+  and becomes a vocabulary. **`.fs-*` must stay written AFTER `.mono`** — `.mono` sets
+  `font-size: .92em` at the same specificity (0,1,0), so placed before it the utilities lose
+  silently on every mono element and `.mono.fs-secondary` quietly renders at `.92em` of its
+  inherited size. Harness **S43** pins both the gaps and that ordering, and sweeps every `var(--x)`
+  in `app.css` for one that does not resolve — in light, dark **and** print, because the palette
+  lives in five copies and a token forgotten in one block is visible only in that block.
+- **Surfaces carry an edge, not a shadow (UI-2)**: `.card`, `.module-head`, `.module-card`,
+  `.module-kpi`, `.home-tile` and `.stat` sit flat on the page and are separated by `--border`.
+  `--shadow-sm` survives for genuinely floating layers only — today a single user, the onboarding
+  `.spotlight-label`. Table headers are divided from the body by `--border-strong`, not `--border`.
 - **Kanban boards (P1-G)**: `#/b/<resource>` renders any RESOURCES entry carrying a `board:` block
   as columns of cards. A drop does not write a status — it runs the resource's own existing action
   through `runAction()`, the same path as the document-page buttons, so the inline approval note,

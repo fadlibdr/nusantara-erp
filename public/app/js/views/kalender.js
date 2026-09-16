@@ -44,7 +44,7 @@ const warnaDept = (dept) => kalenderDeptColor(dept);
 /** Senin dulu — konvensi kalender Indonesia; kolom terakhir (indeks 6) Minggu. */
 const HARI = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
-/** Baris agenda per sel sebelum "+N lagi" — sel ~104px muat tiga baris 11.5px. */
+/** Baris agenda per sel sebelum "+N lagi" — sel ~104px muat tiga baris 12px. */
 const MAKS_PER_SEL = 3;
 
 /** '2026-08' ± n bulan, murni aritmetika — tanpa objek Date, tanpa zona waktu. */
@@ -92,7 +92,7 @@ function keterangan(ev) {
 
 /** Satu baris agenda di dalam sel hari; klik membuka layar sumbernya. */
 function entriAgenda(ev) {
-  return el('button', {
+  return el('button.fs-secondary', {
     title: keterangan(ev),
     onclick: () => navigate(ev.link),
     style: {
@@ -106,7 +106,6 @@ function entriAgenda(ev) {
       border: 'none',
       background: 'none',
       borderRadius: '4px',
-      fontSize: '11.5px',
       color: 'var(--text)',
       textAlign: 'left',
       cursor: 'pointer',
@@ -202,9 +201,7 @@ export async function renderKalender(host, bulan = null, saring = null) {
   clear(body);
 
   /* ------------------------------------------------------- navigasi bulan */
-  body.appendChild(el('div', {
-    style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' },
-  }, [
+  body.appendChild(el('.cluster', { style: { marginBottom: '12px' } }, [
     button('', { iconName: 'back', title: 'Bulan sebelumnya', onClick: () => renderKalender(host, geserBulan(aktif, -1), saring) }),
     button('', { iconName: 'chevronRight', title: 'Bulan berikutnya', onClick: () => renderKalender(host, geserBulan(aktif, 1), saring) }),
     // null → server yang memilih bulan berjalan menurut jamnya sendiri.
@@ -215,7 +212,7 @@ export async function renderKalender(host, bulan = null, saring = null) {
     }),
     el('h2', { text: `${fmt.MONTHS[nomorBulan - 1]} ${tahun}`, style: { fontSize: '16px', marginLeft: '2px' } }),
     el('.spacer', { style: { flex: '1' } }),
-    el('span.muted', { text: `hari ini ${tanggalPanjang(asOf)} — jam server`, style: { fontSize: '12px' } }),
+    el('span.muted.fs-secondary', { text: `hari ini ${tanggalPanjang(asOf)} — jam server` }),
   ]));
 
   /* --------------------------------------------------------------- angka */
@@ -267,7 +264,7 @@ export async function renderKalender(host, bulan = null, saring = null) {
     const chipLegenda = (dept) => {
       const dipilih = saring === dept;
 
-      return el('button', {
+      return el('button.fs-secondary', {
         title: dipilih ? 'Tampilkan semua departemen' : `Hanya tampilkan agenda ${dept}`,
         'aria-pressed': dipilih ? 'true' : 'false',
         // Bulan dikunci eksplisit (aktif, bukan bulan) supaya menyaring tidak
@@ -281,7 +278,6 @@ export async function renderKalender(host, bulan = null, saring = null) {
           borderRadius: '999px',
           border: `1px solid ${dipilih ? 'var(--primary)' : 'var(--border)'}`,
           background: dipilih ? 'var(--primary-soft)' : 'var(--surface)',
-          fontSize: '12px',
           color: 'var(--text)',
           cursor: 'pointer',
         },
@@ -306,9 +302,7 @@ export async function renderKalender(host, bulan = null, saring = null) {
       .sort()
       .forEach((dept) => chips.push(chipLegenda(dept)));
 
-    body.appendChild(el('div', {
-      style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' },
-    }, chips));
+    body.appendChild(el('.cluster', { style: { marginBottom: '12px' } }, chips));
   }
 
   /* ----------------------------------------------------------- grid bulan */
@@ -326,16 +320,13 @@ export async function renderKalender(host, bulan = null, saring = null) {
   const selKosong = () => el('div', { style: { background: 'var(--surface-2)', minHeight: '104px' } });
   const sel = [];
 
-  HARI.forEach((nama, kolom) => sel.push(el('div', {
+  HARI.forEach((nama, kolom) => sel.push(el(`.fs-secondary.strong.${kolom === 6 ? 'tone-neg' : 'muted'}`, {
     text: nama,
     style: {
       padding: '6px 8px',
       background: 'var(--surface-2)',
-      fontSize: '11.5px',
-      fontWeight: '600',
       textTransform: 'uppercase',
       letterSpacing: '.04em',
-      color: kolom === 6 ? 'var(--danger)' : 'var(--muted)',
     },
   })));
 
@@ -350,7 +341,7 @@ export async function renderKalender(host, bulan = null, saring = null) {
     const isi = daftar.slice(0, MAKS_PER_SEL).map(entriAgenda);
 
     if (daftar.length > MAKS_PER_SEL) {
-      isi.push(el('button', {
+      isi.push(el('button.fs-caption.muted', {
         text: `+${daftar.length - MAKS_PER_SEL} lagi`,
         title: 'Lihat semua agenda hari ini',
         onclick: () => bukaHari(tanggal, daftar),
@@ -361,8 +352,6 @@ export async function renderKalender(host, bulan = null, saring = null) {
           border: 'none',
           background: 'none',
           borderRadius: '4px',
-          fontSize: '11px',
-          color: 'var(--muted)',
           textAlign: 'left',
           cursor: 'pointer',
         },
@@ -380,7 +369,7 @@ export async function renderKalender(host, bulan = null, saring = null) {
         gap: '2px',
       },
     }, [
-      el('span', {
+      el(`span.fs-secondary${iniHariIni ? '' : '.strong'}`, {
         text: String(hari),
         title: iniHariIni ? 'Hari ini (jam server, WIB)' : undefined,
         style: iniHariIni
@@ -392,7 +381,6 @@ export async function renderKalender(host, bulan = null, saring = null) {
             borderRadius: '999px',
             background: 'var(--primary)',
             color: 'var(--primary-fg)',
-            fontSize: '11.5px',
             fontWeight: '700',
             display: 'inline-flex',
             alignItems: 'center',
@@ -401,8 +389,6 @@ export async function renderKalender(host, bulan = null, saring = null) {
           : {
             alignSelf: 'flex-start',
             padding: '1px 4px',
-            fontSize: '11.5px',
-            fontWeight: '600',
             color: kolom === 6 ? 'var(--danger)' : 'var(--text-2)',
           },
       }),

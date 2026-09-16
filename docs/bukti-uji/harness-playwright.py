@@ -625,6 +625,165 @@ def s8(pg):
     pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
     return out
 
+UI2_MEASURE = """() => {
+  const out = {};
+  const probe = (spec) => {
+    const n = document.createElement('div');
+    n.className = spec;
+    document.querySelector('.main').appendChild(n);
+    const cs = getComputedStyle(n);
+    const r = { display: cs.display, flexDirection: cs.flexDirection, gap: cs.gap,
+                fontSize: cs.fontSize, flexGrow: cs.flexGrow, fontWeight: cs.fontWeight };
+    n.remove();
+    return r;
+  };
+
+  // --- primitif tata letak: ADA, dan dengan jarak yang dijanjikan token ---
+  out.stack       = probe('stack');
+  out.stack_tight = probe('stack tight');
+  out.stack_loose = probe('stack loose');
+  out.row         = probe('row');
+  out.cluster     = probe('cluster');
+  out.grid_auto   = probe('grid-auto');
+  out.spacer      = probe('spacer');
+  out.strong      = probe('strong');
+
+  // --- skala ukuran huruf ---
+  // Utilitasnya sengaja hanya EMPAT (lihat komentar di app.css): begitu ada kelas
+  // untuk setiap ukuran, skalanya berhenti menjadi skala. --fs-label/-table/-page/-kpi
+  // dipakai LANGSUNG di aturan komponen, dan keputusan itu ikut dipaku di sini.
+  out.fs = {};
+  for (const k of ['caption','secondary','body','section']) out.fs[k] = probe('fs-' + k).fontSize;
+  out.fs_bukan_utilitas = {};
+  for (const k of ['label','table','page','kpi']) out.fs_bukan_utilitas[k] = probe('fs-' + k).fontSize;
+  out.fs_warisan = getComputedStyle(document.querySelector('.main')).fontSize;
+
+  // --- URUTAN CASCADE .mono vs .fs-* ---
+  // Ditemukan 16 Sep 2026: `.mono { font-size: .92em }` ditulis SESUDAH blok `.fs-*`
+  // dengan spesifisitas yang sama, jadi ia diam-diam mengalahkan setiap .fs-* pada
+  // elemen mono — dan tidak ada satu pun agen yang tersandung. Ukurannya dipaku di
+  // sini supaya urutan itu tidak bisa terbalik lagi tanpa suara.
+  out.mono_cascade = { mono_only: probe('mono').fontSize,
+                       mono_secondary: probe('mono fs-secondary').fontSize,
+                       mono_body: probe('mono fs-body').fontSize };
+
+  // --- permukaan datar tidak membawa bayangan (keputusan rancangan UI-2) ---
+  out.flat_shadow = {};
+  for (const sel of ['.card', '.module-head', '.module-card', '.module-kpi', '.home-tile', '.stat']) {
+    const e = document.querySelector(sel);
+    out.flat_shadow[sel] = e ? getComputedStyle(e).boxShadow : null;
+  }
+
+  // --- tepi kepala tabel dan angka tabular ---
+  const th = document.querySelector('table.data thead th');
+  const tdr = document.querySelector('table.data td.right');
+  // --border-strong dibaca sebagai warna TERHITUNG lewat elemen uji: nilai mentah
+  // token ('#cbd2da') tidak pernah sama dengan borderBottomColor ('rgb(203,210,218)'),
+  // dan membandingkan keduanya apa adanya adalah gerbang yang selalu lolos.
+  const cp = document.createElement('div');
+  cp.style.borderBottomColor = 'var(--border-strong)';
+  document.querySelector('.main').appendChild(cp);
+  const strong = getComputedStyle(cp).borderBottomColor;
+  cp.remove();
+  out.table = {
+    th_border_color: th ? getComputedStyle(th).borderBottomColor : null,
+    border_strong: strong,
+    td_right_numeric: tdr ? getComputedStyle(tdr).fontVariantNumeric : null,
+  };
+
+  return out;
+}"""
+
+# Setiap var(--x) yang dipakai app.css harus RESOLVE. Jebakan #5 kampanye UI: var()
+# yang tidak terdefinisi TIDAK menghasilkan galat — ia jatuh ke nilai AWAL properti,
+# dan `fill` yang jatuh ke hitam menggambar balok pekat melintang di gantt. Satu-satunya
+# cara menangkapnya adalah menanyakan nilainya, per tema, ke peramban.
+UI2_TOKENS = """async () => {
+  const mentah = await (await fetch('/app/app.css')).text();
+  // Komentar DIBUANG dulu. Prosa app.css menyebut nama token generik ("--accent-n
+  // memakai sudut hue yang sama dengan --chart-n") dan regex yang membaca berkas
+  // apa adanya melaporkan --chart-n sebagai token tak terdefinisi — tiga kali,
+  // pada putaran pertama S43.
+  const css = mentah.replace(/\\/\\*[\\s\\S]*?\\*\\//g, '');
+  const used = [...new Set([...css.matchAll(/var\\(\\s*(--[a-z0-9-]+)/gi)].map(m => m[1]))];
+  // Diselesaikan dari elemen ber-[data-accent] bila ada: --module-accent* memang
+  // TIDAK didefinisikan di :root, melainkan oleh [data-accent="N"] pada akar modul.
+  // Menanyakannya ke :root di halaman non-modul menuduh rancangan yang benar.
+  const node = document.querySelector('[data-accent]') || document.documentElement;
+  const cs = getComputedStyle(node);
+  const kosong = used.filter(t => !cs.getPropertyValue(t).trim());
+  return { dipakai: used.length, kosong, beraksen: node !== document.documentElement };
+}"""
+
+
+@scenario("S43_primitif_ui2")
+def s43(pg):
+    """UI-2: primitif tata letak, skala huruf, dan token yang harus resolve di SETIAP tema.
+
+    Dijalankan di terang, gelap DAN cetak: paletnya hidup dalam lima salinan, jadi
+    sebuah token yang lupa disalin ke satu blok hanya terlihat di blok itu.
+    """
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/r/procurement/purchase-orders"); pg.wait_for_timeout(1800)
+    out = {"screen": assert_screen(pg, "#/r/procurement/purchase-orders", "Pesanan Pembelian")}
+
+    for tema in ("light", "dark"):
+        pg.evaluate("(t) => { document.documentElement.dataset.theme = t; }", tema); pg.wait_for_timeout(200)
+        out[tema] = pg.evaluate(UI2_MEASURE)
+
+    # Sapuan token pindah ke BERANDA MODUL: di sanalah [data-accent] hidup, jadi
+    # --module-accent* ikut terukur alih-alih dituduh hilang.
+    pg.goto(BASE + "#/m/fin"); pg.wait_for_timeout(1500)
+    for tema in ("light", "dark"):
+        pg.evaluate("(t) => { document.documentElement.dataset.theme = t; }", tema); pg.wait_for_timeout(200)
+        out[tema]["token"] = pg.evaluate(UI2_TOKENS)
+    pg.emulate_media(media="print")
+    pg.wait_for_timeout(200)
+    out["print"] = {"token": pg.evaluate(UI2_TOKENS)}
+    pg.emulate_media(media="screen")
+    pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+
+    # Gerbangnya di sini, bukan di mata pembaca laporan.
+    galat = []
+    for tema in ("light", "dark", "print"):
+        kosong = out[tema]["token"]["kosong"]
+        if kosong:
+            galat.append(f"{tema}: var() tak terdefinisi {kosong}")
+    for tema in ("light", "dark"):
+        m = out[tema]
+        if m["stack"]["gap"] != "12px":       galat.append(f"{tema}: .stack gap {m['stack']['gap']} != 12px")
+        if m["stack_tight"]["gap"] != "8px":  galat.append(f"{tema}: .stack.tight gap {m['stack_tight']['gap']} != 8px")
+        if m["stack_loose"]["gap"] != "16px": galat.append(f"{tema}: .stack.loose gap {m['stack_loose']['gap']} != 16px")
+        if m["row"]["gap"] != "8px":          galat.append(f"{tema}: .row gap {m['row']['gap']} != 8px")
+        if m["spacer"]["flexGrow"] != "1":    galat.append(f"{tema}: .spacer flex-grow {m['spacer']['flexGrow']} != 1")
+        if m["fs"]["caption"] != "11px":      galat.append(f"{tema}: .fs-caption {m['fs']['caption']} != 11px")
+        if m["fs"]["secondary"] != "12px":    galat.append(f"{tema}: .fs-secondary {m['fs']['secondary']} != 12px")
+        if m["fs"]["body"] != "13px":         galat.append(f"{tema}: .fs-body {m['fs']['body']} != 13px")
+        if m["fs"]["section"] != "14px":      galat.append(f"{tema}: .fs-section {m['fs']['section']} != 14px")
+        # empat sisanya HARUS tetap mewarisi — kalau salah satunya mulai menggigit,
+        # seseorang diam-diam menambah utilitas dan skalanya bocor jadi kosakata.
+        for k, v in m["fs_bukan_utilitas"].items():
+            if v != m["fs_warisan"]:
+                galat.append(f"{tema}: .fs-{k} kini sebuah utilitas ({v}) — hanya empat yang disengaja")
+        # .fs-* harus MENANG atas .mono — bukan sebaliknya
+        if m["mono_cascade"]["mono_secondary"] != "12px":
+            galat.append(f"{tema}: .mono.fs-secondary {m['mono_cascade']['mono_secondary']} != 12px — urutan .mono/.fs-* terbalik lagi")
+        if m["mono_cascade"]["mono_body"] != "13px":
+            galat.append(f"{tema}: .mono.fs-body {m['mono_cascade']['mono_body']} != 13px — urutan .mono/.fs-* terbalik lagi")
+        for sel, v in m["flat_shadow"].items():
+            if v not in (None, "none"):
+                galat.append(f"{tema}: {sel} masih berbayang ({v})")
+        t = m["table"]
+        if t["th_border_color"] and t["th_border_color"] != t["border_strong"]:
+            galat.append(f"{tema}: tepi th {t['th_border_color']} != --border-strong {t['border_strong']}")
+        if t["td_right_numeric"] not in (None, "tabular-nums"):
+            galat.append(f"{tema}: td.right font-variant-numeric {t['td_right_numeric']} != tabular-nums")
+    out["galat"] = galat
+    if galat:
+        FAILED.append("S43_primitif_ui2")
+    return out
+
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -12238,7 +12397,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

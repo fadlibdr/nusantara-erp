@@ -134,9 +134,8 @@ function renderOverview(host, overview, onPick) {
           ])),
           el('td.right.num', { text: fmt.rupiah(row.statement_closing) }),
           el('td.right.num', { text: fmt.rupiah(row.gl_balance) }),
-          el('td.right.num', {
+          el(`td.right.num${Number(row.opening_difference) ? '.tone-warn' : ''}`, {
             text: fmt.rupiah(row.opening_difference),
-            style: Number(row.opening_difference) ? { color: 'var(--warning)' } : {},
           }),
           el('td.right.num', { text: row.open_items === null || row.open_items === undefined ? '—' : String(row.open_items) }),
           el('td', row.blocked
@@ -410,11 +409,11 @@ function presetCard(form, preset, onDelete) {
       el('div', { text: 'Kolom dibaca dari preset; periode dan saldo tetap Anda ketik dari lembar rekening koran. '
         + 'Berkas yang judul kolomnya bergeser ditolak dengan menyebut kolomnya — bukan diimpor keliru-tetapi-seimbang.' }),
     ]),
-    el('.card-body', { style: { display: 'grid', gap: '4px', fontSize: '12px', minWidth: 0 } }, [
+    el('.card-body.fs-secondary', { style: { display: 'grid', gap: '4px', minWidth: 0 } }, [
       el('.muted', { text: `Disimpan ${preset.saved_at ? fmt.dateTime(preset.saved_at) : '—'}.` }),
       el('.muted.bank-preset-header', { style: { overflowWrap: 'anywhere' }, text: header ? `Judul kolom yang diingat: ${header}` : (preset.header_note || '') }),
       preset.mapping && (preset.mapping.balance_column === null || preset.mapping.balance_column === undefined)
-        ? el('div', { style: { color: 'var(--warning)' }, text: 'Preset ini tidak memetakan kolom saldo: berkas CSV rekening ini di folder terpantau tidak bisa diimpor otomatis; impor lewat layar ini.' })
+        ? el('div.tone-warn', { text: 'Preset ini tidak memetakan kolom saldo: berkas CSV rekening ini di folder terpantau tidak bisa diimpor otomatis; impor lewat layar ini.' })
         : null,
     ]),
     el('.form-grid', [
@@ -441,7 +440,7 @@ async function presetRegistryCard(host) {
   const presets = registry.presets || [];
   const headBadge = badge(registry.summary.label, registry.summary.verified === registry.summary.total ? 'green' : 'amber');
   Object.assign(headBadge.style, { whiteSpace: 'normal', height: 'auto' });
-  const text = { fontSize: '12px', minWidth: 0, overflowWrap: 'anywhere' };
+  const text = { minWidth: 0, overflowWrap: 'anywhere' };
 
   host.appendChild(el('.card', { style: { minWidth: 0 } }, [
     el('.card-head.bank-presets-head', { style: { flexWrap: 'wrap', rowGap: '6px' } }, [
@@ -455,14 +454,14 @@ async function presetRegistryCard(host) {
       'data-verified': String(Boolean(preset.verified)),
       style: { display: 'grid', gap: '4px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', minWidth: 0 },
     }, [
-      el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', minWidth: 0 } }, [
+      el('.cluster', { style: { minWidth: 0 } }, [
         el('strong', { style: { minWidth: 0, overflowWrap: 'anywhere' }, text: `${preset.label} — ${preset.bank}` }),
         (() => { const b = badge(preset.badge_label, preset.verified ? 'green' : 'amber'); Object.assign(b.style, { whiteSpace: 'normal', height: 'auto' }); return b; })(),
       ]),
-      el('.muted', { style: text, text: `Kanal: ${(preset.channels || []).join(' · ')}` }),
-      el('.muted.bank-preset-verification', { style: text, text: preset.verification }),
-      preset.awaiting_file ? el('.bank-preset-awaiting', { style: { ...text, color: 'var(--warning)' }, text: preset.awaiting_file }) : null,
-      preset.demo_note ? el('.muted.bank-preset-demo', { style: text, text: preset.demo_note }) : null,
+      el('.muted.fs-secondary', { style: text, text: `Kanal: ${(preset.channels || []).join(' · ')}` }),
+      el('.muted.bank-preset-verification.fs-secondary', { style: text, text: preset.verification }),
+      preset.awaiting_file ? el('.bank-preset-awaiting.fs-secondary.tone-warn', { style: text, text: preset.awaiting_file }) : null,
+      preset.demo_note ? el('.muted.bank-preset-demo.fs-secondary', { style: text, text: preset.demo_note }) : null,
     ]))),
   ]));
 }
@@ -926,7 +925,7 @@ function renderReconciliation(host, report) {
     ]),
     el('.stat', [
       el('.label', { text: 'Selisih belum dijelaskan' }),
-      el('.value.sm', { text: fmt.rupiah(b.residual), style: b.residual ? { color: 'var(--danger)' } : {} }),
+      el(`.value.sm${b.residual ? '.tone-neg' : ''}`, { text: fmt.rupiah(b.residual) }),
       el('.delta', { text: b.residual ? 'periksa data' : 'nihil' }),
     ]),
   ]));
@@ -1027,7 +1026,7 @@ function mismatchCard(rows) {
         el('td.right.num', { text: fmt.rupiah(row.statement_amount) }),
         el('td.code', { text: `${row.journal_code} · ${fmt.date(row.journal_date)}` }),
         el('td.right.num', { text: fmt.rupiah(row.journal_amount) }),
-        el('td.right.num', { text: fmt.rupiah(row.difference), style: { color: 'var(--danger)' } }),
+        el('td.right.num.tone-neg', { text: fmt.rupiah(row.difference) }),
       ]))),
     ])),
   ]);
@@ -1045,7 +1044,7 @@ function renderInbox(host, data, reload) {
     el('.stat.inbox-imported', [el('.label', { text: 'Diimpor' }), el('.value', { text: String(counts.imported || 0) })]),
     el('.stat.inbox-failed', [
       el('.label', { text: 'Gagal' }),
-      el('.value', { text: String(counts.failed || 0), style: counts.failed ? { color: 'var(--danger)' } : {} }),
+      el(`.value${counts.failed ? '.tone-neg' : ''}`, { text: String(counts.failed || 0) }),
     ]),
     el('.stat', [el('.label', { text: 'Salinan' }), el('.value', { text: String(counts.duplicate || 0) })]),
     el('.stat', [el('.label', { text: 'Diabaikan' }), el('.value', { text: String(counts.ignored || 0) })]),
@@ -1056,7 +1055,7 @@ function renderInbox(host, data, reload) {
       el('.delta', { text: 'stempel yang ditulis pemeriksaan, bukan jadwal' }),
     ]),
   ]));
-  host.appendChild(el('p.muted.inbox-counts-note', { style: { margin: '0 0 10px', fontSize: '12px' }, text: data.counts_note || '' }));
+  host.appendChild(el('p.muted.inbox-counts-note.fs-secondary', { style: { margin: '0 0 10px' }, text: data.counts_note || '' }));
 
   host.appendChild(el('.card.inbox-folder', [
     el('.card-head', [
@@ -1083,7 +1082,7 @@ function renderInbox(host, data, reload) {
     folder.note
       ? el('.alert.warn.inbox-folder-note', [icon('warn', 15), el('div', { text: folder.note })])
       : null,
-    el('.card-body', { style: { display: 'grid', gap: '6px', fontSize: '12px' } }, [
+    el('.card-body.fs-secondary', { style: { display: 'grid', gap: '6px' } }, [
       el('.muted', { text: `Tata letak: ${folder.layout}. Jalurnya diatur administrator lewat ${folder.configured_via} di .env server.` }),
       el('.muted', { text: 'Berkas diletakkan ke folder ini oleh administrator dari luar aplikasi (scp/rclone/salinan manual). '
         + 'Aplikasi hanya membaca: berkas tidak dipindah, tidak diganti nama, tidak dihapus — pembersihan folder adalah pekerjaan pemilik.' }),

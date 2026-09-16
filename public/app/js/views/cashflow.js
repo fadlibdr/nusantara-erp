@@ -41,7 +41,7 @@ function activityCard(key, activity) {
     el('.card-head', [
       el('h2', { text: ACTIVITY_LABELS[key] }),
       el('.spacer'),
-      el('span.num', { text: fmt.rupiah(activity.total), style: { fontWeight: '700' } }),
+      el('span.num.strong', { text: fmt.rupiah(activity.total) }),
     ]),
     activity.rows.length
       ? el('.table-wrap', el('table.data', [
@@ -51,7 +51,7 @@ function activityCard(key, activity) {
           el('th.right', { text: 'Neto' }),
         ])),
         el('tbody', activity.rows.map((row) => el('tr', [
-          el('td.code', { text: row.account_code, style: { width: '1%' } }),
+          el('td.code.col-min', { text: row.account_code }),
           el('td', showJournals
             ? [
               el('span', { text: row.account_name }),
@@ -61,7 +61,7 @@ function activityCard(key, activity) {
           moneyCell(row.inflow), moneyCell(row.outflow), moneyCell(row.net),
         ]))),
       ]))
-      : el('.card-body', el('p.muted', { text: 'Tidak ada arus.', style: { margin: 0 } })),
+      : el('.card-body', el('p.muted', { text: 'Tidak ada arus.' })),
   ]);
 }
 
@@ -79,18 +79,12 @@ export async function cashFlowStatement(controls, params, refresh) {
   const act = report.activities;
   const lainnyaMoved = act.lainnya.rows.length > 0;
 
-  const line = (label, value, { strong = false, tone } = {}) => el('div', {
-    style: {
-      display: 'flex', justifyContent: 'space-between', gap: '16px',
-      padding: strong ? '11px 0' : '6px 0',
-      borderTop: strong ? '1px solid var(--border)' : 'none',
-      fontWeight: strong ? '700' : '400',
-      fontSize: strong ? '14px' : '13px',
-      color: tone === 'bad' ? 'var(--danger)' : (tone === 'good' ? 'var(--success)' : 'inherit'),
-    },
-  }, [el('span', { text: label }), el('span.num', { text: fmt.rupiah(value) })]);
+  const line = (label, value, { strong = false, tone } = {}) => el(
+    `.fin-line${strong ? '.total' : ''}${tone === 'bad' ? '.tone-neg' : (tone === 'good' ? '.tone-pos' : '')}`,
+    [el('span', { text: label }), el('span.num', { text: fmt.rupiah(value) })],
+  );
 
-  return el('div', [
+  return el('.stack.loose', [
     el(`.alert.${report.reconciled ? 'info' : 'error'}`, [
       icon(report.reconciled ? 'check' : 'warn', 15),
       el('div', {
@@ -100,7 +94,7 @@ export async function cashFlowStatement(controls, params, refresh) {
       }),
     ]),
     lainnyaMoved
-      ? el('.alert.warn', { style: { marginTop: '10px' } }, [
+      ? el('.alert.warn', [
         icon('warn', 15),
         el('div', {
           text: `Ada ${act.lainnya.rows.length} akun lawan yang belum terpetakan ke aktivitas PSAK 2 `
@@ -108,11 +102,11 @@ export async function cashFlowStatement(controls, params, refresh) {
         }),
       ])
       : null,
-    el('.stat-row', { style: { marginTop: '14px' } }, [
+    el('.stat-row', [
       el('.stat', [el('.label', { text: 'Saldo awal kas' }), el('.value.sm', { text: fmt.rupiah(report.opening_balance) })]),
       el('.stat', [
         el('.label', { text: 'Perubahan neto' }),
-        el('.value.sm', { text: fmt.rupiah(report.net_change), style: { color: report.net_change < 0 ? 'var(--danger)' : 'var(--success)' } }),
+        el(`.value.sm.${report.net_change < 0 ? 'tone-neg' : 'tone-pos'}`, { text: fmt.rupiah(report.net_change) }),
       ]),
       el('.stat', [el('.label', { text: 'Saldo akhir kas' }), el('.value.sm', { text: fmt.rupiah(report.closing_balance) })]),
     ]),
@@ -140,13 +134,13 @@ export async function cashFlowStatement(controls, params, refresh) {
           el('th.right', { text: 'Saldo awal' }), el('th.right', { text: 'Saldo akhir' }),
         ])),
         el('tbody', report.accounts.map((row) => el('tr', [
-          el('td.code', { text: row.account_code, style: { width: '1%' } }),
+          el('td.code.col-min', { text: row.account_code }),
           el('td', { text: row.account_name }),
           moneyCell(row.opening), moneyCell(row.closing),
         ]))),
       ])),
     ]),
-    el('.alert.info', { style: { marginTop: '14px' } }, [
+    el('.alert.info', [
       icon('warn', 15),
       el('div', report.policy.map((sentence) => el('div', { text: sentence }))),
     ]),
@@ -172,14 +166,14 @@ export async function cashProjection(controls, params, refresh) {
   const weekly = report.buckets.filter((bucket) => bucket.key !== 'overdue');
   const overdueBucket = report.buckets.find((bucket) => bucket.key === 'overdue');
 
-  return el('div', [
+  return el('.stack.loose', [
     report.warnings.length
       ? el('.alert.error', [
         icon('warn', 15),
         el('div', report.warnings.map((warning) => el('div', { text: warning }))),
       ])
       : null,
-    el('.stat-row', { style: { marginTop: report.warnings.length ? '14px' : '0' } }, [
+    el('.stat-row', [
       el('.stat', [
         el('.label', { text: 'Saldo kas hari ini' }),
         el('.value.sm', { text: fmt.rupiah(report.opening.total) }),
@@ -190,7 +184,7 @@ export async function cashProjection(controls, params, refresh) {
         el('.label', { text: 'Titik terendah' }),
         el('.value.sm', {
           text: fmt.rupiah(report.lowest.balance),
-          style: { color: report.lowest.balance < 0 ? 'var(--danger)' : 'inherit' },
+          class: report.lowest.balance < 0 ? 'tone-neg' : '',
         }),
         el('.delta', { text: `minggu ${report.lowest.label}` }),
       ]),
@@ -198,7 +192,7 @@ export async function cashProjection(controls, params, refresh) {
         el('.label', { text: `Saldo akhir (${report.days} hari)` }),
         el('.value.sm', {
           text: fmt.rupiah(report.ending_balance),
-          style: { color: report.ending_balance < 0 ? 'var(--danger)' : 'var(--success)' },
+          class: report.ending_balance < 0 ? 'tone-neg' : 'tone-pos',
         }),
       ]),
     ]),
@@ -216,9 +210,9 @@ export async function cashProjection(controls, params, refresh) {
           // Baris telat digambar beda dan tanpa saldo: piutangnya TIDAK ikut
           // saldo berjalan, hutangnya sudah dibebankan ke minggu pertama.
           overdueBucket
-            ? el('tr', { style: { background: 'var(--surface-2, rgba(0,0,0,0.03))' } }, [
+            ? el('tr.emphasis', [
               el('td', [
-                el('span', { text: overdueBucket.label, style: { fontWeight: '600' } }),
+                el('span.strong', { text: overdueBucket.label }),
                 el('span.cell-sub', {
                   text: `piutang ${report.overdue.ar.count} dok · hutang ${report.overdue.ap.count} dok`
                     + (report.overdue.ar.oldest_days ? ` · terlama ${report.overdue.ar.oldest_days} hari` : ''),
@@ -237,14 +231,11 @@ export async function cashProjection(controls, params, refresh) {
             moneyCell(week.outflow_tax), moneyCell(week.outflow_payments_approved),
             el('td.right.num', {
               text: fmt.rupiah(week.net),
-              style: { color: week.net < 0 ? 'var(--danger)' : 'inherit' },
+              class: week.net < 0 ? 'tone-neg' : '',
             }),
-            el('td.right.num', {
+            el('td.right.num.strong', {
               text: fmt.rupiah(week.running_balance),
-              style: {
-                fontWeight: '600',
-                color: week.running_balance < 0 ? 'var(--danger)' : 'inherit',
-              },
+              class: week.running_balance < 0 ? 'tone-neg' : '',
             }),
           ])),
         ]),
@@ -271,10 +262,10 @@ export async function cashProjection(controls, params, refresh) {
         ])),
       ])
       : null,
-    el('.alert.info', { style: { marginTop: '14px' } }, [
+    el('.alert.info', [
       icon('warn', 15),
-      el('div', [
-        el('div', { text: 'Asumsi proyeksi:', style: { fontWeight: '600', marginBottom: '4px' } }),
+      el('.stack.tight', [
+        el('.strong', { text: 'Asumsi proyeksi:' }),
         ...report.assumptions.map((sentence) => el('div', { text: `• ${sentence}` })),
       ]),
     ]),

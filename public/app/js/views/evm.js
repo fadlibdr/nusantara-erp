@@ -43,7 +43,7 @@ import { lineChart, chartWidth } from '../charts.js';
 
 /* ------------------------------------------------------------------ helpers */
 
-const TONE = { up: 'var(--success)', down: 'var(--danger)', warn: 'var(--warning)' };
+const TONE_CLASS = { up: 'tone-pos', down: 'tone-neg', warn: 'tone-warn' };
 
 const idx4 = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 
@@ -69,18 +69,18 @@ function exact(value) {
  */
 function indexTile(label, value, { note, basis, tone, decimals = 4 } = {}) {
   const missing = value === null || value === undefined;
-  const colour = TONE[tone] || null;
+  const toneClass = TONE_CLASS[tone] || null;
 
   return el('.stat', [
     el('.label', { text: label }),
     el('.value', {
+      class: toneClass && !missing ? toneClass : '',
       text: missing
         ? '—'
         : new Intl.NumberFormat('id-ID', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(Number(value)),
-      style: colour && !missing ? { color: colour } : null,
     }),
     missing || note
-      ? el('.delta', { text: note || '', style: colour ? { color: colour } : null })
+      ? el('.delta', { class: toneClass || '', text: note || '' })
       : null,
     basis ? el('.delta.muted', { text: basis }) : null,
   ]);
@@ -90,13 +90,13 @@ function moneyTile(label, value, sub, { tone } = {}) {
   // Angka yang tidak ada tidak boleh berwarna. VAC null (karena CPI tidak dapat
   // dihitung) pernah tampil sebagai "—" berwarna hijau, yang terbaca sebagai
   // "hemat" padahal artinya "tidak diketahui".
-  const colour = value === null || value === undefined ? null : (TONE[tone] || null);
+  const toneClass = value === null || value === undefined ? null : (TONE_CLASS[tone] || null);
 
   return el('.stat', [
     el('.label', { text: label }),
     // Ringkas di kartu, angka penuhnya di tooltip: "Rp 26.023.834.782,60"
     // tidak muat di petak 158px dan yang dibaca sekilas memang ordenya.
-    el('.value.sm', { text: money(value), title: exact(value), style: colour ? { color: colour } : null }),
+    el('.value.sm', { class: toneClass || '', text: money(value), title: exact(value) }),
     sub ? el('.delta', { text: sub }) : null,
   ]);
 }
@@ -492,9 +492,9 @@ export async function evmCard(projectId, prefetched) {
   ]));
 
   if (!m.cpi_reliable && coverage.warning) {
-    body.appendChild(el('p.muted', {
+    body.appendChild(el('p.muted.fs-body', {
       text: coverage.warning,
-      style: { margin: '2px 0 12px', fontSize: '12.5px' },
+      style: { margin: '2px 0 12px' },
     }));
   }
 
@@ -504,7 +504,7 @@ export async function evmCard(projectId, prefetched) {
 
     const sourceNote = curveSourceNote(report.curve);
     if (sourceNote) {
-      body.appendChild(el('p.muted', { text: sourceNote, style: { margin: '6px 0 0', fontSize: '12.5px' } }));
+      body.appendChild(el('p.muted.fs-body', { text: sourceNote, style: { margin: '6px 0 0' } }));
     }
   }
 
@@ -516,18 +516,18 @@ export async function evmCard(projectId, prefetched) {
     },
   }, [
     el('div', { style: { display: 'flex', gap: '18px', flexWrap: 'wrap', marginBottom: '6px' } }, [
-      el('span', { text: `Progres fisik (WBS): ${fmt.percent(bridge.physical_pct)}`, style: { fontSize: '13px' } }),
-      el('span', { text: `Penyelesaian PSAK 115: ${fmt.percent(bridge.poc_pct)}`, style: { fontSize: '13px' } }),
+      el('span.fs-body', { text: `Progres fisik (WBS): ${fmt.percent(bridge.physical_pct)}` }),
+      el('span.fs-body', { text: `Penyelesaian PSAK 115: ${fmt.percent(bridge.poc_pct)}` }),
       badge(bridge.poc_source === 'posted_run' ? `Run ${bridge.poc_run_code}` : 'Belum ada run diposting',
         bridge.poc_source === 'posted_run' ? 'green' : ''),
     ]),
-    el('p.muted', { text: bridge.explanation || '', style: { margin: 0, fontSize: '12.5px' } }),
+    el('p.muted.fs-body', { text: bridge.explanation || '', style: { margin: 0 } }),
   ]));
 
   const warnings = report.warnings || [];
   if (warnings.length) {
-    body.appendChild(el('ul', {
-      style: { margin: '12px 0 0', paddingLeft: '18px', fontSize: '12.5px', color: 'var(--text-2)' },
+    body.appendChild(el('ul.fs-body', {
+      style: { margin: '12px 0 0', paddingLeft: '18px', color: 'var(--text-2)' },
     }, warnings.map((text) => el('li', { text }))));
   }
 
@@ -567,7 +567,7 @@ export async function baselineCard(projectId, onChanged) {
   const renderRow = (row) => el('div', {
     style: { padding: '8px 0', borderBottom: '1px solid var(--border)' },
   }, [
-    el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
+    el('.cluster', [
       el('span.mono', { text: row.code, style: { fontSize: '12.5px' } }),
       badge(`rev ${row.revision_no}`),
       badge(row.status_label || row.status, fmt.statusTone(row.status)),
@@ -598,9 +598,9 @@ export async function baselineCard(projectId, onChanged) {
       ? el('.card-body', el('p.muted', { text: 'Anda tidak memiliki hak akses prj.view untuk melihat baseline.', style: { margin: 0 } }))
       : (rows.length
         ? el('div', { style: { padding: '4px 16px 12px' } }, rows.map(renderRow))
-        : el('.card-body', el('p.muted', {
+        : el('.card-body', el('p.muted.fs-body', {
           text: 'Belum ada baseline. Bekukan rencana WBS dan RAP agar SPI dan CPI punya pembanding yang tidak bisa diubah diam-diam.',
-          style: { margin: 0, fontSize: '13px' },
+          style: { margin: 0 },
         }))),
   ]);
 }
@@ -733,27 +733,27 @@ function portfolioView(host, payload, onPick) {
           el('td.right.num', { text: money(row.ev), title: exact(row.ev) }),
           el('td.right.num', { text: money(row.ac), title: exact(row.ac) }),
           el('td.right.num.strong', {
+            class: row.spi === null || row.spi === undefined ? '' : (TONE_CLASS[indexTone(row.spi)] || ''),
             text: row.spi === null || row.spi === undefined ? '—' : idx4.format(Number(row.spi)),
-            style: row.spi === null || row.spi === undefined ? null : { color: TONE[indexTone(row.spi)] },
           }),
           // Peringatan "biaya belum lengkap" hanya dipasang kalau ADA angkanya.
           // Proyek tanpa baseline juga membawa cpi_reliable=false, dan tooltip
           // itu di atas tanda "—" menjelaskan hal yang bukan penyebabnya.
           el('td.right.num.strong', {
+            class: row.cpi === null || row.cpi === undefined
+              ? ''
+              : (TONE_CLASS[indexTone(row.cpi, row.cpi_reliable)] || ''),
             text: row.cpi === null || row.cpi === undefined ? '—' : idx4.format(Number(row.cpi)),
             title: row.cpi !== null && row.cpi !== undefined && !row.cpi_reliable
               ? 'Biaya aktual belum lengkap — CPI belum dapat dipercaya.'
               : null,
-            style: row.cpi === null || row.cpi === undefined
-              ? null
-              : { color: TONE[indexTone(row.cpi, row.cpi_reliable)] },
           }),
           el('td.right.num', {
+            class: row.sv === null || row.sv === undefined
+              ? ''
+              : (Number(row.sv) < 0 ? 'tone-neg' : 'tone-pos'),
             text: money(row.sv),
             title: exact(row.sv),
-            style: row.sv === null || row.sv === undefined
-              ? null
-              : { color: Number(row.sv) < 0 ? 'var(--danger)' : 'var(--success)' },
           }),
         ]);
         node.addEventListener('click', () => onPick(row.project_id));
@@ -790,21 +790,21 @@ function coverageCard(coverage) {
           el('td', { text: category.label }),
           el('td.right.num', { text: money(budget[category.value]), title: exact(budget[category.value]) }),
           el('td.right.num', {
+            class: isEmpty ? 'tone-warn' : '',
             text: money(actual[category.value]),
             title: exact(actual[category.value]),
-            style: isEmpty ? { color: 'var(--warning)' } : null,
           }),
           el('td', isEmpty ? badge('Dianggarkan, belum tercatat', 'amber') : null),
         ]);
       })),
     ])),
-    el('.card-body', el('p.muted', {
+    el('.card-body', el('p.muted.fs-body', {
       // Realisasi sengaja dijumlah untuk SELURUH tanggal, bukan sampai tanggal
       // laporan: kategori yang nol sepanjang waktu pasti nol pada tanggal itu,
       // jadi jendela yang lebih lebar tidak pernah melemahkan peringatannya.
       text: coverage.warning
         || 'Setiap kategori yang dianggarkan sudah punya realisasi, sehingga CPI mengukur efisiensi biaya yang sebenarnya.',
-      style: { margin: 0, fontSize: '12.5px' },
+      style: { margin: 0 },
     })),
   ]);
 }
@@ -841,7 +841,7 @@ function bridgeCard(bridge) {
             : 'Proyek ini saja',
         }),
       ]),
-      el('p.muted', { text: bridge.explanation || '', style: { margin: '10px 0 0', fontSize: '12.5px' } }),
+      el('p.muted.fs-body', { text: bridge.explanation || '', style: { margin: '10px 0 0' } }),
       // boundary_day_amounts adalah daftar NILAI (float), bukan daftar objek —
       // ia berasal dari pluck('amount'). Menjumlahkan item.amount di sini akan
       // selalu menghasilkan Rp 0 dan menyembunyikan justru selisih yang
@@ -865,11 +865,11 @@ function deviationCard(deviation) {
   if (!deviation.is_rebaselined) {
     return el('.card', [
       el('.card-head', el('h2', { text: 'Penyimpangan dari baseline awal' })),
-      el('.card-body', el('p.muted', {
+      el('.card-body', el('p.muted.fs-body', {
         text: `Proyek ini masih memakai baseline aslinya (${deviation.original_baseline_code}, revisi 0). `
           + 'Belum pernah ada re-baseline, jadi seluruh deviasi jadwal di atas diukur terhadap rencana '
           + 'yang disepakati sejak awal.',
-        style: { margin: 0, fontSize: '13px' },
+        style: { margin: 0 },
       })),
     ]);
   }
@@ -885,10 +885,10 @@ function deviationCard(deviation) {
     ['Selesai rencana — awal', fmt.date(deviation.original_planned_finish)],
     ['Selesai rencana — sekarang', fmt.date(deviation.planned_finish)],
     ['Selesai menurut kontrak', fmt.date(deviation.contract_finish)],
-  ], el('p.muted', {
+  ], el('p.muted.fs-body', {
     text: 'Inilah berkas bukti yang dipakai untuk klaim perpanjangan waktu atau pembelaan atas denda '
       + 'keterlambatan: revisi 0 tidak pernah dihapus, jadi rencana asli selalu bisa ditunjukkan.',
-    style: { margin: '10px 0 0', fontSize: '12.5px' },
+    style: { margin: '10px 0 0' },
   }));
 }
 
@@ -909,24 +909,24 @@ function scopeDriftCard(drift) {
         el('dd.num', { text: fmt.percent(drift.baseline_progress_pct, { decimals: 4 }) }),
       ]),
       removed.length
-        ? el('p', {
+        ? el('p.fs-body', {
           text: `Ada di baseline tetapi sudah tidak ada di WBS: ${removed.join(', ')}. `
             + 'Bobotnya dihitung nol — menghapus paket pekerjaan bukan cara menyelesaikannya.',
-          style: { margin: '10px 0 0', fontSize: '13px' },
+          style: { margin: '10px 0 0' },
         })
         : null,
       added.length
-        ? el('p', {
+        ? el('p.fs-body', {
           text: `Ada di WBS tetapi tidak ada di baseline: ${added.join(', ')}. `
             + 'Lingkup baru belum menghasilkan nilai sampai baseline barunya disetujui.',
-          style: { margin: '8px 0 0', fontSize: '13px' },
+          style: { margin: '8px 0 0' },
         })
         : null,
-      el('p.muted', {
+      el('p.muted.fs-body', {
         text: 'EVM memakai bobot beku dengan sengaja: kalau bobot boleh diubah setelah rencana disetujui, '
           + 'menambah bobot pada pekerjaan yang sudah selesai akan menaikkan nilai diperoleh tanpa satu pun '
           + 'pekerjaan tambahan di lapangan.',
-        style: { margin: '10px 0 0', fontSize: '12.5px' },
+        style: { margin: '10px 0 0' },
       }),
     ]),
   ]);
@@ -1017,11 +1017,11 @@ function reportView(host, report, ctx) {
           tone: m.cpi_reliable ? (Number(m.vac) < 0 ? 'down' : 'up') : 'warn',
         }),
       ]),
-      el('p.muted', {
+      el('p.muted.fs-body', {
         text: 'Buku besar TIDAK memakai angka ini. Pengakuan pendapatan PSAK 115 memakai EAC dari RAP '
           + '(atau override manajemen), dan itu memang keputusan yang harus ditinjau manusia — bukan '
           + 'hasil bagi statistik. Kedua ramalan sengaja ditampilkan berdampingan dengan nama berbeda.',
-        style: { margin: '12px 0 0', fontSize: '12.5px' },
+        style: { margin: '12px 0 0' },
       }),
     ]),
   ]));
@@ -1037,17 +1037,17 @@ function reportView(host, report, ctx) {
       ? el('div', [
         // Legendanya di dalam svg sejak P1-E.
         curve,
-        el('p.muted', {
+        el('p.muted.fs-body', {
           text: (report.curve || {}).reason
             || 'Garis rencana adalah kurva yang dibekukan dari bobot dan tanggal WBS pada saat baseline '
               + 'disetujui, dan titik terakhirnya memakai agregat bobot beku yang juga dipakai seluruh '
               + 'angka di atas.',
-          style: { margin: '10px 0 0', fontSize: '12.5px' },
+          style: { margin: '10px 0 0' },
         }),
         curveSourceNote(report.curve)
-          ? el('p.muted', {
+          ? el('p.muted.fs-body', {
             text: curveSourceNote(report.curve),
-            style: { margin: '6px 0 0', fontSize: '12.5px' },
+            style: { margin: '6px 0 0' },
           })
           : null,
       ])
@@ -1086,8 +1086,8 @@ function reportView(host, report, ctx) {
         el('.spacer'),
         badge(`${warnings.length} catatan`, 'amber'),
       ]),
-      el('.card-body', el('ul', {
-        style: { margin: 0, paddingLeft: '18px', fontSize: '13px', color: 'var(--text-2)' },
+      el('.card-body', el('ul.fs-body', {
+        style: { margin: 0, paddingLeft: '18px', color: 'var(--text-2)' },
       }, warnings.map((text) => el('li', { text, style: { marginBottom: '5px' } })))),
     ]));
   }
@@ -1155,8 +1155,9 @@ function baselineDetail(detail) {
           el('td.code', { text: task.wbs_code || '' }),
           el('td', el('span', [
             el('span.cell-main', {
+              class: gone ? 'muted' : '',
               text: task.name,
-              style: gone ? { textDecoration: 'line-through', color: 'var(--muted)' } : null,
+              style: gone ? { textDecoration: 'line-through' } : null,
             }),
             gone ? el('span.cell-sub', { text: 'sudah tidak ada di WBS — bobotnya dihitung nol' }) : null,
             crossed ? el('span.cell-sub', {
@@ -1174,10 +1175,10 @@ function baselineDetail(detail) {
       })),
     ])),
     points.length
-      ? el('.card-body', { style: { paddingBottom: '0' } }, el('p.muted', {
+      ? el('.card-body', { style: { paddingBottom: '0' } }, el('p.muted.fs-body', {
         text: 'Titik kurva beku. Inilah yang menjadi nilai rencana (PV) pada setiap tanggal laporan — '
           + 'bukan kolom rencana pada laporan progres mingguan.',
-        style: { margin: 0, fontSize: '12.5px' },
+        style: { margin: 0 },
       }))
       : null,
     points.length

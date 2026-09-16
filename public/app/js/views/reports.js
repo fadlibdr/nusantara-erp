@@ -50,7 +50,7 @@ function sectionTable(title, rows, total, { negate = false } = {}) {
     rows.length
       ? el('.table-wrap', el('table.data', [
         el('tbody', rows.map((row) => el('tr', [
-          el('td.code', { text: row.account_code || '', style: { width: '1%' } }),
+          el('td.code.col-min', { text: row.account_code || '' }),
           el('td', { text: row.account_name }),
           moneyCell(negate ? -row.amount : (row.amount ?? row.balance)),
         ]))),
@@ -96,7 +96,7 @@ async function trialBalance(host, controls) {
       icon('warn', 15),
       el('div', { text: `Periode ${fmt.periodLabel(report.year, report.month)} — ${report.balanced ? 'buku seimbang.' : 'PERHATIAN: debit dan kredit tidak seimbang.'}` }),
     ]),
-    el('.card', { style: { marginTop: '14px' } }, el('.table-wrap', el('table.data', [
+    el('.card', el('.table-wrap', el('table.data', [
       el('thead', el('tr', [
         el('th', { text: 'Kode' }), el('th', { text: 'Akun' }),
         el('th.right', { text: 'Saldo awal D' }), el('th.right', { text: 'Saldo awal K' }),
@@ -157,16 +157,16 @@ async function profitLoss(host, controls) {
     };
   }));
 
-  const line = (label, value, { strong = false, tone } = {}) => el('div', {
-    style: {
-      display: 'flex', justifyContent: 'space-between', gap: '16px',
-      padding: strong ? '11px 0' : '6px 0',
-      borderTop: strong ? '1px solid var(--border)' : 'none',
-      fontWeight: strong ? '700' : '400',
-      fontSize: strong ? '14px' : '13px',
-      color: tone === 'bad' ? 'var(--danger)' : (tone === 'good' ? 'var(--success)' : 'inherit'),
-    },
-  }, [el('span', { text: label }), el('span.num', { text: fmt.rupiah(value) })]);
+  const line = (label, value, { strong = false, tone } = {}) => el(
+    `div${strong ? '.fs-section' : '.fs-body'}${tone === 'bad' ? '.tone-neg' : (tone === 'good' ? '.tone-pos' : '')}`,
+    {
+      style: {
+        display: 'flex', justifyContent: 'space-between', gap: '16px',
+        padding: strong ? '11px 0' : '6px 0',
+        borderTop: strong ? '1px solid var(--border)' : 'none',
+        fontWeight: strong ? '700' : '400',
+      },
+    }, [el('span', { text: label }), el('span.num', { text: fmt.rupiah(value) })]);
 
   return el('div', [
     el('.stat-row', [
@@ -174,7 +174,7 @@ async function profitLoss(host, controls) {
       el('.stat', [el('.label', { text: 'Laba kotor' }), el('.value.sm', { text: fmt.rupiah(report.gross_profit) })]),
       el('.stat', [
         el('.label', { text: 'Laba bersih' }),
-        el('.value.sm', { text: fmt.rupiah(report.net_profit), style: { color: report.net_profit < 0 ? 'var(--danger)' : 'var(--success)' } }),
+        el(`.value.sm${report.net_profit < 0 ? '.tone-neg' : '.tone-pos'}`, { text: fmt.rupiah(report.net_profit) }),
       ]),
     ]),
     sectionTable('Pendapatan', report.revenue.rows, report.revenue.total),
@@ -325,7 +325,7 @@ async function projectProfitability(host, controls) {
       el('.stat', [el('.label', { text: 'Realisasi biaya' }), el('.value.sm', { text: fmt.rupiah(report.total_cost) })]),
       el('.stat', [
         el('.label', { text: 'Margin' }),
-        el('.value.sm', { text: fmt.rupiah(report.margin), style: { color: report.margin < 0 ? 'var(--danger)' : 'var(--success)' } }),
+        el(`.value.sm${report.margin < 0 ? '.tone-neg' : '.tone-pos'}`, { text: fmt.rupiah(report.margin) }),
         report.margin_pct !== null ? el('.delta', { text: fmt.percent(report.margin_pct) }) : null,
       ]),
       report.total_budget !== null
@@ -335,7 +335,7 @@ async function projectProfitability(host, controls) {
     el('.card', [
       el('.card-head', el('h2', { text: 'Realisasi vs anggaran per kategori' })),
       el('.card-body', report.costs.map((cost) => el('div', { style: { padding: '8px 0', borderBottom: '1px solid var(--border)' } }, [
-        el('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' } }, [
+        el('div.fs-body', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '5px' } }, [
           el('b', { text: cost.label }),
           el('span.num', {
             text: cost.budget !== null

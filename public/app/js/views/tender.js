@@ -183,7 +183,7 @@ function tkdnItemRows(summary, worksheet, editable, onEdit, onRemove) {
   const nodes = [];
 
   for (const item of summary.items || []) {
-    nodes.push(el('tr', { style: { background: 'var(--surface-2)' } }, [
+    nodes.push(el('tr.emphasis', [
       el('td', { colspan: '4' }, [
         el('strong', { text: textOr(item.description) }),
         el('.cell-sub', { text: `Baris penawaran #${item.quotation_item_id} · ${money(item.amount)}` }),
@@ -565,7 +565,7 @@ function ibprpTable(rows) {
           el('td', { text: textOr(row.controls) }),
           el('td.right.num', { text: textOr(row.residual_score) }),
         ])
-        : el('tr', { style: { color: 'var(--warning)' } }, [
+        : el('tr.tone-warn', [
           el('td', { colspan: '8' }, [
             el('strong', { text: `Baris register #${row.risk_entry_id}: sumber tidak ditemukan.` }),
             el('.cell-sub', {
@@ -595,7 +595,7 @@ function smkkTable(rows, total) {
         el('th.right', { text: 'Jumlah' }),
       ])),
       el('tbody', rows.length
-        ? rows.map((row) => el('tr', row.available ? {} : { style: { color: 'var(--warning)' } }, [
+        ? rows.map((row) => el(`tr${row.available ? '' : '.tone-warn'}`, [
           el('td', { text: textOr(row.category) }),
           el('td.mono', { text: textOr(row.wbs_code) }),
           el('td', row.available
@@ -645,7 +645,7 @@ function pickerDialog({ title, help, rows, checkedIds, idOf, render, extraOf, tr
   const dropped = [...checkedIds].filter((rowId) => !shown.has(rowId));
 
   const body = el('div', [
-    el('p', { style: { margin: '0 0 12px', color: 'var(--text-2)', fontSize: '13px', lineHeight: '1.6' }, text: help }),
+    el('p.fs-body', { style: { margin: '0 0 12px', color: 'var(--text-2)', lineHeight: '1.6' }, text: help }),
     truncated
       ? el('.alert.warn', { style: { marginBottom: '12px' } }, [
         icon('warn', 15),
@@ -778,8 +778,8 @@ export async function renderRkkDocument(host, { id }) {
         : null,
     ]),
     ibprpTable(ibprpRows),
-    el('.card-body', el('p.muted', {
-      style: { margin: 0, fontSize: '12px' },
+    el('.card-body', el('p.muted.fs-secondary', {
+      style: { margin: 0 },
       text: 'Nilai F, A dan risiko sisa dibaca dari register saat halaman ini dibuka dan saat F/RKK dicetak — '
         + 'tidak disalin saat menaut, jadi lembar ini tidak bisa membeku pada penilaian yang sudah direvisi.',
     })),
@@ -802,8 +802,8 @@ export async function renderRkkDocument(host, { id }) {
         : null,
     ]),
     smkkTable(smkkRows, rkk.smkk_total),
-    el('.card-body', el('p.muted', {
-      style: { margin: 0, fontSize: '12px' },
+    el('.card-body', el('p.muted.fs-secondary', {
+      style: { margin: 0 },
       text: rkk.boq_id
         ? 'Rupiah pada tabel ini adalah nilai baris RAB yang ditunjuk. Tidak ada kotak rupiah pada pemilihnya '
           + 'dan tidak ada angka kedua yang disimpan di sisi RKK — lembar ini tidak bisa berselisih dengan '
@@ -838,9 +838,9 @@ async function openIbprpPicker(rkk, currentRows, reload) {
         + 'di sini; persempit registernya di layar Register IBPRP lebih dulu.'
       : null,
     render: (row) => el('div', [
-      el('strong', { text: textOr(row.activity), style: { fontSize: '13px' } }),
-      el('.muted', {
-        style: { fontSize: '12px', marginTop: '2px', lineHeight: '1.55' },
+      el('strong.fs-body', { text: textOr(row.activity) }),
+      el('.muted.fs-secondary', {
+        style: { marginTop: '2px', lineHeight: '1.55' },
         text: `${textOr(row.hazard)} · F×A ${textOr(row.initial_score)} · risiko sisa ${textOr(row.residual_score)}`,
       }),
     ]),
@@ -878,9 +878,9 @@ async function openSmkkPicker(rkk, currentRows, reload) {
     checkedIds: new Set(existing.keys()),
     idOf: (row) => row.id,
     render: (row) => el('div', [
-      el('strong', { text: `${textOr(row.wbs_code)} · ${textOr(row.description)}`, style: { fontSize: '13px' } }),
-      el('.muted', {
-        style: { fontSize: '12px', marginTop: '2px' },
+      el('strong.fs-body', { text: `${textOr(row.wbs_code)} · ${textOr(row.description)}` }),
+      el('.muted.fs-secondary', {
+        style: { marginTop: '2px' },
         text: `${fmt.num(row.qty, 2)} ${textOr(row.unit)} × ${money(row.unit_price)} = ${money(row.amount)}`,
       }),
     ]),
@@ -1118,7 +1118,7 @@ export async function renderKualifikasi(host) {
           el('th', { text: 'Lewat sejak' }),
           el('th.right', { text: 'Hari lewat' }),
         ])),
-        el('tbody', kedaluwarsa.map((row) => el('tr', { style: { color: 'var(--warning)' } }, [
+        el('tbody', kedaluwarsa.map((row) => el('tr.tone-warn', [
           el('td', { text: textOr(row.employee_name) }),
           el('td', { text: textOr(row.certificate_type_label || row.certificate_type) }),
           el('td', { text: textOr(row.certificate_name) }),
@@ -1128,8 +1128,8 @@ export async function renderKualifikasi(host) {
         ]))),
       ]))
       : el('.card-body', el('p.muted', { style: { margin: 0 }, text: 'Tidak ada sertifikat yang kedaluwarsa pada tanggal ini.' })),
-    el('.card-body', el('p.muted', {
-      style: { margin: 0, fontSize: '12px' },
+    el('.card-body', el('p.muted.fs-secondary', {
+      style: { margin: 0 },
       text: 'Baris di sini TIDAK tercetak pada F/SBD — sebuah lembar yang menyatakan seorang ahli bersedia '
         + 'ditugaskan tidak boleh berdiri di atas sertifikat yang sudah lewat. Ia berdiri di sini supaya ada '
         + 'yang sempat memperpanjangnya sebelum batas pemasukan, bukan supaya bisa diabaikan.',
@@ -1170,8 +1170,8 @@ export async function renderKualifikasi(host) {
         ]))
         : el('tr', el('td', { colspan: '8', class: 'muted', text: 'Belum ada peralatan tercatat pada register aset.' }))),
     ])),
-    el('.card-body', el('p.muted', {
-      style: { margin: 0, fontSize: '12px' },
+    el('.card-body', el('p.muted.fs-secondary', {
+      style: { margin: 0 },
       text: 'Alat sewa boleh mendukung penawaran dan tercetak pada F/DA — SEBAGAI sewa, dengan lessornya. '
         + 'Yang tidak boleh adalah lembar yang membuatnya terbaca seperti milik sendiri.',
     })),
@@ -1195,7 +1195,7 @@ export async function renderKualifikasi(host) {
           el('th', { text: 'Sewa berakhir' }),
           el('th.right', { text: 'Hari lewat' }),
         ])),
-        el('tbody', sewaHabis.map((row) => el('tr', { style: { color: 'var(--warning)' } }, [
+        el('tbody', sewaHabis.map((row) => el('tr.tone-warn', [
           el('td.mono', { text: textOr(row.code) }),
           el('td', { text: textOr(row.name) }),
           el('td', { text: textOr(row.lessor_name) }),
@@ -1208,8 +1208,8 @@ export async function renderKualifikasi(host) {
         ]))),
       ]))
       : el('.card-body', el('p.muted', { style: { margin: 0 }, text: 'Tidak ada alat sewa yang masa sewanya berakhir pada tanggal ini.' })),
-    el('.card-body', el('p.muted', {
-      style: { margin: 0, fontSize: '12px' },
+    el('.card-body', el('p.muted.fs-secondary', {
+      style: { margin: 0 },
       text: 'Baris di sini TIDAK tercetak pada F/DA — alat yang sudah kembali ke lessor bukan dukungan alat, '
         + 'dan status asetnya tetap "tersedia" karena tidak ada yang memindahkannya saat sewa habis. Ia berdiri '
         + 'di sini supaya sewanya sempat diperpanjang sebelum batas pemasukan, bukan supaya bisa diabaikan.',

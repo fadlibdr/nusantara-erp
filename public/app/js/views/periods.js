@@ -57,9 +57,9 @@ const SEVERITY_BADGE = {
 /* Ikon yang memang digambar ui.js: centang untuk selesai, segitiga peringatan
    untuk yang belum, dan strip datar untuk "tidak berlaku di perusahaan ini". */
 function markFor(item) {
-  if (item.status === 'ok') return { name: 'check', colour: 'var(--success)' };
-  if (item.status === 'na') return { name: null, colour: 'var(--muted)' };
-  return { name: 'warn', colour: item.severity === 'block' ? 'var(--danger)' : 'var(--warning)' };
+  if (item.status === 'ok') return { name: 'check', tone: 'tone-pos' };
+  if (item.status === 'na') return { name: null, tone: 'muted' };
+  return { name: 'warn', tone: item.severity === 'block' ? 'tone-neg' : 'tone-warn' };
 }
 
 /**
@@ -180,9 +180,7 @@ function yearRow(data, reload, offerNextYear) {
     }));
   }
 
-  return el('div', {
-    style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' },
-  }, nodes);
+  return el('.cluster', { style: { marginBottom: '14px' } }, nodes);
 }
 
 function emptyYear(data, reload) {
@@ -200,8 +198,8 @@ function emptyYear(data, reload) {
           variant: 'primary',
           onClick: (event) => withBusy(event.currentTarget, () => generate(data.year, reload)),
         }))
-        : el('.muted', {
-          style: { fontSize: '12px', marginTop: '4px' },
+        : el('.muted.fs-secondary', {
+          style: { marginTop: '4px' },
           text: 'Membuat kalender memerlukan izin fin.create.',
         }),
     ]),
@@ -261,12 +259,12 @@ function periodCard(period) {
     tabindex: '0',
     style: { padding: '10px 12px', cursor: 'pointer', margin: '0' },
   }, [
-    el('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, [
+    el('.row', [
       el('strong', { text: fmt.MONTHS[period.month - 1] || period.code }),
       el('.spacer', { style: { flex: '1' } }),
       badge(period.status_label, period.is_closed ? '' : 'green'),
     ]),
-    el('.muted', { style: { fontSize: '11.5px', marginTop: '4px' }, text: subtitle() }),
+    el('.muted.fs-secondary', { style: { marginTop: '4px' }, text: subtitle() }),
   ]);
 }
 
@@ -381,21 +379,19 @@ function checklistItem(item, index) {
       borderTop: index ? '1px solid var(--border)' : '',
     },
   }, [
-    el('span', { style: { flex: '0 0 18px', marginTop: '1px', color: mark.colour } },
+    el('span', { class: mark.tone, style: { flex: '0 0 18px', marginTop: '1px' } },
       mark.name ? icon(mark.name, 16) : el('span', { text: '—' })),
     el('div', { style: { flex: '1', minWidth: '0' } }, [
-      el('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' } }, [
-        el('strong', { text: item.label, style: { fontSize: '13px' } }),
+      el('.cluster', [
+        el('strong.fs-body', { text: item.label }),
         item.status === 'fail' && severityLabel ? badge(severityLabel, severityTone) : null,
         item.status === 'na' ? badge('Tidak berlaku') : null,
       ]),
-      el('.muted', { style: { fontSize: '12px', marginTop: '3px', lineHeight: '1.55' }, text: item.detail }),
+      el('.muted.fs-secondary', { style: { marginTop: '3px', lineHeight: '1.55' }, text: item.detail }),
       // Rincian per sumber hanya dikirim oleh dokumen menggantung: tabel mana,
       // berapa, nomor apa saja. Itu daftar kerja yang sesungguhnya.
       sources.length ? el('div', { style: { marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' } },
-        sources.map((source) => el('div', {
-          style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px' },
-        }, [
+        sources.map((source) => el('.cluster.fs-secondary', [
           el('span.mono', { text: `${source.label} (${source.count})` }),
           el('.muted', {
             text: `${(source.codes || []).join(', ')}${(source.codes || []).length < source.count ? ', …' : ''}`,
@@ -422,8 +418,8 @@ function actionFoot(data, reload) {
   const canReopen = session.can('fin.approve');
 
   if (!canClose && !canReopen) {
-    return el('.card-foot', el('.muted', {
-      style: { fontSize: '12px', marginRight: 'auto' },
+    return el('.card-foot', el('.muted.fs-secondary', {
+      style: { marginRight: 'auto' },
       text: 'Menutup periode memerlukan izin fin.post, membukanya kembali fin.approve. '
         + 'Anda dapat membaca daftar periksa ini, tetapi tidak menjalankan keduanya.',
     }));
@@ -441,7 +437,7 @@ function actionFoot(data, reload) {
 
   return el('.card-foot', [
     reason
-      ? el('.muted', { style: { fontSize: '12px', marginRight: 'auto', maxWidth: '62ch' }, text: reason })
+      ? el('.muted.fs-secondary', { style: { marginRight: 'auto', maxWidth: '62ch' }, text: reason })
       : el('.spacer', { style: { flex: '1' } }),
     canClose
       ? button(summary.blockers ? `Tutup Periode (${summary.blockers} penghalang)` : `Tutup ${data.label}`, {
@@ -487,7 +483,7 @@ function historyCard(data) {
           })
           : null,
       ])))
-      : el('p.muted', { text: empty, style: { margin: '0', fontSize: '13px' } })),
+      : el('p.muted.fs-body', { text: empty, style: { margin: '0' } })),
   ]);
 }
 
@@ -506,8 +502,8 @@ function openCloseModal(data, reload) {
   });
 
   const body = el('div', [
-    el('p', {
-      style: { margin: '0 0 12px', color: 'var(--text-2)', fontSize: '13px', lineHeight: '1.6' },
+    el('p.fs-body', {
+      style: { margin: '0 0 12px', color: 'var(--text-2)', lineHeight: '1.6' },
       text: `Setelah ${data.label} ditutup, tidak ada dokumen yang dapat diposting pada tanggal di `
         + 'dalamnya, dan pembatalan dokumen lama akan dibalik dengan jurnal bertanggal hari ini — '
         + 'bukan tanggal aslinya.',
@@ -531,8 +527,8 @@ function openCloseModal(data, reload) {
       }, [
         box,
         el('div', { style: { flex: '1', minWidth: '0' } }, [
-          el('strong', { text: item.label, style: { fontSize: '13px' } }),
-          el('.muted', { style: { fontSize: '12px', marginTop: '2px', lineHeight: '1.55' }, text: item.detail }),
+          el('strong.fs-body', { text: item.label }),
+          el('.muted.fs-secondary', { style: { marginTop: '2px', lineHeight: '1.55' }, text: item.detail }),
         ]),
       ]);
     }),
@@ -608,8 +604,8 @@ function openReopenModal(data, reload) {
     placeholder: 'Mis. tagihan vendor Juni terlambat masuk dan harus dibukukan pada bulannya; disetujui direktur.',
   });
 
-  const body = el('div', [
-    el('.alert.warn', { style: { marginBottom: '12px' } }, [
+  const body = el('.stack', [
+    el('.alert.warn', [
       icon('warn', 15),
       el('div', {
         text: `Membuka kembali ${data.label} membuat angka yang sudah dilaporkan bisa berubah lagi — `
