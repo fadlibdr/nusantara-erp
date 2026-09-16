@@ -1307,6 +1307,25 @@ def s18(pg):
     pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
     out["reopen"]["escape_status"] = onboarding_status(email); out["reopen"]["dock_gone"] = pg.locator(".onboarding-dock").count() == 0
     out["pageerrors"] = errors
+
+    # GERBANG (UI-3). Sampai sini S18 hanya MENCATAT `ring_covers_nav` dan daftar
+    # sorotannya; sebuah cangkang yang berubah bisa membuat setiap sorotan gagal
+    # menemukan sasarannya dan skenario ini tetap melaporkan "ok".
+    # ui.js spotlight() memang diam: `if (!(element instanceof Element) ...) return`
+    # — target yang hilang tidak menggambar apa pun dan tidak mengeluh. Lima
+    # selektornya semuanya milik UI-3 (.header .menu-toggle, nav.nav,
+    # #view .page-head h1, tautan nav, .page-head .actions .btn.primary), jadi
+    # justru paket inilah yang paling mungkin memutusnya.
+    galat = []
+    if not out["step2"].get("ring_covers_nav"):
+        galat.append(f"S18 langkah 2: cincin tidak menutupi sidebar — {out['step2'].get('spotlights')}")
+    if not out["step3"].get("spotlights"):
+        galat.append("S18 langkah 3: tidak ada sorotan sama sekali (target tautan nav / tombol utama hilang)")
+    if out["pageerrors"]:
+        galat.append(f"S18: galat halaman {out['pageerrors'][:2]}")
+    out["galat"] = galat
+    if galat:
+        FAILED.append("S18_onboarding_dock_desktop")
     return out
 
 @scenario("S19_onboarding_sheet_mobile")

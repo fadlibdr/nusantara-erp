@@ -1,0 +1,151 @@
+# Laporan Paket UI-3a — sidebar: ikon modul, kotak saring, dan sebuah kunci yang tidak pernah stabil
+
+> Paket pertama UI-3 (Cangkang). Ia menyentuh **sidebar saja**: header, palet perintah dan
+> standar kepala halaman menyusul di UI-3b/UI-3c, supaya masing-masing membawa buktinya sendiri.
+
+---
+
+## Yang ditutup
+
+| Butir | Keadaan |
+|---|---|
+| Ikon modul di kepala grup | ✅ 14 modul + 2 grup pintasan (`star`, `history`) |
+| Kotak saring 150 tautan | ✅ baru — menyaring DOM, tidak membangun ulang |
+| Kunci keadaan buka/tutup yang stabil | ✅ dibaca dari atribut, bukan `textContent` |
+| `[hidden]` yang dikalahkan `display: flex` | ✅ pengaman `.nav-item[hidden]` |
+| Gerbang sorotan onboarding di S18 | ✅ dibuktikan bisa MERAH |
+
+### Angka rencana yang basi, diukur ulang 16 Sep 2026
+
+Rencana dan komentar kode menulis "121 tautan / 14 grup / 4,9 layar". Sesi admin hari ini:
+
+| | rencana | terukur |
+|---|---|---|
+| tautan sidebar | 121 | **150** |
+| grup | 14 | **16** (termasuk 2 grup pintasan) |
+| tinggi pada viewport 900 | 4,9 layar | **2,45 layar** (hanya 2 dari 15 grup terbuka) |
+| grup Keuangan | 20 tautan | **22 tautan / 5 pemisah** |
+
+Dua butir yang rencana UI-3 daftarkan sebagai pekerjaan ternyata **sudah ada**: `--drawer-w`
+ditokenkan di UI-1, dan sub-seksi bernama sudah hidup sebagai **9 pemisah** yang dipaku
+`SidebarNavWiringTest::test_the_long_groups_carry_the_agreed_dividers_in_order`.
+
+---
+
+## Kunci yang tidak pernah stabil
+
+Keadaan buka/tutup tiap grup disimpan di `localStorage['nusantara_erp_nav']` sebagai larik label.
+Jalur BACA membandingkan `group.label` dari model data (`app.js:493`); jalur TULIS memanen
+`node.querySelector('button').textContent.trim()` dari DOM. Keduanya sepakat **hanya selama tombol
+itu tidak memuat teks lain**.
+
+Diukur, bukan ditebak — sebuah simulasi menyisipkan dua jenis anak ke dalam tombol grup:
+
+| disisipkan | `textContent` sesudahnya |
+|---|---|
+| `<svg>` (ikon modul) | `'Terakhir dibuka'` — **tidak berubah** |
+| `<span>20</span>` (lencana hitungan) | `'Terakhir dibuka20'` — **berubah** |
+
+Jadi ikon aman; lencana hitungan — butir berikutnya di prototipe — akan **meyatimkan preferensi
+sidebar setiap pengguna** tanpa satu pun galat. Penulisnya kini membaca `groupNode.dataset.label`.
+Nilai yang ditulis **sama persis** dengan sebelumnya, jadi tidak ada migrasi dan tidak ada
+preferensi yang hangus.
+
+---
+
+## Kotak saring
+
+150 tautan, 2,45 layar. Mengetik tiga huruf memotongnya:
+
+| kueri | grup tampak | tautan tampak | tinggi nav |
+|---|---:|---:|---:|
+| (kosong) | 16 | 38 | 1.965 px |
+| `opname` | 3 | **5** | 960 px |
+| `jurnal` | 2 | 2 | 960 px |
+| `zzz` | 0 | 0 | + kalimat "Tidak ada menu yang cocok dengan “zzz”" |
+
+`opname` adalah contoh yang prototipe pakai persis: tiga modul, lima layar, satu kolom.
+
+**Keadaan tersimpan tidak ikut berubah.** Saat menyaring, grup yang cocok dipaksa terbuka lewat
+atribut saja; `localStorage` tidak disentuh (diukur: `null` sebelum dan sesudah) dan keadaan
+sebelum menyaring dipulihkan tepat saat kotaknya dikosongkan — 38 tautan, 5 pemisah, tinggi
+1.965 px, sama seperti sebelumnya. Kalau tidak, "mencari sesuatu" diam-diam menjadi "menata ulang
+sidebar saya selamanya".
+
+Saringan juga selamat dari pembangunan ulang: memberi bintang selagi menyaring membangun ulang
+seluruh nav, dan kueri serta hasilnya tetap di tempat.
+
+---
+
+## Verifikasi
+
+**Uji pin** membuktikan apa yang tertulis; dua pohon dilayani berdampingan (`main` di 8098, pohon
+kerja di 8099) membuktikan apa yang tergambar.
+
+| Lingkup | Hasil |
+|---|---|
+| `.main` (isi halaman), 14 rute × 2 tema | **0 perbedaan** |
+| `.header`, 14 rute × 2 tema | **0 perbedaan** (28 elemen, identik) |
+| Metrik baris nav | **identik**: baris 31,5 · kepala grup 30,5 · bintang 26 · lebar 250 · padding · 150 tautan · 16 grup |
+| S5 di 11 peran | grup, tautan, `open_groups`, `biggest`, `dividers` **identik**; `navContentPx` **+45 px di semua peran** — tinggi kotak saring, dan tidak ada yang lain |
+| Ponsel 390 px | laci 264 px · baris nav **36 px** · bintang **34 px** — lantai sasaran sentuh utuh |
+| Cetak | nav dan kotak saring keduanya tersembunyi |
+
+Kepadatan S21 tetap: `compact_ok` · `comfortable_ok` · `normal_equals_baseline` ·
+`tfoot_normal_41` semuanya true, `row_h` 38,5 px, `nav_link` 31,5 px.
+
+### Uji
+
+Core **1.409 / 11.588** keluar 0 (11 dilewati, sudah dilewati sebelumnya) · Unit **630 / 2.201** ·
+harness `S5 S7 S8 S18 S19 S20 S20m S21 S21m S43` hijau, keluar 0 —
+bukti `docs/bukti-uji/results-ui-3a.json` · `SHELL_VERSION` 18 → **19**.
+
+---
+
+## Dua jebakan yang dijatuhkan paket ini, keduanya ke saya sendiri
+
+**1. `display: flex` mengalahkan `[hidden]`.** Kotak saring menyetel `.hidden = true` dengan patuh
+dan baris-barisnya **tetap tergambar**: `.nav-item { display: flex }` milik penulis menang atas
+`[hidden] { display: none }` milik stylesheet UA. Codebase ini sudah mengenal jebakan itu — tiga
+pengaman bertanda komentar ada di `app.css` (`.overlay[hidden]`, `.combo-clear[hidden]`,
+`.combo-warn .btn[hidden]`) — dan saya tetap melangkah masuk.
+
+**2. Probe pertama melaporkan "5 baris cocok" ketika layar memuat tiga puluhan.** Ia menghitung
+properti `hidden` di JavaScript, bukan apa yang peramban benar-benar gambar. Angkanya cocok dengan
+niat saya, jadi ia terbaca benar. Yang menangkapnya adalah **tangkapan layar**. Probe sekarang
+memakai `getClientRects().length > 0`.
+
+Keduanya adalah bentuk kegagalan yang sama: sebuah pengukuran yang menyetujui penulisnya.
+
+---
+
+## Gerbang yang dibuktikan bisa merah
+
+`ui.js spotlight()` diam ketika sasarannya hilang — `if (!(element instanceof Element) …) return`
+— dan kelima selektornya milik UI-3 (`.header .menu-toggle`, `nav.nav`, `#view .page-head h1`,
+tautan nav, `.page-head .actions .btn.primary`). Sampai paket ini, S18 hanya **mencatat**
+`ring_covers_nav`: panduan onboarding bisa putus total dan harness tetap melapor "ok".
+
+Sekarang ia gerbang. Dibuktikan dengan menyabotase satu selektor menjadi `nav.nav-YANG-TIDAK-ADA`:
+
+```
+GAGAL: S18_onboarding_dock_desktop
+STATUS KELUAR: 1
+galat: ['S18 langkah 2: cincin tidak menutupi sidebar — []']
+```
+
+Sabotase dipulihkan; `git diff` bersih.
+
+---
+
+## Yang sengaja tidak dikerjakan
+
+* **Lencana hitungan di kepala grup** (prototipe `.n`). Bentuknya siap dan kuncinya kini aman,
+  tetapi ia butuh keputusan: menghitung apa — tautan yang terlihat, atau dokumen yang menunggu?
+  Angka yang salah artinya lebih buruk daripada tidak ada angka.
+* **Slot konteks perusahaan di sel merek.** Tidak ada data perusahaan di sesi; menambahkannya
+  berarti mengubah kontrak API, yang brief melarang tanpa alasan kuat. Ia bukan restyle cangkang.
+* **"Irama yang lebih rapat".** `--nav-py` ada di daftar terlarang keputusan pemilik (kepadatan
+  dibekukan) dan baris nav sudah duduk di lantai 36 px pada `pointer: coarse`. Yang tersisa untuk
+  dirapatkan hanyalah padding kepala grup — perubahan yang tidak sepadan dengan risikonya.
+* **Header, palet perintah, standar kepala halaman, dan penyatuan `icon()`** — UI-3b dan UI-3c.

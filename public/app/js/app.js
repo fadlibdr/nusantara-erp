@@ -2,7 +2,7 @@
 
 import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
-import { el, clear, button, icon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
+import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals } from './ui.js';
 import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath } from './router.js';
@@ -589,10 +589,32 @@ function navGroupNode(nav, group, favorites, stored) {
   // muncul-hilangnya item.
   const chev = icon('chevron', 13);
   chev.classList.add('chev');
+  /* Ikon di kepala grup (UI-3). MODULES[prefix].icon sudah memuat nama Lucide
+     sejak P1-B — keempat belasnya ada di sprite yang di-vendor (diperiksa
+     16 Sep 2026), jadi tidak ada yang menggambar kotak kosong.
+     Grup pintasan tidak punya prefix; ia mendapat ikon yang menggambarkan
+     DIRINYA (bintang, riwayat), bukan sebuah modul — kalau ia dibiarkan kosong
+     labelnya berdiri di kolom tempat ikon grup lain berada, dan sidebar
+     kehilangan satu-satunya garis vertikal yang dimilikinya. */
+  const groupModule = group.prefix ? moduleFor(group.prefix) : null;
+  const shortcutIcon = group.label === FAVORITES_LABEL ? 'star'
+    : group.label === RECENT_LABEL ? 'history' : null;
+  const iconName = groupModule ? groupModule.icon : shortcutIcon;
+  const gi = iconName ? svgIcon(iconName, { size: 14 }) : null;
+  if (gi) gi.classList.add('gi');
   const groupNode = el('.nav-group', { dataset: { open: String(groupOpenByDefault(group, stored)) } }, [
-    el('button', { type: 'button' }, [group.label, chev]),
+    el('button', { type: 'button' }, [gi, el('span.nav-group-label', { text: group.label }), chev]),
     items,
   ]);
+  /* Kunci keadaan buka/tutup, DIBACA DARI ATRIBUT, bukan dari textContent.
+     groupOpenByDefault() membandingkan dengan group.label, tetapi penulisnya
+     dulu memakai button.textContent.trim() — keduanya hanya sepakat selama
+     tombolnya tidak memuat teks lain. Diukur 16 Sep 2026: menyisipkan <svg>
+     memang tidak mengubah textContent ('Terakhir dibuka' tetap), tetapi sebuah
+     <span> hitungan mengubahnya menjadi 'Terakhir dibuka20' — dan setiap
+     preferensi sidebar yang tersimpan akan yatim tanpa satu pun galat. Nilai
+     yang ditulis tetap SAMA PERSIS dengan sebelumnya, jadi tidak ada migrasi. */
+  groupNode.dataset.label = group.label;
   if (group.kind) groupNode.dataset.kind = group.kind;
   // Aksen modul (P1-B): slot warna grup, dipakai penanda grup aktif
   // (.has-active, dipasang setActiveNav). Grup pintasan tidak beraksen.
@@ -607,20 +629,137 @@ function navGroupNode(nav, group, favorites, stored) {
     groupNode.dataset.open = String(next);
     const open = [...nav.querySelectorAll('.nav-group')]
       .filter((node) => node.dataset.open === 'true')
-      .map((node) => node.querySelector('button').textContent.trim());
+      .map((node) => node.dataset.label);
     localStorage.setItem(NAV_STATE_KEY, JSON.stringify(open));
   });
 
   return groupNode;
 }
 
+/*
+ * Kotak saring sidebar (UI-3).
+ *
+ * Diukur 16 Sep 2026 pada sesi admin: 149 tautan dalam 15 grup, tinggi isi
+ * 2.203 px — 2,45 layar pada viewport 900 px, dan itu dengan hanya DUA grup
+ * terbuka. (Rencana lama menulis "121 tautan / 4,9 layar"; keduanya sudah
+ * basi.) Menggulung sebanyak itu untuk menemukan satu layar adalah ongkos
+ * yang tidak perlu dibayar siapa pun.
+ *
+ * Ia menyaring DOM yang sudah tergambar, tidak membangun ulang: navGroupNode
+ * memasang pendengar per grup, dan membangun ulang tiap ketukan tombol akan
+ * membuang fokus kotak ini sendiri.
+ *
+ * Keadaan buka/tutup yang TERSIMPAN tidak boleh ikut berubah. Saat menyaring,
+ * grup yang punya kecocokan dipaksa terbuka lewat atribut saja — localStorage
+ * tidak disentuh, dan keadaan sebelum menyaring dikembalikan begitu kotaknya
+ * dikosongkan. Menulis keadaan di sini akan membuat "mencari sesuatu" diam-diam
+ * menjadi "menata ulang sidebar saya selamanya".
+ */
+const NAV_FILTER_STATE = { q: '', before: null };
+
+function applyNavFilter(nav, raw) {
+  const q = raw.trim().toLowerCase();
+  const groups = [...nav.querySelectorAll('.nav-group')];
+  const status = nav.querySelector('.nav-filter-status');
+
+  if (!q) {
+    if (NAV_FILTER_STATE.before) {
+      for (const node of groups) {
+        const was = NAV_FILTER_STATE.before.get(node.dataset.label);
+        if (was !== undefined) node.dataset.open = was;
+      }
+      NAV_FILTER_STATE.before = null;
+    }
+    for (const node of nav.querySelectorAll('.nav-item, .nav-divider, .nav-group')) node.hidden = false;
+    nav.dataset.filtering = 'false';
+    if (status) status.textContent = '';
+    const cleared = nav.querySelector('.nav-filter-empty');
+    if (cleared) { cleared.hidden = true; cleared.textContent = ''; }
+    NAV_FILTER_STATE.q = '';
+    return;
+  }
+
+  // Potret keadaan buka/tutup sekali saja, pada ketukan pertama.
+  if (!NAV_FILTER_STATE.before) {
+    NAV_FILTER_STATE.before = new Map(groups.map((node) => [node.dataset.label, node.dataset.open]));
+  }
+  nav.dataset.filtering = 'true';
+
+  let hits = 0;
+  for (const node of groups) {
+    let groupHits = 0;
+    // Pemisah menyusul barisnya: ia disembunyikan kalau blok di bawahnya habis.
+    let divider = null;
+    let dividerHits = 0;
+    for (const child of node.querySelectorAll('.nav-items > *')) {
+      if (child.classList.contains('nav-divider')) {
+        if (divider) divider.hidden = dividerHits === 0;
+        divider = child; dividerHits = 0;
+        continue;
+      }
+      const label = (child.querySelector('.lbl') || {}).textContent || '';
+      const match = label.toLowerCase().includes(q);
+      child.hidden = !match;
+      if (match) { groupHits += 1; dividerHits += 1; }
+    }
+    if (divider) divider.hidden = dividerHits === 0;
+    node.hidden = groupHits === 0;
+    if (groupHits) node.dataset.open = 'true';
+    hits += groupHits;
+  }
+  if (status) status.textContent = hits ? `${hits} menu cocok` : 'Tidak ada menu yang cocok';
+  // Nol kecocokan HARUS terbaca mata, bukan hanya pembaca layar: sidebar yang
+  // kosong tanpa satu kalimat pun tidak bisa dibedakan dari sidebar yang rusak.
+  const empty = nav.querySelector('.nav-filter-empty');
+  if (empty) {
+    empty.hidden = hits !== 0;
+    empty.textContent = hits ? '' : `Tidak ada menu yang cocok dengan “${raw.trim()}”`;
+  }
+  NAV_FILTER_STATE.q = raw;
+}
+
+function navFilterNode(nav) {
+  const input = el('input.nav-filter-input', {
+    type: 'search', value: NAV_FILTER_STATE.q,
+    placeholder: 'Saring menu…',
+    'aria-label': 'Saring menu',
+    autocomplete: 'off', spellcheck: 'false',
+  });
+  input.addEventListener('input', () => applyNavFilter(nav, input.value));
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && input.value) {
+      // Esc mengosongkan kotak; Esc pada kotak yang SUDAH kosong dibiarkan naik
+      // supaya ia tetap menutup laci ponsel seperti sebelumnya.
+      event.stopPropagation();
+      input.value = '';
+      applyNavFilter(nav, '');
+    }
+  });
+  return el('.nav-filter', [
+    svgIcon('search', { size: 14 }),
+    input,
+    // Hitungan dibacakan pembaca layar; ia tidak menggeser tata letak.
+    el('span.nav-filter-status.sr-only', { role: 'status', 'aria-live': 'polite' }),
+  ]);
+}
+
 function renderNav(nav) {
   clear(nav);
+  nav.appendChild(navFilterNode(nav));
+  nav.appendChild(el('p.nav-filter-empty', { hidden: true }));
   const groups = navForSession();
   const favorites = prefs.favorites();
   const stored = storedOpenGroups();
   for (const group of [...shortcutGroups(groups), ...groups]) {
     nav.appendChild(navGroupNode(nav, group, favorites, stored));
+  }
+  // Sidebar dibangun ulang tiap bintang dan tiap dokumen yang dibuka. Kalau
+  // sebuah saringan sedang aktif, ia harus selamat dari pembangunan itu —
+  // kalau tidak, memberi bintang saat menyaring akan menumpahkan 149 tautan
+  // kembali ke layar.
+  if (NAV_FILTER_STATE.q) {
+    NAV_FILTER_STATE.before = null;
+    applyNavFilter(nav, NAV_FILTER_STATE.q);
   }
 }
 
