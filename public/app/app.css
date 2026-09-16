@@ -551,6 +551,44 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .header .crumbs a.crumb-module:hover { text-decoration: underline; }
 .header .crumbs a.crumb-screen { color: var(--text-2); }
 .header .crumbs a.crumb-screen:hover { color: var(--text); }
+/* Medan perintah (UI-3b). Hiasannya TIDAK tergambar secara bawaan: tombol Cari
+   tetap persis seperti sebelumnya di setiap lebar kecuali yang terbukti punya
+   ruang. Diukur 16 Sep 2026 pada halaman dokumen — ruang bebas header 1440 →
+   348 px, 1280 → 188 px, tetapi 1024 → 0, 820 → 0, 768 → 0, dan di ketiga lebar
+   terakhir remah roti sendiri sudah dimampatkan 377 → 149 px. Mencuri ruang dari
+   remah untuk sebuah petunjuk adalah menukar "di mana saya" dengan hiasan. */
+.header .btn.global-search .gs-hint,
+.header .btn.global-search .gs-kbd { display: none; }
+
+@media (min-width: 1200px) {
+  .header .btn.global-search {
+    flex: 0 1 320px; min-width: 0;
+    justify-content: flex-start;
+    padding: 0 8px 0 10px;
+    border-color: var(--border);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .header .btn.global-search:hover { background: var(--surface-3); color: var(--text-2); }
+  /* Label dan petunjuk dibaca sebagai satu kalimat: "Cari menu, dokumen,
+     pelanggan…". Labelnya tetap elemen tersendiri karena dialah nama
+     aksesibel tombol ini, dan aturan ≤ 760 px menyembunyikan tepat dia. */
+  .header .btn.global-search > span { color: var(--muted); font-weight: 400; }
+  .header .btn.global-search .gs-hint {
+    display: inline; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .header .btn.global-search .gs-kbd {
+    display: inline-block; flex: none; margin-left: auto;
+    padding: 1px 6px;
+    border: 1px solid var(--border-strong); border-radius: 4px;
+    background: var(--surface);
+    color: var(--muted);
+    font-family: var(--mono); font-size: 10px; line-height: 1.6;
+  }
+}
+
 .header .spacer { flex: 1; }
 
 /* .btn sets display: inline-flex further down, so match its specificity here. */
@@ -1908,16 +1946,31 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .field-photo .badge { flex: none; }
 
 /* ------------------------------------------------------------- global search */
-.search-input {
-  width: 100%;
-  padding: 9px 11px;
-  font-size: 14px;
+/* Palet perintah (UI-3b). Ia tetap modal() — tumpukan, perangkap fokus, inert
+   dan penjaga dirty semuanya sudah benar di sana — tetapi dengan lebar dan
+   kerangkanya sendiri. 620 px, bukan 420 px `narrow`: barisnya kini membawa
+   kolom kanan yang membedakan tiga layar bernama "Opname" di tiga modul, dan
+   pada 420 px kolom itu memakan kodenya. */
+.modal.palette { max-width: 620px; }
+.palette-field {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 11px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+  color: var(--muted);
+}
+.palette-field:focus-within { box-shadow: var(--focus-ring); border-color: var(--primary); }
+.palette-field > .lucide { flex: none; }
+.search-input {
+  flex: 1; min-width: 0;
+  padding: 9px 0;
+  font-size: 14px;
+  border: 0; background: transparent;
   color: var(--text);
 }
-.search-input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+/* Cincin fokus dipasang pada PEMBUNGKUS, bukan pada input tanpa tepi. */
+.search-input:focus { outline: none; }
 .search-results { margin-top: 12px; max-height: 52vh; overflow-y: auto; }
 .search-results > p { margin: 8px 2px; font-size: 13px; }
 .search-group + .search-group { margin-top: 12px; }
@@ -1925,15 +1978,46 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
   color: var(--muted); padding: 4px 2px;
 }
+/* Baris hasil: satu baris, kode di kiri, tempatnya di kanan. Dulu ia kolom
+   (kode di atas, modul di bawah) — modulnya ada, tetapi terbaca sebagai
+   keterangan alih-alih sebagai pembeda. */
 .search-hit {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; align-items: baseline; gap: var(--space-4);
   width: 100%; text-align: left; cursor: pointer;
   padding: 7px 9px; border: 0; border-radius: var(--radius);
   background: transparent; color: inherit; font: inherit;
 }
+.search-hit .cell-main { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-hit .search-where {
+  flex: none; max-width: 45%;
+  color: var(--muted); font-size: var(--fs-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .search-hit:hover, .search-hit:focus-visible { background: var(--surface-2); }
-.search-hit .cell-sub { color: var(--muted); font-size: 12px; }
-.search-hit.screen .cell-main { font-weight: 600; }
+/* Baris terpilih lewat panah. Fokus tetap di kotak ketik, jadi baris ini tidak
+   pernah :focus — ia butuh penandanya sendiri, dan penandanya harus lebih kuat
+   dari hover supaya keduanya tidak pernah tampak sama. */
+.search-hit.active { background: var(--surface-selected); box-shadow: inset 3px 0 0 var(--primary); }
+.search-hit.active .search-where { color: var(--text-2); }
+.search-hit.screen .cell-main { font-weight: var(--fw-semi); }
+.search-hit mark {
+  background: var(--primary-soft); color: var(--primary);
+  border-radius: 3px; padding: 0 1px;
+  font-weight: var(--fw-semi);
+}
+.palette-foot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4);
+  margin-top: var(--space-3); padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+  color: var(--muted); font-size: var(--fs-caption);
+}
+.palette-foot kbd {
+  display: inline-block; min-width: 18px; padding: 1px 5px; margin-right: 3px;
+  border: 1px solid var(--border-strong); border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface-2); color: var(--text-2);
+  font: inherit; font-family: var(--mono); font-size: 10px; text-align: center;
+}
 
 /* ------------------------------------------------------- stacked overlays */
 /* A dialog opened over a form gets its own backdrop. Two full-strength ones

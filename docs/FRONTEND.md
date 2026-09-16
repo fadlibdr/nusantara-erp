@@ -313,6 +313,26 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **The command field and the palette (UI-3b)**: the header's search control stays a `<button>`,
+  never an `<input>`. Its accessible name comes from the `<span>Cari</span>` inside it — that is what
+  the `≤760px` rule hides visually while keeping the name — and an input's name cannot come from its
+  contents. It also has nothing to type into: Ctrl+K opens a palette that has its own box, so a second
+  one would only duplicate state. Above `1200px` the button *looks* like a field (border, surface-2,
+  a `.gs-hint` continuation of the label and a `.gs-kbd` shortcut chip, both `aria-hidden` so the name
+  stays exactly "Cari"). That breakpoint is measured, not chosen: header free space is 348px at 1440
+  and 188px at 1280, but **zero at 1024, 820 and 768**, where the breadcrumb is already compressed from
+  377px to 149px. Below 1200px the button is byte-for-byte what it was.
+  The palette is still `modal()` — stacking, focus trap, `inert` and the dirty guard are all already
+  right there — with `width: 'palette'` (620px, not the 420px `narrow`). Rows are one line: code left,
+  `.search-where` right. The right column is the whole point; the module was always in the data, but
+  stacked underneath it read as a caption rather than as the thing that tells five screens named
+  "Opname" apart. Arrow keys move a `.active` row **without moving focus out of the box** (the next
+  letter typed must not be lost), announced via `aria-activedescendant`; Enter opens the selected row,
+  or the first when nothing is selected. Matches are wrapped in `<mark>` by substring — what the eye is
+  looking for — even though screens are *matched* on word starts. Harness **S14** gates all of it.
+  There is deliberately no "Tindakan" group: both sources are lookups (NAV screens client-side,
+  documents server-side) and nothing in the codebase can produce a command, so inventing the heading
+  would promise a third kind of result that never arrives.
 - **Layout primitives and the type scale (UI-2)**: compose spacing with `.stack` (12 px, card
   contents), `.stack.tight` (8), `.stack.loose` (16, page blocks — the same step as `.card + .card`),
   `.row`, `.row.top`, `.cluster` (wrapping) and `.grid-auto`; all four gaps come from the UI-1

@@ -970,10 +970,72 @@ def s14(pg):
         label: g.querySelector('.search-group-label').innerText.trim(),
         hits: [...g.querySelectorAll('.search-hit')].map(h => h.innerText.trim().replace(/\\n/g, ' · ')) }))""")
     pg.screenshot(path=f"{OUT}/s14-ctrl-k-opname.png")
+
+    # UI-3b: bentuk palet — kolom kanan pembeda, penandaan, kerangka, lapisan
+    # keyboard. Contoh "opname" dipilih justru karena ia kasus yang menjadi
+    # alasan kolom kanan itu ada: lima layar bernama sama di tiga modul.
+    palet = pg.evaluate("""() => {
+      const hits = [...document.querySelectorAll('.search-hit')];
+      return {
+        modal_palette: !!document.querySelector('.modal.palette'),
+        field: !!document.querySelector('.palette-field'),
+        foot_kbd: [...document.querySelectorAll('.palette-foot kbd')].map(k => k.innerText.trim()),
+        rows: hits.map(h => ({
+          where: (h.querySelector('.search-where') || {}).innerText || null,
+          marks: [...h.querySelectorAll('mark')].map(m => m.innerText),
+          lines: Math.round(h.getBoundingClientRect().height),
+        })),
+      };
+    }""")
+
+    # Panah memilih tanpa memindahkan fokus keluar dari kotak ketik.
+    pg.keyboard.press("ArrowDown"); pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(200)
+    keyboard = pg.evaluate("""() => ({
+      active: [...document.querySelectorAll('.search-hit.active')].map(h => (h.querySelector('.cell-main') || {}).innerText || ''),
+      focus_still_input: document.activeElement === document.querySelector('.search-input'),
+      activedescendant: (document.querySelector('.search-input') || {}).getAttribute
+        ? document.querySelector('.search-input').getAttribute('aria-activedescendant') : null,
+    })""")
+    # Enter membuka yang TERPILIH, bukan yang pertama.
     pg.keyboard.press("Enter"); pg.wait_for_timeout(800)
+    keyboard["enter_opened_selected"] = pg.evaluate("() => (document.querySelector('.page-head h1')||{}).innerText || null")
+
     layar = next((g for g in out if g["label"].lower() == "layar"), None)  # innerText ikut text-transform: "LAYAR"
-    return {"groups": out, "layar": layar["hits"] if layar else None, "layar_count": len(layar["hits"]) if layar else 0,
-            "enter_opened": pg.evaluate("() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText || null, modal: !!document.querySelector('.modal') })")}
+    res = {"groups": out, "layar": layar["hits"] if layar else None, "layar_count": len(layar["hits"]) if layar else 0,
+           "palette": palet, "keyboard": keyboard,
+           "enter_opened": pg.evaluate("() => ({ hash: location.hash, h1: (document.querySelector('.page-head h1')||{}).innerText || null, modal: !!document.querySelector('.modal') })")}
+
+    checks = []
+    if not layar:
+        checks.append('grup "Layar" hilang — Ctrl+K kembali hanya mencari dokumen')
+    elif len(layar["hits"]) < 3:
+        checks.append(f'grup "Layar" hanya {len(layar["hits"])} baris untuk "opname" (diharapkan 5)')
+    if not palet["modal_palette"]:
+        checks.append("palet tidak memakai kerangka .modal.palette")
+    if not palet["field"]:
+        checks.append(".palette-field hilang — kotak ketiknya kembali telanjang")
+    if len(palet["foot_kbd"]) < 3:
+        checks.append(f"kaki papan ketik hanya {len(palet['foot_kbd'])} kbd (diharapkan >= 3)")
+    # Justru kasus "opname": tanpa kolom kanan, lima baris ini tidak bisa dibedakan.
+    tanpa_where = [r for r in palet["rows"] if not r["where"]]
+    if layar and tanpa_where and len(tanpa_where) == len(palet["rows"]):
+        checks.append("tidak satu pun baris punya kolom kanan .search-where")
+    if not any(r["marks"] for r in palet["rows"]):
+        checks.append("tidak ada <mark> — bagian yang cocok tidak ditandai lagi")
+    if not keyboard["active"]:
+        checks.append("panah bawah tidak memilih baris mana pun")
+    if not keyboard["focus_still_input"]:
+        checks.append("fokus berpindah keluar dari kotak ketik saat panah ditekan")
+    if not keyboard["activedescendant"]:
+        checks.append("aria-activedescendant tidak menunjuk baris terpilih")
+    if keyboard["active"] and keyboard["enter_opened_selected"] and keyboard["active"][0] not in keyboard["enter_opened_selected"]:
+        checks.append(f"Enter membuka {keyboard['enter_opened_selected']!r}, bukan baris terpilih {keyboard['active'][0]!r}")
+    if res["enter_opened"]["modal"]:
+        checks.append("palet tidak tertutup sesudah Enter")
+
+    res["failed_checks"] = checks
+    res["ok"] = not checks
+    return res
 
 # JPEG 8×8 abu-abu dari GD (php -r 'imagejpeg(imagecreatetruecolor(8,8), ...)'), 691 byte, tanpa EXIF.
 # padded_jpeg() melebarkannya dengan segmen COM (FF FE, maks 65 533 byte per segmen) sampai ukuran yang
