@@ -53,47 +53,44 @@ export function clear(node) {
 }
 
 /* ------------------------------------------------------------------ icons */
-const PATHS = {
-  search: 'M11 11 15 15M7 12.5A5.5 5.5 0 1 0 7 1.5a5.5 5.5 0 0 0 0 11Z',
-  chevron: 'M4 6.5 8 10.5 12 6.5',
-  chevronRight: 'M6.5 4 10.5 8 6.5 12',
-  plus: 'M8 3.5v9M3.5 8h9',
-  close: 'M4 4l8 8M12 4l-8 8',
-  menu: 'M2.5 4h11M2.5 8h11M2.5 12h11',
-  check: 'M3.5 8.5 6.5 11.5 12.5 4.5',
-  edit: 'M11.2 2.8a1.7 1.7 0 0 1 2.4 2.4L5.5 13.3l-3.2.8.8-3.2 8.1-8.1Z',
-  trash: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.2a1 1 0 0 0 1 .8h3.8a1 1 0 0 0 1-.8l.6-8.2',
-  back: 'M9.5 3.5 5 8l4.5 4.5',
-  refresh: 'M13.5 8a5.5 5.5 0 1 1-1.7-4M13.5 2v3.5H10',
-  download: 'M8 2.5v8M4.5 7.5 8 11l3.5-3.5M2.5 13.5h11',
-  inbox: 'M2 9.5h3.5l1 2h5l1-2H16M2.5 9.5 4.3 3.4A1 1 0 0 1 5.3 2.7h7.4a1 1 0 0 1 1 .7l1.8 6.1v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1v-3Z',
-  warn: 'M8 6v3.5M8 11.6v.1M7.1 2.6 1.6 12a1 1 0 0 0 .9 1.5h11a1 1 0 0 0 .9-1.5L8.9 2.6a1 1 0 0 0-1.8 0Z',
-  logout: 'M6 14H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1H6M10.5 11.5 14 8l-3.5-3.5M14 8H6',
-  print: 'M4.5 6V2.5h7V6M4.5 12H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1.5M4.5 9.5h7v4h-7z',
-  sun: 'M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 1v1.5M8 13.5V15M15 8h-1.5M2.5 8H1M12.9 3.1l-1 1M4.1 11.9l-1 1M12.9 12.9l-1-1M4.1 4.1l-1-1',
-  moon: 'M13.5 9.6A5.8 5.8 0 0 1 6.4 2.5a5.8 5.8 0 1 0 7.1 7.1Z',
-  star: 'M8 1.9l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2.1.7-4.3-3.1-3 4.3-.6z',
-  // P1-C: rumah = launcher #/home. Digambar di viewBox 16 seperti tetangganya
-  // (sprite Lucide berjalan di viewBox 24 lewat svgIcon dan tidak bisa dicampur).
-  home: 'M2.5 7.2 8 2.5l5.5 4.7M4 8.6V13a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V8.6M6.5 13.5V9.5h3v4',
-};
+/*
+ * SATU sistem ikon (UI-3c).
+ *
+ * Sampai di sini ada dua: `icon()` menggambar 20 glyph tulisan tangan di
+ * viewBox 16 dengan stroke 1,5, dan `svgIcon()` memakai sprite Lucide yang
+ * di-vendor di viewBox 24 dengan stroke 2. Yang pertama dipakai 79 tempat, dan
+ * dua di antaranya corong — button({iconName}) dan menuButton — yang
+ * melewatkan 212 ikon lagi. Totalnya 291.
+ *
+ * Yang TIDAK dilakukan: mengganti `icon(` jadi `svgIcon(` di 79 tempat.
+ * Tanda tangannya tidak cocok — `icon(name, size)` menerima ANGKA sementara
+ * `svgIcon(name, {size})` menerima OBJEK — dan penggantian mekanis itu
+ * JavaScript yang sah: angka 13 yang didestrukturisasi sebagai `{size = 16}`
+ * diam-diam menjadi 16. Enam puluh tujuh ikon akan membesar 7-33 % tanpa satu
+ * pun galat, tanpa satu pun uji merah, dan tanpa satu layar pun yang jelas
+ * salah. Karena itu `icon()` sendiri yang mendelegasikan: nol suntingan di
+ * tempat panggil, dan LUCIDE_ALIAS di bawah sudah memetakan nama lamanya.
+ *
+ * Yang ikut berubah, dan disengaja:
+ *   - ketebalan garis turun 11 % (1,5/16 = 0,094 px per px → 2/24 = 0,083);
+ *   - tiap ikon kini membawa kelas `.lucide` (inline-block, flex:none,
+ *     vertical-align:middle) yang sebelumnya hanya dimiliki empat pemakai;
+ *   - dan EMPAT glyph mulai tergambar untuk pertama kalinya. `bell`, `camera`,
+ *     `copy` dan `list` sampai ke icon() tetapi tidak pernah ada di PATHS,
+ *     jadi `PATHS[name] || ''` memberi mereka `<path d="">` — tak terlihat,
+ *     tanpa galat. Keempatnya ada di sprite. Enam tombol yang selama ini
+ *     kosong akan punya ikon; itu perbaikan, bukan regresi.
+ *
+ * Satu hal TIDAK bisa ikut, dan diukur: `fill` tidak menyeberangi batas
+ * `<use>`. Tiap simbol sprite membawa `fill="none"` sendiri, jadi bintang
+ * favorit tidak bisa lagi diisi lewat CSS (aturan lamanya menyasar `svg path`,
+ * yang tidak ada lagi di DOM). Sprite ini tidak punya varian bintang terisi.
+ * Keadaan "aktif"-nya pindah ke keping latar — lihat `.nav-item .star.on`
+ * di app.css.
+ */
 
 export function icon(name, size = 16) {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', size);
-  svg.setAttribute('height', size);
-  svg.setAttribute('viewBox', '0 0 16 16');
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('aria-hidden', 'true');
-
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', PATHS[name] || '');
-  path.setAttribute('stroke', 'currentColor');
-  path.setAttribute('stroke-width', '1.5');
-  path.setAttribute('stroke-linecap', 'round');
-  path.setAttribute('stroke-linejoin', 'round');
-  svg.appendChild(path);
-  return svg;
+  return svgIcon(name, { size });
 }
 
 /*

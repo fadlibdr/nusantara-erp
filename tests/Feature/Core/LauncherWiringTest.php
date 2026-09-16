@@ -55,7 +55,7 @@ class LauncherWiringTest extends ErpTestCase
         $this->assertStringContainsString('filter((item) => !item.chrome)', $this->file('app/js/views/module.js'),
             'Beranda modul masih menggambar kartu untuk baris kroma (Beranda → launcher yang baru saja ditinggalkan).');
         $this->assertMatchesRegularExpression("/iconName: 'home'[^)]*title: 'Beranda'/", $app);
-        $this->assertArrayHasKey('home', $this->iconPaths(), 'ui.js icon() tidak punya glyph "home"; tombolnya menggambar path kosong.');
+        $this->assertArrayHasKey('home', $this->spriteSymbols(), 'Sprite Lucide tidak punya simbol "home"; tombolnya menggambar kotak kosong.');
     }
 
     public function test_the_landing_rule_uses_the_760px_breakpoint_and_only_when_there_is_no_hash(): void
@@ -261,8 +261,8 @@ class LauncherWiringTest extends ErpTestCase
     {
         $this->assertNull($this->landingRule("function bukanLandOnDefault() {\n  return 1;\n}\n"));
         $this->assertNull($this->functionBody("const tour = 1;\n", 'function tour()'));
-        $this->assertArrayNotHasKey('rumah', $this->iconPaths());
-        $this->assertArrayHasKey('star', $this->iconPaths());
+        $this->assertArrayNotHasKey('rumah', $this->spriteSymbols());
+        $this->assertArrayHasKey('star', $this->spriteSymbols());
     }
 
     /** Badan fungsi landOnDefault(), atau null bila tidak ada. */
@@ -288,19 +288,112 @@ class LauncherWiringTest extends ErpTestCase
         return $end === false ? null : substr($source, $start, $end - $start);
     }
 
-    /** @return array<string, true> nama glyph di PATHS ui.js */
-    private function iconPaths(): array
+    /**
+     * Nama simbol di sprite Lucide yang di-vendor.
+     *
+     * Dulu helper ini membaca tabel `PATHS` di ui.js. UI-3c membuang tabel itu:
+     * `icon()` kini mendelegasikan ke sprite, jadi pertanyaan "apakah glyph ini
+     * menggambar sesuatu" dijawab sprite, bukan lagi sebuah daftar di JS.
+     *
+     * Penggantinya lebih kuat, dan itu bukan kebetulan. Pesan gagal asersi
+     * "home" di atas selalu berbunyi "tombolnya menggambar path kosong" —
+     * uji ini lahir untuk mencegah cacat itu, tetapi hanya memeriksa DUA nama.
+     * Empat nama lain (`bell`, `camera`, `copy`, `list`) sampai ke icon() tanpa
+     * pernah ada di PATHS dan menggambar `<path d="">` di produksi selama
+     * berbulan-bulan, tak terlihat dan tanpa galat. Uji di bawah memeriksa
+     * SETIAP nama yang benar-benar dipakai, jadi lubang itu tidak bisa terbuka
+     * lagi.
+     *
+     * @return array<string, true>
+     */
+    private function spriteSymbols(): array
     {
-        $source = $this->file('app/js/ui.js');
-        $start = strpos($source, 'const PATHS = {');
-        $block = $start === false ? '' : substr($source, $start, (int) strpos($source, "\n};", $start) - $start);
-        preg_match_all("/^  ([a-zA-Z]+): '/m", $block, $matches);
+        $sprite = (string) file_get_contents(public_path('app/vendor/lucide@1.41.0/sprite.svg'));
+        preg_match_all('/id="lucide-([a-z0-9-]+)"/', $sprite, $matches);
 
         return array_fill_keys($matches[1], true);
+    }
+
+    /** Alias yang diterima svgIcon() untuk nama icon() warisan: nama lama => nama Lucide. */
+    private function lucideAlias(): array
+    {
+        $source = $this->file('app/js/ui.js');
+        $start = strpos($source, 'const LUCIDE_ALIAS = {');
+        $block = $start === false ? '' : substr($source, $start, (int) strpos($source, "\n};", $start) - $start);
+        preg_match_all("/([a-zA-Z]+): '([a-z0-9-]+)'/", $block, $matches, PREG_SET_ORDER);
+
+        $alias = [];
+        foreach ($matches as $one) {
+            $alias[$one[1]] = $one[2];
+        }
+
+        return $alias;
+    }
+
+    /**
+     * SETIAP nama yang sampai ke icon()/svgIcon() harus resolve di sprite.
+     *
+     * `<use href="…#lucide-tidak-ada">` menggambar NOL piksel dan tidak
+     * menaikkan galat apa pun — persis seperti `PATHS[name] || ''` sebelumnya.
+     * Satu-satunya cara menangkapnya adalah menghitungnya dari sumber.
+     */
+    public function test_every_icon_name_used_in_the_spa_resolves_in_the_vendored_sprite(): void
+    {
+        $sprite = $this->spriteSymbols();
+        $alias = $this->lucideAlias();
+
+        $names = [];
+        foreach ($this->spaScripts() as $path => $source) {
+            preg_match_all("/(?<![\w.])(?:svg)?[Ii]con\(\s*'([^']+)'/", $source, $m);
+            foreach ($m[1] as $name) {
+                $names[$name][] = $path;
+            }
+            preg_match_all("/iconName:\s*'([^']+)'/", $source, $m2);
+            foreach ($m2[1] as $name) {
+                $names[$name][] = $path;
+            }
+        }
+
+        $this->assertNotEmpty($names, 'Tidak satu pun nama ikon terbaca — pola pemindainya salah, bukan aplikasinya.');
+
+        $missing = [];
+        foreach ($names as $name => $where) {
+            $symbol = $alias[$name] ?? $name;
+            if (! isset($sprite[$symbol])) {
+                $missing[] = sprintf('%s → #lucide-%s (%s)', $name, $symbol, implode(', ', array_unique($where)));
+            }
+        }
+
+        $this->assertSame([], $missing, "Nama ikon yang tidak ada di sprite menggambar KOTAK KOSONG, tanpa galat:\n".implode("\n", $missing));
     }
 
     private function file(string $relative): string
     {
         return (string) file_get_contents(public_path($relative));
+    }
+
+    /**
+     * Setiap modul SPA (tanpa vendor), sebagai jalur => isi.
+     *
+     * @return array<string, string>
+     */
+    private function spaScripts(): array
+    {
+        $dir = public_path('app/js');
+        $out = [];
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir));
+        foreach ($it as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'js') {
+                continue;
+            }
+            $path = substr($file->getPathname(), strlen($dir) + 1);
+            if (str_starts_with($path, 'vendor/')) {
+                continue;
+            }
+            $out[$path] = (string) file_get_contents($file->getPathname());
+        }
+        ksort($out);
+
+        return $out;
     }
 }

@@ -739,8 +739,16 @@ table.data tr.emphasis td { background: var(--surface-2); }
 }
 .nav-item:hover .star, .nav-item:focus-within .star, .nav-item .star.on { opacity: 1; }
 .nav-item .star:hover, .nav-item .star:focus-visible { background: var(--surface-3); color: var(--text); }
-.nav-item .star.on { color: var(--primary); }
-.nav-item .star.on svg path { fill: currentColor; }
+/* Bintang favorit yang AKTIF (UI-3c). Sampai sini keadaannya dibawa
+   `svg path { fill: currentColor }` — satu-satunya aturan di seluruh app.css
+   yang menjangkau ke DALAM sebuah ikon. Sesudah icon() memakai sprite, tidak
+   ada lagi <path> di DOM: hanya <use>, dan diukur di peramban — `fill` pada
+   <svg> TIDAK menyeberangi batas itu, karena tiap simbol sprite membawa
+   `fill="none"` sendiri. Sprite yang di-vendor tidak punya varian bintang
+   terisi. Keadaannya karena itu pindah ke keping latar, yang terbaca pada
+   13 px justru lebih jelas daripada isian dan tidak bergantung pada bentuk
+   ikon sama sekali. */
+.nav-item .star.on { color: var(--primary); background: var(--primary-soft); }
 @media (pointer: coarse) {
   .nav-item .star { opacity: .45; width: 34px; height: 32px; }
 }
