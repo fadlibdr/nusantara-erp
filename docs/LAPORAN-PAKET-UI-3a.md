@@ -138,6 +138,70 @@ Sabotase dipulihkan; `git diff` bersih.
 
 ---
 
+## Gerbang kepadatan yang tidak pernah bisa merah
+
+Audit cangkang menemukan yang tidak satu pun laporan paket sebelumnya sadari, termasuk laporan
+saya sendiri: **S21 tidak pernah bisa gagal.** Dekorator harness menandai skenario merah hanya bila
+hasilnya memuat `ok: False` di puncak, atau bila ia melempar. S21 tidak pernah mengembalikan kunci
+`ok` — jadi `compact_ok`, `comfortable_ok`, `normal_equals_baseline` dan `tfoot_normal_41` dihitung
+dengan rapi, ditulis ke `results.json`, dan **tidak ada yang membacanya**.
+
+Diperiksa pada kesembilan skenario yang dipakai gerbang rilis kampanye ini: **tidak satu pun**
+punya `ok` di puncak, kecuali dua yang gerbangnya ditulis tangan (S43 di UI-2b, S18 di paket ini).
+
+Ini menyentuh keputusan pemilik secara langsung. Laporan UI-2b saya menulis bahwa kepadatan
+"dipaku harness S21". Ia tidak dipaku; ia dicatat. Sekarang ia dipaku — lewat mekanisme
+`ok`/`failed_checks` yang dekoratornya memang sudah punya, ditambah kecocokan beranda modul dan
+panah remah. Dibuktikan bisa merah dengan menggeser `--row-h` Padat 32 → 34 px:
+
+```
+[S21_module_accents_breadcrumb] GAGAL: kepadatan Padat bukan 32 px ([34]), pilihan kepadatan tidak bertahan
+GAGAL: S21_module_accents_breadcrumb
+STATUS KELUAR: 1
+```
+
+---
+
+## Laci ponsel: tiga jalan keluar yang tidak ada
+
+Esc tidak melakukan apa-apa. Menyentuh kain gelap di sebelah laci juga tidak — kainnya
+`body.nav-open::after`, sebuah pseudo-element, yang tidak bisa memegang pendengar. Keduanya gerak
+refleks orang yang membuka laci dan berubah pikiran. (Satu jalur Esc memang ada di
+`views/onboarding.js`, tetapi hanya ketika **tur** yang membuka lacinya.)
+
+Kini: `aria-expanded` + `aria-controls`, Esc yang mengalah pada dialog di atasnya dan
+mengembalikan fokus ke hamburger, dan sentuhan di luar laci — dengan hamburger dikecualikan,
+karena tanpa itu keduanya saling membatalkan dan laci tidak pernah terbuka.
+
+**Laci tertutup juga keluar dari urutan Tab.** Diukur, bukan ditaksir:
+
+| | kontrol yang benar-benar bisa difokus |
+|---|---:|
+| `main`, laci tertutup | **87** (16 tombol grup · 38 tautan · 33 bintang) |
+| UI-3a, laci tertutup | **0** |
+
+Bukan 150: `.nav-group[data-open="false"] .nav-items { display: none }` sudah mencabut tautan grup
+yang terlipat, jadi yang tertinggal hanyalah grup yang kebetulan terbuka. Audit menaksir "~149" dan
+itu salah; angka di atas dari mencoba memfokuskan tiap kandidat satu per satu.
+
+Dipakai **`inert`** — idiom yang `ui.js` memang sudah pakai untuk `#root` saat modal terbuka.
+Percobaan pertama memakai `visibility: hidden` dan ia **menjatuhkan seluruh harness dalam satu
+langkah**: setiap skenario masuk lewat `wait_for_selector('nav.nav')`, dan nav yang
+visibility-hidden tidak pernah "visible" bagi Playwright — ke-77 skenario akan gagal di baris
+login, bukan pada hal yang diujinya. Tertangkap karena percobaan berikutnya dijalankan, bukan
+karena CSS-nya dibaca ulang.
+
+`inert`-nya **mengamati kelas `body`**, bukan disetel dari satu tempat: panduan onboarding membuka
+laci dengan menulis `classList.add('nav-open')` langsung, tidak lewat `setDrawer()`. Tanpa pengamat
+itu laci tur akan tergambar terbuka tetapi tetap inert — terlihat, dan tidak bisa disentuh siapa
+pun.
+
+Dan probe pertama untuk `inert` pun salah ukur: ia menghitung `getClientRects` dan `visibility`,
+yang keduanya tidak disentuh `inert`, lalu melaporkan angka yang **sama** untuk laci terbuka dan
+tertutup. Yang benar adalah mencoba memfokuskan.
+
+---
+
 ## Yang sengaja tidak dikerjakan
 
 * **Lencana hitungan di kepala grup** (prototipe `.n`). Bentuknya siap dan kuncinya kini aman,
