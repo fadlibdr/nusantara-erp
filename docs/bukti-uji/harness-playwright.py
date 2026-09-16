@@ -778,9 +778,13 @@ def s43(pg):
             galat.append(f"{tema}: tepi th {t['th_border_color']} != --border-strong {t['border_strong']}")
         if t["td_right_numeric"] not in (None, "tabular-nums"):
             galat.append(f"{tema}: td.right font-variant-numeric {t['td_right_numeric']} != tabular-nums")
+    # Dipakai mekanisme ok/failed_checks milik dekorator, BUKAN FAILED.append():
+    # dengan FAILED.append baris per-skenario tetap mencetak "ok" dan kegagalannya
+    # hanya muncul di baris GAGAL terakhir — seorang pembaca yang memindai daftar
+    # skenario melihat "ok" pada skenario yang baru saja gagal.
     out["galat"] = galat
-    if galat:
-        FAILED.append("S43_primitif_ui2")
+    out["failed_checks"] = galat
+    out["ok"] = not galat
     return out
 
 
@@ -1307,6 +1311,25 @@ def s18(pg):
     pg.keyboard.press("Escape"); pg.wait_for_timeout(800)
     out["reopen"]["escape_status"] = onboarding_status(email); out["reopen"]["dock_gone"] = pg.locator(".onboarding-dock").count() == 0
     out["pageerrors"] = errors
+
+    # GERBANG (UI-3). Sampai sini S18 hanya MENCATAT `ring_covers_nav` dan daftar
+    # sorotannya; sebuah cangkang yang berubah bisa membuat setiap sorotan gagal
+    # menemukan sasarannya dan skenario ini tetap melaporkan "ok".
+    # ui.js spotlight() memang diam: `if (!(element instanceof Element) ...) return`
+    # — target yang hilang tidak menggambar apa pun dan tidak mengeluh. Lima
+    # selektornya semuanya milik UI-3 (.header .menu-toggle, nav.nav,
+    # #view .page-head h1, tautan nav, .page-head .actions .btn.primary), jadi
+    # justru paket inilah yang paling mungkin memutusnya.
+    galat = []
+    if not out["step2"].get("ring_covers_nav"):
+        galat.append(f"S18 langkah 2: cincin tidak menutupi sidebar — {out['step2'].get('spotlights')}")
+    if not out["step3"].get("spotlights"):
+        galat.append("S18 langkah 3: tidak ada sorotan sama sekali (target tautan nav / tombol utama hilang)")
+    if out["pageerrors"]:
+        galat.append(f"S18: galat halaman {out['pageerrors'][:2]}")
+    out["galat"] = galat
+    out["failed_checks"] = galat
+    out["ok"] = not galat
     return out
 
 @scenario("S19_onboarding_sheet_mobile")
@@ -4281,6 +4304,42 @@ def module_accents(pg, tag):
 
     out["pageerrors"] = errors
     out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
+
+    # GERBANG (UI-3). Sampai di sini S21 hanya MENCATAT. Dekorator hanya menandai
+    # sebuah skenario gagal kalau hasilnya memuat `ok: False` di puncak (atau kalau
+    # ia melempar) — dan S21 tidak pernah mengembalikan kunci `ok`, jadi ia TIDAK
+    # PERNAH BISA MERAH. Diperiksa 16 Sep 2026: dari sembilan skenario yang dipakai
+    # gerbang rilis kampanye UI, TIDAK SATU PUN punya `ok` di puncak kecuali yang
+    # gerbangnya ditulis tangan.
+    #
+    # Yang dijaga di sini adalah keputusan PEMILIK: metrik baris dibekukan pada
+    # Padat 32 / Normal 38,5 / Lega 48 dengan kaki 41. Angka-angka itu sudah
+    # dihitung di atas (compact_ok, comfortable_ok, normal_equals_baseline,
+    # tfoot_normal_41, persisted) dan sampai sekarang tidak ada yang membacanya.
+    checks = []
+    d = out["density"]
+    if not d.get("compact_ok"):
+        checks.append(f"kepadatan Padat bukan {d['expected']['compact']} px ({d['compact']['all']})")
+    if not d.get("comfortable_ok"):
+        checks.append(f"kepadatan Lega bukan {d['expected']['comfortable']} px ({d['comfortable']['all']})")
+    if not d.get("normal_equals_baseline"):
+        checks.append("Normal tidak lagi sama dengan baseline — profil bawaan bergeser")
+    if d.get("tfoot_normal_41") is False:
+        checks.append(f"kaki tabel Normal bukan 41 px ({d['normal_po']['tfoot']})")
+    if not d.get("persisted"):
+        checks.append("pilihan kepadatan tidak bertahan setelah muat ulang")
+    # Aksen modul: sidebar dan beranda modul harus sepakat, dan panahnya harus benar.
+    if not out.get("admin_all_match"):
+        checks.append("beranda modul admin tidak cocok dengan sidebarnya")
+    if not out.get("admin_arrows_ok"):
+        checks.append("panah/aksen remah admin salah")
+    if not out["warehouse"].get("all_match"):
+        checks.append("beranda modul warehouse tidak cocok dengan sidebarnya")
+    if out["pageerrors"]:
+        checks.append(f"galat halaman: {out['pageerrors'][:2]}")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
     return out
 
 

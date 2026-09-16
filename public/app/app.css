@@ -587,6 +587,36 @@ table.data tr.emphasis td { background: var(--surface-2); }
   padding: 10px 10px 28px;
 }
 
+/* Kotak saring sidebar (UI-3). Lengket di puncak nav supaya ia tetap terjangkau
+   saat 149 tautan digulung; latarnya PEKAT (bukan transparan) karena baris yang
+   lewat di bawahnya harus tertutup, bukan tembus. */
+.nav-filter {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: var(--space-2);
+  margin: -10px -10px 8px; padding: 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+.nav-filter > .lucide { flex: none; }
+.nav-filter-input {
+  flex: 1; min-width: 0;
+  border: 0; background: transparent; padding: 2px 0;
+  color: var(--text); font: inherit; font-size: var(--fs-body);
+}
+.nav-filter-input::placeholder { color: var(--muted); }
+/* Fokus dipasang pada PEMBUNGKUS, bukan pada input tanpa tepi: cincin di sekitar
+   kotak terbaca sebagai satu medan, cincin di sekitar teks terbaca sebagai cacat. */
+.nav-filter:focus-within { color: var(--text-2); box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+.nav-filter-input:focus { outline: none; }
+/* Saat menyaring, penanda grup aktif tidak lagi berarti "tempat Anda berada"
+   melainkan "grup yang kebetulan cocok" — jadi ia diredam. */
+.nav[data-filtering="true"] .nav-group.has-active > button { box-shadow: none; }
+.nav-filter-empty {
+  margin: 10px 4px; padding: 0;
+  color: var(--muted); font-size: var(--fs-secondary); line-height: var(--lh-body);
+}
+
 .nav-group + .nav-group { margin-top: 3px; }
 
 .nav-group > button {
@@ -605,6 +635,15 @@ table.data tr.emphasis td { background: var(--surface-2); }
    memakai aksen modulnya — batang 3 px di kiri judul + judul berwarna aksen.
    Hanya di sini dan di remah roti; baris tautan aktif tetap --primary-soft. */
 .nav-group.has-active > button { color: var(--module-accent); box-shadow: inset 3px 0 0 var(--module-accent); }
+/* Ikon modul di kepala grup (UI-3). Ia mewarisi warna kepalanya — redup biasa,
+   aksen modul saat grup memuat rute aktif — dan TIDAK pernah membawa aksennya
+   sendiri secara tetap: empat belas warna tetap di sidebar akan terbaca sebagai
+   status, persis yang dilarang catatan jujur CONVENTIONS §12. Kebijakan aksen
+   tidak berubah; yang bertambah hanya bentuk. */
+.nav-group > button .gi { opacity: .7; }
+.nav-group.has-active > button .gi, .nav-group > button:hover .gi { opacity: 1; }
+/* Label dipisah ke span-nya sendiri supaya ia yang dielipsiskan, bukan chevronnya. */
+.nav-group > button .nav-group-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-group > button .chev { margin-left: auto; transition: transform .16s; opacity: .55; }
 .nav-group[data-open="false"] > button .chev { transform: rotate(-90deg); }
 .nav-group[data-open="false"] .nav-items { display: none; }
@@ -644,6 +683,13 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .nav-divider:first-child { margin-top: 2px; }
 
 .nav-item { display: flex; align-items: center; gap: 2px; }
+/* Jebakan yang sama dengan `.combo-clear[hidden]` dan `.combo-warn .btn[hidden]`
+   di bawah: `display: flex` milik penulis MENGALAHKAN `[hidden] { display: none }`
+   milik stylesheet UA, jadi kotak saring sidebar menyetel .hidden dengan patuh dan
+   baris-barisnya tetap tergambar. Tertangkap tangkapan layar, BUKAN oleh
+   pengukuran — probe pertamanya menghitung properti `hidden` alih-alih apa yang
+   benar-benar tampak, dan melaporkan 5 baris ketika layar memuat tiga puluhan. */
+.nav-item[hidden] { display: none; }
 .nav-item > a { flex: 1; min-width: 0; }
 .nav-item.shortcut .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-item .star {
