@@ -739,8 +739,16 @@ table.data tr.emphasis td { background: var(--surface-2); }
 }
 .nav-item:hover .star, .nav-item:focus-within .star, .nav-item .star.on { opacity: 1; }
 .nav-item .star:hover, .nav-item .star:focus-visible { background: var(--surface-3); color: var(--text); }
-.nav-item .star.on { color: var(--primary); }
-.nav-item .star.on svg path { fill: currentColor; }
+/* Bintang favorit yang AKTIF (UI-3c). Sampai sini keadaannya dibawa
+   `svg path { fill: currentColor }` — satu-satunya aturan di seluruh app.css
+   yang menjangkau ke DALAM sebuah ikon. Sesudah icon() memakai sprite, tidak
+   ada lagi <path> di DOM: hanya <use>, dan diukur di peramban — `fill` pada
+   <svg> TIDAK menyeberangi batas itu, karena tiap simbol sprite membawa
+   `fill="none"` sendiri. Sprite yang di-vendor tidak punya varian bintang
+   terisi. Keadaannya karena itu pindah ke keping latar, yang terbaca pada
+   13 px justru lebih jelas daripada isian dan tidak bergantung pada bentuk
+   ikon sama sekali. */
+.nav-item .star.on { color: var(--primary); background: var(--primary-soft); }
 @media (pointer: coarse) {
   .nav-item .star { opacity: .45; width: 34px; height: 32px; }
 }
@@ -752,8 +760,13 @@ table.data tr.emphasis td { background: var(--surface-2); }
   display: flex; align-items: flex-start; gap: 14px;
   margin-bottom: 16px; flex-wrap: wrap;
 }
-.page-head h1 { font-size: 20px; letter-spacing: -.015em; }
-.page-head .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
+/* Tipografi kepala halaman memakai skala UI-1. Nilainya SAMA PERSIS dengan
+   angka mentah yang digantikannya (20 dan 13), jadi tidak ada piksel yang
+   bergerak — yang berubah adalah: kalau skalanya nanti disetel, kepala halaman
+   ikut, alih-alih tertinggal sendirian. --fs-page ada sejak UI-1 dan sampai
+   sekarang tidak punya satu pun pemakai. */
+.page-head h1 { font-size: var(--fs-page); letter-spacing: -.015em; }
+.page-head .desc { color: var(--muted); font-size: var(--fs-body); margin-top: 3px; }
 .page-head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Catatan persetujuan inline (actions.js inlineNote) — diukur 2 Sep 2026: modal
@@ -1725,6 +1738,42 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .header .crumbs[data-root="screen"] a.crumb-screen,
   .header .crumbs[data-root="screen"] > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .header .crumbs[data-root="screen"] a.crumb-screen ~ b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Bilah aksi kepala halaman di ponsel (UI-3c). Sampai di sini `.page-head`
+     tidak punya SATU pun aturan responsif di seluruh app.css, dan bilahnya
+     membungkus sebanyak yang perlu. Terukur 16 Sep 2026 pada 390 px:
+     #/d/projects/1 membawa delapan tombol rata (tidak berzona) dan kepala
+     halamannya setinggi 256 px — hampir sepertiga layar ponsel dihabiskan
+     sebelum satu baris isi pun tergambar; #/periods 136 px.
+
+     Yang dipilih: satu baris yang MENGGULUNG MENDATAR, bukan menu yang
+     melipat. Melipat menuntut keputusan per layar tentang aksi mana yang
+     sekunder — itu 51 berkas dan milik UI-4/UI-6, dan menebaknya di sini akan
+     menyembunyikan tombol yang ternyata utama. Menggulung tidak menyembunyikan
+     apa pun: kedelapan tombol tetap ada, tingginya turun jadi satu baris, dan
+     wadahnya sendiri yang menggulung — halaman tidak pernah ikut bergeser.
+
+     Zona tetap bekerja di dalamnya: pemisahnya justru menjadi penanda tempat
+     berhenti saat digulung. */
+  .page-head { gap: 10px; }
+  /* Hanya bilah yang BENAR-BENAR ramai. Putaran pertama aturan ini memberi
+     `width: 100%` kepada SETIAP bilah dan membuat kasus satu tombol lebih
+     buruk: #/reports naik 49 -> 97 px, karena tombol tunggalnya yang tadinya
+     muat di samping judul dipaksa turun ke barisnya sendiri. Diperbaiki tiga
+     tombol ke atas, atau bilah berzona — sisanya dibiarkan persis seperti
+     sebelumnya. */
+  .page-head .actions:has(> .btn:nth-of-type(3)),
+  .page-head .actions:has(> .zone) {
+    margin-left: 0; width: 100%;
+    flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain;
+    /* Ruang untuk cincin fokus tombol pertama/terakhir saat digulung. */
+    padding: 2px; margin-inline: -2px;
+    scrollbar-width: thin;
+  }
+  .page-head .actions > .btn, .page-head .actions .zone > .btn { flex: none; }
+  .page-head .actions .zone { flex: none; flex-wrap: nowrap; }
+  /* Panel catatan persetujuan tetap satu baris penuh dan TIDAK ikut menggulung:
+     ia sebuah <details> berisi textarea, bukan tombol. */
+  .page-head .actions .action-note { flex: 1 0 100%; position: sticky; left: 0; }
   /* Tombol Cari hanya ikon di ponsel (title + aria-label tetap): berlabel, isi header
      390 px berjumlah 416 px dan remah modul terpendek pun ikut terpotong. */
   .header .btn.global-search { width: 34px; padding: 0; }
