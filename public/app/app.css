@@ -1994,6 +1994,39 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .field-photo-main { flex: 1; min-width: 0; }
 .field-photo .badge { flex: none; }
 
+/* Chip filter aktif (UI-4a). Ia meringkas apa yang MEMPERSEMPIT daftar dan
+   memberi jalan membuang satu filter dengan satu klik — tombol Reset yang
+   sudah ada hanya bisa membuang semuanya. Dibiarkan ringan: pada daftar dengan
+   satu filter aktif ia tidak boleh terbaca sebagai bilah kedua. */
+.chips {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+  font-size: var(--fs-secondary);
+}
+.chips[hidden] { display: none; }
+.chips-label { color: var(--muted); }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 4px 3px 9px;
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  background: var(--surface-2); color: var(--text-2);
+  max-width: 100%; min-width: 0;
+}
+.chip > b { font-weight: var(--fw-semi); color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-key { flex: none; }
+.chip-x {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.chip-x:hover { background: var(--surface-3); color: var(--text); }
+@media (pointer: coarse) {
+  /* Sasaran sentuh: lantai yang sama dengan bintang sidebar. */
+  .chip { padding-right: 2px; }
+  .chip-x { width: 30px; height: 28px; }
+}
+
 /* ------------------------------------------------------------- global search */
 /* Palet perintah (UI-3b). Ia tetap modal() — tumpukan, perangkap fokus, inert
    dan penjaga dirty semuanya sudah benar di sana — tetapi dengan lebar dan

@@ -788,6 +788,103 @@ def s43(pg):
     return out
 
 
+@scenario("S44_chip_filter")
+def s44(pg):
+    """UI-4a: chip filter aktif — ia menggambar keadaan yang sudah ada, dan bisa membuangnya satu per satu.
+
+    Rutenya dipilih karena ia punya KEDUA bentuk yang sulit: filter enum (label
+    datang dari <option> terpilih, bukan dari nilai mentah 'draft') dan filter
+    lookup (labelnya tiba ASINKRON dari sumbernya, dan jujur soal id yang tidak
+    ada di daftar).
+    """
+    login(pg, "admin@nusantara.test")
+
+    CHIPS = """() => {
+      const row = document.querySelector('.chips');
+      if (!row) return { ada: false };
+      return {
+        ada: true,
+        tersembunyi: row.hidden,
+        chips: [...row.querySelectorAll('.chip')].map(c => ({
+          kunci: ((c.querySelector('.chip-key') || {}).innerText || '').trim(),
+          nilai: ((c.querySelector('b') || {}).innerText || '').trim(),
+          buang: !!c.querySelector('.chip-x'),
+        })),
+        hapus_semua: !!row.querySelector('button.btn'),
+        baris: document.querySelectorAll('table.data tbody tr').length,
+      };
+    }"""
+
+    # Tanpa filter: barisnya HARUS tersembunyi, bukan kosong-tapi-menempati-ruang.
+    pg.goto(BASE + "#/r/procurement/purchase-orders"); pg.wait_for_timeout(1800)
+    out = {"bersih": pg.evaluate(CHIPS)}
+
+    # Enum + pencarian.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=PO&status=draft"); pg.wait_for_timeout(2200)
+    out["enum"] = pg.evaluate(CHIPS)
+
+    # Lookup: label yang diselesaikan, dan id yang tidak ada.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?project_id=1"); pg.wait_for_timeout(2600)
+    out["lookup"] = pg.evaluate(CHIPS)
+    pg.goto(BASE + "#/r/procurement/purchase-orders?project_id=999999"); pg.wait_for_timeout(2600)
+    out["lookup_hilang"] = pg.evaluate(CHIPS)
+    pg.screenshot(path=f"{OUT}/s44-chips.png")
+
+    # Membuang satu chip membuang SATU filter — sisanya bertahan di URL.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=PO&status=draft"); pg.wait_for_timeout(2200)
+    click(pg, ".chips .chip-x")
+    pg.wait_for_timeout(1600)
+    out["buang_satu"] = {**pg.evaluate(CHIPS), "url": pg.url.split("?")[-1]}
+
+    # "Hapus semua" memakai resetFilters() yang sama dengan tombol Reset.
+    click(pg, ".chips button.btn")
+    pg.wait_for_timeout(1600)
+    out["hapus_semua"] = {**pg.evaluate(CHIPS), "url": pg.url.split("#")[-1]}
+
+    checks = []
+    if not out["bersih"]["ada"]:
+        checks.append("baris chip tidak ada sama sekali")
+    elif not out["bersih"]["tersembunyi"]:
+        checks.append("baris chip tampil padahal tidak ada filter aktif")
+
+    e = out["enum"]
+    if len(e["chips"]) != 2:
+        checks.append(f"q+status memberi {len(e['chips'])} chip, diharapkan 2")
+    else:
+        nilai = [c["nilai"] for c in e["chips"]]
+        if "PO" not in nilai:
+            checks.append(f"chip pencarian tidak menyebut kuerinya: {nilai}")
+        # Label enum, BUKAN nilai mentah: 'Draf', bukan 'draft'.
+        if any(v == "draft" for v in nilai):
+            checks.append("chip enum menampilkan nilai mentah 'draft', bukan label <option>-nya")
+        if not all(c["buang"] for c in e["chips"]):
+            checks.append("ada chip tanpa tombol buang")
+    if not e["hapus_semua"]:
+        checks.append("'Hapus semua' hilang saat ada filter aktif")
+
+    lk = out["lookup"]["chips"]
+    if len(lk) != 1 or not lk[0]["nilai"]:
+        checks.append(f"chip lookup kosong: {lk}")
+    elif lk[0]["nilai"].startswith("#"):
+        checks.append(f"chip lookup tidak pernah menyelesaikan labelnya: {lk[0]['nilai']!r}")
+    hl = out["lookup_hilang"]["chips"]
+    # Id yang tidak ada HARUS terbaca sebagai tidak ada, bukan diam-diam kosong.
+    if len(hl) != 1 or "tidak ada di daftar" not in hl[0]["nilai"]:
+        checks.append(f"id lookup yang hilang tidak diakui: {hl}")
+
+    if len(out["buang_satu"]["chips"]) != 1:
+        checks.append(f"membuang satu chip menyisakan {len(out['buang_satu']['chips'])}, diharapkan 1")
+    if "status=draft" not in out["buang_satu"]["url"]:
+        checks.append(f"membuang satu chip ikut membuang filter lain: url {out['buang_satu']['url']!r}")
+    if not out["hapus_semua"]["tersembunyi"] or out["hapus_semua"]["chips"]:
+        checks.append("'Hapus semua' tidak mengosongkan barisnya")
+    if "?" in out["hapus_semua"]["url"]:
+        checks.append(f"'Hapus semua' meninggalkan filter di URL: {out['hapus_semua']['url']!r}")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -12518,7 +12615,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

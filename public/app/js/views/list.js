@@ -9,7 +9,7 @@ import { combobox } from '../combobox.js';
 import { openForm } from './form.js';
 import { runAction } from './actions.js';
 import { navigate } from '../router.js';
-import { MONTHS, rupiah } from '../format.js';
+import { MONTHS, rupiah, date } from '../format.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
 import { downloadPdf, openPrintable, xlsxName } from '../print.js';
 import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
@@ -305,8 +305,70 @@ export async function renderList(host, { key, def }) {
     load();
   }
 
+  /*
+   * Chip filter aktif (UI-4a).
+   *
+   * Ia MENGGAMBAR keadaan yang sudah ada — ui.q, ui.filters, ui.dateFrom/To —
+   * dan tidak menyimpan apa pun sendiri. Yang ditambahkannya dua hal yang bilah
+   * kontrol tidak punya: ringkasan "daftar ini sedang dipersempit oleh APA" di
+   * satu tempat, dan cara membuang SATU filter dengan satu klik. Tombol Reset
+   * yang sudah ada hanya bisa membuang semuanya sekaligus.
+   *
+   * Label nilainya TIDAK dihitung ulang di sini. Tiap kontrol sudah tahu
+   * labelnya sendiri — <select> punya <option> terpilih, combobox lookup punya
+   * labelOf() yang bahkan jujur soal id yang tidak ada di sumber
+   * ('#42 (tidak ada di daftar)') — jadi buildFilter yang MELAPORKAN labelnya
+   * ke sini. Menghitungnya dua kali berarti dua sumber kebenaran yang akan
+   * hanyut, dan chip yang menyebut nilai berbeda dari kontrol di atasnya lebih
+   * buruk daripada tidak ada chip sama sekali.
+   */
+  let activeFilters = [];
+  let chipRow = null;
+
+  function paintChips() {
+    if (!chipRow) return;
+    clear(chipRow);
+
+    const chips = [];
+    if (ui.q) {
+      chips.push({ label: 'Cari', text: ui.q, clear: () => { ui.q = ''; ui.page = 1; load(); } });
+    }
+    for (const one of activeFilters) {
+      const text = one.text();
+      if (text) chips.push({ label: one.label, text, clear: one.clear });
+    }
+    if (ui.dateFrom) {
+      chips.push({ label: 'Sejak', text: date(ui.dateFrom), clear: () => { ui.dateFrom = ''; ui.page = 1; load(); } });
+    }
+    if (ui.dateTo) {
+      chips.push({ label: 'Sampai', text: date(ui.dateTo), clear: () => { ui.dateTo = ''; ui.page = 1; load(); } });
+    }
+
+    chipRow.hidden = chips.length === 0;
+    if (!chips.length) return;
+
+    chipRow.appendChild(el('span.chips-label', { text: 'Disaring:' }));
+    for (const chip of chips) {
+      const drop = el('button.chip-x', {
+        type: 'button',
+        'aria-label': `Hapus filter ${chip.label.toLowerCase()}`,
+        title: `Hapus filter ${chip.label.toLowerCase()}`,
+      }, icon('close', 11));
+      drop.addEventListener('click', chip.clear);
+      chipRow.appendChild(el('span.chip', [
+        el('span.chip-key', { text: `${chip.label}: ` }),
+        el('b', { text: chip.text }),
+        drop,
+      ]));
+    }
+    // "Hapus semua" memakai resetFilters() yang sudah ada — satu definisi
+    // "berhenti menyaring", dipakai tombol Reset, keadaan kosong, dan di sini.
+    chipRow.appendChild(button('Hapus semua', { size: 'sm', variant: 'ghost', onClick: resetFilters }));
+  }
+
   function filterBar() {
     filterCombos = [];
+    activeFilters = [];
     const bar = el('.filters');
     const meta = (payload && payload.meta) || {};
 
@@ -459,11 +521,22 @@ export async function renderList(host, { key, def }) {
       load();
     };
 
+    /* Deskriptor chip: `text` dibaca SETIAP kali chip digambar, bukan sekali
+       saat bilah dibangun — label lookup baru tiba setelah sumbernya dimuat,
+       dan sebuah string yang dibekukan di sini akan selamanya berbunyi
+       'Memuat…'. */
+    const reportChip = (text) => activeFilters.push({
+      label: filter.label,
+      text,
+      clear: () => apply(''),
+    });
+
     if (filter.type === 'date') {
       const input = el('input.filter-w', {
         type: 'date', value: ui.filters[filter.key] || '', 'aria-label': filter.label, title: filter.label,
       });
       input.addEventListener('change', () => apply(input.value));
+      reportChip(() => (ui.filters[filter.key] ? date(ui.filters[filter.key]) : ''));
       return input;
     }
 
@@ -472,12 +545,13 @@ export async function renderList(host, { key, def }) {
         type: 'number', placeholder: filter.label, value: ui.filters[filter.key] || '', 'aria-label': filter.label,
       });
       input.addEventListener('change', () => apply(input.value));
+      reportChip(() => String(ui.filters[filter.key] ?? ''));
       return input;
     }
 
     // Enum menang atas lookup, urutan yang sama dengan rantai else-if <select>
     // lama — filter yang membawa keduanya tidak boleh berpindah kontrol.
-    if (filter.lookup && !filter.enum) return lookupFilter(filter, apply);
+    if (filter.lookup && !filter.enum) return lookupFilter(filter, apply, reportChip);
 
     const select = el('select.filter-w', { 'aria-label': filter.label });
     select.appendChild(el('option', { value: '', text: filter.label }));
@@ -494,6 +568,17 @@ export async function renderList(host, { key, def }) {
 
     select.value = ui.filters[filter.key] || '';
     select.addEventListener('change', () => apply(select.value));
+    /* Label chip dibaca dari <option> yang TERPILIH, bukan dihitung ulang dari
+       ENUMS/MONTHS: kalau keduanya pernah berbeda, yang benar adalah yang
+       dilihat pemakai di kontrolnya. Nilai yang tidak punya <option> (seed URL
+       basi) memberi selectedIndex 0 — yaitu option placeholder berlabel filter
+       — jadi chipnya sengaja dibiarkan kosong dan tidak berbohong. */
+    reportChip(() => {
+      const current = ui.filters[filter.key];
+      if (current === undefined || current === '') return '';
+      const chosen = [...select.options].find((option) => option.value === String(current));
+      return chosen && chosen.value !== '' ? chosen.text : '';
+    });
     return select;
   }
 
@@ -507,7 +592,7 @@ export async function renderList(host, { key, def }) {
    * "—", tombol ×, dan kotak yang dikosongkan ke penghapusan kunci filter —
    * makna yang sama persis dengan <option value=""> milik <select> lama.
    */
-  function lookupFilter(filter, apply) {
+  function lookupFilter(filter, apply, reportChip) {
     const optionsOf = (rows) => {
       const options = optionsFor(filter.lookup, rows);
       // Kontrak nilai <select> lama: valueKey mengirim kolom baris, bukan id
@@ -543,6 +628,18 @@ export async function renderList(host, { key, def }) {
     const state = sourceState(filter.lookup);
     const options = optionsOf(state.rows);
 
+    /* Chip lookup memakai labelOf() yang SAMA dengan comboboxnya — termasuk
+       kejujurannya soal id yang tidak ada di sumber ('#42 (tidak ada di
+       daftar)'). Dibaca ulang tiap kali chip digambar, karena sumber lookup
+       tiba asinkron: chip yang dibekukan saat bilah dibangun akan berbunyi
+       'Memuat…' selamanya. */
+    if (reportChip) {
+      reportChip(() => {
+        const now = sourceState(filter.lookup);
+        return labelOf(optionsOf(now.rows), now);
+      });
+    }
+
     const combo = combobox({
       value: current === undefined || current === '' ? null : current,
       label: labelOf(options, state),
@@ -562,6 +659,9 @@ export async function renderList(host, { key, def }) {
         notice: noticeFor(next),
         onRetry: next.status === 'failed' ? () => retry() : null,
       });
+      // Sumbernya baru tiba: chipnya masih menyebut 'Memuat…' sampai digambar
+      // ulang di sini.
+      paintChips();
     };
 
     const retry = () => {
@@ -905,6 +1005,12 @@ export async function renderList(host, { key, def }) {
     filterCombos.forEach((combo) => combo.closePopup());
     clear(tableHost);
     tableHost.appendChild(filterBar());
+
+    // Chip digambar SESUDAH bilahnya, karena buildFilter yang mengisi
+    // activeFilters saat bilah itu dibangun.
+    chipRow = el('.chips', { hidden: true });
+    tableHost.appendChild(chipRow);
+    paintChips();
 
     const body = el('.list-body');
     tableHost.appendChild(body);
