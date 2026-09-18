@@ -85,7 +85,10 @@ public/app/
     charts.js           SVG charts (line/bar/donut/sparkline/gantt) — since P1-E the ONLY
                         chart code in the app; the header docblock is
                         the API reference; colours only via --chart-* tokens (harness S20)
-    cells.js            value renderer shared by tables and detail panels
+    cells.js            value renderer shared by tables and detail panels — because EVERY table and
+                        EVERY detail panel goes through it, an inline style here is paid once per
+                        ROW, not once per screen: the `bool` cell wrote `color: var(--success)`
+                        inline 14 times across two list screens before UI-6c made it `.cell-yes`
     enums.js            option lists mirrored from the PHP enums
     lookup.js           cached reference data for pickers and id -> name display
     schema.js           THE RESOURCE CATALOGUE — every screen is an entry here; NAV groups carry

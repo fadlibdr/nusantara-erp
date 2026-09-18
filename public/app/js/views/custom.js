@@ -150,15 +150,30 @@ export async function renderStock(host) {
            Total dimiliki benar-benar identitas yang terpatri ke GL 1-1400. */
         const showTransit = inTransit > 0 && !state.warehouse && !state.q;
         clear(body).appendChild(el('div', [
+          /* Satu ukuran untuk satu peran (UI-6c), obat yang sama dengan baris
+             ubin pahlawan proyek di UI-6b: sampai paket ini "Nilai persediaan"
+             — subjek layar ini — tergambar 16 px di sebelah "Baris saldo" pada
+             22 px, karena rupiah penuh tidak muat di petak 158 px. Bentuk
+             ringkas menyelesaikan sebabnya; angka penuhnya turun ke baris
+             konteks (dan tetap ada di title). */
           el('.stat-row', [
-            el('.stat', [el('.label', { text: 'Nilai persediaan' }), el('.value.sm', { text: fmt.rupiah(onHand) })]),
+            el('.stat', [
+              el('.label', { text: 'Nilai persediaan' }),
+              el('.value', { text: fmt.rupiahShort(onHand), title: fmt.rupiah(onHand) }),
+              el('.delta', { text: fmt.rupiah(onHand) }),
+            ]),
             showTransit ? el('.stat', [
               el('.label', { text: `Dalam perjalanan · ${Number(totals.in_transit_transfers || 0)} transfer` }),
-              el('.value.sm', { text: fmt.rupiah(inTransit) }),
+              el('.value', { text: fmt.rupiahShort(inTransit), title: fmt.rupiah(inTransit) }),
+              el('.delta', { text: fmt.rupiah(inTransit) }),
             ]) : null,
             showTransit ? el('.stat', [
               el('.label', { text: 'Total dimiliki' }),
-              el('.value.sm', { text: fmt.rupiah(Number(totals.owned_value || 0)) }),
+              el('.value', {
+                text: fmt.rupiahShort(Number(totals.owned_value || 0)),
+                title: fmt.rupiah(Number(totals.owned_value || 0)),
+              }),
+              el('.delta', { text: fmt.rupiah(Number(totals.owned_value || 0)) }),
             ]) : null,
             el('.stat', [el('.label', { text: 'Baris saldo' }), el('.value', { text: String(meta.total != null ? meta.total : rows.length) })]),
           ]),

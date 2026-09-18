@@ -897,6 +897,25 @@ table.data tr.emphasis td { background: var(--surface-2); }
 }
 /* Several small buttons inside one table cell. */
 .row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Bilah aksi di dalam SEL TABEL (UI-6c). Sampai paket ini `list.js` membangun
+   flex-nya sebaris, satu objek gaya per BARIS — 16 di antara lima layar yang
+   diukur, dan biayanya tumbuh bersama jumlah baris, bukan bersama jumlah layar.
+
+   Ia kelas SENDIRI, bukan `.row-actions`, dan itu hasil pengukuran bukan selera.
+   Memakai ulang `.row-actions` sempat dicoba: ia membawa `gap: 6px` dan
+   `flex-wrap: wrap`, dan pembungkusan itu menaikkan tinggi baris tabel
+   **56 → 81 px** di #/r/inventory/items, #/r/procurement/vendors dan
+   #/r/hr/employees — 45% lebih tinggi, menabrak KEPADATAN BEKU keputusan
+   pemilik. Nilai di sini menyalin persis nilai sebaris yang digantikannya, jadi
+   nol piksel bergerak: tombol aksi di dalam sel HARUS tetap satu baris. */
+.cell-actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+/* Tanda "ya" pada sel boolean (UI-6c). `cells.js` adalah penggambar nilai yang
+   dipakai SETIAP tabel dan SETIAP panel detail, dan sampai paket ini ia menulis
+   `color: var(--success)` sebaris sekali per baris per kolom boolean — 14 kali
+   di antara dua layar daftar saja. Sebuah penimpaan token di penggambar paling
+   dipakai di seluruh aplikasi adalah tempat terburuk untuk menaruhnya. */
+.cell-yes { color: var(--success); font-weight: var(--fw-bold); }
 
 /* --------------------------------------------------------------- filters */
 .filters {

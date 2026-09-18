@@ -609,6 +609,13 @@ ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
 **Perkakas bersama** `views/widgets/kit.js`: `safe()` / `safeList()` (fetch bertanda `loadFailure`),
 `failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
 
+**Bilah aksi di dalam SEL TABEL memakai `.cell-actions`, bukan `.row-actions` (UI-6c).** Keduanya
+sebuah deret tombol mendatar, dan keduanya BUKAN hal yang sama: `.row-actions` membawa `gap: 6px`
+dan `flex-wrap: wrap`, yang di dalam sel tabel menaikkan tinggi baris **56 → 81 px** (diukur 18 Sep
+2026 di tiga layar daftar) karena tombolnya membungkus. Kepadatan baris adalah keputusan pemilik
+yang dibekukan, dan ia bisa naik seperti ini **tanpa satu pun token kepadatan disentuh** — jadi S21
+tidak melihatnya dan harness **S52** yang menjaganya.
+
 **`.stat` adalah kosakata BERSAMA, dan ubinnya diratakan `subgrid` (UI-5/UI-6b).** `.stat-row > .stat`
 memakai `grid-template-rows: subgrid` supaya label yang membungkus melebarkan trek untuk seluruh
 baris alih-alih menggeser tetangganya. Konsekuensinya: **jumlah anak sebuah ubin menentukan berapa

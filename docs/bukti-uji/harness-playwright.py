@@ -1444,6 +1444,116 @@ def s51(pg):
     out["ok"] = not checks
     return out
 
+@scenario("S52_lapisan_daftar_generik")
+def s52(pg):
+    """UI-6c: bilah aksi di dalam sel tidak pernah membungkus, dan sel boolean memakai tokennya.
+
+    Dua hal yang digerbangi di sini hidup di lapisan GENERIK — `list.js` dan
+    `cells.js` — sehingga biayanya tumbuh bersama jumlah BARIS, bukan jumlah
+    layar, dan salahnya muncul di ke-97 sumber daya sekaligus.
+
+    Gerbang pertama lahir dari nyaris-kiriman. Mencabut gaya sebaris dari
+    `rowActions()` terlihat seperti pekerjaan memakai-ulang-kelas yang rapi:
+    `.row-actions` sudah ada dan bentuknya "sama". Ia TIDAK sama — ia membawa
+    `flex-wrap: wrap`, dan pembungkusan itu menaikkan tinggi baris tabel
+    56 → 81 px di #/r/inventory/items, #/r/procurement/vendors dan
+    #/r/hr/employees. Itu 45% lebih tinggi, dan kepadatan baris adalah KEPUTUSAN
+    PEMILIK yang dibekukan. Diukur lewat A/B sebelum dikirim, lalu diganti kelas
+    sendiri (`.cell-actions`) yang menyalin persis nilai sebarisnya — nol piksel
+    bergerak di 15 rute.
+
+    S21 memaku `--row-h` sebagai TOKEN. Skenario ini memaku MEKANISME yang bisa
+    menaikkan tinggi baris tanpa menyentuh token itu sama sekali.
+    """
+    login(pg, "admin@nusantara.test")
+
+    # Membungkus = anak-anaknya tidak lagi berbagi satu garis atas.
+    WRAP = """() => {
+      const bars = [...document.querySelectorAll('.main table.data .cell-actions')];
+      const membungkus = bars.filter(b => {
+        const kids = [...b.children].filter(k => k.getClientRects().length);
+        if (kids.length < 2) return false;
+        const tops = kids.map(k => Math.round(k.getBoundingClientRect().top));
+        return Math.max(...tops) - Math.min(...tops) > 2;
+      }).length;
+      return { bilah: bars.length, membungkus,
+               gaya_sebaris: bars.filter(b => b.getAttribute('style')).length };
+    }"""
+
+    # Sel boolean: warnanya harus token --success, bukan abu-abu warisan.
+    BOOL = """() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--success)';
+      document.querySelector('.main').appendChild(probe);
+      const token = getComputedStyle(probe).color;
+      probe.remove();
+      const sel = [...document.querySelectorAll('.main table.data .cell-yes')];
+      return { jumlah: sel.length, token,
+               warna: [...new Set(sel.map(e => getComputedStyle(e).color))],
+               bobot: [...new Set(sel.map(e => getComputedStyle(e).fontWeight))] };
+    }"""
+
+    SIZES = """() => {
+      const out = {};
+      document.querySelectorAll('.main .stat-row > .stat > .value').forEach(v => {
+        if (v.closest('.card')) return;
+        const px = getComputedStyle(v).fontSize;
+        out[px] = (out[px] || 0) + 1;
+      });
+      return out;
+    }"""
+
+    out = {}
+    for route in ["#/r/inventory/items", "#/r/procurement/vendors", "#/r/hr/employees",
+                  "#/r/procurement/purchase-orders"]:
+        pg.goto(BASE + route); pg.wait_for_timeout(3200)
+        out[route] = {"bilah": pg.evaluate(WRAP), "bool": pg.evaluate(BOOL)}
+    pg.screenshot(path=f"{OUT}/s52-daftar-generik.png")
+
+    for route in ["#/stock", "#/usulan-pesan-ulang"]:
+        pg.goto(BASE + route); pg.wait_for_timeout(3200)
+        out[route] = {"ukuran": pg.evaluate(SIZES)}
+
+    checks = []
+    for route, r in out.items():
+        bar = r.get("bilah")
+        if bar:
+            # Daftar TANPA bilah aksi itu sah: #/r/procurement/purchase-orders
+            # tidak menggambar tombol baris sama sekali (diukur 18 Sep 2026).
+            # Yang tidak sah adalah SELURUH himpunan kosong — itu gerbang hampa,
+            # dan diperiksa sekali di bawah, bukan per layar.
+            if bar["membungkus"]:
+                checks.append(
+                    f"{route}: {bar['membungkus']} dari {bar['bilah']} bilah aksi sel MEMBUNGKUS — "
+                    "itu menaikkan tinggi baris tabel, dan kepadatan baris adalah keputusan pemilik yang dibekukan")
+            if bar["gaya_sebaris"]:
+                checks.append(f"{route}: {bar['gaya_sebaris']} bilah aksi kembali membawa gaya sebaris")
+        b = r.get("bool")
+        if b and b["jumlah"]:
+            salah = [w for w in b["warna"] if w != b["token"]]
+            if salah:
+                checks.append(f"{route}: sel boolean tergambar {salah} bukan --success {b['token']}")
+        size = r.get("ukuran")
+        if size is not None and len(size) > 1:
+            checks.append(
+                f"{route}: baris ubin tingkat atas memakai {len(size)} ukuran sekaligus: {size} — "
+                "uang memakai bentuk ringkas pada ukuran yang sama, bukan ukuran yang dikecilkan")
+
+    # Penjaga anti-gerbang-hampa: kalau tidak ada satu pun bilah aksi di SELURUH
+    # himpunan, uji pembungkusan di atas tidak menguji apa pun.
+    total_bilah = sum((r.get("bilah") or {}).get("bilah", 0) for r in out.values() if isinstance(r, dict))
+    total_bool = sum((r.get("bool") or {}).get("jumlah", 0) for r in out.values() if isinstance(r, dict))
+    if not total_bilah:
+        checks.append("nol .cell-actions di seluruh himpunan — uji pembungkusan tidak menguji apa pun")
+    if not total_bool:
+        checks.append("nol sel .cell-yes di seluruh himpunan — uji warna boolean tidak menguji apa pun")
+    out["total_bilah"] = total_bilah
+    out["total_bool"] = total_bool
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -13728,7 +13838,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
