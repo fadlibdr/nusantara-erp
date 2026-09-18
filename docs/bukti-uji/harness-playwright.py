@@ -4748,6 +4748,19 @@ def module_accents(pg, tag):
         checks.append("panah/aksen remah admin salah")
     if not out["warehouse"].get("all_match"):
         checks.append("beranda modul warehouse tidak cocok dengan sidebarnya")
+    # STRUKTUR BERANDA MODUL (UI-5). `structure_ok` sudah dihitung sejak P1-B —
+    # <ul>/<li>, .module-section sebagai <h2 id>, dan aria-labelledby yang
+    # menunjuk balik — dan sampai paket ini ia muncul TEPAT SEKALI di seluruh
+    # harness: dihitung, ditulis ke results.json, tidak pernah dibaca. Rencana
+    # kampanye menyebutnya salah satu batasan keras keluarga dasbor.
+    # Ia hidup PER TEMA — out['light']['module_home_fin'], bukan di puncak.
+    # Putaran pertama gerbang ini membacanya dari puncak, tidak menemukan apa
+    # pun, dan karena itu diam-diam tidak memeriksa apa pun: sabotase <ul> ->
+    # <div> lewat hijau. Datanya sendiri sudah benar (False di kedua tema).
+    for tema in ("light", "dark"):
+        mh = (out.get(tema) or {}).get("module_home_fin") or {}
+        if "structure_ok" in mh and not mh["structure_ok"]:
+            checks.append(f"{tema}: struktur beranda modul rusak — {mh.get('structure')}")
     if out["pageerrors"]:
         checks.append(f"galat halaman: {out['pageerrors'][:2]}")
 
@@ -5444,10 +5457,21 @@ PREF_LAYOUT_READ = """async () => {
 }"""
 
 
+# Cermin SPAN di public/app/js/views/widgets/registry.js:50. Disalin, bukan
+# diimpor — harness ini Python — jadi kalau registry berubah, gerbang di bawah
+# yang berteriak, bukan yang diam.
+SPAN_BY_SIZE = {"kecil": 1, "sedang": 2, "lebar": 4}
+
 DASH_CARDS = """() => [...document.querySelectorAll('.dash-grid .card.widget')].map((c) => ({
     id: c.dataset.widget,
     size: c.dataset.size,
-    span: getComputedStyle(c).gridColumnEnd,
+    /* gridColumnSTART, bukan END. `grid-column: span N` menyetel START ke
+       'span N' dan membiarkan END 'auto' — jadi baris ini membaca 'auto' untuk
+       SETIAP kartu sejak ditulis, dan rentang yang rencana kampanye sebut
+       batasan keras tidak pernah benar-benar terbaca. Diukur 18 Sep 2026 pada
+       kartu lebar: inline 'span 4', start 'span 4', end 'auto'. */
+    span: getComputedStyle(c).gridColumnStart,
+    span_end: getComputedStyle(c).gridColumnEnd,
     title: (c.querySelector('.card-head h2') || {}).innerText || null,
     body: ((c.querySelector('.widget-body') || {}).innerText || '').trim(),
     // Kaki kartu = pintu ke layar yang memuat angka ini secara lengkap. Sebuah
@@ -5542,6 +5566,15 @@ def s23(pg):
                 "empty_bodies": [c["id"] for c in cards if len(c["body"]) < 3],
                 # …dan kartu tanpa KAKI adalah angka tanpa cara memeriksanya.
                 "cards_without_foot": [c["id"] for c in cards if not c["foot"]],
+                # Ukuran yang DIDEKLARASIKAN lawan rentang yang TERGAMBAR.
+                # 'auto' berarti aturan @media ponsel/tablet sedang memaksa satu
+                # kolom — itu benar, dan tidak dihitung sebagai selisih.
+                "span_mismatch": [
+                    f"{c['id']}: size={c['size']} menggambar span {c['span']}"
+                    for c in cards
+                    if c["span"] not in ("auto", None)
+                    and c["span"] != f"span {SPAN_BY_SIZE.get(c['size'], 1)}"
+                ],
             }
             # Batch 4 membatasi WIDGET, bukan permintaan: satu widget boleh
             # mengirim lebih dari satu (hanya `ncr`, yang menjumlah dua status
@@ -5668,6 +5701,11 @@ def s23(pg):
         and mine["both_filtered"]
         and mine["progres_card_says_mine"]
         and not any(r["cards_without_foot"] for r in out["roles"].values())
+        # RENTANG KARTU (UI-5). Rencana kampanye menyebut rentang gridColumn
+        # sebaris sebagai batasan keras, dan harness memang MEMBACANYA —
+        # getComputedStyle(c).gridColumnSTART — properti yang sebelumnya salah
+        # (END selalu 'auto') dan yang hasilnya tidak pernah dibandingkan.
+        and not any(r["span_mismatch"] for r in out["roles"].values())
     )
     return out
 

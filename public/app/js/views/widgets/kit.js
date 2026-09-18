@@ -69,10 +69,19 @@ export function totalOf(payload) {
 
 /* ------------------------------------------------------------------ bentuk */
 
-export function stat(label, value, { sub, tone, onClick, small = true } = {}) {
+/*
+ * `valueTone` mewarnai ANGKANYA, bukan konteks di bawahnya (UI-5).
+ *
+ * `tone` sudah ada dan mengenai `.delta`. Yang belum punya jalan adalah kasus
+ * saldo negatif: proyeksi kas mewarnai nilainya merah, dan sampai UI-5 ia
+ * satu-satunya alasan tiga ubin dirakit tangan di luar stat() — lengkap dengan
+ * tiga gaya sebaris. Sekarang ia sebuah kelas, jadi ubinnya ikut setiap
+ * perubahan berikutnya pada ubin, dan tiga gaya sebaris itu hilang.
+ */
+export function stat(label, value, { sub, tone, valueTone, onClick, small = true } = {}) {
   const node = el('.stat', [
     el('.label', { text: label }),
-    el(`.value${small ? '.sm' : ''}`, { text: value }),
+    el(`.value${small ? '.sm' : ''}${valueTone ? `.${valueTone}` : ''}`, { text: value }),
     sub ? el(`.delta${tone ? `.${tone}` : ''}`, { text: sub }) : null,
   ]);
   if (onClick) {
