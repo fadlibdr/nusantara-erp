@@ -7,7 +7,7 @@ import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
 import { combobox } from '../combobox.js';
 import { openForm } from './form.js';
-import { runAction } from './actions.js';
+import { runAction, postAction, isBulkAction } from './actions.js';
 import { navigate } from '../router.js';
 import { MONTHS, rupiah, date } from '../format.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
@@ -251,6 +251,13 @@ export async function renderList(host, { key, def }) {
   async function load() {
     loading = true;
     error = null;
+    /* Seleksi mati di setiap muatan — halaman lain, filter lain, muat ulang.
+       Sebuah centang yang bertahan melewati perubahan filter menunjuk dokumen
+       yang TIDAK ADA LAGI di layar, dan bilah seleksi akan dengan tenang
+       menawarkan "Posting (3)" untuk tiga baris yang tidak bisa dilihat
+       siapa pun sebelum menekannya. */
+    picked.clear();
+    syncBulk();
     renderAll();
     try {
       payload = await api.list(def.api, {
@@ -302,6 +309,156 @@ export async function renderList(host, { key, def }) {
     ui.dateFrom = '';
     ui.dateTo = '';
     ui.page = 1;
+    load();
+  }
+
+  /*
+   * ============================ SELEKSI + AKSI MASSAL (UI-4b) ================
+   *
+   * Yang ditambahkan: kolom centang, bilah seleksi, dan satu putaran BERURUTAN
+   * yang menjalankan aksi yang sudah dideklarasikan schema.js pada tiap baris
+   * terpilih.
+   *
+   * Ia tidak digambar di mana-mana kecuali di layar yang benar-benar punya
+   * aksi massal. 97 sumber daya; 38 mendeklarasikan aksi baris (78 aksi);
+   * setelah delapan bentuk per-dokumen dan pintu keputusan disingkirkan
+   * (isBulkAction), 21 layar dengan 26 aksi yang tersisa. Di 76 layar sisanya
+   * TIDAK ADA satu pun kotak centang — aturan yang sama dengan setujui massal
+   * di #/tugas, tempat `batch_cap` kosong berarti nol kotak centang: sebuah
+   * kotak yang bisa dicentang lalu tidak menawarkan apa pun adalah janji yang
+   * tidak ditepati.
+   *
+   * Izin digerbangi sekali di sini (session.canAct), keadaan baris per baris
+   * (action.when) — dua gerbang yang sama persis dengan bilah aksi dokumen,
+   * dipanggil dari tempat yang sama, supaya bilah seleksi tidak pernah bisa
+   * menawarkan apa yang halaman dokumen menolak menawarkan.
+   */
+  const bulkActions = (def.actions || []).filter(isBulkAction).filter((action) => session.canAct(action));
+  const picking = bulkActions.length > 0;
+  const picked = new Map(); // id -> row; barisnya ikut disimpan, bukan idnya saja
+
+  const allowsBulk = (action, row) => !action.when || action.when(row);
+  const bulkableRow = (row) => bulkActions.some((action) => allowsBulk(action, row));
+  const codeOf = (row) => row.code || row.number || `#${row.id}`;
+
+  const bulkCount = el('span');
+  const bulkButtons = el('.cluster');
+  /* Bilah seleksi HANYA ada saat ada yang terpilih (prototipe: `.selbar`
+     "muncul hanya bila ada baris tercentang"). Ia tidak boleh menempati ruang
+     permanen di atas tabel untuk mengumumkan bahwa nol baris terpilih. */
+  const bulkBar = picking
+    ? el('.selbar', { hidden: true }, [
+      icon('check', 16),
+      bulkCount,
+      el('span.spacer'),
+      bulkButtons,
+      button('Batalkan pilihan', { size: 'sm', variant: 'ghost', onClick: () => clearPicked() }),
+    ])
+    : null;
+
+  function clearPicked() {
+    picked.clear();
+    syncBulk();
+    renderRows();
+  }
+
+  function syncBulk() {
+    if (!bulkBar) return;
+    bulkBar.hidden = picked.size === 0;
+    if (!picked.size) return;
+
+    bulkCount.textContent = `${picked.size} baris terpilih`;
+    clear(bulkButtons);
+    const chosen = [...picked.values()];
+    bulkActions.forEach((action) => {
+      /* Angka di label adalah angka yang AKAN dikerjakan, bukan jumlah yang
+         dicentang. Keduanya berbeda begitu satu baris terpilih tidak berada
+         dalam keadaan yang tepat untuk aksi ini — dan "Posting (3)" yang
+         memposting dua adalah tombol yang berbohong tepat sebelum menulis
+         jurnal. */
+      const n = chosen.filter((row) => allowsBulk(action, row)).length;
+      bulkButtons.appendChild(button(`${action.label} (${n})`, {
+        size: 'sm',
+        variant: action.variant || 'primary',
+        disabled: n === 0,
+        title: n === chosen.length
+          ? undefined
+          : `${chosen.length - n} dari ${chosen.length} baris terpilih tidak dalam keadaan yang tepat untuk "${action.label}" dan akan dilewati.`,
+        onClick: (event) => runBulk(action, event.currentTarget),
+      }));
+    });
+  }
+
+  /*
+   * Putaran massalnya.
+   *
+   * BERURUTAN, bukan paralel — alasan yang sama dengan setujui massal di
+   * tugas.js: tiap panggilan menulis jurnal atau stok, ada batas laju 120
+   * permintaan/menit, dan sepuluh permintaan serempak yang separuhnya kena 429
+   * adalah hasil yang tidak bisa dibaca siapa pun.
+   *
+   * Kegagalan TIDAK menghentikan sisanya, dan tiap kegagalan disebut dengan
+   * NOMOR DOKUMENNYA: "8 diposting, 2 gagal" yang tidak menyebut mana adalah
+   * laporan yang memaksa orang memeriksa sepuluh dokumen satu per satu — yaitu
+   * persis pekerjaan yang tombol ini ada untuk menghapus.
+   *
+   * Lewat postAction(), bukan runAction(): runAction menelan galat menjadi
+   * toast dan selalu resolve `undefined`, jadi sebuah putaran di atasnya tidak
+   * bisa membedakan yang berhasil dari yang ditolak. Lihat komentarnya di
+   * actions.js — yang dibagi adalah permintaannya, bukan pembungkusnya.
+   */
+  async function runBulk(action, trigger) {
+    const chosen = [...picked.values()].filter((row) => allowsBulk(action, row));
+    if (!chosen.length) return;
+
+    /*
+     * Konfirmasi SEKALI untuk seluruh batch — dan selalu, termasuk untuk aksi
+     * yang lewat tombol barisnya tidak berkonfirmasi.
+     *
+     * Bukan karena lebih banyak dialog lebih aman (P1-G membuang modal catatan
+     * persetujuan justru karena itu), melainkan karena kekeliruannya berbeda
+     * JENIS: satu klik keliru berharga satu dokumen yang halamannya masih
+     * terbuka, satu klik massal keliru berharga seluruh halaman, dan tidak ada
+     * satu pun aksi di sini yang punya jalan kembali. Dialog ini juga
+     * satu-satunya tempat orang membaca DAFTAR NOMOR yang akan disentuh.
+     *
+     * `action.confirm` berbentuk fungsi baris sengaja TIDAK dipanggil: ia
+     * menulis kalimat untuk SATU dokumen ("Surat penagihan ke-2 INV/… akan
+     * dicetak"), dan memanggilnya untuk baris pertama lalu menampilkannya di
+     * atas sepuluh nomor adalah kalimat yang salah untuk sembilan di antaranya.
+     * Yang berbentuk string adalah akibat yang berlaku untuk semuanya, jadi ia
+     * ikut dicetak.
+     */
+    const sentence = typeof action.confirm === 'string' ? `${action.confirm} ` : '';
+    const listed = chosen.map(codeOf);
+    const shown = listed.slice(0, 12).join(', ');
+    const ok = await confirmDialog({
+      title: `${action.label} ${chosen.length} ${def.labelOne.toLowerCase()}`,
+      message: `${sentence}Tindakan ini berjalan satu per satu pada ${chosen.length} dokumen: ${shown}${listed.length > 12 ? `, dan ${listed.length - 12} lainnya` : ''}.`,
+      confirmLabel: `${action.label} ${chosen.length}`,
+      tone: action.variant === 'danger' ? 'danger' : 'primary',
+    });
+    if (!ok) return;
+
+    const done = [];
+    const failed = [];
+    await withBusy(trigger, async () => {
+      for (const row of chosen) {
+        try {
+          // `action.body`: muatan tetap milik aksinya, aturan yang sama dengan
+          // runAction — tanpa ini aksi bertubuh tetap akan terkirim kosong.
+          await postAction(action, row, def, { ...(action.body || {}) });
+          done.push(codeOf(row));
+        } catch (error) {
+          failed.push(`${codeOf(row)}: ${(error && error.message) || 'gagal'}`);
+        }
+      }
+    });
+
+    if (done.length) toast(`${done.length} dokumen: ${action.label.toLowerCase()} berhasil — ${done.join(', ')}.`, { timeout: 6000 });
+    if (failed.length) toast(`${failed.length} gagal — ${failed.join(' · ')}`, { tone: 'err', timeout: 12000 });
+
+    picked.clear();
     load();
   }
 
@@ -801,6 +958,73 @@ export async function renderList(host, { key, def }) {
     return wrap.childElementCount ? wrap : null;
   }
 
+  /*
+   * Kotak centang satu baris.
+   *
+   * Dimatikan — bukan disembunyikan — untuk baris yang tidak punya satu pun
+   * aksi massal yang berlaku, dengan alasannya di `title`. Sebuah sel kosong
+   * di kolom pertama terbaca sebagai gangguan render; sebuah kotak mati yang
+   * menyebutkan alasannya terbaca sebagai keadaan dokumen, dan itu memang yang
+   * sedang dikatakannya.
+   */
+  function pickBox(row) {
+    const allowed = bulkableRow(row);
+    const box = el('input', {
+      type: 'checkbox',
+      checked: picked.has(row.id),
+      disabled: !allowed,
+      'aria-label': `Pilih ${codeOf(row)}`,
+      title: allowed ? '' : `${codeOf(row)} tidak dalam keadaan yang tepat untuk aksi massal mana pun di layar ini.`,
+    });
+    box.addEventListener('change', () => {
+      if (box.checked) picked.set(row.id, row);
+      else picked.delete(row.id);
+      // Kelas .selected dipasang di sini, bukan lewat renderRows(): menggambar
+      // ulang seluruh tabel pada tiap centang membuang fokus papan ketik yang
+      // sedang berada DI kotak itu.
+      const tr = box.closest('tr');
+      if (tr) tr.classList.toggle('selected', box.checked);
+      syncBulk();
+      syncPickAll();
+    });
+    return box;
+  }
+
+  let pickAll = null;
+
+  /* "Pilih semua" berarti semua baris HALAMAN INI yang memang bisa dikenai
+     aksi — bukan seluruh hasil filter. Daftar ini tidak pernah memegang baris
+     yang tidak dimuatnya, dan sebuah centang yang diam-diam berarti 1.400
+     dokumen adalah kuasa yang tidak pernah diminta siapa pun. */
+  function pickAllBox(pickable) {
+    pickAll = el('input', {
+      type: 'checkbox',
+      disabled: pickable.length === 0,
+      'aria-label': 'Pilih semua baris di halaman ini',
+      title: pickable.length
+        ? `Pilih ${pickable.length} baris di halaman ini`
+        : 'Tidak ada baris di halaman ini yang bisa dikenai aksi massal.',
+    });
+    pickAll.addEventListener('change', () => {
+      if (pickAll.checked) pickable.forEach((row) => picked.set(row.id, row));
+      else pickable.forEach((row) => picked.delete(row.id));
+      syncBulk();
+      renderRows();
+    });
+    syncPickAll(pickable);
+    return pickAll;
+  }
+
+  function syncPickAll(pickable) {
+    if (!pickAll) return;
+    const rows = pickable || (payload ? (payload.data || []).filter(bulkableRow) : []);
+    const on = rows.filter((row) => picked.has(row.id)).length;
+    pickAll.checked = rows.length > 0 && on === rows.length;
+    // Sebagian terpilih = keadaan ketiga, bukan "tidak terpilih": kotak kosong
+    // di atas tiga baris tercentang mengundang klik yang MEMBUANG pilihan itu.
+    pickAll.indeterminate = on > 0 && on < rows.length;
+  }
+
   function renderRows() {
     /*
      * Dipanggil dari tiga tempat, dan dua di antaranya JANJI yang mendarat
@@ -864,24 +1088,39 @@ export async function renderList(host, { key, def }) {
        tidak pernah terbaca sebagai total outstanding seluruh filter. */
     const moneyColumns = def.columns.filter((column) => column.type === 'currency' || column.type === 'currency2');
 
+    /* Baris yang bisa dikenai SETIDAKNYA satu aksi massal. Kotak centang baris
+       lain digambar mati dengan alasannya di title: menyembunyikannya membuat
+       kolomnya berlubang dan tidak menjelaskan apa pun. */
+    const pickable = picking ? rows.filter(bulkableRow) : [];
+
     const table = el('table.data', [
       el('thead', el('tr', [
+        picking ? el('th.pick', pickAllBox(pickable)) : null,
         ...def.columns.map((column) => headerCell(column, sortable)),
         hasActions ? el('th.right', { text: '', style: { width: '1%' } }) : null,
       ])),
       el('tbody', rows.map((row) => {
-        const tr = el(`tr${openable ? '.clickable' : ''}`, [
+        const chosen = picking && picked.has(row.id);
+        const tr = el(`tr${openable ? '.clickable' : ''}${chosen ? '.selected' : ''}`, [
+          picking ? el('td.pick', pickBox(row)) : null,
           ...def.columns.map((column) =>
             el(`td${column.align ? `.${column.align}` : ''}${column.type === 'code' ? '.code' : ''}${column.hideOnNarrow ? '.hide-narrow' : ''}`, renderCell(row, column))),
           hasActions ? el('td.right', rowActions(row)) : null,
         ]);
         if (openable) {
-          tr.addEventListener('click', () => navigate(`d/${key}/${row.id}`));
+          /* Klik pada kotak centang TIDAK membuka dokumennya. Tanpa penjaga ini
+             mencentang satu baris berarti berpindah halaman, dan seleksi yang
+             baru lahir itu ikut mati di muatan berikutnya. */
+          tr.addEventListener('click', (event) => {
+            if (event.target.closest('td.pick')) return;
+            navigate(`d/${key}/${row.id}`);
+          });
         }
         return tr;
       })),
       moneyColumns.length
         ? el('tfoot', el('tr', [
+          picking ? el('td.pick') : null,
           ...def.columns.map((column, index) => {
             const narrow = column.hideOnNarrow ? '.hide-narrow' : '';
             if (column.type === 'currency' || column.type === 'currency2') {
@@ -896,6 +1135,7 @@ export async function renderList(host, { key, def }) {
         : null,
     ]);
 
+    if (bulkBar) body.appendChild(bulkBar);
     body.appendChild(el('.table-wrap', table));
     body.appendChild(pager());
   }

@@ -93,10 +93,88 @@ export function inlineNote(action, row) {
  * `inline` — jawaban yang sudah ada di layar (catatan persetujuan inline),
  * dipanggil saat tombol ditekan dan digabung ke payload tanpa dialog.
  */
-export async function runAction(action, row, def, { trigger, onDone, inline } = {}) {
-  const path = row
+/**
+ * Satu-satunya tempat URL sebuah aksi dirakit.
+ *
+ * Diekstrak di UI-4b: bilah seleksi daftar generik memanggil aksi yang sama
+ * untuk N baris, dan sebuah SALINAN dari `{id}` yang diganti di sana akan
+ * hanyut diam-diam — aksi berikutnya yang memakai bentuk path lain (lihat
+ * `submitTo` / `printForm`) akan benar lewat tombol baris dan salah lewat
+ * bilah seleksi, tanpa satu pun galat.
+ */
+export function actionPath(action, row, def) {
+  return row
     ? `${def.api}/${String(action.path).replace('{id}', row.id)}`
     : `${def.api}/${action.path}`;
+}
+
+/**
+ * Permintaan telanjang sebuah aksi: kirim, batalkan cache, pulangkan hasilnya.
+ *
+ * Ia MELEMPAR, dan itu justru alasannya ada. `runAction()` di bawah adalah
+ * pembungkus untuk SATU dokumen yang ditekan seseorang: ia menelan setiap
+ * galat menjadi toast, selalu resolve `undefined`, dan sesudahnya menerbitkan
+ * toast keberhasilannya sendiri plus tawaran `offerNext`. Semua itu benar
+ * untuk satu klik dan salah untuk sepuluh: sebuah putaran di atas `runAction`
+ * tidak bisa membedakan dokumen yang berhasil dari yang ditolak (keduanya
+ * `undefined`), dan akan menerbitkan sepuluh toast di mana yang dibutuhkan
+ * satu kalimat yang menyebut mana yang gagal.
+ *
+ * Maka yang dibagi adalah PERMINTAANNYA, bukan pembungkusnya: satu jalur ke
+ * server, satu pembatalan cache, dua pemanggil yang masing-masing memutuskan
+ * cara bicaranya sendiri.
+ */
+export async function postAction(action, row, def, payload = {}) {
+  const result = await api[action.method === 'PUT' ? 'put' : 'post'](actionPath(action, row, def), payload);
+  invalidateByPath(def.api);
+  return result;
+}
+
+/*
+ * Aksi yang boleh dijalankan MASSAL (UI-4b), dan delapan penanda yang melarangnya.
+ *
+ * Aturannya dibaca dari deklarasi aksinya sendiri di schema.js, bukan dari
+ * daftar putih nama aksi: sebuah daftar nama akan diam saat aksi ke-79 lahir,
+ * dan diamnya berarti "boleh massal". Di sini bentuk yang belum dikenal jatuh
+ * ke sisi yang aman hanya bila ia tidak membawa satu pun penanda di bawah —
+ * dan setiap penanda itu ADA karena ia menggambar sesuatu per dokumen:
+ *
+ *   fields          satu modal per dokumen; seluruh gunanya massal adalah
+ *                   tidak menjawab sepuluh modal yang sama.
+ *   inlineNote      panel catatan hidup di bilah aksi baris, bukan di sini.
+ *   confirmResubmit dialog susulan yang dipicu 422 — di tengah putaran ia
+ *                   membuka dialog pada dokumen yang tidak sedang dilihat.
+ *                   Massal memperlakukan 422 sebagai kegagalan yang MENYEBUT
+ *                   dokumennya; menjawabnya urusan halaman dokumen itu.
+ *   printForm       satu tab cetak per dokumen: yang kedua dan seterusnya
+ *                   diblokir peramban sebagai popup.
+ *   navigateTo      berpindah halaman per dokumen; yang terakhir menang dan
+ *   navigateToResult sembilan sisanya tidak pernah terlihat.
+ *   opens           membuka formulir resource lain — bukan POST sama sekali.
+ *   boardOnly       tombol yang ada HANYA untuk ditolak (lihat actionButtons).
+ *
+ * Dan satu pengecualian yang bukan soal bentuk melainkan soal kendali:
+ * PINTU KEPUTUSAN DOKUMEN (`POST {id}/approve|reject`) tidak pernah massal di
+ * sini. Setujui massal sudah punya SATU rumah — `#/tugas` — dan rumah itu
+ * memegang plafonnya (`meta.batch_cap`, matriks persetujuan §22/§23) serta
+ * spanduk delegasi yang menyebut a.n. siapa keputusan itu tercatat. Bilah
+ * seleksi di 21 layar daftar yang juga bisa menyetujui berarti jalur
+ * persetujuan massal KEDUA yang tidak melihat plafon itu — persis lubang yang
+ * ASESMEN-UX §490 sebut: "persetujuan bernilai ratusan juta memang harus
+ * dibuka satu per satu — itu bukan gesekan, itu kendali".
+ */
+const BULK_BLOCKERS = [
+  'fields', 'inlineNote', 'confirmResubmit', 'printForm',
+  'navigateTo', 'navigateToResult', 'opens', 'boardOnly',
+];
+
+export function isBulkAction(action) {
+  if (!action || !action.path) return false;
+  if (session.isDecisionDoor(action)) return false;
+  return !BULK_BLOCKERS.some((flag) => action[flag] !== undefined && action[flag] !== false);
+}
+
+export async function runAction(action, row, def, { trigger, onDone, inline } = {}) {
 
   /*
    * `body`: muatan TETAP milik aksinya (F-3). Papan pipeline memetakan satu
@@ -143,8 +221,7 @@ export async function runAction(action, row, def, { trigger, onDone, inline } = 
   let printed = false;
 
   const call = async () => {
-    const result = await api[action.method === 'PUT' ? 'put' : 'post'](path, payload);
-    invalidateByPath(def.api);
+    const result = await postAction(action, row, def, payload);
     /* Nomor dokumen sebagai subjek kalimat, bukan "Ajukan berhasil.": toast
        adalah satu-satunya jejak yang dilihat orang setelah tombolnya hilang.
        `toast` pada aksi = kalimatnya sendiri (kode, hasil), untuk aksi yang

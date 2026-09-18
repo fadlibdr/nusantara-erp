@@ -1045,6 +1045,32 @@ table.data tbody tr.clickable:hover { background: var(--surface-2); }
 table.data tbody tr.selected td,
 table.data tbody tr.selected:hover td { background: var(--surface-selected); }
 table.data tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+/* Kolom centang seleksi (UI-4b). Namanya diperiksa lebih dulu terhadap seluruh
+   public/app — `.pick` nol pemakai sebelum paket ini — pelajaran dari prototipe,
+   tempat sebuah `.pick` baru diam-diam mengubah td.pick di setiap tabel (lihat
+   catatan primitif UI-2). Kursornya dikembalikan ke default di dalam sel: tr
+   yang bisa diklik memberi seluruh barisnya `cursor: pointer`, dan sebuah
+   kotak centang yang berkata "saya membuka dokumen" berbohong. */
+table.data th.pick, table.data td.pick { width: 1%; padding-right: 0; }
+table.data tbody tr.clickable td.pick { cursor: default; }
+
+/* Bilah seleksi — muncul HANYA bila ada baris tercentang, jadi ia tidak pernah
+   menempati ruang untuk mengumumkan bahwa nol baris terpilih. Ia duduk di dalam
+   kartu tepat di atas tabelnya, karena yang dihitungnya adalah baris tabel itu. */
+.selbar {
+  display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--primary);
+  background: var(--primary-soft); color: var(--primary);
+  font-size: var(--fs-body); font-weight: var(--fw-semi);
+}
+.selbar[hidden] { display: none; }
+/* Latar padat supaya tombol tidak larut ke dalam --primary-soft — kecuali
+   .btn.primary, yang menggambar latarnya SENDIRI dan hurufnya --primary-fg
+   (putih). Aturan prototipe menyapu semua .btn: hasilnya tombol primary
+   berlatar putih dengan huruf putih — label yang tidak tergambar sama sekali,
+   di DOM yang sempurna. Diukur lewat gerbang kontras S45. */
+.selbar .btn:not(.primary) { background: var(--surface); }
 table.data th.right, table.data td.right { text-align: right; }
 /* Temuan audit #8: sel rata-kanan dan kaki tabel SELALU tabular.
    Sebelumnya hanya .num, dan pemanggil harus ingat DUA kelas sekaligus —
@@ -1819,6 +1845,9 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
   .nav, .brand, .header, .page-head .actions, .filters, .pager,
   .toasts, .overlay, .tabs { display: none !important; }
+  /* Seleksi adalah keadaan LAYAR: bilahnya dan kolom centangnya tidak punya
+     arti di kertas, dan kolom kosong selebar 16 px menggeser seluruh tabel. */
+  .selbar, table.data th.pick, table.data td.pick { display: none !important; }
   .shell { display: block; }
   /* P1-H: kisi 2fr/1fr tidak pernah diruntuhkan di kertas, dan lembar gantt
      butuh seluruh lebarnya. Diruntuhkan untuk SEMUA layar detail: sebuah kolom

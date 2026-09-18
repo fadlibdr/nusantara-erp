@@ -12605,6 +12605,255 @@ def s42m(browser):
         _f5_reset()
 
 
+
+# Bilah seleksi + kolom centang daftar generik (UI-4b). Satu bacaan, supaya setiap
+# langkah di bawah menanyakan hal yang sama dan jawabannya bisa diperbandingkan.
+SEL = """() => {
+  const bar = document.querySelector('.selbar');
+  const boxes = [...document.querySelectorAll('table.data tbody td.pick input')];
+  const all = document.querySelector('table.data thead th.pick input');
+  return {
+    ada_kolom: !!document.querySelector('table.data thead th.pick'),
+    ada_bilah: !!bar,
+    bilah_tersembunyi: bar ? bar.hidden : null,
+    hitungan: bar && !bar.hidden ? (bar.querySelector('span') || {}).innerText || '' : null,
+    tombol: bar ? [...bar.querySelectorAll('button')].map(b => {
+      // Warna TERHITUNG, bukan kelasnya: sebuah tombol boleh punya label yang
+      // sempurna di DOM dan menggambar nol piksel yang terbaca. Latar putih di
+      // bawah huruf putih tidak menghasilkan satu pun galat, dan innerText
+      // tetap menjawab 'Ajukan (1)'. Satu-satunya cara menangkapnya adalah
+      // menanyakan kedua warnanya ke peramban.
+      const cs = getComputedStyle(b);
+      return {
+        label: b.innerText.trim(), mati: b.disabled, title: b.title || '',
+        warna: cs.color, latar: cs.backgroundColor,
+      };
+    }) : [],
+    baris: document.querySelectorAll('table.data tbody tr').length,
+    kotak: boxes.length,
+    kotak_mati: boxes.filter(b => b.disabled).length,
+    alasan_mati: boxes.filter(b => b.disabled).map(b => b.title).filter(Boolean)[0] || null,
+    tercentang: boxes.filter(b => b.checked).length,
+    baris_tersorot: document.querySelectorAll('table.data tbody tr.selected').length,
+    semua_tercentang: all ? all.checked : null,
+    semua_separuh: all ? all.indeterminate : null,
+    semua_mati: all ? all.disabled : null,
+  };
+}"""
+
+
+@scenario("S45_seleksi_massal")
+def s45(pg):
+    """UI-4b: kolom centang, bilah seleksi, dan satu putaran yang tidak berhenti pada kegagalan.
+
+    Tiga layar dengan tiga peran berbeda, karena tiga syaratnya hanya bisa dibuktikan
+    terpisah:
+
+      1. `crm/customers` — layar TANPA aksi massal: nol kotak centang, nol bilah. 76 dari
+         97 sumber daya berbentuk begini, dan sebuah kotak yang bisa dicentang lalu tidak
+         menawarkan apa pun adalah janji yang tidak ditepati.
+      2. `servicedesk/field-reports` — DUA aksi massal yang berlaku pada keadaan yang
+         BERBEDA (Ajukan pada draf, Kembalikan ke Draf pada yang diajukan). Di sinilah
+         angka pada tombol boleh berbeda dari jumlah yang dicentang, dan harus.
+      3. `finance/journals` sebagai finance-manager — putaran sungguhan ke server, dengan
+         satu dokumen yang sengaja dibuat BASI supaya kegagalannya nyata: ia diposting
+         lewat API setelah daftarnya tergambar. Maker-checker modul keuangan memaksa
+         pemisahan ini juga di fixture-nya: jurnal dibuat admin, diposting orang lain.
+    """
+    out = {}
+    galat = []
+    admin = token_for("admin@nusantara.test")
+
+    # ---------------------------------------------------------------- 1. tanpa aksi
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/r/crm/customers"); pg.wait_for_timeout(2000)
+    out["tanpa_aksi"] = pg.evaluate(SEL)
+    if out["tanpa_aksi"]["ada_kolom"] or out["tanpa_aksi"]["ada_bilah"]:
+        galat.append("crm/customers tidak punya aksi massal tetapi tetap menggambar kolom centang/bilah seleksi")
+
+    # ------------------------------------------------- 2. dua aksi, dua keadaan baris
+    # Fixture: satu berita acara draf + satu yang sudah diajukan, dari tiket yang sama.
+    fr = []
+    for i in (1, 2):
+        st, body = api("servicedesk/field-reports", admin, "POST", {
+            "ticket_id": 4, "report_date": "2026-09-18", "technician_employee_id": 1,
+            "findings": f"UI-4b fixture {i}", "actions_taken": "uji seleksi massal",
+        })
+        if st < 300:
+            fr.append(body["data"])
+    if len(fr) < 2:
+        out["SKIPPED"] = "fixture berita acara tidak terbentuk"
+        return out
+    api(f"servicedesk/field-reports/{fr[1]['id']}/submit", admin, "POST", {})
+    out["fixture"] = {"draf": fr[0]["code"], "diajukan": fr[1]["code"]}
+
+    pg.goto(BASE + "#/r/servicedesk/field-reports"); pg.wait_for_timeout(2400)
+    out["dua_aksi_awal"] = pg.evaluate(SEL)
+    if not out["dua_aksi_awal"]["ada_kolom"]:
+        galat.append("berita acara punya aksi massal tetapi tidak menggambar kolom centang")
+    if out["dua_aksi_awal"]["bilah_tersembunyi"] is not True:
+        galat.append("bilah seleksi terlihat padahal belum ada baris tercentang")
+
+    # Centang DUA baris fixture — satu draf, satu diajukan.
+    CENTANG = """(kode) => {
+      const tr = [...document.querySelectorAll('table.data tbody tr')]
+        .find(r => r.innerText.includes(kode));
+      if (!tr) return 'baris tidak ditemukan';
+      const box = tr.querySelector('td.pick input');
+      if (!box) return 'kotak tidak ada';
+      if (box.disabled) return 'kotak mati';
+      box.click();
+      return 'ok';
+    }"""
+    out["centang"] = [pg.evaluate(CENTANG, fr[0]["code"]), pg.evaluate(CENTANG, fr[1]["code"])]
+    pg.wait_for_timeout(500)
+    out["dua_aksi_terpilih"] = pg.evaluate(SEL)
+    pg.screenshot(path=f"{OUT}/s45-selbar.png")
+
+    m = out["dua_aksi_terpilih"]
+    if m["bilah_tersembunyi"] is not False:
+        galat.append("dua baris tercentang tetapi bilah seleksi masih tersembunyi")
+    if "2" not in (m["hitungan"] or ""):
+        galat.append(f"bilah seleksi tidak menyebut 2 baris terpilih: {m['hitungan']!r}")
+    if m["baris_tersorot"] != 2:
+        galat.append(f"{m['baris_tersorot']} baris ber-.selected, seharusnya 2")
+    # Inti syaratnya: angka pada tombol adalah angka yang AKAN dikerjakan.
+    berlabel = {t["label"].split(" (")[0]: t for t in m["tombol"]}
+    for nama in ("Ajukan", "Kembalikan ke Draf"):
+        t = berlabel.get(nama)
+        if not t:
+            galat.append(f"tombol '{nama}' tidak ada di bilah seleksi")
+        elif not t["label"].endswith("(1)"):
+            galat.append(f"tombol '{t['label']}' — dua baris tercentang, tetapi hanya SATU yang dalam keadaan tepat: labelnya harus (1)")
+        elif t["mati"]:
+            galat.append(f"tombol '{t['label']}' mati padahal satu baris berlaku")
+        elif "1 dari 2" not in t["title"]:
+            galat.append(f"tombol '{t['label']}' tidak menjelaskan baris yang akan dilewati: {t['title']!r}")
+
+    # Label yang benar-benar TERGAMBAR: warna huruf tidak boleh sama dengan latarnya.
+    for t in m["tombol"]:
+        if t["warna"] == t["latar"]:
+            galat.append(f"tombol '{t['label']}' menggambar huruf {t['warna']} di atas latar yang sama — labelnya tidak terbaca")
+
+    # Mencentang TIDAK membuka dokumen.
+    out["url_setelah_centang"] = pg.url.split("#")[-1]
+    if "/d/" in out["url_setelah_centang"]:
+        galat.append(f"mencentang kotak membuka halaman dokumen: {out['url_setelah_centang']}")
+
+    # Kotak "pilih semua" punya TIGA keadaan, dan yang mana bergantung pada berapa
+    # baris halaman ini yang memang bisa dicentang — bukan pada angka tetap. Versi
+    # pertama gerbang ini menuntut `indeterminate` tanpa syarat dan lolos hanya
+    # karena sisa fixture run sebelumnya membuat halaman itu punya empat baris yang
+    # bisa dicentang; pada DB bersih keduanya justru SELURUH yang bisa dicentang,
+    # dan keadaan yang benar adalah "tercentang penuh".
+    bisa = m["kotak"] - m["kotak_mati"]
+    if m["tercentang"] == bisa:
+        if m["semua_tercentang"] is not True or m["semua_separuh"] is not False:
+            galat.append(f"seluruh {bisa} baris yang bisa dicentang terpilih, tetapi 'pilih semua' "
+                         f"berkeadaan checked={m['semua_tercentang']} indeterminate={m['semua_separuh']}")
+    elif 0 < m["tercentang"] < bisa:
+        if m["semua_separuh"] is not True:
+            galat.append(f"{m['tercentang']} dari {bisa} baris tercentang, tetapi 'pilih semua' "
+                         "tidak berkeadaan separuh — kotak kosong di atas baris tercentang "
+                         "mengundang klik yang MEMBUANG pilihan itu")
+
+    # Seleksi MATI saat daftarnya dimuat ulang dengan filter lain.
+    pg.goto(BASE + "#/r/servicedesk/field-reports?status=draft"); pg.wait_for_timeout(2200)
+    out["setelah_filter"] = pg.evaluate(SEL)
+    if out["setelah_filter"]["tercentang"] or out["setelah_filter"]["bilah_tersembunyi"] is not True:
+        galat.append("seleksi bertahan melewati perubahan filter — ia menunjuk baris yang tidak lagi di layar")
+
+    # ------------------------------------------------ 3. putaran sungguhan + kegagalan
+    # Tiga jurnal draf dibuat ADMIN; yang memposting orang lain (pemisahan tugas).
+    jv = []
+    for i in (1, 2, 3):
+        st, body = api("finance/journals", admin, "POST", {
+            "journal_date": "2026-09-18", "description": f"UI-4b jurnal massal {i}",
+            "lines": [
+                {"account_id": 3, "description": "d", "debit": 1000 * i, "credit": 0},
+                {"account_id": 5, "description": "k", "debit": 0, "credit": 1000 * i},
+            ],
+        })
+        if st < 300:
+            jv.append(body["data"])
+    if len(jv) < 3:
+        out["SKIPPED"] = "fixture jurnal tidak terbentuk"
+        return out
+    out["jurnal"] = [j["code"] for j in jv]
+
+    # Ganti pengguna: sesi admin masih hidup di localStorage, dan login() menunggu
+    # halaman masuk yang tidak akan pernah muncul selama token itu ada.
+    pg.context.clear_cookies(); pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
+    login(pg, "finance-manager@nusantara.test")
+    pg.goto(BASE + "#/r/finance/journals?status=draft"); pg.wait_for_timeout(2400)
+    out["jv_awal"] = pg.evaluate(SEL)
+
+    # Semua baris draf halaman ini.
+    click(pg, "table.data thead th.pick input")
+    pg.wait_for_timeout(500)
+    out["jv_terpilih"] = pg.evaluate(SEL)
+    if out["jv_terpilih"]["semua_tercentang"] is not True:
+        galat.append("'pilih semua' tidak mencentang seluruh baris yang bisa dikenai aksi")
+
+    # SATU dokumen dibuat basi SETELAH daftarnya tergambar: diposting lewat API oleh
+    # orang lain. Inilah kegagalan yang harus disebut namanya tanpa menghentikan sisanya.
+    basi = jv[1]["code"]
+    st, _ = api(f"finance/journals/{jv[1]['id']}/post", token_for("finance@nusantara.test"), "POST", {})
+    if st >= 300:
+        st, _ = api(f"finance/journals/{jv[1]['id']}/post", token_for("direktur@nusantara.test"), "POST", {})
+    out["dibuat_basi"] = {"kode": basi, "status": st}
+    if st >= 300:
+        out["SKIPPED"] = f"tidak bisa membuat {basi} basi: {st}"
+        return out
+
+    # Jalankan. Dialog konfirmasi HARUS menyebut nomor dokumennya.
+    click(pg, ".selbar .cluster button.btn")
+    pg.wait_for_timeout(700)
+    out["dialog"] = pg.evaluate("""() => {
+      const m = document.querySelector('.modal');
+      return m ? m.innerText.replace(/\\n+/g, ' | ').slice(0, 500) : null;
+    }""")
+    if not out["dialog"]:
+        galat.append("aksi massal berjalan tanpa konfirmasi — satu klik keliru berharga seluruh halaman")
+    else:
+        hilang = [j["code"] for j in jv if j["code"] not in out["dialog"]]
+        if hilang:
+            galat.append(f"dialog konfirmasi tidak menyebut dokumen: {hilang}")
+
+    click(pg, ".modal .modal-foot .btn.primary")
+    pg.wait_for_timeout(5000)
+    out["toast"] = toasts(pg)
+    gabung = " ".join(out["toast"])
+
+    # Dua berhasil, satu gagal — dan yang gagal DISEBUT NAMANYA.
+    berhasil = [j["code"] for j in jv if j["code"] != basi]
+    for kode in berhasil:
+        if kode not in gabung:
+            galat.append(f"{kode} berhasil diposting tetapi tidak disebut di toast mana pun")
+    if basi not in gabung:
+        galat.append(f"{basi} gagal tetapi toast tidak menyebut dokumennya — laporan yang memaksa orang memeriksa tiga dokumen satu per satu")
+
+    # Yang berhasil BENAR-BENAR terposting: kegagalan di tengah tidak menghentikan sisanya.
+    keadaan = {}
+    for j in jv:
+        st, body = api(f"finance/journals/{j['id']}", admin)
+        keadaan[j["code"]] = (body.get("data") or {}).get("status")
+    out["keadaan_akhir"] = keadaan
+    belum = [k for k, v in keadaan.items() if v != "posted"]
+    if belum:
+        galat.append(f"putaran berhenti pada kegagalan — masih draf: {belum}")
+
+    pg.wait_for_timeout(1500)
+    out["jv_akhir"] = pg.evaluate(SEL)
+    if out["jv_akhir"]["tercentang"]:
+        galat.append("seleksi tidak dikosongkan setelah aksi massal dijalankan")
+
+    out["galat"] = galat
+    out["failed_checks"] = galat
+    out["ok"] = not galat
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -12615,7 +12864,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
