@@ -423,6 +423,11 @@ reading, in another shape. There is no `print` action anywhere in the permission
   `createElementNS` returning to `project.js` / `evm.js` / `hargasatuan.js`. Legends are drawn
   inside the SVG, so no `.legend` block sits beside a chart except the price trend, whose
   distinction (PO vs GRN) is per POINT rather than per series. CONVENTIONS §11.
+  **A chart's rendered SIZE is the screen's decision, not the chart's** (UI-6b): `.chart` forces
+  `width: 100%`, so a 720×260 viewBox in a 1112 px card draws at 1112×402. `#/harga-satuan` was
+  spending 446,520 px² on two data points of equal value — 223,260 px² per point, nine times looser
+  than the project S-curve — next to four 16 px numbers. `.chart-cap` on the card body caps a chart
+  at its own natural width; ask for it wherever the data is sparse.
 - **Dashboard widgets (P1-D)**: `#/dashboard` is composed, not drawn. `views/widgets/registry.js`
   is the catalogue — 19 entries, each `{ id, title, desc, module, perm, route, sizes, size }` —
   and each widget's renderer lives in `views/widgets/<id>.js`, imported **dynamically** only when

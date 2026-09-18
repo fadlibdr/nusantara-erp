@@ -279,25 +279,25 @@ function paint(host, ctx) {
         style: { margin: 0 },
       }),
       duplicates.length
-        ? el('p.cell-sub', {
+        ? el('p.cell-sub.tone-warn', {
           text: `Kode WBS ganda pada baseline: ${duplicates.join(', ')} — yang dipakai baris terakhir. `
             + 'Kode WBS tidak dijamin unik per proyek oleh basis data.',
-          style: { margin: '6px 0 0', color: 'var(--warning)' },
+          style: { margin: '6px 0 0' },
         })
         : null,
       liveDuplicates.length
-        ? el('p.cell-sub', {
+        ? el('p.cell-sub.tone-warn', {
           text: `Kode WBS ganda pada WBS yang berlaku: ${liveDuplicates.join(', ')} — setiap barisnya `
             + 'memakai baris beku YANG SAMA sebagai pembanding, jadi jumlah "cocok" di kaki gambar '
             + 'lebih besar daripada isi baseline. Kode WBS tidak dijamin unik per proyek oleh basis data.',
-          style: { margin: '6px 0 0', color: 'var(--warning)' },
+          style: { margin: '6px 0 0' },
         })
         : null,
       /* Baseline yang GAGAL dibaca: kalimatnya sudah ada di dalam svg (ikut
          tercetak), tetapi kegagalan yang bisa dicoba lagi butuh pintu keluar —
          dan sebuah pintu keluar tidak bisa hidup di dalam svg yang tercetak. */
       fault
-        ? el('p.cell-sub', { style: { margin: '6px 0 0', color: 'var(--warning)' } }, [
+        ? el('p.cell-sub.tone-warn', { style: { margin: '6px 0 0' } }, [
           el('span', { text: `${faultSentence(fault)} ` }),
           button('Coba lagi', {
             size: 'sm',
@@ -310,11 +310,11 @@ function paint(host, ctx) {
          akar), tetapi posisinya di pohon bukan posisi yang tersimpan — dan
          urutan serta indentasi gantt dibaca orang sebagai struktur. */
       (cycles || []).length
-        ? el('p.cell-sub', {
+        ? el('p.cell-sub.tone-warn', {
           text: `Induk melingkar pada ${cycles.join(', ')}: baris ini menunjuk induk yang justru `
             + 'keturunannya sendiri, jadi ia digambar sebagai akar. Barisnya lengkap, letaknya di '
             + 'pohon tidak — perbaiki induknya di basis data.',
-          style: { margin: '6px 0 0', color: 'var(--warning)' },
+          style: { margin: '6px 0 0' },
         })
         : null,
     ]),

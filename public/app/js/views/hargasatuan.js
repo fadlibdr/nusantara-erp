@@ -233,8 +233,13 @@ export async function renderHargaSatuan(host) {
         el('.spacer'),
         el('.cell-sub', { text: item ? `${item.code} · satuan ${item.unit}` : '' }),
       ]),
-      el('.card-body', [
-        trendChart(series) || el('p.muted', { text: 'Belum ada titik harga yang bisa digambar.', style: { margin: 0 } }),
+      /* .chart-cap: grafik ini tidak melar melebihi viewBox-nya sendiri (UI-6b).
+         Kartunya selebar layar, viewBox-nya 720x260 — jadi sampai paket ini
+         garis harga tergambar 1112x402 = 446.520 px² untuk dua titik yang
+         nilainya sama, di sebelah empat angka 16 px yang benar-benar menjawab
+         layarnya. Penjelasan lengkapnya ada di aturan `.chart-cap` di app.css. */
+      el('.card-body.chart-cap', [
+        trendChart(series) || el('p.muted.fs-body', { text: 'Belum ada titik harga yang bisa digambar.', style: { margin: 0 } }),
         /* Swatch memakai token GRAFIK yang sama dengan titiknya (P1-E).
            ALASANNYA, diperbaiki setelah verifikasi P1-E: sebelum paket ini
            swatch DAN titiknya sama-sama `var(--warning)`, jadi keduanya

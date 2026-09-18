@@ -1160,9 +1160,8 @@ function baselineDetail(detail) {
               style: gone ? { textDecoration: 'line-through' } : null,
             }),
             gone ? el('span.cell-sub', { text: 'sudah tidak ada di WBS — bobotnya dihitung nol' }) : null,
-            crossed ? el('span.cell-sub', {
+            crossed ? el('span.cell-sub.tone-warn', {
               text: `progres diambil dari tugas hidup ${crossed} — id beku baris ini menunjuk ke sana`,
-              style: { color: 'var(--warning)' },
             }) : null,
           ])),
           el('td.right.num', { text: fmt.percent(task.weight_pct, { decimals: 4 }) }),

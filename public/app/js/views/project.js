@@ -488,7 +488,24 @@ export async function renderProject(host, { id }) {
   const deviation = Number(project.deviation_pct ?? actual - planned);
 
   host.appendChild(el('.stat-row', [
-    el('.stat', [el('.label', { text: 'Nilai kontrak' }), el('.value.sm', { text: fmt.rupiah(project.contract_value) })]),
+    /* Uang di baris ini memakai bentuk RINGKAS pada ukuran yang sama dengan
+       tetangganya, bukan bentuk penuh yang dikecilkan (UI-6b).
+
+       Diukur 18 Sep 2026 di pohon UI-6a pada #/d/projects/1: baris ini
+       menggambar "Rp 48.500.000.000" pada 16 px dan "2" (tenaga kerja),
+       "0" (milestone terlambat) dan "1" (PO terbuka) pada 22 px. Jadi angka
+       yang PALING mengenali proyek ini tergambar paling kecil, dan pembelahnya
+       bukan kepentingan melainkan panjang string: rupiah penuh tidak muat di
+       petak 158 px, sehingga situs uangnya dulu memilih `.value.sm`.
+
+       Bentuk ringkas menyelesaikan sebabnya, bukan gejalanya — dan angka
+       penuhnya tidak hilang, ia turun ke baris konteks. Idiomnya sudah ada di
+       evm.js (`money()` ringkas + `exact()` di title) sejak layar itu lahir. */
+    el('.stat', [
+      el('.label', { text: 'Nilai kontrak' }),
+      el('.value', { text: fmt.rupiahShort(project.contract_value), title: fmt.rupiah(project.contract_value) }),
+      el('.delta', { text: fmt.rupiah(project.contract_value) }),
+    ]),
     el('.stat', [
       el('.label', { text: 'Progres aktual' }), el('.value', { text: fmt.percent(actual) }),
       el(`.delta${deviation < 0 ? '.down' : '.up'}`, { text: `${deviation >= 0 ? '+' : ''}${fmt.percent(deviation)} vs rencana` }),
@@ -513,8 +530,8 @@ export async function renderProject(host, { id }) {
     ]),
     el('.stat', [
       el('.label', { text: 'Retensi ditahan' }),
-      el('.value.sm', { text: fmt.rupiah(project.retention_amount) }),
-      el('.delta', { text: `${fmt.percent(project.retention_pct)} dari nilai kontrak` }),
+      el('.value', { text: fmt.rupiahShort(project.retention_amount), title: fmt.rupiah(project.retention_amount) }),
+      el('.delta', { text: `${fmt.rupiah(project.retention_amount)} · ${fmt.percent(project.retention_pct)} dari nilai kontrak` }),
     ]),
     /* F-2 / T2.6 — anggaran terpakai, di layar yang dibuka manajer proyeknya
        setiap hari. Sel yang tidak punya jawaban DIGARIS: proyek tanpa RAP

@@ -608,6 +608,18 @@ ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
 
 **Perkakas bersama** `views/widgets/kit.js`: `safe()` / `safeList()` (fetch bertanda `loadFailure`),
 `failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
+
+**`.stat` adalah kosakata BERSAMA, dan ubinnya diratakan `subgrid` (UI-5/UI-6b).** `.stat-row > .stat`
+memakai `grid-template-rows: subgrid` supaya label yang membungkus melebarkan trek untuk seluruh
+baris alih-alih menggeser tetangganya. Konsekuensinya: **jumlah anak sebuah ubin menentukan berapa
+trek yang ia minta**, dan ubin ber-EMPAT anak wajib mendapat `grid-row: span 4` — aturan
+`:has(> :nth-child(4))` sudah menanganinya untuk bentuk apa pun.
+
+Aturan ini dicatat di sini, di §17, meskipun ia bukan aturan dasbor: `.stat` dipakai jauh di luar
+keluarga widget (diukur 18 Sep 2026 di 15 rute — 75 ubin, hanya 32 di antaranya di dasbor dan
+beranda). UI-5 memverifikasi keluarga dasbor, tempat setiap ubin bertiga anak, dan **mengirim
+tabrakan teks** pada dua ubin berempat anak di layar proyek. Harness **S51** kini menggerbanginya
+dalam bentuk umum: tidak boleh ada dua daun teks yang kotaknya bertindih.
 Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti membuat 18 menyimpang.
 
 **Ukuran**: `kecil` 1 kolom, `sedang` 2, `lebar` 4 (satu baris penuh) di kisi **empat** kolom; dua kolom

@@ -1277,6 +1277,173 @@ def s50(pg):
     out["ok"] = not checks
     return out
 
+@scenario("S51_ubin_proyek_dan_grafik")
+def s51(pg):
+    """UI-6b: tidak ada teks yang tergambar menimpa teks lain, dan grafik tidak lebih keras dari angkanya.
+
+    Skenario ini lahir dari sebuah REGRESI yang paket sebelumnya kirim. UI-5
+    meratakan ubin KPI dengan `subgrid` dan mengikat tiap ubin ke TEPAT tiga
+    trek (`grid-row: span 3`). Ubin berempat anak karena itu tidak punya baris
+    untuk anak keempatnya dan menggambarnya DI ATAS anak ketiga. Diukur 18 Sep
+    2026: dua ubin di seluruh aplikasi berempat anak — CPI di #/evm dan di
+    #/d/projects/1 — dan pada keduanya yang tertimpa adalah kalimat peringatan
+    yang memberi tahu bahwa angka di atasnya tidak boleh dipercaya.
+
+    UI-5 hijau karena ia mengukur keluarga dasbor, tempat SETIAP ubin berisi
+    tepat tiga anak. Jadi yang digerbangi di sini bukan "ubin CPI benar",
+    melainkan aturan umum: DI SELURUH layar ini, tidak boleh ada dua daun teks
+    yang kotaknya bertindih. Itulah bentuk yang akan menangkap regresi
+    berikutnya, yang tidak akan berbentuk ubin CPI.
+    """
+    login(pg, "admin@nusantara.test")
+
+    # Dua daun teks yang saling menimpa >35% kotak terkecil. Ambangnya bukan 0
+    # karena badge, chip dan ikon memang sengaja bertumpuk beberapa piksel.
+    #
+    # PROBE INI DIBANGUN ULANG DUA KALI. Dicatat lengkap karena kedua kesalahan
+    # itu berlaku untuk probe geometri apa pun, bukan hanya yang ini.
+    #
+    #  v1 `getBoundingClientRect()` — 19 tabrakan PALSU di 768 px pada
+    #     #/d/projects/1; dipotret dengan kedua belah diberi garis warna di
+    #     putaran pengukuran yang sama, tidak satu glyph bersentuhan.
+    #
+    #  v2 `getClientRects()` — hipotesisnya: bounding box elemen inline yang
+    #     membungkus adalah GABUNGAN kotak barisnya, jadi memuat ruang kosong.
+    #     Masuk akal, dan SALAH: jumlahnya tetap 19.
+    #
+    #  v2b kotak baris + saringan `elementFromPoint` — nol palsu, terlihat
+    #     sempurna, dan GERBANG MATI: pada tabrakan sungguhan satu elemen
+    #     MENUTUPI yang lain, jadi yang tertutup selalu gagal uji titik.
+    #     Dibuktikan dengan mencabut perbaikannya: ia tetap menjawab 0.
+    #
+    #     Sebab sebenarnya cuma satu: baris tabel yang tergulung keluar
+    #     `.table-wrap` tetap punya geometri, dan geometrinya jatuh di atas
+    #     kartu berikutnya.
+    #
+    #  v3 (di bawah) kotak baris DIPOTONG terhadap tiap leluhur yang menggulung.
+    #     Yang tergulung keluar kehilangan seluruh kotaknya; yang tertutup
+    #     tetangganya tidak. Benar di kedua arah — 0 pada pohon yang diperbaiki,
+    #     dan tepat satu pasangan rasio 1,0 per layar saat disabotase.
+    OVERLAP = """() => {
+      const vis = (e) => { const cs = getComputedStyle(e);
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && e.getClientRects().length > 0; };
+      const leaves = [...document.querySelectorAll('.main *')].filter(e =>
+        e.children.length === 0 && (e.textContent || '').trim().length > 2 && vis(e));
+      const clipOf = (e) => {
+        const boxes = [];
+        for (let p = e.parentElement; p; p = p.parentElement) {
+          const cs = getComputedStyle(p);
+          if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') boxes.push(p.getBoundingClientRect());
+        }
+        return boxes;
+      };
+      const clipped = (rects, clips) => rects.map(r => {
+        let x1 = r.x, y1 = r.y, x2 = r.x + r.width, y2 = r.y + r.height;
+        for (const c of clips) {
+          x1 = Math.max(x1, c.x); y1 = Math.max(y1, c.y);
+          x2 = Math.min(x2, c.x + c.width); y2 = Math.min(y2, c.y + c.height);
+        }
+        return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+      }).filter(r => r.w > 1 && r.h > 1);
+      const items = leaves.map(e => ({
+        e, rects: clipped([...e.getClientRects()], clipOf(e)),
+        txt: (e.textContent || '').trim().slice(0, 44),
+        cls: e.getAttribute('class') || e.tagName.toLowerCase() })).filter(i => i.rects.length);
+      const hits = [];
+      for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+        const a = items[i], b = items[j];
+        if (a.e.contains(b.e) || b.e.contains(a.e)) continue;
+        let worst = 0;
+        for (const ra of a.rects) for (const rb of b.rects) {
+          const ox = Math.min(ra.x + ra.w, rb.x + rb.w) - Math.max(ra.x, rb.x);
+          const oy = Math.min(ra.y + ra.h, rb.y + rb.h) - Math.max(ra.y, rb.y);
+          if (ox > 4 && oy > 4) {
+            const min = Math.min(ra.w * ra.h, rb.w * rb.h);
+            if (min > 0) worst = Math.max(worst, ox * oy / min);
+          }
+        }
+        // Kedua belah harus benar-benar tergambar di titik tindihnya. Kalau
+        // salah satunya dipotong leluhur yang menggulung, tidak ada yang
+        // bertabrakan di layar — hanya di dalam sistem koordinat.
+        if (worst > 0.35)
+          hits.push({ a: a.txt, b: b.txt, acls: a.cls, bcls: b.cls, rasio: +worst.toFixed(2) });
+      }
+      return hits;
+    }"""
+
+    # Baris ubin TINGKAT ATAS: satu ukuran untuk satu peran. Ubin di dalam kartu
+    # sengaja tidak ikut — di sana 16 px adalah peran yang berbeda (UI-5).
+    SIZES = """() => {
+      const out = {};
+      document.querySelectorAll('.main .stat-row > .stat > .value').forEach(v => {
+        if (v.closest('.card')) return;                 // ubin di dalam kartu: peran lain
+        const px = getComputedStyle(v).fontSize;
+        out[px] = (out[px] || 0) + 1;
+      });
+      return out;
+    }"""
+
+    # Grafik lawan angkanya: luas kanvas per titik data, dan ukuran angka di layar yang sama.
+    CHART = """() => {
+      const vis = (e) => e.getClientRects().length > 0;
+      const svgs = [...document.querySelectorAll('.main svg.chart-lib')].filter(vis).map(s => {
+        const r = s.getBoundingClientRect();
+        const marks = s.querySelectorAll('.mark').length;
+        return { w: Math.round(r.width), h: Math.round(r.height),
+                 luas: Math.round(r.width * r.height), mark: marks,
+                 per_mark: marks ? Math.round(r.width * r.height / marks) : null };
+      });
+      const nilai = [...document.querySelectorAll('.main .stat-row > .stat > .value')]
+        .map(v => getComputedStyle(v).fontSize);
+      return { svg: svgs, nilai };
+    }"""
+
+    out = {}
+    for route in ["#/d/projects/1", "#/evm", "#/harga-satuan", "#/dashboard"]:
+        pg.goto(BASE + route); pg.wait_for_timeout(3600)
+        out[route] = {"tabrakan": pg.evaluate(OVERLAP), "ukuran": pg.evaluate(SIZES)}
+        if route == "#/harga-satuan":
+            out[route]["grafik"] = pg.evaluate(CHART)
+            pg.screenshot(path=f"{OUT}/s51-harga-satuan.png")
+        if route == "#/d/projects/1":
+            pg.screenshot(path=f"{OUT}/s51-workspace-proyek.png")
+
+    # …dan sekali lagi di 768 px, tempat instrumen versi pertama paling lemah:
+    # di sanalah teks membungkus, dan di sanalah bounding box inline berbohong.
+    pg.set_viewport_size({"width": 768, "height": 900})
+    for route in ["#/d/projects/1", "#/evm"]:
+        pg.goto(BASE + route); pg.wait_for_timeout(3600)
+        out[f"{route} @768"] = {"tabrakan": pg.evaluate(OVERLAP)}
+    pg.set_viewport_size({"width": 1440, "height": 900})
+
+    checks = []
+    for route, r in out.items():
+        for h in r["tabrakan"]:
+            checks.append(
+                f"{route}: teks menimpa teks (rasio {h['rasio']}) — .{h['acls']} {h['a']!r} "
+                f"di atas .{h['bcls']} {h['b']!r}")
+
+    # Baris pahlawan workspace proyek: SATU ukuran. Sampai UI-6b ia menggambar
+    # "Rp 48.500.000.000" pada 16 px di sebelah "2" pada 22 px — angka yang
+    # paling mengenali proyek adalah yang paling kecil.
+    hero = out["#/d/projects/1"]["ukuran"]
+    if len(hero) > 1:
+        checks.append(
+            f"baris ubin tingkat atas #/d/projects/1 memakai {len(hero)} ukuran sekaligus: {hero} — "
+            "pembelahnya panjang string, bukan kepentingan; uang memakai bentuk ringkas pada ukuran yang sama")
+
+    # Grafik tidak boleh melar melebihi viewBox-nya sendiri (720 px).
+    g = out["#/harga-satuan"].get("grafik") or {}
+    for svg in g.get("svg", []):
+        if svg["w"] > 760:
+            checks.append(
+                f"#/harga-satuan: grafik {svg['w']}x{svg['h']} = {svg['luas']:,} px2 untuk {svg['mark']} titik "
+                f"({svg['per_mark']:,} px2 per titik) — viewBox-nya 720 px; .chart-cap hilang")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -13561,7 +13728,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

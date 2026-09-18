@@ -1214,6 +1214,21 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 }
 @supports (grid-template-rows: subgrid) {
   .stat-row > .stat { grid-row: span 3; display: grid; grid-template-rows: subgrid; }
+  /* Ubin dengan anak KEEMPAT mendapat trek keempat (UI-6b).
+     `span 3` di atas mengikat ubin ke tepat tiga trek, jadi anak keempat tidak
+     punya baris untuk ditempati dan tergambar DI ATAS anak ketiga. Diukur 18
+     Sep 2026 pada pohon UI-5: dua ubin di seluruh aplikasi punya empat anak —
+     CPI di #/evm dan di #/d/projects/1 — dan pada keduanya kalimat peringatan
+     ("Biaya aktual belum lengkap — CPI belum dapat dipercaya") tergambar persis
+     menimpa kalimat basisnya, tindih 6.872 px² dengan rasio 1,0. Aturan
+     perataan UI-5 menghapus tepat kalimat yang memberi tahu bahwa angka di
+     atasnya tidak boleh dipercaya.
+
+     `:has(> :nth-child(4))` menghitung ANAK, bukan pola kelas, supaya ubin
+     empat-anak bentuk apa pun ikut tertolong — bukan hanya yang kebetulan
+     memakai dua `.delta`. Sebaran hari ini, diukur di 15 rute: 13 ubin
+     dua-anak, 60 tiga-anak, 2 empat-anak. */
+  .stat-row > .stat:has(> :nth-child(4)) { grid-row: span 4; }
 }
 
 /* ---------------------------------------------------------- beranda modul */
@@ -1583,6 +1598,20 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
    selektor yang tidak lagi cocok dengan apa pun adalah warna yang menunggu
    dipakai lagi oleh grafik berikutnya tanpa ada yang tahu dari mana asalnya. */
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* Grafik yang tidak boleh melar melebihi ukuran alaminya (UI-6b).
+   `.chart` di atas sengaja memaksa width:100% supaya grafik mengisi kartunya —
+   benar untuk grafik padat. Tetapi viewBox-nya 720x260 (`chartWidth()`), jadi
+   di kartu selebar 1112 px grafik yang sama tergambar 1112x402.
+
+   Diukur 18 Sep 2026 pada #/harga-satuan: 446.520 px² untuk DUA titik data yang
+   nilainya sama — 223.260 px² per titik, sembilan kali lebih longgar dari kurva
+   workspace proyek (198.343 px² untuk 8 mark = 24.793 px² per mark) — sementara
+   keempat angka yang benar-benar menjawab layar itu tergambar 16 px. Itu
+   kebalikan dari "grafik lebih sunyi dari angkanya".
+
+   Batasnya ukuran ALAMI grafik itu sendiri, bukan angka yang dikarang. */
+.chart-cap { max-width: 720px; margin-inline: auto; }
 
 /* Legenda DOM. charts.js menggambar legendanya sendiri di dalam svg; yang
    tersisa memakai blok ini adalah tren harga satuan, yang pembedanya per TITIK

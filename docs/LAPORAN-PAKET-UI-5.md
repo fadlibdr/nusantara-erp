@@ -67,6 +67,32 @@ tetapi ia dikirim tanpa diukur, dan itu dicatat di sini alih-alih ditemukan oran
 
 ---
 
+## Koreksi kedua terhadap paket ini (ditambahkan 18 Sep 2026, saat UI-6b dimulai)
+
+Bagian 1 di atas mengikat tiap ubin ke **tepat tiga trek** (`grid-row: span 3`) supaya labelnya yang
+membungkus melebarkan trek untuk seluruh baris. Itu benar untuk ubin bertiga anak — dan **setiap**
+ubin di keluarga dasbor memang bertiga anak, yang sebabnya paket ini hijau.
+
+Di luar keluarga itu ada **dua** ubin berempat anak, dan pada keduanya anak keempat tidak punya
+baris untuk ditempati sehingga tergambar **DI ATAS** anak ketiga:
+
+| layar | ubin | tindih | rasio |
+|---|---|---|---|
+| `#/d/projects/1` | CPI (BIAYA) | 6.872 px² | 1,0 |
+| `#/evm` | CPI PORTOFOLIO | 4.917 px² | 1,0 |
+
+Yang tertimpa pada keduanya adalah kalimat peringatan *"Biaya aktual belum lengkap — CPI belum dapat
+dipercaya"*, menimpa *"EV ÷ AC per 19 Sep 2026"*. Aturan perataan ini menghapus tepat kalimat yang
+memberi tahu bahwa angka di atasnya tidak boleh dipercaya.
+
+Ditutup di UI-6b dengan `.stat-row > .stat:has(> :nth-child(4)) { grid-row: span 4; }`, dan perataan
+yang paket ini menangkan tetap utuh (0 dari 19 baris visual meleset, diukur di tujuh layar). Sebaran
+sebenarnya, dihitung di 15 rute: **13 ubin dua-anak · 60 tiga-anak · 2 empat-anak**.
+
+Pelajarannya sama dengan koreksi pertama di atas, dan itulah yang membuatnya layak dicatat dua kali:
+`.stat` dan `.value` adalah kosakata BERSAMA, dipakai jauh di luar keluarga yang menamai paket ini.
+Memverifikasi keluarganya bukan memverifikasi kosakatanya.
+
 ## 3. Tujuh ubin dirakit tangan
 
 `ap-aging`, `ar-aging` dan `proyeksi-kas` menulis `.stat`/`.label`/`.value.sm` sendiri tanpa
