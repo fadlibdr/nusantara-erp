@@ -86,7 +86,14 @@ function indexTile(label, value, { note, basis, tone, decimals = 4 } = {}) {
   ]);
 }
 
-function moneyTile(label, value, sub, { tone } = {}) {
+/* `hero`: ubin ini berdiri di baris TINGKAT ATAS, bukan di dalam kartu.
+   Bedanya nyata dan diukur (UI-6d): di dalam kartu, 16 px adalah norma yang UI-5
+   pertahankan dengan sengaja (37 ubin lawan 3 di seluruh aplikasi); di baris
+   tingkat atas, mencampur 22 px dan 16 px dalam SATU baris — persis yang
+   #/evm lakukan sampai paket ini — tidak terbaca sebagai hierarki, ia terbaca
+   sebagai ketidakkonsistenan. Angka di sini sudah ringkas (`money()`), jadi
+   menaikkannya tidak berisiko meluber. */
+function moneyTile(label, value, sub, { tone, hero = false } = {}) {
   // Angka yang tidak ada tidak boleh berwarna. VAC null (karena CPI tidak dapat
   // dihitung) pernah tampil sebagai "—" berwarna hijau, yang terbaca sebagai
   // "hemat" padahal artinya "tidak diketahui".
@@ -96,7 +103,7 @@ function moneyTile(label, value, sub, { tone } = {}) {
     el('.label', { text: label }),
     // Ringkas di kartu, angka penuhnya di tooltip: "Rp 26.023.834.782,60"
     // tidak muat di petak 158px dan yang dibaca sekilas memang ordenya.
-    el('.value.sm', { class: toneClass || '', text: money(value), title: exact(value) }),
+    el(hero ? '.value' : '.value.sm', { class: toneClass || '', text: money(value), title: exact(value) }),
     sub ? el('.delta', { text: sub }) : null,
   ]);
 }
@@ -684,13 +691,14 @@ function portfolioView(host, payload, onPick) {
       basis: `Σ EV ÷ Σ AC per ${per}`,
       tone: cpi === null ? 'warn' : indexTone(cpi),
     }),
-    moneyTile('Nilai rencana (Σ PV)', pv, `dari Σ BAC ${money(sum('bac'))}`),
+    moneyTile('Nilai rencana (Σ PV)', pv, `dari Σ BAC ${money(sum('bac'))}`, { hero: true }),
     // Tanpa satu pun proyek berbaseline seluruh jumlah ini nol, dan nol hijau
     // akan terbaca "tepat jadwal" padahal artinya "tidak ada yang diukur".
     moneyTile('Nilai diperoleh (Σ EV)', ev, `selisih jadwal ${money(ev - pv)}`, {
       tone: measured.length ? (ev < pv ? 'down' : 'up') : null,
+      hero: true,
     }),
-    moneyTile('Biaya aktual (Σ AC)', ac, `biaya proyek s.d. ${per}`),
+    moneyTile('Biaya aktual (Σ AC)', ac, `biaya proyek s.d. ${per}`, { hero: true }),
   ]));
 
   host.appendChild(el('.card', [

@@ -57,15 +57,20 @@ export async function renderSlaBreaches(host) {
     return;
   }
 
+  /* Ukuran ubin tingkat atas (UI-6d). Sampai paket ini kedua angka di sini
+     memakai `.value.sm` — 16 px di dalam petak selebar 567 px, sementara #/csat
+     di modul yang SAMA menggambar 22 px di petak 278 px, termasuk kalimat
+     sepanjang "Belum ada penilaian". Jadi tidak ada alasan panjang-string di
+     sini; ia hanya tidak pernah disepakati. Tetangga sendirilah pembandingnya. */
   body.appendChild(el('.stat-row', [
     el('.stat', [
       el('.label', { text: 'Tiket lewat SLA' }),
-      el('.value.sm', { text: String(tickets.length) }),
+      el('.value', { text: String(tickets.length) }),
       el('.delta.down', { text: 'sudah melewati janji ke pelanggan' }),
     ]),
     el('.stat', [
       el('.label', { text: 'Terlama' }),
-      el('.value.sm', {
+      el('.value', {
         text: overdueLabel(Math.max(...tickets.map((ticket) => overdueBy(ticket.resolution_due_at) ?? 0))),
       }),
     ]),

@@ -129,8 +129,21 @@ function summaryTiles(exp, tab) {
           + (s.noted ? ` · ${s.noted} baris perlu dicocokkan` : ''),
       }),
     ]),
-    el('.stat', [el('.label', { text: 'Total DPP' }), el('.value.sm', { text: fmt.rupiah(s.dpp) })]),
-    el('.stat', [el('.label', { text: tab.valueLabel }), el('.value.sm', { text: fmt.rupiah(s[tab.valueKey]) })]),
+    /* Satu ukuran untuk satu baris (UI-6d): sampai paket ini baris ini
+       menggambar dua hitungan pada 22 px di sebelah dua angka uang pada 16 px,
+       tanpa alasan yang bisa dibaca siapa pun. Uang memakai bentuk ringkas
+       supaya angka panjang tidak meluber di petak 278 px, dan angka penuhnya
+       turun ke baris konteks. */
+    el('.stat', [
+      el('.label', { text: 'Total DPP' }),
+      el('.value', { text: fmt.rupiahShort(s.dpp), title: fmt.rupiah(s.dpp) }),
+      el('.delta', { text: fmt.rupiah(s.dpp) }),
+    ]),
+    el('.stat', [
+      el('.label', { text: tab.valueLabel }),
+      el('.value', { text: fmt.rupiahShort(s[tab.valueKey]), title: fmt.rupiah(s[tab.valueKey]) }),
+      el('.delta', { text: fmt.rupiah(s[tab.valueKey]) }),
+    ]),
     el('.stat', [
       el('.label', { text: 'Tertahan' }),
       el(`.value${s.blocked ? '.tone-neg' : ''}`, { text: String(s.blocked) }),

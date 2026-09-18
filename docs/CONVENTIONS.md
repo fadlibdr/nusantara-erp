@@ -609,6 +609,18 @@ ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
 **Perkakas bersama** `views/widgets/kit.js`: `safe()` / `safeList()` (fetch bertanda `loadFailure`),
 `failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
 
+**Satu baris ubin TINGKAT ATAS memakai satu ukuran angka (UI-6d).** Mencampur `.value` (22 px) dan
+`.value.sm` (16 px) dalam satu baris tidak terbaca sebagai hierarki — ia terbaca sebagai kelalaian.
+Di dalam KARTU aturannya berbeda dan sengaja dibiarkan: 16 px adalah peran tersendiri di sana (37
+ubin lawan 3 di seluruh aplikasi, diukur 18 Sep 2026). Sensus lengkap saat aturan ini ditulis: 13
+baris tingkat atas — 4 seragam 22 px, 7 seragam 16 px, 2 campur (keduanya diperbaiki). Yang BELUM
+diputuskan adalah ukuran mana antar-layar, karena baris 16 px memakai rupiah penuh dan menyatukannya
+mengubah apa yang angkanya katakan; itu pekerjaan UI-7. Harness **S53** menjaga aturan satu-baris.
+
+Uang yang tidak muat bukan alasan mengecilkan ubinnya: pakai `fmt.rupiahShort()` pada ukuran yang
+sama dan taruh angka penuhnya di baris konteks (dan di `title`) — idiom yang sudah ada di `evm.js`
+sejak layar itu lahir.
+
 **Bilah aksi di dalam SEL TABEL memakai `.cell-actions`, bukan `.row-actions` (UI-6c).** Keduanya
 sebuah deret tombol mendatar, dan keduanya BUKAN hal yang sama: `.row-actions` membawa `gap: 6px`
 dan `flex-wrap: wrap`, yang di dalam sel tabel menaikkan tinggi baris **56 → 81 px** (diukur 18 Sep
