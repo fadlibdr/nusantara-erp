@@ -800,7 +800,10 @@ def s44(pg):
     login(pg, "admin@nusantara.test")
 
     CHIPS = """() => {
-      const row = document.querySelector('.chips');
+      // `.chips.active-filters`: sejak UI-4c baris tampilan tersimpan juga
+      // ber-class `.chips` dan berada LEBIH DULU di DOM, jadi `.chips` telanjang
+      // memulangkan baris yang salah — dan seluruh gerbang ini membaca nol chip.
+      const row = document.querySelector('.chips.active-filters');
       if (!row) return { ada: false };
       return {
         ada: true,
@@ -832,12 +835,12 @@ def s44(pg):
 
     # Membuang satu chip membuang SATU filter — sisanya bertahan di URL.
     pg.goto(BASE + "#/r/procurement/purchase-orders?q=PO&status=draft"); pg.wait_for_timeout(2200)
-    click(pg, ".chips .chip-x")
+    click(pg, ".chips.active-filters .chip-x")
     pg.wait_for_timeout(1600)
     out["buang_satu"] = {**pg.evaluate(CHIPS), "url": pg.url.split("?")[-1]}
 
     # "Hapus semua" memakai resetFilters() yang sama dengan tombol Reset.
-    click(pg, ".chips button.btn")
+    click(pg, ".chips.active-filters button.btn")
     pg.wait_for_timeout(1600)
     out["hapus_semua"] = {**pg.evaluate(CHIPS), "url": pg.url.split("#")[-1]}
 
@@ -12854,6 +12857,273 @@ def s45(pg):
     return out
 
 
+
+# Baris tampilan tersimpan (UI-4c). Satu bacaan, dipakai setiap langkah di bawah.
+VIEWS = """() => {
+  const row = document.querySelector('.chips.views');
+  const wrap = (c) => c.closest('.chip-wrap');
+  return {
+    ada: !!row,
+    tersembunyi: row ? row.hidden : null,
+    label: row && !row.hidden ? ((row.querySelector('.chips-label') || {}).innerText || '').trim() : null,
+    chips: row ? [...row.querySelectorAll('.chip-view')].map((c) => ({
+      nama: c.innerText.trim(),
+      aktif: c.classList.contains('on'),
+      pressed: c.getAttribute('aria-pressed'),
+      // Keaktifan harus TERLIHAT, bukan hanya berupa kelas: chip aktif dan chip
+      // biasa yang menggambar latar yang sama adalah keadaan yang tidak pernah
+      // sampai ke mata siapa pun.
+      latar: wrap(c) ? getComputedStyle(wrap(c)).backgroundColor : null,
+      buang: !!(wrap(c) && wrap(c).querySelector('.chip-x')),
+    })) : [],
+    simpan: row ? [...row.querySelectorAll('button.btn')].map((b) => b.innerText.trim()) : [],
+    saring: [...document.querySelectorAll('.chips.active-filters .chip')].length,
+    baris: document.querySelectorAll('table.data tbody tr').length,
+    url: (location.hash.split('?')[1] || ''),
+  };
+}"""
+
+
+@scenario("S46_tampilan_tersimpan")
+def s46(browser):
+    """UI-4c: keadaan layar daftar yang diberi nama — dan yang benar-benar mengikuti ORANGNYA.
+
+    Dijalankan dengan DUA konteks peramban, dan itu syarat utamanya: sebuah tampilan
+    yang hanya hidup di localStorage adalah persis cacat yang P1-C pindahkan favorit ke
+    server untuk memperbaikinya (disusun di desktop kantor, tidak ada di tablet
+    lapangan). Konteks kedua tidak pernah menyimpan apa pun; kalau ia melihat
+    tampilannya, yang menyimpan adalah `core_user_preferences`.
+    """
+    admin = token_for("admin@nusantara.test")
+    # Mulai dari nol supaya "chip lahir" benar-benar berarti lahir.
+    api("core/me/preferences/list.views", admin, "PUT", {"value": []})
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    galat = []
+    out = {}
+    # Sebuah pengecualian di paintViews() menghentikan renderAll() SEBELUM baris
+    # chip saringan lahir — layar yang kehilangan separuh dirinya tanpa satu pun
+    # gerbang di bawah yang menyadarinya.
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+
+    try:
+        login(pg, "admin@nusantara.test")
+
+        RUTE = "#/r/procurement/purchase-orders"
+
+        # 1. Polos, belum ada tampilan: barisnya TIDAK ADA di layar.
+        pg.goto(BASE + RUTE); pg.wait_for_timeout(2200)
+        out["polos"] = pg.evaluate(VIEWS)
+        if out["polos"]["tersembunyi"] is not True:
+            galat.append("baris tampilan terlihat padahal belum ada tampilan tersimpan dan daftarnya polos")
+
+        # 2. Tersaring: barisnya muncul, dengan tawaran menyimpan dan nol chip.
+        pg.goto(BASE + RUTE + "?q=PO&status=approved"); pg.wait_for_timeout(2400)
+        out["tersaring"] = pg.evaluate(VIEWS)
+        if out["tersaring"]["tersembunyi"] is not False:
+            galat.append("daftar tersaring tetapi baris tampilan masih tersembunyi")
+        if out["tersaring"]["simpan"] != ["Simpan tampilan ini"]:
+            galat.append(f"tawaran menyimpan tidak ada: {out['tersaring']['simpan']}")
+
+        # 3. Simpan.
+        click(pg, ".chips.views button.btn"); pg.wait_for_timeout(700)
+        pg.fill(".modal input[type=text]", "Menunggu saya")
+        click(pg, ".modal .modal-foot .btn.primary"); pg.wait_for_timeout(1800)
+        out["tersimpan"] = pg.evaluate(VIEWS)
+        out["toast"] = toasts(pg)
+
+        m = out["tersimpan"]
+        if len(m["chips"]) != 1 or m["chips"][0]["nama"] != "Menunggu saya":
+            galat.append(f"chip tampilan tidak lahir: {m['chips']}")
+        elif not m["chips"][0]["aktif"] or m["chips"][0]["pressed"] != "true":
+            galat.append("tampilan yang baru disimpan adalah yang sedang tampil, tetapi chipnya tidak aktif")
+        elif not m["chips"][0]["buang"]:
+            galat.append("chip tampilan tidak punya tombol hapus — ia akan menumpuk selamanya")
+        if m["simpan"]:
+            galat.append(f"tawaran menyimpan masih ada padahal yang tampil persis tampilan tersimpan: {m['simpan']}")
+        if not any("Menunggu saya" in t for t in out["toast"]):
+            galat.append(f"toast tidak menyebut nama tampilannya: {out['toast']}")
+
+        # 4. SERVER yang menyimpannya, dibaca lewat API — bukan dari layar.
+        _, body = api("core/me/preferences", admin)
+        rows = {r["key"]: r["value"] for r in (body.get("data") or [])}
+        out["server"] = rows.get("list.views")
+        if not isinstance(out["server"], list) or len(out["server"]) != 1:
+            galat.append(f"core_user_preferences tidak memegang tampilannya: {out['server']}")
+        else:
+            row = out["server"][0]
+            if row.get("route") != "r/procurement/purchase-orders" or row.get("name") != "Menunggu saya":
+                galat.append(f"baris server bukan tampilan yang disimpan: {row}")
+            # Yang disimpan adalah QUERY STRING-nya, bukan bentuk data kedua.
+            if sorted((row.get("query") or "").split("&")) != ["q=PO", "status=approved"]:
+                galat.append(f"query tersimpan bukan query string layarnya: {row.get('query')!r}")
+
+        # 5. Keadaan lain: chipnya tidak aktif, dan tawaran menyimpan kembali.
+        pg.goto(BASE + RUTE + "?status=draft"); pg.wait_for_timeout(2400)
+        out["beda"] = pg.evaluate(VIEWS)
+        if out["beda"]["chips"] and out["beda"]["chips"][0]["aktif"]:
+            galat.append("chip tampilan menyala untuk saringan yang bukan tampilannya")
+        if not out["beda"]["simpan"]:
+            galat.append("keadaan baru tidak menawarkan disimpan")
+        # Aktif vs tidak aktif harus BERBEDA di layar, bukan hanya di kelasnya.
+        if out["tersimpan"]["chips"] and out["beda"]["chips"]:
+            if out["tersimpan"]["chips"][0]["latar"] == out["beda"]["chips"][0]["latar"]:
+                galat.append(f"chip aktif dan chip biasa menggambar latar yang sama ({out['beda']['chips'][0]['latar']})")
+
+        # 6. Terapkan: URL-nya kembali PERSIS.
+        click(pg, ".chip-view"); pg.wait_for_timeout(2200)
+        out["diterapkan"] = pg.evaluate(VIEWS)
+        if sorted(out["diterapkan"]["url"].split("&")) != ["q=PO", "status=approved"]:
+            galat.append(f"menerapkan tampilan tidak memulihkan keadaannya: {out['diterapkan']['url']!r}")
+        if not (out["diterapkan"]["chips"] and out["diterapkan"]["chips"][0]["aktif"]):
+            galat.append("tampilan diterapkan tetapi chipnya tidak menyala")
+
+        # 7. URUTAN MENGISI FILTER TIDAK MENGUBAH KEAKTIFAN.
+        #
+        #    Lewat KONTROLNYA sendiri, bukan lewat URL, dan di layar dengan DUA
+        #    filter <select>. Seed dari URL selalu membangun ui.filters urut
+        #    deklarasi skema, jadi dua URL dengan parameter terbalik menghasilkan
+        #    string yang sama persis dan tidak menguji apa pun — versi pertama
+        #    gerbang ini melakukan itu, dan tetap hijau saat pembakuan urutannya
+        #    dibuang. Yang benar-benar bervariasi adalah urutan ORANGNYA mengisi:
+        #    `ui.filters[key] = value` menyisipkan kunci sesuai urutan klik.
+        PENAWARAN = "#/r/crm/quotations"
+        pg.goto(BASE + PENAWARAN); pg.wait_for_timeout(2600)
+        pilihan = pg.evaluate("""() => ({
+          status: [...document.querySelectorAll('.filters select[aria-label="Status"] option')].map((o) => o.value).filter(Boolean),
+          lingkup: [...document.querySelectorAll('.filters select[aria-label="Lingkup"] option')].map((o) => o.value).filter(Boolean),
+        })""")
+        if not pilihan["status"] or not pilihan["lingkup"]:
+            out["SKIPPED"] = f"layar penawaran tidak punya dua filter select: {pilihan}"
+            return out
+        st, lk = pilihan["status"][0], pilihan["lingkup"][0]
+
+        pg.select_option('.filters select[aria-label="Status"]', st); pg.wait_for_timeout(1700)
+        pg.select_option('.filters select[aria-label="Lingkup"]', lk); pg.wait_for_timeout(1900)
+        out["urutan_a"] = pg.evaluate(VIEWS)
+
+        click(pg, ".chips.views button.btn"); pg.wait_for_timeout(700)
+        pg.fill(".modal input[type=text]", "Urutan A")
+        click(pg, ".modal .modal-foot .btn.primary"); pg.wait_for_timeout(1800)
+
+        # Saringan yang SAMA, diisi TERBALIK: Lingkup dulu, baru Status.
+        click(pg, ".chips.active-filters button.btn"); pg.wait_for_timeout(1900)   # Hapus semua
+        pg.select_option('.filters select[aria-label="Lingkup"]', lk); pg.wait_for_timeout(1700)
+        pg.select_option('.filters select[aria-label="Status"]', st); pg.wait_for_timeout(1900)
+        out["urutan_terbalik"] = pg.evaluate(VIEWS)
+
+        if out["urutan_terbalik"]["url"] == out["urutan_a"]["url"]:
+            galat.append(f"kedua urutan menghasilkan query yang sama ({out['urutan_a']['url']!r}) — "
+                         "gerbang ini tidak menguji apa pun")
+        elif not any(c["aktif"] for c in out["urutan_terbalik"]["chips"]):
+            galat.append("saringan yang SAMA, diisi dengan urutan berbeda, dibaca sebagai tampilan lain: "
+                         f"{out['urutan_a']['url']!r} vs {out['urutan_terbalik']['url']!r}")
+
+        pg.goto(BASE + RUTE + "?q=PO&status=approved"); pg.wait_for_timeout(2400)
+
+        # 8. Tampilan "semua": query KOSONG, dan menerapkannya benar-benar MEMBUANG
+        #    saringan yang sedang terpasang. seedFromUrl sendiri tidak mereset apa pun
+        #    untuk query yang tidak mengandung kunci yang dikenalnya.
+        #    Saringannya dibuang lewat "Hapus semua" dan bukan dengan membuka URL
+        #    polos: URL tanpa satu kunci pun yang dikenali sengaja MEMBIARKAN state
+        #    in-memory hidup (navigasi sidebar harus mengingat saringan yang tadi
+        #    dipasang), jadi layar itu masih tersaring — dan masih tampilan yang sama.
+        click(pg, ".chips.active-filters button.btn"); pg.wait_for_timeout(2200)
+        out["setelah_hapus_saringan"] = pg.evaluate(VIEWS)
+        if out["setelah_hapus_saringan"]["url"] != "":
+            galat.append(f"'Hapus semua' menyisakan saringan: {out['setelah_hapus_saringan']['url']!r}")
+        click(pg, ".chips.views button.btn"); pg.wait_for_timeout(700)
+        pg.fill(".modal input[type=text]", "Semua PO")
+        click(pg, ".modal .modal-foot .btn.primary"); pg.wait_for_timeout(1800)
+
+        pg.goto(BASE + RUTE + "?q=PO&status=approved"); pg.wait_for_timeout(2400)
+        out["sebelum_semua"] = pg.evaluate(VIEWS)
+        pg.evaluate("""() => {
+          const chip = [...document.querySelectorAll('.chip-view')].find(c => c.innerText.trim() === 'Semua PO');
+          chip.click();
+        }""")
+        pg.wait_for_timeout(2200)
+        out["semua"] = pg.evaluate(VIEWS)
+        if out["semua"]["url"] != "":
+            galat.append(f"tampilan 'semua' tidak membuang saringannya: url masih {out['semua']['url']!r}")
+        if out["semua"]["saring"]:
+            galat.append(f"{out['semua']['saring']} chip saringan masih terpasang setelah tampilan 'semua' diterapkan")
+
+        # 9. PERAMBAN KEDUA, konteks bersih: ia tidak pernah menyimpan apa pun.
+        ctx2 = browser.new_context(viewport={"width": 1440, "height": 900})
+        pg2 = ctx2.new_page()
+        try:
+            login(pg2, "admin@nusantara.test")
+            pg2.goto(BASE + RUTE); pg2.wait_for_timeout(2400)
+            out["peramban_kedua"] = pg2.evaluate(VIEWS)
+            names = sorted(c["nama"] for c in out["peramban_kedua"]["chips"])
+            if names != ["Menunggu saya", "Semua PO"]:
+                galat.append(f"peramban kedua tidak melihat tampilan yang sama: {names} — ia hidup di localStorage, bukan di akun")
+            pg2.screenshot(path=f"{OUT}/s46-tampilan.png")
+        finally:
+            ctx2.close()
+
+        # 10. Hapus: dikonfirmasi, chipnya hilang, dan baris server ikut menyusut.
+        # …dan TAUTAN ke keadaan yang tadi dibuka benar-benar menggambarnya lagi.
+        #
+        # Router menyimpan hash PENUH di `current` dan melewatkan hashchange yang
+        # sama dengannya. syncUrl/applyView yang menulis URL lewat
+        # history.replaceState langsung membuat `current` basi: layar tetap
+        # menampilkan tampilan "semua" sementara bilah alamat berkata tersaring,
+        # tanpa satu pun galat. Gerbang inilah yang menuntut keduanya sepadan.
+        pg.goto(BASE + RUTE + "?q=PO&status=approved"); pg.wait_for_timeout(2400)
+        out["sebelum_hapus"] = pg.evaluate(VIEWS)
+        if out["sebelum_hapus"]["saring"] != 2 or out["sebelum_hapus"]["url"] != "q=PO&status=approved":
+            galat.append("tautan ke keadaan yang tadi dibuka tidak menggambarnya lagi — "
+                         f"URL {out['sebelum_hapus']['url']!r} tetapi {out['sebelum_hapus']['saring']} chip saringan")
+        if any(c["aktif"] and c["nama"] == "Semua PO" for c in out["sebelum_hapus"]["chips"]):
+            galat.append("layar masih menampilkan tampilan 'Semua PO' padahal URL-nya tersaring")
+        click(pg, ".chip-wrap .chip-x"); pg.wait_for_timeout(700)
+        out["dialog_hapus"] = pg.evaluate(
+            "() => { const m = document.querySelector('.modal'); return m ? m.innerText.replace(/\\n+/g, ' | ').slice(0, 300) : null; }")
+        if not out["dialog_hapus"]:
+            galat.append("menghapus tampilan tersimpan tidak dikonfirmasi")
+        click(pg, ".modal .modal-foot .btn.danger"); pg.wait_for_timeout(1800)
+        out["setelah_hapus"] = pg.evaluate(VIEWS)
+        if any(c["nama"] == "Menunggu saya" for c in out["setelah_hapus"]["chips"]):
+            galat.append("tampilan yang dihapus masih tergambar")
+        # Daftar yang sedang tampil TIDAK ikut berubah: yang dihapus tampilannya.
+        # Dibandingkan dengan keadaan TEPAT SEBELUM klik hapus, bukan dengan
+        # pengukuran beberapa langkah sebelumnya: dua pengukuran yang dipisahkan
+        # empat navigasi membandingkan lebih dari satu perubahan.
+        if out["setelah_hapus"]["saring"] != out["sebelum_hapus"]["saring"]:
+            galat.append(f"menghapus tampilan ikut mengubah saringan yang sedang terpasang "
+                         f"({out['sebelum_hapus']['saring']} → {out['setelah_hapus']['saring']})")
+        if out["setelah_hapus"]["url"] != out["sebelum_hapus"]["url"]:
+            galat.append(f"menghapus tampilan ikut mengubah URL layarnya "
+                         f"({out['sebelum_hapus']['url']!r} → {out['setelah_hapus']['url']!r})")
+
+        _, body = api("core/me/preferences", admin)
+        rows = {r["key"]: r["value"] for r in (body.get("data") or [])}
+        out["server_akhir"] = rows.get("list.views")
+        # Disaring per rute: sejak langkah 7 akun ini juga memegang tampilan
+        # layar jurnal, dan tampilan layar lain tidak ada urusannya dengan
+        # penghapusan di layar PO.
+        po = [v.get("name") for v in (out["server_akhir"] or []) if v.get("route") == "r/procurement/purchase-orders"]
+        if po != ["Semua PO"]:
+            galat.append(f"penghapusan tidak sampai ke server: {po}")
+    finally:
+        ctx.close()
+        api("core/me/preferences/list.views", admin, "PUT", {"value": []})
+
+    out["console_errors"] = errors
+    if errors:
+        galat.append(f"galat konsol: {errors[:3]}")
+
+    out["galat"] = galat
+    out["failed_checks"] = galat
+    out["ok"] = not galat
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -12864,7 +13134,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

@@ -6,9 +6,10 @@ import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
 import { combobox } from '../combobox.js';
-import { openForm } from './form.js';
+import { openForm, promptFields } from './form.js';
 import { runAction, postAction, isBulkAction } from './actions.js';
-import { navigate } from '../router.js';
+import { prefs } from '../prefs.js';
+import { navigate, replacePath } from '../router.js';
 import { MONTHS, rupiah, date } from '../format.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
 import { downloadPdf, openPrintable, xlsxName } from '../print.js';
@@ -228,11 +229,15 @@ export async function renderList(host, { key, def }) {
    * entri riwayat daftar sudah ditulisi query-nya. Default dihilangkan supaya
    * daftar yang belum disentuh tetap ber-URL polos.
    */
-  function syncUrl() {
-    if (hashPath() !== `r/${key}`) return; // sudah pindah layar saat load selesai
-
+  /*
+   * Keadaan layar ini sebagai query string — SATU penyerialisasi, dipakai bilah
+   * alamat (syncUrl) dan tampilan tersimpan (UI-4c). Dua salinan akan hanyut,
+   * dan hanyutnya berarti sebuah tampilan yang disimpan hari ini memulihkan
+   * saringan yang BERBEDA besok.
+   */
+  function stateQuery({ withPage } = {}) {
     const params = new URLSearchParams();
-    if (ui.page > 1) params.set('page', String(ui.page));
+    if (withPage && ui.page > 1) params.set('page', String(ui.page));
     if (ui.q) params.set('q', ui.q);
     if (ui.sort) {
       params.set('sort', ui.sort);
@@ -243,9 +248,32 @@ export async function renderList(host, { key, def }) {
     for (const [name, value] of Object.entries(ui.filters)) {
       if (value !== undefined && value !== null && value !== '') params.set(name, String(value));
     }
+    return params.toString();
+  }
 
-    const query = params.toString();
-    history.replaceState(null, '', `#/r/${key}${query ? `?${query}` : ''}`);
+  /*
+   * `replacePath()`, bukan `history.replaceState()` langsung.
+   *
+   * Router menyimpan hash PENUH — query dan semuanya — di `current`, dan
+   * pendengar hashchange-nya melewatkan hash yang sama dengan `current`. Sebuah
+   * penulisan URL di belakang punggungnya membuat `current` basi, dan basinya
+   * berbunyi: buka `?status=draft`, ganti saringan ke `approved` (syncUrl
+   * menulis URL baru, `current` masih `draft`), lalu ikuti tautan ke
+   * `?status=draft` — hash-nya sama dengan `current`, jadi router MELEWATKANNYA.
+   * Layarnya tetap menampilkan `approved` sementara bilah alamat berkata
+   * `draft`, dan tidak ada galat di mana pun.
+   *
+   * Cacat ini lebih tua dari paket ini (syncUrl selalu menulis sendiri), tetapi
+   * tampilan tersimpan membuatnya bisa ditemui dalam satu alur biasa:
+   * terapkan tampilan, lalu ikuti tautan ke keadaan yang tadi dibuka.
+   * `replacePath` ADA justru untuk ini — ia menulis URL dan memberi tahu router
+   * bahwa itulah lokasi sekarang.
+   */
+  function syncUrl() {
+    if (hashPath() !== `r/${key}`) return; // sudah pindah layar saat load selesai
+
+    const query = stateQuery({ withPage: true });
+    replacePath(`r/${key}${query ? `?${query}` : ''}`);
   }
 
   async function load() {
@@ -460,6 +488,186 @@ export async function renderList(host, { key, def }) {
 
     picked.clear();
     load();
+  }
+
+  /*
+   * ========================== TAMPILAN TERSIMPAN (UI-4c) =====================
+   *
+   * Sebuah saringan yang disusun ulang setiap pagi adalah pekerjaan yang
+   * diulang setiap pagi. UI-4a memberi jalan MEMBACA keadaan itu (chip) dan
+   * membuangnya; paket ini memberi jalan MENYIMPANNYA dengan nama.
+   *
+   * YANG DISIMPAN ADALAH QUERY STRING-NYA, bukan bentuk data baru. `query`
+   * berasal dari stateQuery() — penyerialisasi yang sama yang menulis bilah
+   * alamat — dan dipulihkan lewat seedFromUrl(), pembaca yang sudah ada. Maka
+   * sebuah tampilan tersimpan persis sebuah tautan yang disalin dari bilah
+   * alamat, dengan nama, dan tidak ada bentuk kedua yang harus dirawat saat
+   * daftar filter sebuah resource berubah.
+   *
+   * DI MANA ia disimpan bukan keputusan paket ini: `core_user_preferences`
+   * sudah ada sejak P1-C dengan server sebagai kebenaran dan localStorage
+   * sebagai cermin (CONVENTIONS §15). Sebuah tampilan yang hanya hidup di satu
+   * peramban adalah persis cacat yang P1-C pindahkan favorit ke server untuk
+   * memperbaikinya: disusun di desktop kantor, tidak ada di tablet lapangan.
+   */
+  const viewRoute = `r/${key}`;
+  let viewRow = null;
+
+  /*
+   * Dua query dianggap SAMA bila pasangannya sama — urutannya tidak dihitung,
+   * dan `page` tidak ikut.
+   *
+   * Urutan ui.filters mengikuti urutan orangnya MENGISI filter: memilih status
+   * lalu proyek menghasilkan string yang berbeda dari proyek lalu status,
+   * untuk saringan yang sama persis. Tanpa pembakuan ini sebuah tampilan yang
+   * baru saja diterapkan langsung terlihat "tidak aktif" hanya karena ia
+   * disimpan dengan urutan klik yang lain.
+   */
+  function canonical(query) {
+    return [...new URLSearchParams(query || '').entries()]
+      .filter(([name]) => name !== 'page')
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([name, value]) => `${name}=${value}`)
+      .join('&');
+  }
+
+  function activeView(views) {
+    const now = canonical(stateQuery());
+    return views.find((one) => canonical(one.query) === now) || null;
+  }
+
+  /*
+   * Terapkan tampilan. Keadaan dikosongkan LEBIH DULU, dan itu bukan kehati-
+   * hatian berlebih: seedFromUrl() sengaja tidak mereset apa pun bila query-nya
+   * tidak mengandung satu kunci yang dikenalnya — aturan yang benar untuk URL
+   * polos (navigasi sidebar harus mengingat saringan yang tadi dipasang), dan
+   * salah persis untuk tampilan "Semua PO", yang query-nya memang KOSONG dan
+   * yang seluruh gunanya adalah membuang saringan yang sedang terpasang.
+   *
+   * Lebih luas dari resetFilters(): `sort` ikut dikosongkan, karena urutan ada
+   * di dalam tampilan. resetFilters() sengaja MEMPERTAHANKAN urutan — "berhenti
+   * menyaring" bukan "kembali ke urutan bawaan" — jadi keduanya tetap dua
+   * fungsi, bukan satu.
+   */
+  function applyView(view) {
+    // replacePath, alasan yang sama dengan syncUrl di atas.
+    replacePath(`r/${key}${view.query ? `?${view.query}` : ''}`);
+    ui.q = '';
+    ui.filters = {};
+    ui.dateFrom = '';
+    ui.dateTo = '';
+    ui.sort = null;
+    ui.dir = null;
+    ui.page = 1;
+    seedFromUrl(key, def, ui);
+    load();
+  }
+
+  async function saveCurrentView() {
+    const views = prefs.savedViews(viewRoute);
+    const answer = await promptFields('Simpan tampilan ini', [{
+      key: 'name',
+      label: 'Nama tampilan',
+      type: 'text',
+      required: true,
+      maxlength: 60,
+      help: `Tersimpan pada akun Anda, jadi ia ikut ke perangkat lain. Menyimpan dengan nama yang sudah ada akan menimpanya.`,
+    }], { submitLabel: 'Simpan' });
+    if (answer === null) return;
+
+    const name = String(answer.name || '').trim();
+    if (!name) return;
+
+    const saved = prefs.saveView(viewRoute, name, stateQuery());
+    if (!saved) {
+      // Plafon penuh. Kalimatnya menyebut angkanya DAN jalan keluarnya: sebuah
+      // penolakan yang hanya berkata "gagal" memaksa orang menebak.
+      toast(`Sudah ada ${prefs.limitOf('list.views')} tampilan tersimpan — hapus salah satunya lebih dulu.`,
+        { tone: 'err', timeout: 8000 });
+      return;
+    }
+
+    toast(`Tampilan "${name}" tersimpan.`);
+    paintViews();
+  }
+
+  async function dropView(view) {
+    /* Konfirmasi, walau ia "hanya" sebuah preferensi: yang dibuang adalah
+       saringan yang disusun orangnya, tidak ada urungkan, dan tanda × yang
+       sama di baris chip di bawahnya hanya membuang satu filter — dua akibat
+       yang sangat berbeda di balik glyph yang sama. */
+    const ok = await confirmDialog({
+      title: 'Hapus tampilan tersimpan',
+      message: `Tampilan "${view.name}" akan dihapus dari akun Anda. Daftar yang sedang tampil tidak berubah.`,
+      confirmLabel: 'Hapus tampilan',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
+    prefs.deleteView(viewRoute, view.name);
+    toast(`Tampilan "${view.name}" dihapus.`);
+    paintViews();
+  }
+
+  function paintViews() {
+    if (!viewRow) return;
+    clear(viewRow);
+
+    const views = prefs.savedViews(viewRoute);
+    const active = activeView(views);
+    const worthSaving = Boolean(stateQuery());
+
+    /* Barisnya tidak ada saat tidak ada yang bisa dikatakannya: belum ada
+       tampilan tersimpan DAN daftarnya sedang polos. Sebuah baris yang hanya
+       berisi "Simpan tampilan ini" untuk daftar tanpa satu pun saringan
+       menawarkan menyimpan tampilan "semuanya, apa adanya". */
+    viewRow.hidden = !views.length && !worthSaving;
+    if (viewRow.hidden) return;
+
+    viewRow.appendChild(el('span.chips-label', { text: 'Tampilan:' }));
+
+    for (const view of views) {
+      const on = active && active.name === view.name;
+      const drop = el('button.chip-x', {
+        type: 'button',
+        'aria-label': `Hapus tampilan ${view.name}`,
+        title: `Hapus tampilan tersimpan "${view.name}"`,
+      }, icon('close', 11));
+      drop.addEventListener('click', (event) => { event.stopPropagation(); dropView(view); });
+
+      const chip = el(`button.chip.chip-view${on ? '.on' : ''}`, {
+        type: 'button',
+        title: on ? `Tampilan "${view.name}" sedang diterapkan` : `Terapkan tampilan "${view.name}"`,
+        'aria-pressed': on ? 'true' : 'false',
+      }, [el('b', { text: view.name })]);
+      chip.addEventListener('click', () => applyView(view));
+
+      // Tombol hapus DI LUAR chip-nya: sebuah <button> di dalam <button> bukan
+      // HTML yang sah, dan peramban memperbaikinya dengan mengeluarkannya dari
+      // sana — di tempat yang tidak dipilih siapa pun.
+      viewRow.appendChild(el('span.chip-wrap', [chip, drop]));
+    }
+
+    /*
+     * "Simpan tampilan ini" hilang dalam dua keadaan, dan keduanya berarti
+     * tidak ada yang baru untuk disimpan:
+     *
+     *  - yang tampil PERSIS sebuah tampilan yang sudah tersimpan — tombol yang
+     *    menyimpan salinan kedua dengan nama lain adalah cara paling cepat
+     *    mengumpulkan tampilan kembar;
+     *  - daftarnya polos DAN belum ada satu pun tampilan tersimpan. Itu
+     *    penyimpanan pertama yang menawarkan "semuanya, apa adanya" — sebuah
+     *    tampilan yang persis sama dengan membuka layarnya.
+     *
+     * Begitu sebuah tampilan ada, keadaan POLOS justru layak dinamai: ia jalan
+     * kembali dari tampilan tersaring, dan "Semua PO" adalah nama yang lebih
+     * jelas daripada mengingat bahwa Reset melakukannya.
+     */
+    if (!active && (worthSaving || views.length)) {
+      viewRow.appendChild(button('Simpan tampilan ini', {
+        size: 'sm', variant: 'ghost', iconName: 'plus', onClick: saveCurrentView,
+      }));
+    }
   }
 
   /*
@@ -1246,9 +1454,20 @@ export async function renderList(host, { key, def }) {
     clear(tableHost);
     tableHost.appendChild(filterBar());
 
+    /* Tampilan tersimpan DI ATAS chip saringan, urutan yang sama dengan
+       prototipe: yang pertama dibaca adalah "saya sedang melihat tampilan
+       mana", baru "apa yang sedang mempersempitnya". */
+    viewRow = el('.chips.views', { hidden: true });
+    tableHost.appendChild(viewRow);
+    paintViews();
+
     // Chip digambar SESUDAH bilahnya, karena buildFilter yang mengisi
     // activeFilters saat bilah itu dibangun.
-    chipRow = el('.chips', { hidden: true });
+    /* `.chips.active-filters`, bukan `.chips` telanjang: sejak UI-4c ADA DUA
+       baris chip di layar ini, dan `querySelector('.chips')` memulangkan yang
+       pertama — baris tampilan. Nol pemakai `.active-filters` diperiksa lebih
+       dulu di seluruh public/app, aturan yang sama dengan primitif UI-2. */
+    chipRow = el('.chips.active-filters', { hidden: true });
     tableHost.appendChild(chipRow);
     paintChips();
 

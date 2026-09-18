@@ -54,6 +54,7 @@ class UserPreferencesTest extends ErpTestCase
             'density' => 'compact',
             'dashboard.layout' => [['id' => 'ar-aging', 'size' => 'sedang']],
             'launcher.hidden' => ['svc'],
+            'list.views' => [['route' => 'r/finance/ar-invoices', 'name' => 'Belum lunas', 'query' => 'status=approved&sort=due_date&dir=asc']],
         ];
 
         foreach ($values as $key => $value) {
@@ -98,6 +99,8 @@ class UserPreferencesTest extends ErpTestCase
             ['key' => 'notify.channels', 'label' => 'Kanal notifikasi', 'max_bytes' => 256, 'max_entries' => null],
             ['key' => 'notify.quiet_hours', 'label' => 'Jam tenang', 'max_bytes' => 64, 'max_entries' => null],
             ['key' => 'launcher.hidden', 'label' => 'Modul disembunyikan', 'max_bytes' => 512, 'max_entries' => 32],
+            // UI-4c: tampilan tersimpan — bentuknya dipaku di bawah.
+            ['key' => 'list.views', 'label' => 'Tampilan tersimpan', 'max_bytes' => 8192, 'max_entries' => 20],
         ], $meta);
 
         // …dan angka yang diumumkan adalah angka yang ditegakkan: satu entri
@@ -107,7 +110,11 @@ class UserPreferencesTest extends ErpTestCase
                 continue;
             }
 
-            $value = array_fill(0, $entry['max_entries'] + 1, $entry['key'] === 'recent' ? ['route' => 'd/projects/1'] : 'r/projects');
+            $value = array_fill(0, $entry['max_entries'] + 1, match ($entry['key']) {
+                'recent' => ['route' => 'd/projects/1'],
+                'list.views' => ['route' => 'r/projects', 'name' => 'Tampilan', 'query' => ''],
+                default => 'r/projects',
+            });
             $message = (string) $this->putJson("/api/core/me/preferences/{$entry['key']}", ['value' => $value])
                 ->assertStatus(422)->json('errors.value.0');
             $this->assertStringContainsString((string) $entry['max_entries'], $message,
@@ -170,6 +177,7 @@ class UserPreferencesTest extends ErpTestCase
             'notify.channels' => 256,
             'notify.quiet_hours' => 64,
             'launcher.hidden' => 512,
+            'list.views' => 8192,
         ], array_map(fn (array $entry) => $entry['max_bytes'], UserPreferences::keys()));
 
         $this->assertSame(['compact', 'normal', 'comfortable'], UserPreferences::DENSITIES);
@@ -424,6 +432,128 @@ class UserPreferencesTest extends ErpTestCase
 
         $this->putJson('/api/core/me/preferences/launcher.hidden', ['value' => ['fin', 'prj']])->assertOk();
         $this->putJson('/api/core/me/preferences/launcher.hidden', ['value' => ['bukan-modul']])->assertStatus(422);
+    }
+
+    // ---------------------------------------------------- tampilan tersimpan
+
+    /**
+     * Sebuah tampilan tersimpan adalah TAUTAN yang disalin dari bilah alamat,
+     * dengan nama — jadi yang disimpan adalah query string yang sama persis
+     * dengan yang ditulis syncUrl() dan dibaca seedFromUrl() di list.js.
+     * Menyimpan bentuk lain berarti penyerialisasi kedua untuk keadaan yang
+     * sama, dan keduanya akan hanyut terhadap daftar filter yang berubah tiap
+     * paket.
+     */
+    public function test_saved_views_accept_a_list_route_with_a_name_and_a_query(): void
+    {
+        $this->actingAs($this->user('a@test.local'), 'sanctum');
+
+        $this->putJson('/api/core/me/preferences/list.views', ['value' => [
+            ['route' => 'r/procurement/purchase-orders', 'name' => 'Menunggu saya', 'query' => 'status=draft&q=PO'],
+            // Tampilan "semua": query kosong, dan itu memang berguna — ia jalan
+            // kembali dari tampilan tersaring ke daftar utuh.
+            ['route' => 'r/procurement/purchase-orders', 'name' => 'Semua PO', 'query' => ''],
+        ]])->assertOk();
+    }
+
+    /**
+     * Tampilan "semua" dikirim lewat HTTP, bukan lewat reject() langsung — dan
+     * itu seluruh gunanya uji ini.
+     *
+     * ConvertEmptyStringsToNull adalah middleware GLOBAL: query kosong yang
+     * dikirim SPA tidak pernah sampai ke validator sebagai `''`, ia mendarat
+     * sebagai `null`. Sebuah validator yang hanya menerima string lolos hijau di
+     * uji satuan dan menolak 422 satu-satunya bentuk yang benar-benar bisa
+     * dikirim dari layar — terukur 18 Sep 2026, PUT mengembalikan `query: null`
+     * untuk nilai `''` yang dikirim.
+     */
+    public function test_a_view_with_no_filters_survives_the_empty_string_middleware(): void
+    {
+        $this->actingAs($this->user('a@test.local'), 'sanctum');
+
+        $this->putJson('/api/core/me/preferences/list.views', ['value' => [
+            ['route' => 'r/procurement/purchase-orders', 'name' => 'Semua PO', 'query' => ''],
+        ]])->assertOk()->assertJsonPath('data.value.0.query', null);
+
+        // …dan bentuk yang tersimpan itu diterima lagi apa adanya, jadi
+        // menyimpan tampilan KEDUA tidak menolak yang pertama.
+        $this->assertNull(UserPreferences::reject('list.views', [
+            ['route' => 'r/procurement/purchase-orders', 'name' => 'Semua PO', 'query' => null],
+        ]));
+    }
+
+    public function test_saved_views_refuse_a_route_that_is_not_a_list_screen(): void
+    {
+        $this->actingAs($this->user('a@test.local'), 'sanctum');
+
+        // Rute NAV yang sah, tetapi bukan layar daftar: sebuah tampilan
+        // tersimpan untuk dasbor tidak punya keadaan yang bisa dipulihkan.
+        $this->assertStringContainsString(
+            'r/<sumber daya>',
+            (string) UserPreferences::reject('list.views', [['route' => 'dashboard', 'name' => 'Dasbor', 'query' => '']]),
+        );
+
+        // …dan rute yang tidak ada di menu sama sekali ditolak dengan alasan
+        // yang sama seperti favorit.
+        $this->assertStringContainsString(
+            'bukan layar mana pun di menu',
+            (string) UserPreferences::reject('list.views', [['route' => 'r/tidak/ada', 'name' => 'X', 'query' => '']]),
+        );
+    }
+
+    public function test_saved_views_refuse_a_nameless_view_and_unknown_fields(): void
+    {
+        $this->assertStringContainsString(
+            'Nama tampilan wajib diisi',
+            (string) UserPreferences::reject('list.views', [['route' => 'r/projects', 'name' => '   ', 'query' => '']]),
+        );
+
+        $this->assertStringContainsString(
+            'maksimal 60 karakter',
+            (string) UserPreferences::reject('list.views', [['route' => 'r/projects', 'name' => str_repeat('a', 61), 'query' => '']]),
+        );
+
+        $this->assertStringContainsString(
+            'Field tidak dikenal',
+            (string) UserPreferences::reject('list.views', [['route' => 'r/projects', 'name' => 'X', 'query' => '', 'page' => 3]]),
+        );
+    }
+
+    /**
+     * `query` diperiksa RUAS PER RUAS, bukan hanya panjangnya. Tanpa itu kolom
+     * ini adalah string bebas 240 byte per entri yang ikut ke setiap backup
+     * selamanya — pintu yang sama yang ditutup whitelist per kunci, satu lapis
+     * lebih dalam.
+     */
+    public function test_saved_views_refuse_a_query_that_is_not_a_query_string(): void
+    {
+        foreach ([
+            '{"status":"draft"}',
+            'status=draft&<script>',
+            'tanpa-tanda-sama-dengan',
+            '=nilai-tanpa-kunci',
+        ] as $query) {
+            $this->assertStringContainsString(
+                'bukan pasangan kunci=nilai yang sah',
+                (string) UserPreferences::reject('list.views', [['route' => 'r/projects', 'name' => 'X', 'query' => $query]]),
+                "Query {$query} seharusnya ditolak.",
+            );
+        }
+
+        // Yang BISA lahir dari URLSearchParams.toString() harus lolos: spasi
+        // menjadi '+', sisanya persen, dan tanggal membawa tanda hubung.
+        $this->assertNull(UserPreferences::reject('list.views', [[
+            'route' => 'r/projects',
+            'name' => 'Q3 Jakarta',
+            'query' => 'q=data+center&project_id=12&date_from=2026-07-01&sort=code&dir=desc',
+        ]]));
+
+        $this->assertStringContainsString(
+            'melebihi batas 240',
+            (string) UserPreferences::reject('list.views', [[
+                'route' => 'r/projects', 'name' => 'X', 'query' => 'q='.str_repeat('a', 240),
+            ]]),
+        );
     }
 
     // -------------------------------------------------------------- isolation

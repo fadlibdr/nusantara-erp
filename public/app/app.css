@@ -2056,6 +2056,30 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   .chip-x { width: 30px; height: 28px; }
 }
 
+/* Tampilan tersimpan (UI-4c). Baris chip KEDUA, di atas chip saringan: yang
+   pertama dibaca adalah "saya sedang melihat tampilan mana", baru "apa yang
+   sedang mempersempitnya".
+
+   Chip-nya sebuah <button> sungguhan — ia MENERAPKAN sesuatu, tidak seperti
+   chip saringan yang hanya menggambarkan — jadi bawaan tombol dinetralkan di
+   sini alih-alih disalin ke setiap pemanggil. Tombol hapusnya duduk di samping
+   chip di dalam .chip-wrap dan bukan DI DALAMNYA: <button> di dalam <button>
+   bukan HTML yang sah, dan peramban memperbaikinya dengan mengeluarkannya ke
+   tempat yang tidak dipilih siapa pun. */
+.chip-wrap {
+  display: inline-flex; align-items: center;
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  padding-right: 4px;
+  max-width: 100%; min-width: 0;
+}
+.chip-wrap .chip { border: 0; background: transparent; padding-right: 2px; cursor: pointer; }
+.chip-wrap:has(.chip.on) { border-color: var(--primary); background: var(--surface-selected); }
+.chip.on > b { color: var(--primary); }
+button.chip { font: inherit; text-align: left; }
+button.chip:hover { color: var(--text); }
+.chip-view:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-pill); }
+
 /* ------------------------------------------------------------- global search */
 /* Palet perintah (UI-3b). Ia tetap modal() — tumpukan, perangkap fokus, inert
    dan penjaga dirty semuanya sudah benar di sana — tetapi dengan lebar dan

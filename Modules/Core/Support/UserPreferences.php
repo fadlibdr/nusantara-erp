@@ -56,6 +56,26 @@ final class UserPreferences
 
     private const RECENT_FIELDS = ['route', 'label', 'sub', 'at'];
 
+    /*
+     * Tampilan tersimpan (UI-4c). 20 per orang, dan itu plafon ORANG, bukan
+     * per layar: seseorang yang menyimpan dua tampilan di sepuluh layar sudah
+     * memakai seluruh jatahnya, dan itu memang jumlah tampilan yang bisa
+     * diingat siapa pun.
+     */
+    private const VIEWS_MAX = 20;
+
+    private const VIEW_FIELDS = ['route', 'name', 'query'];
+
+    private const VIEW_NAME_MAX = 60;
+
+    /*
+     * Panjang query. Daftar tersibuk mendeklarasikan empat filter; ditambah
+     * kotak cari, pasangan tanggal dan urutan, sebuah tampilan penuh muat jauh
+     * di bawah angka ini. Ia ada supaya kolom `query` tidak pernah menjadi
+     * tempat menitipkan 8 KB yang kebetulan berbentuk query string.
+     */
+    private const VIEW_QUERY_MAX = 240;
+
     public const DENSITIES = ['compact', 'normal', 'comfortable'];
 
     /**
@@ -302,6 +322,70 @@ final class UserPreferences
                     },
                 ),
             ],
+
+            /*
+             * Tampilan tersimpan (UI-4c) — keadaan layar daftar yang diberi nama.
+             *
+             * `query` adalah PERSIS query string yang syncUrl() milik list.js
+             * tulis ke bilah alamat, dan yang seedFromUrl() sudah tahu cara
+             * membacanya. Menyimpan bentuk lain — {filters:{…}, sort:…} — berarti
+             * penyerialisasi kedua dan pembaca kedua untuk keadaan yang sama,
+             * dan keduanya akan hanyut terhadap daftar filter yang berubah
+             * setiap paket. Sebuah tampilan tersimpan karena itu persis sebuah
+             * tautan yang disalin dari bilah alamat, dengan nama.
+             *
+             * `query` boleh null: itulah bentuk tampilan "semua" setelah
+             * ConvertEmptyStringsToNull menyentuhnya (lihat rejectViewQuery).
+             *
+             * Yang TIDAK disimpan: `page`. "Halaman 3 dari saringan saya" bukan
+             * sebuah tampilan — ia sebuah posisi, dan posisi itu menunjuk baris
+             * yang sama sekali berbeda besok pagi.
+             *
+             * Keanggotaan NAV diperiksa lewat SpaNav, alasan yang sama dengan
+             * favorit; ditambah syarat `r/` — tampilan tersimpan adalah keadaan
+             * LAYAR DAFTAR, dan sebuah tampilan untuk #/dashboard tidak punya arti.
+             *
+             * Bentuk `query` diperiksa RUAS PER RUAS, bukan hanya panjangnya:
+             * tanpa itu kolom ini adalah string bebas 240 byte per entri yang
+             * ikut ke setiap backup selamanya — pintu yang sama yang ditutup
+             * whitelist per kunci, satu lapis lebih dalam (lihat dashboard.layout).
+             */
+            'list.views' => [
+                'label' => 'Tampilan tersimpan',
+                'max_bytes' => 8192,
+                'max_entries' => self::VIEWS_MAX,
+                'validate' => static fn (mixed $value): ?string => self::validateList(
+                    $value,
+                    self::VIEWS_MAX,
+                    'tampilan',
+                    static function (mixed $entry): ?string {
+                        if (! is_array($entry) || array_is_list($entry)) {
+                            return 'Setiap tampilan tersimpan harus berupa objek {route, name, query}.';
+                        }
+
+                        $extra = array_diff(array_keys($entry), self::VIEW_FIELDS);
+                        if ($extra !== []) {
+                            return sprintf('Field tidak dikenal pada tampilan tersimpan: %s.', implode(', ', $extra));
+                        }
+
+                        $route = $entry['route'] ?? null;
+                        if (! is_string($route) || ! str_starts_with($route, 'r/') || strlen($route) > 120) {
+                            return 'Setiap tampilan tersimpan harus punya rute layar daftar ("r/<sumber daya>").';
+                        }
+
+                        if (! SpaNav::hasRoute($route)) {
+                            return sprintf('Rute "%s" bukan layar mana pun di menu.', $route);
+                        }
+
+                        $name = $entry['name'] ?? null;
+                        if (! is_string($name) || trim($name) === '' || mb_strlen($name) > self::VIEW_NAME_MAX) {
+                            return sprintf('Nama tampilan wajib diisi dan maksimal %d karakter.', self::VIEW_NAME_MAX);
+                        }
+
+                        return self::rejectViewQuery($entry['query'] ?? '');
+                    },
+                ),
+            ],
         ];
     }
 
@@ -380,6 +464,48 @@ final class UserPreferences
         $error = ($entry['validate'])($value);
 
         return $error === null ? null : sprintf('%s: %s', $key, $error);
+    }
+
+    /**
+     * Query sebuah tampilan tersimpan: kosong, atau query string sungguhan.
+     *
+     * Diperiksa ruas per ruas — `k=v&k=v` — dengan kosakata karakter yang
+     * PERSIS bisa dihasilkan `URLSearchParams.toString()` (form-urlencoded:
+     * spasi jadi `+`, sisanya persen). Sebuah nilai yang tidak bisa lahir dari
+     * bilah filter tidak punya urusan tersimpan di sini.
+     */
+    private static function rejectViewQuery(mixed $query): ?string
+    {
+        /*
+         * `null` DAN `''` sama-sama berarti tampilan "semua" — sah, dan memang
+         * berguna: ia jalan kembali dari tampilan tersaring ke daftar utuh.
+         *
+         * Keduanya harus diterima karena `''` TIDAK PERNAH SAMPAI KE SINI:
+         * ConvertEmptyStringsToNull adalah middleware global (bootstrap/app.php),
+         * jadi query kosong yang dikirim SPA mendarat sebagai null dan disimpan
+         * sebagai null. Validator yang hanya menerima string akan menolak satu-
+         * satunya bentuk yang bisa benar-benar dikirim — dan lolos di uji yang
+         * memanggil reject() langsung, tanpa melewati HTTP.
+         */
+        if ($query === null || $query === '') {
+            return null;
+        }
+
+        if (! is_string($query)) {
+            return 'Query tampilan harus berupa teks.';
+        }
+
+        if (strlen($query) > self::VIEW_QUERY_MAX) {
+            return sprintf('Query tampilan berukuran %d karakter, melebihi batas %d.', strlen($query), self::VIEW_QUERY_MAX);
+        }
+
+        foreach (explode('&', $query) as $pair) {
+            if (preg_match('/^[A-Za-z0-9_.\-\[\]]+=[A-Za-z0-9*_.\-~%+]*$/', $pair) !== 1) {
+                return sprintf('Ruas "%s" pada query tampilan bukan pasangan kunci=nilai yang sah.', $pair);
+            }
+        }
+
+        return null;
     }
 
     /**
