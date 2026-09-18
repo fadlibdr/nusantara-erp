@@ -1065,6 +1065,80 @@ def s48(pg):
     out["ok"] = not checks
     return out
 
+@scenario("S49_kepala_dokumen")
+def s49(pg):
+    """UI-4f: kepala dokumen (kode · status · lawan transaksi · nilai · zona aksi), dan detail.groups.
+
+    Dua sumber daya dibandingkan: PO yang MENYATAKAN detail.groups, dan invoice
+    AR yang tidak. Yang kedua harus tetap rata persis seperti sebelumnya —
+    kunci opsional yang diam-diam mengubah layar yang tidak memintanya bukan
+    kunci opsional.
+    """
+    login(pg, "admin@nusantara.test")
+
+    HEAD = """() => {
+      const info = [...document.querySelectorAll('.card')]
+        .find(c => { const h = c.querySelector('h2'); return h && h.innerText.trim() === 'Informasi'; });
+      const meta = document.querySelector('.doc-meta');
+      return {
+        judul: ((document.querySelector('.page-head h1') || {}).innerText || '').trim(),
+        lencana: [...document.querySelectorAll('.page-head .badge')].map(b => b.innerText.trim()),
+        meta: meta ? [...meta.querySelectorAll('.doc-meta-item')].map(n => n.innerText.replace(/\s+/g, ' ').trim()) : null,
+        zona: [...document.querySelectorAll('.page-head .actions .zone')].length,
+        kelompok: info ? [...info.querySelectorAll('.info-group-label')].map(n => n.innerText.trim()) : [],
+        blok: info ? info.querySelectorAll('.info-group').length : 0,
+        dt: info ? info.querySelectorAll('dt').length : 0,
+      };
+    }"""
+
+    pg.goto(BASE + "#/d/procurement/purchase-orders/1"); pg.wait_for_timeout(2600)
+    out = {"berkelompok": pg.evaluate(HEAD)}
+    pg.screenshot(path=f"{OUT}/s49-kepala-dokumen.png")
+
+    pg.goto(BASE + "#/d/finance/ar-invoices/1"); pg.wait_for_timeout(2600)
+    out["rata"] = pg.evaluate(HEAD)
+
+    checks = []
+    g = out["berkelompok"]
+    if not g["judul"]:
+        checks.append("kepala dokumen tanpa judul")
+    if not g["lencana"]:
+        checks.append("kepala dokumen tanpa lencana status")
+    if g["zona"] != 3:
+        checks.append(f"bilah aksi dokumen bukan tiga zona ({g['zona']})")
+    # Lawan transaksi DAN nilai — dua fakta yang membuat orang mengenali dokumen mana ini.
+    if not g["meta"]:
+        checks.append("kepala dokumen tidak menyebut lawan transaksi maupun nilainya")
+    else:
+        teks = " · ".join(g["meta"])
+        if "Rp" not in teks:
+            checks.append(f"nilai dokumen tidak tergambar di kepalanya: {g['meta']}")
+        if any(one.rstrip().endswith("—") for one in g["meta"]):
+            checks.append(f"kepala dokumen memajang '—': keterisian diperiksa berbeda dari cara menggambarnya: {g['meta']}")
+
+    # detail.groups: kelompoknya tergambar…
+    if len(g["kelompok"]) < 3:
+        checks.append(f"PO menyatakan tiga kelompok, tergambar {g['kelompok']}")
+    # …dan TIDAK ADA medan yang hilang karenanya. PO menyebut sembilan kunci di
+    # dalam kelompok; sisanya harus tetap ada, di blok terakhir tanpa judul.
+    if g["blok"] <= len(g["kelompok"]):
+        checks.append(f"blok sisa tidak tergambar: {g['blok']} blok untuk {len(g['kelompok'])} kelompok — medan yang tidak disebut lenyap")
+    if g["dt"] <= 9:
+        checks.append(f"panel Informasi PO hanya {g['dt']} medan; sembilan di antaranya disebut kelompok, jadi sisanya hilang")
+
+    # Sumber daya yang TIDAK menyatakannya tidak berubah.
+    f = out["rata"]
+    if f["kelompok"]:
+        checks.append(f"sumber daya tanpa detail.groups ikut dikelompokkan: {f['kelompok']}")
+    if f["blok"]:
+        checks.append("sumber daya tanpa detail.groups tetap dibungkus .info-group")
+    if not f["dt"]:
+        checks.append("panel Informasi sumber daya rata jadi kosong")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -13311,7 +13385,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

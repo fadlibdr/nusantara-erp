@@ -650,6 +650,56 @@ function nestedTable(sections, table) {
 }
 
 /** Kalimat keadaan dokumen di bawah judul, atau null bila statusnya tidak dikenal. */
+/*
+ * Kepala dokumen: kode · status · LAWAN TRANSAKSI · NILAI (UI-4f).
+ *
+ * Dua yang terakhir itulah yang baru. Sampai sini kepala layar dokumen menyebut
+ * kode dan statusnya saja, sementara dua fakta yang sebenarnya dipakai orang
+ * untuk mengenali dokumen mana ini — dengan siapa, dan berapa — hanya ada jauh
+ * di bawah, di dalam panel Informasi yang rata.
+ *
+ * KEDUANYA TIDAK DITEBAK. Skema sudah menyatakan tipe tiap kolom, jadi lawan
+ * transaksi adalah kolom `rel` PERTAMA dan nilainya kolom `currency` PERTAMA —
+ * derivasi yang sama persis dengan yang dipakai kartu papan kanban sejak F-3.
+ * Sumber daya yang tidak menyatakan keduanya tidak mendapat baris ini, dan
+ * tidak ada yang dikarang untuknya.
+ *
+ * Nilainya digambar `renderCell` — bukan format sendiri — supaya angka di
+ * kepala dokumen tidak pernah berbeda dari angka yang sama di tabel daftarnya.
+ */
+function documentMeta(def, record) {
+  const columns = def.columns || [];
+  /* `pluck`, bukan record[key]: sebagian kolom memakai kunci bertitik
+     ('vendor.name'), dan renderCell membacanya lewat pluck juga — memeriksa
+     keterisian dengan cara yang BERBEDA dari yang menggambarnya adalah cara
+     memasang baris "Proyek: —" pada dokumen yang proyeknya jelas terisi. */
+  const filled = (column) => {
+    if (!column) return false;
+    const raw = pluck(record, column.key);
+    return raw !== null && raw !== undefined && raw !== '';
+  };
+
+  const party = columns.find((column) => column.type === 'rel' && filled(column));
+  const money = columns.find((column) => column.type === 'currency' && filled(column));
+  if (!party && !money) return null;
+
+  const parts = [];
+  if (party) {
+    parts.push(el('span.doc-meta-item', [
+      el('span.doc-meta-label', { text: `${party.label}: ` }),
+      renderCell(record, party),
+    ]));
+  }
+  if (money) {
+    parts.push(el('span.doc-meta-item.num', [
+      el('span.doc-meta-label', { text: `${money.label}: ` }),
+      renderCell(record, money),
+    ]));
+  }
+
+  return el('.doc-meta', parts);
+}
+
 function statusStrip(def, record, canEdit) {
   const status = String(record.status || '');
   const approvals = Array.isArray(record.approvals) ? record.approvals : [];
@@ -927,6 +977,7 @@ export async function renderDetail(host, { key, def, id }) {
         record.status ? badge(record.status_label || record.status, fmt.statusTone(record.status, statusEnum)) : null,
       ]),
       subtitle ? el('.desc', { text: subtitle }) : null,
+      documentMeta(def, record),
     ]),
     el('.actions', [
       el('.zone.navigasi', [button('', { iconName: 'back', title: 'Kembali', onClick: () => back() })]),
@@ -1000,12 +1051,49 @@ export async function renderDetail(host, { key, def, id }) {
     !(NAME_KEYS.has(fieldKey) && (record[fieldKey] === null || record[fieldKey] === '')) &&
     !(typeof record[fieldKey] === 'object' && record[fieldKey] !== null && !Array.isArray(record[fieldKey]) && record[fieldKey].id));
 
+  /*
+   * Pengelompokan panel Informasi lewat kunci schema OPSIONAL `detail.groups`
+   * (UI-4f).
+   *
+   * Panel ini dibangun dari apa pun yang API jawab, disaring daftar
+   * pengecualian dan kamus ~500 kunci di atas. Karena itu ia TIDAK BISA
+   * mengarang pengelompokan sendiri: tidak ada di dalam data yang mengatakan
+   * "termin pembayaran dan PPN itu satu kelompok". Satu-satunya yang tahu
+   * adalah skema, jadi skema yang menyatakannya — dan sumber daya yang tidak
+   * menyatakannya tetap rata persis seperti hari ini.
+   *
+   *   detail: { groups: [{ label: 'Termin & pajak', keys: ['payment_term_days', 'ppn_pct'] }] }
+   *
+   * SATU ATURAN: apa pun yang tidak disebut kelompok mana pun tetap tergambar,
+   * di blok terakhir. Sebuah kunci yang hilang karena seseorang lupa
+   * menyebutkannya adalah medan yang lenyap tanpa satu pun galat — dan panel
+   * inilah satu-satunya tempat sebagian medan pernah terlihat.
+   */
+  const groups = (detail.groups || [])
+    .map((group) => ({ label: group.label, keys: (group.keys || []).filter((one) => fieldKeys.includes(one)) }))
+    .filter((group) => group.keys.length);
+  const grouped = new Set(groups.flatMap((group) => group.keys));
+  const ungrouped = fieldKeys.filter((fieldKey) => !grouped.has(fieldKey));
+
+  const kv = (keys) => el('dl.kv', keys.flatMap((fieldKey) => [
+    el('dt', { text: titleize(fieldKey) }),
+    el('dd', autoValue(record, fieldKey)),
+  ]));
+
   main.appendChild(el('.card', [
     el('.card-head', el('h2', { text: 'Informasi' })),
-    el('.card-body', el('dl.kv', fieldKeys.flatMap((fieldKey) => [
-      el('dt', { text: titleize(fieldKey) }),
-      el('dd', autoValue(record, fieldKey)),
-    ]))),
+    el('.card-body', groups.length
+      ? [
+        ...groups.map((group) => el('.info-group', [
+          el('h3.info-group-label', { text: group.label }),
+          kv(group.keys),
+        ])),
+        // Blok sisa tidak berjudul: ia bukan kelompok, ia yang belum
+        // dikelompokkan. Memberinya judul ("Lain-lain") akan membuatnya tampak
+        // sengaja, dan menyembunyikan bahwa skemanya belum selesai.
+        ungrouped.length ? el('.info-group', kv(ungrouped)) : null,
+      ]
+      : kv(fieldKeys)),
   ]));
 
   for (const table of detail.tables || []) {
