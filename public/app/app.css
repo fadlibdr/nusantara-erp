@@ -1197,11 +1197,25 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .kv dd { margin: 0; font-size: 13px; word-break: break-word; }
 .kv dd.num { font-variant-numeric: tabular-nums; }
 
+/* Baris ubin KPI (UI-5).
+   ANGKANYA HARUS SEJAJAR. Diukur 18 Sep 2026 di #/dashboard: dari enam baris
+   stat, DUA tidak sejajar — nilainya meleset 18 px karena sebagian labelnya
+   membungkus dua baris ("Sudah lewat / tanpa tanggal" 35 px lawan "Menipis"
+   17 px). Ubinnya masing-masing benar; barisnya yang tidak pernah disuruh
+   sepakat, dan yang berantakan justru angkanya — satu-satunya hal yang ubin
+   ini ada untuk menyampaikan.
+   `subgrid` membuat ketiga baris dalamnya (label · nilai · konteks) memakai
+   trek yang SAMA di seluruh baris, jadi label yang membungkus melebarkan trek
+   untuk semua, bukan menggeser tetangganya sendiri. Peramban tanpa subgrid
+   jatuh kembali ke perilaku hari ini — tidak lebih buruk dari sebelumnya. */
 .stat-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
+}
+@supports (grid-template-rows: subgrid) {
+  .stat-row > .stat { grid-row: span 3; display: grid; grid-template-rows: subgrid; }
 }
 
 /* ---------------------------------------------------------- beranda modul */
@@ -1284,10 +1298,10 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   background: var(--surface);
   min-width: 0;
 }
-.module-kpi-value { font-size: 20px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.module-kpi-unit { font-size: 12.5px; font-weight: 400; color: var(--muted); }
-.module-kpi-label { font-size: 12px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.module-kpi-note { font-size: 12.5px; }
+.module-kpi-value { font-size: var(--fs-kpi); font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.module-kpi-unit { font-size: var(--fs-secondary); font-weight: 400; color: var(--muted); }
+.module-kpi-label { font-size: var(--fs-label); color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-kpi-note { font-size: var(--fs-secondary); }
 .module-recent { margin-bottom: 18px; }
 
 /* ------------------------------------------------------------ app launcher */
@@ -1377,7 +1391,7 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .home-kpi { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
 /* Angka sebesar judul dan bertabular: ubin yang berjejer harus bisa dibandingkan
    sekilas, dan angka proporsional membuat "11" tampak lebih pendek dari "9". */
-.home-kpi-value { font-size: 22px; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.home-kpi-value { font-size: var(--fs-kpi); font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .home-kpi-unit { font-size: 12.5px; color: var(--muted); }
 /* Nama angkanya di barisnya sendiri, satu baris, dielipsiskan: "Opname subkon
    menunggu persetujuan" tidak muat di ubin 230 px, dan ubin yang tingginya
@@ -1397,16 +1411,29 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   .home-search { min-height: 44px; }
 }
 
+/* Tipografi ubin KPI memakai skala UI-1 (UI-5).
+   `--fs-kpi` ditambahkan UI-1 sebagai TARGET, bukan cermin keadaan saat itu —
+   laporan UI-1 menulisnya apa adanya — dan sampai paket ini ia tidak punya
+   SATU PUN pemakai; begitu juga `--fs-label`. Yang dipersatukannya adalah tiga
+   ukuran untuk satu peran yang sama: angka utama sebuah ubin berukuran 22 px di
+   beranda, 20 px di beranda modul, dan 20 px di .stat. Satu peran, satu ukuran.
+
+   `.value.sm` (16 px) SENGAJA dibiarkan di luar skala dan tanpa token: ia peran
+   yang BERBEDA — dua ubin berdampingan di dalam kartu widget dasbor, bukan satu
+   angka pahlawan — dan seluruh dasbor memakainya. Memberinya token berarti
+   menambah anak tangga untuk satu pemakai, dan pelajaran UI-2 tentang utilitas
+   ukuran huruf berlaku sama di sini: begitu ada nama untuk setiap ukuran,
+   skalanya berhenti menjadi skala. */
 .stat {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 13px 15px;
 }
-.stat .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-.stat .value { font-size: 20px; font-weight: 650; letter-spacing: -.02em; margin-top: 5px; font-variant-numeric: tabular-nums; }
+.stat .label { font-size: var(--fs-caption); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.stat .value { font-size: var(--fs-kpi); font-weight: 650; letter-spacing: -.02em; margin-top: 5px; font-variant-numeric: tabular-nums; }
 .stat .value.sm { font-size: 16px; }
-.stat .delta { font-size: 11.5px; margin-top: 3px; }
+.stat .delta { font-size: var(--fs-caption); margin-top: 3px; }
 .stat .delta.up { color: var(--success); }
 .stat .delta.down { color: var(--danger); }
 

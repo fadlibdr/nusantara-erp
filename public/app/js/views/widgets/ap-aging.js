@@ -7,7 +7,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, barRows, footLink, tileEmpty } from './kit.js';
+import { safe, failure, failedBody, barRows, footLink, tileEmpty, stat } from './kit.js';
 import { AGING_BUCKETS, agingEntries } from './aging.js';
 
 export async function build({ reload }) {
@@ -38,16 +38,23 @@ export async function build({ reload }) {
 
   return el('div', [
     el('.card-body', { style: { paddingBottom: '0' } }, el('.stat-row', [
-      el('.stat', [
-        el('.label', { text: 'Sisa hutang' }),
-        el('.value.sm', { text: fmt.rupiah(total) }),
-        el('.delta', { text: 'seluruh tagihan terbuka' }),
-      ]),
-      el('.stat', [
-        el('.label', { text: 'Sudah jatuh tempo' }),
-        el('.value.sm', { text: fmt.rupiah(lewat) }),
-        el(`.delta${lewat > 0 ? '.down' : ''}`, { text: total > 0 ? `${Math.round((lewat / total) * 100)}% dari sisa` : 'tidak ada' }),
-      ]),
+      /* Ubin ini dulu dirakit tangan dengan nama kelas yang SAMA seperti
+         stat() tetapi tanpa memanggilnya (UI-5). Bentuknya kebetulan cocok
+         hari ini; yang tidak ikut adalah setiap perubahan BERIKUTNYA pada
+         ubin — dan yang pertama sudah datang di paket ini, berupa perataan
+         subgrid. Formatter angkanya sengaja TIDAK diubah: memilih presisi
+         sebuah ubin uang adalah keputusan isi, bukan perapian gaya. */
+      /* rupiahShort, bukan rupiah penuh (UI-5). format.js:33 sudah menamai
+         bentuk ini "Compact rupiah for dashboard tiles", dan bilah di bawah
+         ubin ini memang memakainya — jadi sampai sekarang widget ini tidak
+         sepakat dengan DIRINYA SENDIRI: "Rp 14.550.000.000" di ubin, di atas
+         bilah yang menulis angka yang sama sebagai "Rp 14,5 M". Angka penuhnya
+         satu klik jauhnya lewat kaki kartu. */
+      stat('Sisa hutang', fmt.rupiahShort(total), { sub: 'seluruh tagihan terbuka' }),
+      stat('Sudah jatuh tempo', fmt.rupiahShort(lewat), {
+        sub: total > 0 ? `${Math.round((lewat / total) * 100)}% dari sisa` : 'tidak ada',
+        tone: lewat > 0 ? 'down' : null,
+      }),
     ])),
     barRows(agingEntries(buckets), { format: (value) => fmt.rupiahShort(value) }),
     footLink('Buka umur hutang', () => navigate('reports?tab=ap-aging')),

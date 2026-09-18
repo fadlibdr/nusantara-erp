@@ -7,7 +7,7 @@
 import { el, icon } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, footLink } from './kit.js';
+import { safe, failure, failedBody, footLink, stat } from './kit.js';
 
 export async function build({ reload }) {
   const report = await safe('finance/reports/cash-projection', { days: 90 });
@@ -19,7 +19,8 @@ export async function build({ reload }) {
   const ending = Number(report && report.ending_balance);
 
   const money = (value) => (Number.isFinite(Number(value)) ? fmt.rupiah(value) : '—');
-  const negative = (value) => (Number(value) < 0 ? { color: 'var(--danger)' } : {});
+  // Kelas, bukan gaya sebaris: sejak UI-5 stat() menerima valueTone.
+  const negative = (value) => (Number(value) < 0 ? 'tone-neg' : null);
 
   return el('div', [
     warnings.length
@@ -29,20 +30,26 @@ export async function build({ reload }) {
       ]))
       : null,
     el('.card-body', el('.stat-row', [
-      el('.stat', [
-        el('.label', { text: 'Saldo kas hari ini' }),
-        el('.value.sm', { text: money(opening.total), style: negative(opening.total) }),
-        // Jam klien tidak dipercaya: "hari ini" adalah as_of dari server.
-        el('.delta', { text: `per ${fmt.date(report.as_of)}` }),
-      ]),
-      el('.stat', [
-        el('.label', { text: 'Titik terendah' }),
-        el('.value.sm', { text: money(lowest.balance), style: negative(lowest.balance) }),
-        el(`.delta${Number(lowest.balance) < 0 ? '.down' : ''}`, { text: lowest.label ? `minggu ${lowest.label}` : 'belum terhitung' }),
-      ]),
+      /* Ketiga ubin ini dulu dirakit tangan dengan nama kelas yang SAMA seperti
+         stat() tetapi tanpa memanggilnya (UI-5) — satu-satunya alasannya adalah
+         pewarnaan saldo negatif, yang dulu tidak punya jalan lewat stat() dan
+         karena itu ditulis sebagai tiga gaya sebaris. `valueTone` sekarang
+         menyediakannya sebagai kelas, dan ubinnya ikut setiap perubahan
+         berikutnya pada ubin — yang pertama sudah datang di paket ini, berupa
+         perataan subgrid. */
+      // Jam klien tidak dipercaya: "hari ini" adalah as_of dari server.
+      stat('Saldo kas hari ini', money(opening.total), {
+        sub: `per ${fmt.date(report.as_of)}`,
+        valueTone: negative(opening.total),
+      }),
+      stat('Titik terendah', money(lowest.balance), {
+        sub: lowest.label ? `minggu ${lowest.label}` : 'belum terhitung',
+        tone: Number(lowest.balance) < 0 ? 'down' : null,
+        valueTone: negative(lowest.balance),
+      }),
       el('.stat', [
         el('.label', { text: `Saldo akhir (${report.days || 90} hari)` }),
-        el('.value.sm', { text: money(ending), style: negative(ending) }),
+        el(`.value.sm${negative(ending) ? `.${negative(ending)}` : ''}`, { text: money(ending) }),
         /* TIGA keadaan, bukan dua. `Number(undefined)` adalah NaN, dan
            `NaN < 0` salah — jadi cabang dua-arah melaporkan sebuah angka yang
            TIDAK DIKETAHUI sebagai 'masih positif' berwarna hijau, tepat di
