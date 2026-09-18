@@ -2,10 +2,10 @@
 
 import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
-import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth } from './ui.js';
+import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth, confirmDialog } from './ui.js';
 import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
-import { route, fallback, navigate, start, currentPath } from './router.js';
+import { route, fallback, navigate, start, currentPath, setLeaveGuard, clearLeaveGuard } from './router.js';
 import { setCrumbs } from './crumbs.js';
 import { prefs } from './prefs.js';
 import { renderModuleHome } from './views/module.js';
@@ -1100,6 +1100,63 @@ const CUSTOM_DETAILS = {
   rkk: renderRkkDocument,
 };
 
+/*
+ * Permukaan HALAMAN untuk openForm (UI-4d).
+ *
+ * form.js membangun isinya tanpa tahu ia akan duduk di mana; yang dibedakan
+ * permukaan hanya dua hal — `requestClose()` yang bertanya lebih dulu, dan
+ * `close()` yang tidak.
+ *
+ * Perbedaan sesungguhnya dengan dialog ada di JALAN KELUARNYA. Dialog punya
+ * satu pintu dan `modal()` menjaganya dengan `dirty()`. Halaman tidak punya
+ * pintu sama sekali: yang meninggalkannya adalah navigasi — tautan sidebar,
+ * tombol Kembali peramban, Ctrl+K lalu Enter — dan tidak satu pun dari itu
+ * pernah lewat sini. Karena itu penjaganya dipasang di ROUTER, dan
+ * pembersihan drafnya ikut menumpang di sana: kalau ia hanya tergantung pada
+ * tombol Batal, meninggalkan halaman lewat sidebar akan menyisakan draf
+ * yatim selamanya.
+ */
+function formPagePresenter(host, { def, backTo }) {
+  return (spec) => {
+    let leaving = null;
+
+    /* Dipanggil TEPAT SEKALI di tiap jalan keluar — tombol, simpan berhasil,
+       atau navigasi yang diizinkan. clearLeaveGuard hanya melepas kalau yang
+       terpasang memang milik kita. */
+    const finish = () => {
+      clearLeaveGuard(leaving);
+      spec.onClose();
+    };
+
+    leaving = async () => {
+      if (!spec.dirty()) { finish(); return true; }
+      const discard = await confirmDialog({
+        title: 'Tinggalkan formulir ini?',
+        message: `Perubahan pada ${def.labelOne} ini belum disimpan. Isiannya tetap tersimpan sebagai draf di peramban ini.`,
+        confirmLabel: 'Tinggalkan',
+        cancelLabel: 'Tetap di sini',
+        tone: 'danger',
+      });
+      if (!discard) return false;
+      finish();
+      return true;
+    };
+    setLeaveGuard(leaving);
+
+    clear(host);
+    host.appendChild(el('.page-head', [
+      el('div', [el('h1', { text: spec.title })]),
+      el('.actions', el('.zone', spec.footer)),
+    ]));
+    host.appendChild(el(`.form-page${spec.width === 'wide' ? '.wide' : ''}`, spec.body));
+
+    return {
+      requestClose: async () => { if (await leaving()) navigate(backTo); },
+      close: () => { finish(); },
+    };
+  };
+}
+
 function registerRoutes() {
   route('dashboard', () => {
     setCrumbs(['Dasbor']);
@@ -1586,6 +1643,62 @@ function registerRoutes() {
      daftarnya (def.viewPerm || `${def.module}.view`): papan bukan data baru,
      ia tampilan kedua atas daftar yang sama. Resource tanpa blok `board:`
      menjawab kalimat, bukan layar kosong. */
+  /*
+   * Formulir sebagai HALAMAN (keputusan pemilik #2, UI-4d).
+   *
+   * Aturan pemutusnya sudah ditulis rencana dan sudah ada di kode: apakah
+   * sumber daya menyatakan `lines`. Terukur pada schema.js — 92 sumber daya
+   * berformulir, 35 menyatakan lines. Ketiga puluh lima itulah yang jadi
+   * halaman; 57 sisanya tetap dialog, karena navigasi halaman untuk empat
+   * medan lebih mahal daripada untungnya.
+   *
+   * Biayanya yang membuat keputusan ini diambil terukur di ASESMEN-UX §1.2:
+   * pada viewport 900 px tabel baris di dalam modal 960 px mulai pada
+   * y = 843 px — di bawah lipatan, sebelum satu baris pun diisi.
+   *
+   * `f/<sumber daya>` membuat, `f/<sumber daya>/<id>` mengubah. Keduanya
+   * dibedakan dengan MENCOBA kunci utuh lebih dulu: kunci sumber daya tidak
+   * pernah berakhir dengan ruas id, jadi tidak ada yang ambigu.
+   */
+  route('f/*', (_, path) => {
+    const rest = path.slice(2);
+    let key = rest;
+    let id = null;
+    if (!RESOURCES[key]) {
+      const cut = rest.lastIndexOf('/');
+      key = rest.slice(0, cut);
+      id = rest.slice(cut + 1);
+    }
+    const def = RESOURCES[key];
+    const host = view();
+
+    if (!def || !def.form) {
+      host.appendChild(el('.alert.error', `Formulir "${key}" tidak dikenal.`));
+      return;
+    }
+
+    const perm = id ? (def.updatePerm || `${def.module}.update`) : (def.createPerm || `${def.module}.create`);
+    if (!session.can(perm)) return accessDenied(host, def.module, perm);
+
+    setCrumbs(
+      [groupLabelFor(key), def.label, id ? `Ubah #${id}` : `${def.labelOne} baru`],
+      { screenHref: `#/r/${key}` },
+    );
+    setActiveNav(`r/${key}`);
+
+    const backTo = id ? `d/${key}/${id}` : `r/${key}`;
+    guard(host, async () => {
+      const row = id ? await api.get(`${def.api}/${id}`) : null;
+      await openForm({
+        def,
+        key,
+        row,
+        present: formPagePresenter(host, { def, backTo }),
+        onSaved: (saved) => navigate(saved && saved.id ? `d/${key}/${saved.id}` : backTo, { replace: true }),
+      });
+    });
+  });
+
   route('b/*', (_, path) => {
     const key = path.slice(2);
     const def = RESOURCES[key];

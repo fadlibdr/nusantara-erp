@@ -978,6 +978,15 @@ select.filter-w { width: auto; min-width: 138px; max-width: 230px; }
   gap: var(--form-gap);
 }
 .form-grid .span2 { grid-column: 1 / -1; }
+/* Tiga kolom pada halaman formulir yang lebar (UI-4d). Kisi yang sama dipakai
+   di dalam dialog, tempat dua kolom memang pas pada 960 px; sebuah halaman
+   1100 px yang tetap dua kolom membuang ruang yang justru jadi alasan
+   halamannya ada. `.span2` tetap membentang penuh — ia dipakai medan yang
+   memang butuh lebar, dan mengubahnya jadi dua-dari-tiga akan mempersempit
+   textarea, bukan melebarkan. */
+@media (min-width: 1100px) {
+  .form-page.wide .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 
 .form-section + .form-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
 .form-section > h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 12px; }
@@ -1045,6 +1054,32 @@ table.data tbody tr.clickable:hover { background: var(--surface-2); }
 table.data tbody tr.selected td,
 table.data tbody tr.selected:hover td { background: var(--surface-selected); }
 table.data tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+/* Kolom centang seleksi (UI-4b). Namanya diperiksa lebih dulu terhadap seluruh
+   public/app — `.pick` nol pemakai sebelum paket ini — pelajaran dari prototipe,
+   tempat sebuah `.pick` baru diam-diam mengubah td.pick di setiap tabel (lihat
+   catatan primitif UI-2). Kursornya dikembalikan ke default di dalam sel: tr
+   yang bisa diklik memberi seluruh barisnya `cursor: pointer`, dan sebuah
+   kotak centang yang berkata "saya membuka dokumen" berbohong. */
+table.data th.pick, table.data td.pick { width: 1%; padding-right: 0; }
+table.data tbody tr.clickable td.pick { cursor: default; }
+
+/* Bilah seleksi — muncul HANYA bila ada baris tercentang, jadi ia tidak pernah
+   menempati ruang untuk mengumumkan bahwa nol baris terpilih. Ia duduk di dalam
+   kartu tepat di atas tabelnya, karena yang dihitungnya adalah baris tabel itu. */
+.selbar {
+  display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--primary);
+  background: var(--primary-soft); color: var(--primary);
+  font-size: var(--fs-body); font-weight: var(--fw-semi);
+}
+.selbar[hidden] { display: none; }
+/* Latar padat supaya tombol tidak larut ke dalam --primary-soft — kecuali
+   .btn.primary, yang menggambar latarnya SENDIRI dan hurufnya --primary-fg
+   (putih). Aturan prototipe menyapu semua .btn: hasilnya tombol primary
+   berlatar putih dengan huruf putih — label yang tidak tergambar sama sekali,
+   di DOM yang sempurna. Diukur lewat gerbang kontras S45. */
+.selbar .btn:not(.primary) { background: var(--surface); }
 table.data th.right, table.data td.right { text-align: right; }
 /* Temuan audit #8: sel rata-kanan dan kaki tabel SELALU tabular.
    Sebelumnya hanya .num, dan pemanggil harus ingat DUA kelas sekaligus —
@@ -1819,6 +1854,9 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
   .nav, .brand, .header, .page-head .actions, .filters, .pager,
   .toasts, .overlay, .tabs { display: none !important; }
+  /* Seleksi adalah keadaan LAYAR: bilahnya dan kolom centangnya tidak punya
+     arti di kertas, dan kolom kosong selebar 16 px menggeser seluruh tabel. */
+  .selbar, table.data th.pick, table.data td.pick { display: none !important; }
   .shell { display: block; }
   /* P1-H: kisi 2fr/1fr tidak pernah diruntuhkan di kertas, dan lembar gantt
      butuh seluruh lebarnya. Diruntuhkan untuk SEMUA layar detail: sebuah kolom
@@ -1993,6 +2031,99 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .field-photo:last-child { border-bottom: 0; }
 .field-photo-main { flex: 1; min-width: 0; }
 .field-photo .badge { flex: none; }
+
+/* Kepala dokumen (UI-4f): dengan siapa, dan berapa. Satu baris di bawah judul,
+   bukan kartu — ia keterangan judulnya, bukan blok tersendiri. */
+.doc-meta {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: var(--space-2) var(--space-5);
+  margin-top: 5px;
+  font-size: var(--fs-body); color: var(--text-2);
+}
+.doc-meta-item { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
+.doc-meta-label { color: var(--muted); }
+.doc-meta .num { font-variant-numeric: tabular-nums; font-weight: var(--fw-semi); color: var(--text); }
+
+/* Kelompok panel Informasi (UI-4f), hanya bagi sumber daya yang menyatakan
+   detail.groups. Blok terakhir sengaja tanpa judul: ia yang BELUM
+   dikelompokkan, bukan sebuah kelompok bernama "Lain-lain". */
+.info-group + .info-group { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+.info-group-label {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
+}
+
+/* Formulir sebagai halaman (UI-4d). Lebarnya DIBATASI, tidak dibiarkan
+   memenuhi layar: medan yang membentang 1400 px membuat mata melompat dari
+   label ke kontrolnya. 960 px adalah lebar modal `wide` yang digantikannya,
+   jadi formulir berbaris menempati ruang yang sama seperti sebelumnya — yang
+   berubah hanya tingginya, karena ia tidak lagi harus muat di dalam viewport.
+   Formulir tanpa baris tidak pernah sampai ke sini (lihat startForm). */
+.form-page { max-width: 760px; }
+.form-page.wide { max-width: 1100px; }
+/* Blok kepala formulir memakai kisi yang sama dengan di dalam modal — lihat
+   catatan ASESMEN-UX §1.2: satu kartu per seksi terukur LEBIH BURUK daripada
+   modal (y = 887 lawan 843) karena tiap kartu membayar kepala dan paddingnya
+   sendiri sementara 800 px lebar dibiarkan kosong. */
+.form-page > .form-grid { margin-bottom: var(--space-5); }
+
+/* Chip filter aktif (UI-4a). Ia meringkas apa yang MEMPERSEMPIT daftar dan
+   memberi jalan membuang satu filter dengan satu klik — tombol Reset yang
+   sudah ada hanya bisa membuang semuanya. Dibiarkan ringan: pada daftar dengan
+   satu filter aktif ia tidak boleh terbaca sebagai bilah kedua. */
+.chips {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+  font-size: var(--fs-secondary);
+}
+.chips[hidden] { display: none; }
+.chips-label { color: var(--muted); }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 4px 3px 9px;
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  background: var(--surface-2); color: var(--text-2);
+  max-width: 100%; min-width: 0;
+}
+.chip > b { font-weight: var(--fw-semi); color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-key { flex: none; }
+.chip-x {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.chip-x:hover { background: var(--surface-3); color: var(--text); }
+@media (pointer: coarse) {
+  /* Sasaran sentuh: lantai yang sama dengan bintang sidebar. */
+  .chip { padding-right: 2px; }
+  .chip-x { width: 30px; height: 28px; }
+}
+
+/* Tampilan tersimpan (UI-4c). Baris chip KEDUA, di atas chip saringan: yang
+   pertama dibaca adalah "saya sedang melihat tampilan mana", baru "apa yang
+   sedang mempersempitnya".
+
+   Chip-nya sebuah <button> sungguhan — ia MENERAPKAN sesuatu, tidak seperti
+   chip saringan yang hanya menggambarkan — jadi bawaan tombol dinetralkan di
+   sini alih-alih disalin ke setiap pemanggil. Tombol hapusnya duduk di samping
+   chip di dalam .chip-wrap dan bukan DI DALAMNYA: <button> di dalam <button>
+   bukan HTML yang sah, dan peramban memperbaikinya dengan mengeluarkannya ke
+   tempat yang tidak dipilih siapa pun. */
+.chip-wrap {
+  display: inline-flex; align-items: center;
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  padding-right: 4px;
+  max-width: 100%; min-width: 0;
+}
+.chip-wrap .chip { border: 0; background: transparent; padding-right: 2px; cursor: pointer; }
+.chip-wrap:has(.chip.on) { border-color: var(--primary); background: var(--surface-selected); }
+.chip.on > b { color: var(--primary); }
+button.chip { font: inherit; text-align: left; }
+button.chip:hover { color: var(--text); }
+.chip-view:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-pill); }
 
 /* ------------------------------------------------------------- global search */
 /* Palet perintah (UI-3b). Ia tetap modal() — tumpukan, perangkap fokus, inert

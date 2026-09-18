@@ -6,10 +6,11 @@ import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
 import { combobox } from '../combobox.js';
-import { openForm } from './form.js';
-import { runAction } from './actions.js';
-import { navigate } from '../router.js';
-import { MONTHS, rupiah } from '../format.js';
+import { openForm, promptFields, startForm } from './form.js';
+import { runAction, postAction, isBulkAction } from './actions.js';
+import { prefs } from '../prefs.js';
+import { navigate, replacePath } from '../router.js';
+import { MONTHS, rupiah, date } from '../format.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
 import { downloadPdf, openPrintable, xlsxName } from '../print.js';
 import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
@@ -137,7 +138,7 @@ export async function renderList(host, { key, def }) {
       canCreate
         ? button(`Tambah ${def.labelOne}`, {
           variant: 'primary', iconName: 'plus',
-          onClick: () => openForm({ def, key, onSaved: afterCreate }),
+          onClick: () => startForm({ def, key, onSaved: afterCreate }),
         })
         : null,
     ]),
@@ -228,11 +229,15 @@ export async function renderList(host, { key, def }) {
    * entri riwayat daftar sudah ditulisi query-nya. Default dihilangkan supaya
    * daftar yang belum disentuh tetap ber-URL polos.
    */
-  function syncUrl() {
-    if (hashPath() !== `r/${key}`) return; // sudah pindah layar saat load selesai
-
+  /*
+   * Keadaan layar ini sebagai query string — SATU penyerialisasi, dipakai bilah
+   * alamat (syncUrl) dan tampilan tersimpan (UI-4c). Dua salinan akan hanyut,
+   * dan hanyutnya berarti sebuah tampilan yang disimpan hari ini memulihkan
+   * saringan yang BERBEDA besok.
+   */
+  function stateQuery({ withPage } = {}) {
     const params = new URLSearchParams();
-    if (ui.page > 1) params.set('page', String(ui.page));
+    if (withPage && ui.page > 1) params.set('page', String(ui.page));
     if (ui.q) params.set('q', ui.q);
     if (ui.sort) {
       params.set('sort', ui.sort);
@@ -243,14 +248,44 @@ export async function renderList(host, { key, def }) {
     for (const [name, value] of Object.entries(ui.filters)) {
       if (value !== undefined && value !== null && value !== '') params.set(name, String(value));
     }
+    return params.toString();
+  }
 
-    const query = params.toString();
-    history.replaceState(null, '', `#/r/${key}${query ? `?${query}` : ''}`);
+  /*
+   * `replacePath()`, bukan `history.replaceState()` langsung.
+   *
+   * Router menyimpan hash PENUH — query dan semuanya — di `current`, dan
+   * pendengar hashchange-nya melewatkan hash yang sama dengan `current`. Sebuah
+   * penulisan URL di belakang punggungnya membuat `current` basi, dan basinya
+   * berbunyi: buka `?status=draft`, ganti saringan ke `approved` (syncUrl
+   * menulis URL baru, `current` masih `draft`), lalu ikuti tautan ke
+   * `?status=draft` — hash-nya sama dengan `current`, jadi router MELEWATKANNYA.
+   * Layarnya tetap menampilkan `approved` sementara bilah alamat berkata
+   * `draft`, dan tidak ada galat di mana pun.
+   *
+   * Cacat ini lebih tua dari paket ini (syncUrl selalu menulis sendiri), tetapi
+   * tampilan tersimpan membuatnya bisa ditemui dalam satu alur biasa:
+   * terapkan tampilan, lalu ikuti tautan ke keadaan yang tadi dibuka.
+   * `replacePath` ADA justru untuk ini — ia menulis URL dan memberi tahu router
+   * bahwa itulah lokasi sekarang.
+   */
+  function syncUrl() {
+    if (hashPath() !== `r/${key}`) return; // sudah pindah layar saat load selesai
+
+    const query = stateQuery({ withPage: true });
+    replacePath(`r/${key}${query ? `?${query}` : ''}`);
   }
 
   async function load() {
     loading = true;
     error = null;
+    /* Seleksi mati di setiap muatan — halaman lain, filter lain, muat ulang.
+       Sebuah centang yang bertahan melewati perubahan filter menunjuk dokumen
+       yang TIDAK ADA LAGI di layar, dan bilah seleksi akan dengan tenang
+       menawarkan "Posting (3)" untuk tiga baris yang tidak bisa dilihat
+       siapa pun sebelum menekannya. */
+    picked.clear();
+    syncBulk();
     renderAll();
     try {
       payload = await api.list(def.api, {
@@ -305,8 +340,400 @@ export async function renderList(host, { key, def }) {
     load();
   }
 
+  /*
+   * ============================ SELEKSI + AKSI MASSAL (UI-4b) ================
+   *
+   * Yang ditambahkan: kolom centang, bilah seleksi, dan satu putaran BERURUTAN
+   * yang menjalankan aksi yang sudah dideklarasikan schema.js pada tiap baris
+   * terpilih.
+   *
+   * Ia tidak digambar di mana-mana kecuali di layar yang benar-benar punya
+   * aksi massal. 97 sumber daya; 38 mendeklarasikan aksi baris (78 aksi);
+   * setelah delapan bentuk per-dokumen dan pintu keputusan disingkirkan
+   * (isBulkAction), 21 layar dengan 26 aksi yang tersisa. Di 76 layar sisanya
+   * TIDAK ADA satu pun kotak centang — aturan yang sama dengan setujui massal
+   * di #/tugas, tempat `batch_cap` kosong berarti nol kotak centang: sebuah
+   * kotak yang bisa dicentang lalu tidak menawarkan apa pun adalah janji yang
+   * tidak ditepati.
+   *
+   * Izin digerbangi sekali di sini (session.canAct), keadaan baris per baris
+   * (action.when) — dua gerbang yang sama persis dengan bilah aksi dokumen,
+   * dipanggil dari tempat yang sama, supaya bilah seleksi tidak pernah bisa
+   * menawarkan apa yang halaman dokumen menolak menawarkan.
+   */
+  const bulkActions = (def.actions || []).filter(isBulkAction).filter((action) => session.canAct(action));
+  const picking = bulkActions.length > 0;
+  const picked = new Map(); // id -> row; barisnya ikut disimpan, bukan idnya saja
+
+  const allowsBulk = (action, row) => !action.when || action.when(row);
+  const bulkableRow = (row) => bulkActions.some((action) => allowsBulk(action, row));
+  const codeOf = (row) => row.code || row.number || `#${row.id}`;
+
+  const bulkCount = el('span');
+  const bulkButtons = el('.cluster');
+  /* Bilah seleksi HANYA ada saat ada yang terpilih (prototipe: `.selbar`
+     "muncul hanya bila ada baris tercentang"). Ia tidak boleh menempati ruang
+     permanen di atas tabel untuk mengumumkan bahwa nol baris terpilih. */
+  const bulkBar = picking
+    ? el('.selbar', { hidden: true }, [
+      icon('check', 16),
+      bulkCount,
+      el('span.spacer'),
+      bulkButtons,
+      button('Batalkan pilihan', { size: 'sm', variant: 'ghost', onClick: () => clearPicked() }),
+    ])
+    : null;
+
+  function clearPicked() {
+    picked.clear();
+    syncBulk();
+    renderRows();
+  }
+
+  function syncBulk() {
+    if (!bulkBar) return;
+    bulkBar.hidden = picked.size === 0;
+    if (!picked.size) return;
+
+    bulkCount.textContent = `${picked.size} baris terpilih`;
+    clear(bulkButtons);
+    const chosen = [...picked.values()];
+    bulkActions.forEach((action) => {
+      /* Angka di label adalah angka yang AKAN dikerjakan, bukan jumlah yang
+         dicentang. Keduanya berbeda begitu satu baris terpilih tidak berada
+         dalam keadaan yang tepat untuk aksi ini — dan "Posting (3)" yang
+         memposting dua adalah tombol yang berbohong tepat sebelum menulis
+         jurnal. */
+      const n = chosen.filter((row) => allowsBulk(action, row)).length;
+      bulkButtons.appendChild(button(`${action.label} (${n})`, {
+        size: 'sm',
+        variant: action.variant || 'primary',
+        disabled: n === 0,
+        title: n === chosen.length
+          ? undefined
+          : `${chosen.length - n} dari ${chosen.length} baris terpilih tidak dalam keadaan yang tepat untuk "${action.label}" dan akan dilewati.`,
+        onClick: (event) => runBulk(action, event.currentTarget),
+      }));
+    });
+  }
+
+  /*
+   * Putaran massalnya.
+   *
+   * BERURUTAN, bukan paralel — alasan yang sama dengan setujui massal di
+   * tugas.js: tiap panggilan menulis jurnal atau stok, ada batas laju 120
+   * permintaan/menit, dan sepuluh permintaan serempak yang separuhnya kena 429
+   * adalah hasil yang tidak bisa dibaca siapa pun.
+   *
+   * Kegagalan TIDAK menghentikan sisanya, dan tiap kegagalan disebut dengan
+   * NOMOR DOKUMENNYA: "8 diposting, 2 gagal" yang tidak menyebut mana adalah
+   * laporan yang memaksa orang memeriksa sepuluh dokumen satu per satu — yaitu
+   * persis pekerjaan yang tombol ini ada untuk menghapus.
+   *
+   * Lewat postAction(), bukan runAction(): runAction menelan galat menjadi
+   * toast dan selalu resolve `undefined`, jadi sebuah putaran di atasnya tidak
+   * bisa membedakan yang berhasil dari yang ditolak. Lihat komentarnya di
+   * actions.js — yang dibagi adalah permintaannya, bukan pembungkusnya.
+   */
+  async function runBulk(action, trigger) {
+    const chosen = [...picked.values()].filter((row) => allowsBulk(action, row));
+    if (!chosen.length) return;
+
+    /*
+     * Konfirmasi SEKALI untuk seluruh batch — dan selalu, termasuk untuk aksi
+     * yang lewat tombol barisnya tidak berkonfirmasi.
+     *
+     * Bukan karena lebih banyak dialog lebih aman (P1-G membuang modal catatan
+     * persetujuan justru karena itu), melainkan karena kekeliruannya berbeda
+     * JENIS: satu klik keliru berharga satu dokumen yang halamannya masih
+     * terbuka, satu klik massal keliru berharga seluruh halaman, dan tidak ada
+     * satu pun aksi di sini yang punya jalan kembali. Dialog ini juga
+     * satu-satunya tempat orang membaca DAFTAR NOMOR yang akan disentuh.
+     *
+     * `action.confirm` berbentuk fungsi baris sengaja TIDAK dipanggil: ia
+     * menulis kalimat untuk SATU dokumen ("Surat penagihan ke-2 INV/… akan
+     * dicetak"), dan memanggilnya untuk baris pertama lalu menampilkannya di
+     * atas sepuluh nomor adalah kalimat yang salah untuk sembilan di antaranya.
+     * Yang berbentuk string adalah akibat yang berlaku untuk semuanya, jadi ia
+     * ikut dicetak.
+     */
+    const sentence = typeof action.confirm === 'string' ? `${action.confirm} ` : '';
+    const listed = chosen.map(codeOf);
+    const shown = listed.slice(0, 12).join(', ');
+    const ok = await confirmDialog({
+      title: `${action.label} ${chosen.length} ${def.labelOne.toLowerCase()}`,
+      message: `${sentence}Tindakan ini berjalan satu per satu pada ${chosen.length} dokumen: ${shown}${listed.length > 12 ? `, dan ${listed.length - 12} lainnya` : ''}.`,
+      confirmLabel: `${action.label} ${chosen.length}`,
+      tone: action.variant === 'danger' ? 'danger' : 'primary',
+    });
+    if (!ok) return;
+
+    const done = [];
+    const failed = [];
+    await withBusy(trigger, async () => {
+      for (const row of chosen) {
+        try {
+          // `action.body`: muatan tetap milik aksinya, aturan yang sama dengan
+          // runAction — tanpa ini aksi bertubuh tetap akan terkirim kosong.
+          await postAction(action, row, def, { ...(action.body || {}) });
+          done.push(codeOf(row));
+        } catch (error) {
+          failed.push(`${codeOf(row)}: ${(error && error.message) || 'gagal'}`);
+        }
+      }
+    });
+
+    if (done.length) toast(`${done.length} dokumen: ${action.label.toLowerCase()} berhasil — ${done.join(', ')}.`, { timeout: 6000 });
+    if (failed.length) toast(`${failed.length} gagal — ${failed.join(' · ')}`, { tone: 'err', timeout: 12000 });
+
+    picked.clear();
+    load();
+  }
+
+  /*
+   * ========================== TAMPILAN TERSIMPAN (UI-4c) =====================
+   *
+   * Sebuah saringan yang disusun ulang setiap pagi adalah pekerjaan yang
+   * diulang setiap pagi. UI-4a memberi jalan MEMBACA keadaan itu (chip) dan
+   * membuangnya; paket ini memberi jalan MENYIMPANNYA dengan nama.
+   *
+   * YANG DISIMPAN ADALAH QUERY STRING-NYA, bukan bentuk data baru. `query`
+   * berasal dari stateQuery() — penyerialisasi yang sama yang menulis bilah
+   * alamat — dan dipulihkan lewat seedFromUrl(), pembaca yang sudah ada. Maka
+   * sebuah tampilan tersimpan persis sebuah tautan yang disalin dari bilah
+   * alamat, dengan nama, dan tidak ada bentuk kedua yang harus dirawat saat
+   * daftar filter sebuah resource berubah.
+   *
+   * DI MANA ia disimpan bukan keputusan paket ini: `core_user_preferences`
+   * sudah ada sejak P1-C dengan server sebagai kebenaran dan localStorage
+   * sebagai cermin (CONVENTIONS §15). Sebuah tampilan yang hanya hidup di satu
+   * peramban adalah persis cacat yang P1-C pindahkan favorit ke server untuk
+   * memperbaikinya: disusun di desktop kantor, tidak ada di tablet lapangan.
+   */
+  const viewRoute = `r/${key}`;
+  let viewRow = null;
+
+  /*
+   * Dua query dianggap SAMA bila pasangannya sama — urutannya tidak dihitung,
+   * dan `page` tidak ikut.
+   *
+   * Urutan ui.filters mengikuti urutan orangnya MENGISI filter: memilih status
+   * lalu proyek menghasilkan string yang berbeda dari proyek lalu status,
+   * untuk saringan yang sama persis. Tanpa pembakuan ini sebuah tampilan yang
+   * baru saja diterapkan langsung terlihat "tidak aktif" hanya karena ia
+   * disimpan dengan urutan klik yang lain.
+   */
+  function canonical(query) {
+    return [...new URLSearchParams(query || '').entries()]
+      .filter(([name]) => name !== 'page')
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([name, value]) => `${name}=${value}`)
+      .join('&');
+  }
+
+  function activeView(views) {
+    const now = canonical(stateQuery());
+    return views.find((one) => canonical(one.query) === now) || null;
+  }
+
+  /*
+   * Terapkan tampilan. Keadaan dikosongkan LEBIH DULU, dan itu bukan kehati-
+   * hatian berlebih: seedFromUrl() sengaja tidak mereset apa pun bila query-nya
+   * tidak mengandung satu kunci yang dikenalnya — aturan yang benar untuk URL
+   * polos (navigasi sidebar harus mengingat saringan yang tadi dipasang), dan
+   * salah persis untuk tampilan "Semua PO", yang query-nya memang KOSONG dan
+   * yang seluruh gunanya adalah membuang saringan yang sedang terpasang.
+   *
+   * Lebih luas dari resetFilters(): `sort` ikut dikosongkan, karena urutan ada
+   * di dalam tampilan. resetFilters() sengaja MEMPERTAHANKAN urutan — "berhenti
+   * menyaring" bukan "kembali ke urutan bawaan" — jadi keduanya tetap dua
+   * fungsi, bukan satu.
+   */
+  function applyView(view) {
+    // replacePath, alasan yang sama dengan syncUrl di atas.
+    replacePath(`r/${key}${view.query ? `?${view.query}` : ''}`);
+    ui.q = '';
+    ui.filters = {};
+    ui.dateFrom = '';
+    ui.dateTo = '';
+    ui.sort = null;
+    ui.dir = null;
+    ui.page = 1;
+    seedFromUrl(key, def, ui);
+    load();
+  }
+
+  async function saveCurrentView() {
+    const views = prefs.savedViews(viewRoute);
+    const answer = await promptFields('Simpan tampilan ini', [{
+      key: 'name',
+      label: 'Nama tampilan',
+      type: 'text',
+      required: true,
+      maxlength: 60,
+      help: `Tersimpan pada akun Anda, jadi ia ikut ke perangkat lain. Menyimpan dengan nama yang sudah ada akan menimpanya.`,
+    }], { submitLabel: 'Simpan' });
+    if (answer === null) return;
+
+    const name = String(answer.name || '').trim();
+    if (!name) return;
+
+    const saved = prefs.saveView(viewRoute, name, stateQuery());
+    if (!saved) {
+      // Plafon penuh. Kalimatnya menyebut angkanya DAN jalan keluarnya: sebuah
+      // penolakan yang hanya berkata "gagal" memaksa orang menebak.
+      toast(`Sudah ada ${prefs.limitOf('list.views')} tampilan tersimpan — hapus salah satunya lebih dulu.`,
+        { tone: 'err', timeout: 8000 });
+      return;
+    }
+
+    toast(`Tampilan "${name}" tersimpan.`);
+    paintViews();
+  }
+
+  async function dropView(view) {
+    /* Konfirmasi, walau ia "hanya" sebuah preferensi: yang dibuang adalah
+       saringan yang disusun orangnya, tidak ada urungkan, dan tanda × yang
+       sama di baris chip di bawahnya hanya membuang satu filter — dua akibat
+       yang sangat berbeda di balik glyph yang sama. */
+    const ok = await confirmDialog({
+      title: 'Hapus tampilan tersimpan',
+      message: `Tampilan "${view.name}" akan dihapus dari akun Anda. Daftar yang sedang tampil tidak berubah.`,
+      confirmLabel: 'Hapus tampilan',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
+    prefs.deleteView(viewRoute, view.name);
+    toast(`Tampilan "${view.name}" dihapus.`);
+    paintViews();
+  }
+
+  function paintViews() {
+    if (!viewRow) return;
+    clear(viewRow);
+
+    const views = prefs.savedViews(viewRoute);
+    const active = activeView(views);
+    const worthSaving = Boolean(stateQuery());
+
+    /* Barisnya tidak ada saat tidak ada yang bisa dikatakannya: belum ada
+       tampilan tersimpan DAN daftarnya sedang polos. Sebuah baris yang hanya
+       berisi "Simpan tampilan ini" untuk daftar tanpa satu pun saringan
+       menawarkan menyimpan tampilan "semuanya, apa adanya". */
+    viewRow.hidden = !views.length && !worthSaving;
+    if (viewRow.hidden) return;
+
+    viewRow.appendChild(el('span.chips-label', { text: 'Tampilan:' }));
+
+    for (const view of views) {
+      const on = active && active.name === view.name;
+      const drop = el('button.chip-x', {
+        type: 'button',
+        'aria-label': `Hapus tampilan ${view.name}`,
+        title: `Hapus tampilan tersimpan "${view.name}"`,
+      }, icon('close', 11));
+      drop.addEventListener('click', (event) => { event.stopPropagation(); dropView(view); });
+
+      const chip = el(`button.chip.chip-view${on ? '.on' : ''}`, {
+        type: 'button',
+        title: on ? `Tampilan "${view.name}" sedang diterapkan` : `Terapkan tampilan "${view.name}"`,
+        'aria-pressed': on ? 'true' : 'false',
+      }, [el('b', { text: view.name })]);
+      chip.addEventListener('click', () => applyView(view));
+
+      // Tombol hapus DI LUAR chip-nya: sebuah <button> di dalam <button> bukan
+      // HTML yang sah, dan peramban memperbaikinya dengan mengeluarkannya dari
+      // sana — di tempat yang tidak dipilih siapa pun.
+      viewRow.appendChild(el('span.chip-wrap', [chip, drop]));
+    }
+
+    /*
+     * "Simpan tampilan ini" hilang dalam dua keadaan, dan keduanya berarti
+     * tidak ada yang baru untuk disimpan:
+     *
+     *  - yang tampil PERSIS sebuah tampilan yang sudah tersimpan — tombol yang
+     *    menyimpan salinan kedua dengan nama lain adalah cara paling cepat
+     *    mengumpulkan tampilan kembar;
+     *  - daftarnya polos DAN belum ada satu pun tampilan tersimpan. Itu
+     *    penyimpanan pertama yang menawarkan "semuanya, apa adanya" — sebuah
+     *    tampilan yang persis sama dengan membuka layarnya.
+     *
+     * Begitu sebuah tampilan ada, keadaan POLOS justru layak dinamai: ia jalan
+     * kembali dari tampilan tersaring, dan "Semua PO" adalah nama yang lebih
+     * jelas daripada mengingat bahwa Reset melakukannya.
+     */
+    if (!active && (worthSaving || views.length)) {
+      viewRow.appendChild(button('Simpan tampilan ini', {
+        size: 'sm', variant: 'ghost', iconName: 'plus', onClick: saveCurrentView,
+      }));
+    }
+  }
+
+  /*
+   * Chip filter aktif (UI-4a).
+   *
+   * Ia MENGGAMBAR keadaan yang sudah ada — ui.q, ui.filters, ui.dateFrom/To —
+   * dan tidak menyimpan apa pun sendiri. Yang ditambahkannya dua hal yang bilah
+   * kontrol tidak punya: ringkasan "daftar ini sedang dipersempit oleh APA" di
+   * satu tempat, dan cara membuang SATU filter dengan satu klik. Tombol Reset
+   * yang sudah ada hanya bisa membuang semuanya sekaligus.
+   *
+   * Label nilainya TIDAK dihitung ulang di sini. Tiap kontrol sudah tahu
+   * labelnya sendiri — <select> punya <option> terpilih, combobox lookup punya
+   * labelOf() yang bahkan jujur soal id yang tidak ada di sumber
+   * ('#42 (tidak ada di daftar)') — jadi buildFilter yang MELAPORKAN labelnya
+   * ke sini. Menghitungnya dua kali berarti dua sumber kebenaran yang akan
+   * hanyut, dan chip yang menyebut nilai berbeda dari kontrol di atasnya lebih
+   * buruk daripada tidak ada chip sama sekali.
+   */
+  let activeFilters = [];
+  let chipRow = null;
+
+  function paintChips() {
+    if (!chipRow) return;
+    clear(chipRow);
+
+    const chips = [];
+    if (ui.q) {
+      chips.push({ label: 'Cari', text: ui.q, clear: () => { ui.q = ''; ui.page = 1; load(); } });
+    }
+    for (const one of activeFilters) {
+      const text = one.text();
+      if (text) chips.push({ label: one.label, text, clear: one.clear });
+    }
+    if (ui.dateFrom) {
+      chips.push({ label: 'Sejak', text: date(ui.dateFrom), clear: () => { ui.dateFrom = ''; ui.page = 1; load(); } });
+    }
+    if (ui.dateTo) {
+      chips.push({ label: 'Sampai', text: date(ui.dateTo), clear: () => { ui.dateTo = ''; ui.page = 1; load(); } });
+    }
+
+    chipRow.hidden = chips.length === 0;
+    if (!chips.length) return;
+
+    chipRow.appendChild(el('span.chips-label', { text: 'Disaring:' }));
+    for (const chip of chips) {
+      const drop = el('button.chip-x', {
+        type: 'button',
+        'aria-label': `Hapus filter ${chip.label.toLowerCase()}`,
+        title: `Hapus filter ${chip.label.toLowerCase()}`,
+      }, icon('close', 11));
+      drop.addEventListener('click', chip.clear);
+      chipRow.appendChild(el('span.chip', [
+        el('span.chip-key', { text: `${chip.label}: ` }),
+        el('b', { text: chip.text }),
+        drop,
+      ]));
+    }
+    // "Hapus semua" memakai resetFilters() yang sudah ada — satu definisi
+    // "berhenti menyaring", dipakai tombol Reset, keadaan kosong, dan di sini.
+    chipRow.appendChild(button('Hapus semua', { size: 'sm', variant: 'ghost', onClick: resetFilters }));
+  }
+
   function filterBar() {
     filterCombos = [];
+    activeFilters = [];
     const bar = el('.filters');
     const meta = (payload && payload.meta) || {};
 
@@ -459,11 +886,22 @@ export async function renderList(host, { key, def }) {
       load();
     };
 
+    /* Deskriptor chip: `text` dibaca SETIAP kali chip digambar, bukan sekali
+       saat bilah dibangun — label lookup baru tiba setelah sumbernya dimuat,
+       dan sebuah string yang dibekukan di sini akan selamanya berbunyi
+       'Memuat…'. */
+    const reportChip = (text) => activeFilters.push({
+      label: filter.label,
+      text,
+      clear: () => apply(''),
+    });
+
     if (filter.type === 'date') {
       const input = el('input.filter-w', {
         type: 'date', value: ui.filters[filter.key] || '', 'aria-label': filter.label, title: filter.label,
       });
       input.addEventListener('change', () => apply(input.value));
+      reportChip(() => (ui.filters[filter.key] ? date(ui.filters[filter.key]) : ''));
       return input;
     }
 
@@ -472,12 +910,13 @@ export async function renderList(host, { key, def }) {
         type: 'number', placeholder: filter.label, value: ui.filters[filter.key] || '', 'aria-label': filter.label,
       });
       input.addEventListener('change', () => apply(input.value));
+      reportChip(() => String(ui.filters[filter.key] ?? ''));
       return input;
     }
 
     // Enum menang atas lookup, urutan yang sama dengan rantai else-if <select>
     // lama — filter yang membawa keduanya tidak boleh berpindah kontrol.
-    if (filter.lookup && !filter.enum) return lookupFilter(filter, apply);
+    if (filter.lookup && !filter.enum) return lookupFilter(filter, apply, reportChip);
 
     const select = el('select.filter-w', { 'aria-label': filter.label });
     select.appendChild(el('option', { value: '', text: filter.label }));
@@ -494,6 +933,17 @@ export async function renderList(host, { key, def }) {
 
     select.value = ui.filters[filter.key] || '';
     select.addEventListener('change', () => apply(select.value));
+    /* Label chip dibaca dari <option> yang TERPILIH, bukan dihitung ulang dari
+       ENUMS/MONTHS: kalau keduanya pernah berbeda, yang benar adalah yang
+       dilihat pemakai di kontrolnya. Nilai yang tidak punya <option> (seed URL
+       basi) memberi selectedIndex 0 — yaitu option placeholder berlabel filter
+       — jadi chipnya sengaja dibiarkan kosong dan tidak berbohong. */
+    reportChip(() => {
+      const current = ui.filters[filter.key];
+      if (current === undefined || current === '') return '';
+      const chosen = [...select.options].find((option) => option.value === String(current));
+      return chosen && chosen.value !== '' ? chosen.text : '';
+    });
     return select;
   }
 
@@ -507,7 +957,7 @@ export async function renderList(host, { key, def }) {
    * "—", tombol ×, dan kotak yang dikosongkan ke penghapusan kunci filter —
    * makna yang sama persis dengan <option value=""> milik <select> lama.
    */
-  function lookupFilter(filter, apply) {
+  function lookupFilter(filter, apply, reportChip) {
     const optionsOf = (rows) => {
       const options = optionsFor(filter.lookup, rows);
       // Kontrak nilai <select> lama: valueKey mengirim kolom baris, bukan id
@@ -543,6 +993,18 @@ export async function renderList(host, { key, def }) {
     const state = sourceState(filter.lookup);
     const options = optionsOf(state.rows);
 
+    /* Chip lookup memakai labelOf() yang SAMA dengan comboboxnya — termasuk
+       kejujurannya soal id yang tidak ada di sumber ('#42 (tidak ada di
+       daftar)'). Dibaca ulang tiap kali chip digambar, karena sumber lookup
+       tiba asinkron: chip yang dibekukan saat bilah dibangun akan berbunyi
+       'Memuat…' selamanya. */
+    if (reportChip) {
+      reportChip(() => {
+        const now = sourceState(filter.lookup);
+        return labelOf(optionsOf(now.rows), now);
+      });
+    }
+
     const combo = combobox({
       value: current === undefined || current === '' ? null : current,
       label: labelOf(options, state),
@@ -562,6 +1024,9 @@ export async function renderList(host, { key, def }) {
         notice: noticeFor(next),
         onRetry: next.status === 'failed' ? () => retry() : null,
       });
+      // Sumbernya baru tiba: chipnya masih menyebut 'Memuat…' sampai digambar
+      // ulang di sini.
+      paintChips();
     };
 
     const retry = () => {
@@ -673,7 +1138,7 @@ export async function renderList(host, { key, def }) {
         size: 'sm', variant: 'ghost', iconName: 'edit', title: 'Ubah',
         onClick: (event) => {
           event.stopPropagation();
-          openForm({ def, key, row, onSaved: () => load() });
+          startForm({ def, key, row, onSaved: () => load() });
         },
       }), 'Ubah'));
     }
@@ -699,6 +1164,73 @@ export async function renderList(host, { key, def }) {
     }
 
     return wrap.childElementCount ? wrap : null;
+  }
+
+  /*
+   * Kotak centang satu baris.
+   *
+   * Dimatikan — bukan disembunyikan — untuk baris yang tidak punya satu pun
+   * aksi massal yang berlaku, dengan alasannya di `title`. Sebuah sel kosong
+   * di kolom pertama terbaca sebagai gangguan render; sebuah kotak mati yang
+   * menyebutkan alasannya terbaca sebagai keadaan dokumen, dan itu memang yang
+   * sedang dikatakannya.
+   */
+  function pickBox(row) {
+    const allowed = bulkableRow(row);
+    const box = el('input', {
+      type: 'checkbox',
+      checked: picked.has(row.id),
+      disabled: !allowed,
+      'aria-label': `Pilih ${codeOf(row)}`,
+      title: allowed ? '' : `${codeOf(row)} tidak dalam keadaan yang tepat untuk aksi massal mana pun di layar ini.`,
+    });
+    box.addEventListener('change', () => {
+      if (box.checked) picked.set(row.id, row);
+      else picked.delete(row.id);
+      // Kelas .selected dipasang di sini, bukan lewat renderRows(): menggambar
+      // ulang seluruh tabel pada tiap centang membuang fokus papan ketik yang
+      // sedang berada DI kotak itu.
+      const tr = box.closest('tr');
+      if (tr) tr.classList.toggle('selected', box.checked);
+      syncBulk();
+      syncPickAll();
+    });
+    return box;
+  }
+
+  let pickAll = null;
+
+  /* "Pilih semua" berarti semua baris HALAMAN INI yang memang bisa dikenai
+     aksi — bukan seluruh hasil filter. Daftar ini tidak pernah memegang baris
+     yang tidak dimuatnya, dan sebuah centang yang diam-diam berarti 1.400
+     dokumen adalah kuasa yang tidak pernah diminta siapa pun. */
+  function pickAllBox(pickable) {
+    pickAll = el('input', {
+      type: 'checkbox',
+      disabled: pickable.length === 0,
+      'aria-label': 'Pilih semua baris di halaman ini',
+      title: pickable.length
+        ? `Pilih ${pickable.length} baris di halaman ini`
+        : 'Tidak ada baris di halaman ini yang bisa dikenai aksi massal.',
+    });
+    pickAll.addEventListener('change', () => {
+      if (pickAll.checked) pickable.forEach((row) => picked.set(row.id, row));
+      else pickable.forEach((row) => picked.delete(row.id));
+      syncBulk();
+      renderRows();
+    });
+    syncPickAll(pickable);
+    return pickAll;
+  }
+
+  function syncPickAll(pickable) {
+    if (!pickAll) return;
+    const rows = pickable || (payload ? (payload.data || []).filter(bulkableRow) : []);
+    const on = rows.filter((row) => picked.has(row.id)).length;
+    pickAll.checked = rows.length > 0 && on === rows.length;
+    // Sebagian terpilih = keadaan ketiga, bukan "tidak terpilih": kotak kosong
+    // di atas tiga baris tercentang mengundang klik yang MEMBUANG pilihan itu.
+    pickAll.indeterminate = on > 0 && on < rows.length;
   }
 
   function renderRows() {
@@ -747,7 +1279,7 @@ export async function renderList(host, { key, def }) {
         : emptyState(`Belum ada ${def.label.toLowerCase()} yang tercatat.`, {
           kind: 'inbox',
           action: canCreate
-            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: afterCreate }) })
+            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => startForm({ def, key, onSaved: afterCreate }) })
             : null,
         }));
       return;
@@ -764,24 +1296,39 @@ export async function renderList(host, { key, def }) {
        tidak pernah terbaca sebagai total outstanding seluruh filter. */
     const moneyColumns = def.columns.filter((column) => column.type === 'currency' || column.type === 'currency2');
 
+    /* Baris yang bisa dikenai SETIDAKNYA satu aksi massal. Kotak centang baris
+       lain digambar mati dengan alasannya di title: menyembunyikannya membuat
+       kolomnya berlubang dan tidak menjelaskan apa pun. */
+    const pickable = picking ? rows.filter(bulkableRow) : [];
+
     const table = el('table.data', [
       el('thead', el('tr', [
+        picking ? el('th.pick', pickAllBox(pickable)) : null,
         ...def.columns.map((column) => headerCell(column, sortable)),
         hasActions ? el('th.right', { text: '', style: { width: '1%' } }) : null,
       ])),
       el('tbody', rows.map((row) => {
-        const tr = el(`tr${openable ? '.clickable' : ''}`, [
+        const chosen = picking && picked.has(row.id);
+        const tr = el(`tr${openable ? '.clickable' : ''}${chosen ? '.selected' : ''}`, [
+          picking ? el('td.pick', pickBox(row)) : null,
           ...def.columns.map((column) =>
             el(`td${column.align ? `.${column.align}` : ''}${column.type === 'code' ? '.code' : ''}${column.hideOnNarrow ? '.hide-narrow' : ''}`, renderCell(row, column))),
           hasActions ? el('td.right', rowActions(row)) : null,
         ]);
         if (openable) {
-          tr.addEventListener('click', () => navigate(`d/${key}/${row.id}`));
+          /* Klik pada kotak centang TIDAK membuka dokumennya. Tanpa penjaga ini
+             mencentang satu baris berarti berpindah halaman, dan seleksi yang
+             baru lahir itu ikut mati di muatan berikutnya. */
+          tr.addEventListener('click', (event) => {
+            if (event.target.closest('td.pick')) return;
+            navigate(`d/${key}/${row.id}`);
+          });
         }
         return tr;
       })),
       moneyColumns.length
         ? el('tfoot', el('tr', [
+          picking ? el('td.pick') : null,
           ...def.columns.map((column, index) => {
             const narrow = column.hideOnNarrow ? '.hide-narrow' : '';
             if (column.type === 'currency' || column.type === 'currency2') {
@@ -796,6 +1343,7 @@ export async function renderList(host, { key, def }) {
         : null,
     ]);
 
+    if (bulkBar) body.appendChild(bulkBar);
     body.appendChild(el('.table-wrap', table));
     body.appendChild(pager());
   }
@@ -905,6 +1453,23 @@ export async function renderList(host, { key, def }) {
     filterCombos.forEach((combo) => combo.closePopup());
     clear(tableHost);
     tableHost.appendChild(filterBar());
+
+    /* Tampilan tersimpan DI ATAS chip saringan, urutan yang sama dengan
+       prototipe: yang pertama dibaca adalah "saya sedang melihat tampilan
+       mana", baru "apa yang sedang mempersempitnya". */
+    viewRow = el('.chips.views', { hidden: true });
+    tableHost.appendChild(viewRow);
+    paintViews();
+
+    // Chip digambar SESUDAH bilahnya, karena buildFilter yang mengisi
+    // activeFilters saat bilah itu dibangun.
+    /* `.chips.active-filters`, bukan `.chips` telanjang: sejak UI-4c ADA DUA
+       baris chip di layar ini, dan `querySelector('.chips')` memulangkan yang
+       pertama — baris tampilan. Nol pemakai `.active-filters` diperiksa lebih
+       dulu di seluruh public/app, aturan yang sama dengan primitif UI-2. */
+    chipRow = el('.chips.active-filters', { hidden: true });
+    tableHost.appendChild(chipRow);
+    paintChips();
 
     const body = el('.list-body');
     tableHost.appendChild(body);

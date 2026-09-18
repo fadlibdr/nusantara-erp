@@ -208,12 +208,75 @@ class BoardWiringTest extends ErpTestCase
         $this->assertStringContainsString("role: 'button'", $source,
             'kartu bisa difokus tanpa peran: pembaca layar mengumumkannya sebagai teks yang entah kenapa bisa difokus');
         $this->assertStringContainsString("'aria-label'", $source);
-        $this->assertStringContainsString("event.key !== ' '", $source,
+        $this->assertStringContainsString("event.key === ' '", $source,
             'Spasi tidak ditangani: ia menggulirkan halaman alih-alih membuka kartunya');
         $this->assertStringContainsString('event.preventDefault();', $source,
             'Spasi ditangani tanpa menahan guliran bawaannya');
-        $this->assertStringContainsString('Tanpa menyeret:', $source,
-            'papan tidak menyebutkan jalan yang ADA bagi orang yang tidak bisa menyeret');
+    }
+
+    /**
+     * PAPAN INI PUNYA JALAN KEYBOARD, DAN JALANNYA TERTULIS (UI-4d).
+     *
+     * Sampai UI-4d tidak ada satu pun — `.desc` papan sendiri mengakuinya
+     * (diukur 8 Sep 2026: "panah, Spasi dan Tab tidak memindahkan apa pun"),
+     * dan uji ini hanya menuntut kalimat "Tanpa menyeret:" yang menunjuk ke
+     * tombol aksi di halaman dokumen. Yang dituntut sekarang lebih keras:
+     * jalannya harus ADA, harus lewat onDrop yang sama dengan seretan, dan
+     * harus TERTULIS di layar — sebuah pintasan yang hanya diketahui penemunya
+     * bukan jalan keyboard, ia rahasia.
+     */
+    public function test_the_board_has_a_keyboard_path_and_says_so(): void
+    {
+        $source = (string) file_get_contents(public_path('app/js/views/board.js'));
+
+        $this->assertStringContainsString('moveCardByKeyboard', $source,
+            'papan kehilangan jalan keyboardnya untuk memindahkan kartu');
+
+        /*
+         * Perpindahan lewat papan ketik HARUS memanggil onDrop — di sanalah
+         * refuse(), aksi yang dijalankan, catatan wajib, aturan persetujuan dan
+         * pengembalian kartu berada. Jalur kedua yang menyalin kebijakan itu
+         * akan hanyut, dan yang hanyut adalah siapa boleh menyetujui apa.
+         */
+        $body = $this->functionBody($source, 'function moveCardByKeyboard(');
+        $this->assertNotNull($body, 'moveCardByKeyboard tidak ditemukan');
+        $this->assertStringContainsString('onDrop(', $body,
+            'perpindahan dengan papan ketik tidak lewat onDrop: papan ini kini punya DUA salinan aturan transisi');
+
+        // Fokus harus dipulihkan: reload() mengganti kartunya dengan elemen
+        // baru, dan tanpa pemulihan pemakai papan ketik terlempar ke <body>
+        // tepat sesudah melakukan sesuatu yang berhasil.
+        $this->assertStringContainsString('focusCardId', $source,
+            'fokus tidak dipulihkan sesudah perpindahan dengan papan ketik');
+
+        // Dan jalannya disebut di layar, bukan hanya ada.
+        $this->assertMatchesRegularExpression('/panah memindahkan fokus/i', $source,
+            'deskripsi papan tidak menyebut bahwa panah memindahkan fokus');
+        $this->assertMatchesRegularExpression('/Ctrl \(atau ⌘\) \+ panah/u', $source,
+            'deskripsi papan tidak menyebut pintasan yang memindahkan kartunya');
+    }
+
+    /** Badan sebuah fungsi tingkat-atas, dari `{` sampai `}` yang sepadan. */
+    private function functionBody(string $source, string $signature): ?string
+    {
+        $start = strpos($source, $signature);
+        if ($start === false) {
+            return null;
+        }
+        $open = strpos($source, '{', $start);
+        $depth = 0;
+        for ($i = $open; $i < strlen($source); $i++) {
+            if ($source[$i] === '{') {
+                $depth++;
+            } elseif ($source[$i] === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    return substr($source, $open, $i - $open + 1);
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

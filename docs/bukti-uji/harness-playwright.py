@@ -788,6 +788,357 @@ def s43(pg):
     return out
 
 
+@scenario("S44_chip_filter")
+def s44(pg):
+    """UI-4a: chip filter aktif — ia menggambar keadaan yang sudah ada, dan bisa membuangnya satu per satu.
+
+    Rutenya dipilih karena ia punya KEDUA bentuk yang sulit: filter enum (label
+    datang dari <option> terpilih, bukan dari nilai mentah 'draft') dan filter
+    lookup (labelnya tiba ASINKRON dari sumbernya, dan jujur soal id yang tidak
+    ada di daftar).
+    """
+    login(pg, "admin@nusantara.test")
+
+    CHIPS = """() => {
+      // `.chips.active-filters`: sejak UI-4c baris tampilan tersimpan juga
+      // ber-class `.chips` dan berada LEBIH DULU di DOM, jadi `.chips` telanjang
+      // memulangkan baris yang salah — dan seluruh gerbang ini membaca nol chip.
+      const row = document.querySelector('.chips.active-filters');
+      if (!row) return { ada: false };
+      return {
+        ada: true,
+        tersembunyi: row.hidden,
+        chips: [...row.querySelectorAll('.chip')].map(c => ({
+          kunci: ((c.querySelector('.chip-key') || {}).innerText || '').trim(),
+          nilai: ((c.querySelector('b') || {}).innerText || '').trim(),
+          buang: !!c.querySelector('.chip-x'),
+        })),
+        hapus_semua: !!row.querySelector('button.btn'),
+        baris: document.querySelectorAll('table.data tbody tr').length,
+      };
+    }"""
+
+    # Tanpa filter: barisnya HARUS tersembunyi, bukan kosong-tapi-menempati-ruang.
+    pg.goto(BASE + "#/r/procurement/purchase-orders"); pg.wait_for_timeout(1800)
+    out = {"bersih": pg.evaluate(CHIPS)}
+
+    # Enum + pencarian.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=PO&status=draft"); pg.wait_for_timeout(2200)
+    out["enum"] = pg.evaluate(CHIPS)
+
+    # Lookup: label yang diselesaikan, dan id yang tidak ada.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?project_id=1"); pg.wait_for_timeout(2600)
+    out["lookup"] = pg.evaluate(CHIPS)
+    pg.goto(BASE + "#/r/procurement/purchase-orders?project_id=999999"); pg.wait_for_timeout(2600)
+    out["lookup_hilang"] = pg.evaluate(CHIPS)
+    pg.screenshot(path=f"{OUT}/s44-chips.png")
+
+    # Membuang satu chip membuang SATU filter — sisanya bertahan di URL.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=PO&status=draft"); pg.wait_for_timeout(2200)
+    click(pg, ".chips.active-filters .chip-x")
+    pg.wait_for_timeout(1600)
+    out["buang_satu"] = {**pg.evaluate(CHIPS), "url": pg.url.split("?")[-1]}
+
+    # "Hapus semua" memakai resetFilters() yang sama dengan tombol Reset.
+    click(pg, ".chips.active-filters button.btn")
+    pg.wait_for_timeout(1600)
+    out["hapus_semua"] = {**pg.evaluate(CHIPS), "url": pg.url.split("#")[-1]}
+
+    checks = []
+    if not out["bersih"]["ada"]:
+        checks.append("baris chip tidak ada sama sekali")
+    elif not out["bersih"]["tersembunyi"]:
+        checks.append("baris chip tampil padahal tidak ada filter aktif")
+
+    e = out["enum"]
+    if len(e["chips"]) != 2:
+        checks.append(f"q+status memberi {len(e['chips'])} chip, diharapkan 2")
+    else:
+        nilai = [c["nilai"] for c in e["chips"]]
+        if "PO" not in nilai:
+            checks.append(f"chip pencarian tidak menyebut kuerinya: {nilai}")
+        # Label enum, BUKAN nilai mentah: 'Draf', bukan 'draft'.
+        if any(v == "draft" for v in nilai):
+            checks.append("chip enum menampilkan nilai mentah 'draft', bukan label <option>-nya")
+        if not all(c["buang"] for c in e["chips"]):
+            checks.append("ada chip tanpa tombol buang")
+    if not e["hapus_semua"]:
+        checks.append("'Hapus semua' hilang saat ada filter aktif")
+
+    lk = out["lookup"]["chips"]
+    if len(lk) != 1 or not lk[0]["nilai"]:
+        checks.append(f"chip lookup kosong: {lk}")
+    elif lk[0]["nilai"].startswith("#"):
+        checks.append(f"chip lookup tidak pernah menyelesaikan labelnya: {lk[0]['nilai']!r}")
+    hl = out["lookup_hilang"]["chips"]
+    # Id yang tidak ada HARUS terbaca sebagai tidak ada, bukan diam-diam kosong.
+    if len(hl) != 1 or "tidak ada di daftar" not in hl[0]["nilai"]:
+        checks.append(f"id lookup yang hilang tidak diakui: {hl}")
+
+    if len(out["buang_satu"]["chips"]) != 1:
+        checks.append(f"membuang satu chip menyisakan {len(out['buang_satu']['chips'])}, diharapkan 1")
+    if "status=draft" not in out["buang_satu"]["url"]:
+        checks.append(f"membuang satu chip ikut membuang filter lain: url {out['buang_satu']['url']!r}")
+    if not out["hapus_semua"]["tersembunyi"] or out["hapus_semua"]["chips"]:
+        checks.append("'Hapus semua' tidak mengosongkan barisnya")
+    if "?" in out["hapus_semua"]["url"]:
+        checks.append(f"'Hapus semua' meninggalkan filter di URL: {out['hapus_semua']['url']!r}")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+@scenario("S47_formulir_halaman")
+def s47(pg):
+    """UI-4d: formulir berbaris menjadi HALAMAN, dan navigasi darinya dijaga.
+
+    Aturan pemutusnya `lines` — jadi dua sumber daya diperiksa berpasangan:
+    satu yang menyatakannya (PO) dan satu yang tidak (pelanggan). Yang kedua
+    HARUS tetap dialog; memaksa navigasi halaman untuk empat medan adalah
+    ongkos tanpa untung.
+    """
+    login(pg, "admin@nusantara.test")
+
+    SURFACE = """() => ({
+      modal: !!document.querySelector('.modal'),
+      halaman: !!document.querySelector('.form-page'),
+      hash: location.hash,
+      crumbs: [...document.querySelectorAll('#crumbs > *')].map(n => (n.innerText || '').trim()).filter(Boolean),
+      judul: ((document.querySelector('.page-head h1') || {}).innerText || '').trim(),
+      tombol: [...document.querySelectorAll('.page-head .actions .btn')].map(b => b.innerText.trim()),
+      gulir_dalam: (() => { const m = document.querySelector('.modal-body');
+                            return m ? m.scrollHeight - m.clientHeight : 0; })(),
+    })"""
+
+    out = {}
+
+    # Berbaris -> halaman.
+    pg.goto(BASE + "#/f/procurement/purchase-orders"); pg.wait_for_timeout(2600)
+    out["berbaris"] = pg.evaluate(SURFACE)
+    pg.screenshot(path=f"{OUT}/s45-formulir-halaman.png")
+
+    # Tanpa baris -> dialog, lewat tombol Tambah daftarnya.
+    pg.goto(BASE + "#/r/crm/customers"); pg.wait_for_timeout(2200)
+    if pg.locator(".page-head .btn.primary").count():
+        click(pg, ".page-head .btn.primary")
+        pg.wait_for_timeout(2400)
+    out["tanpa_baris"] = pg.evaluate(SURFACE)
+    if out["tanpa_baris"]["modal"]:
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(700)
+
+    # Penjaga meninggalkan rute: bersih -> pergi diam-diam.
+    pg.goto(BASE + "#/f/procurement/purchase-orders"); pg.wait_for_timeout(2600)
+    pg.evaluate("() => { location.hash = '#/dashboard'; }"); pg.wait_for_timeout(1300)
+    out["bersih_pergi"] = {"hash": pg.evaluate("() => location.hash"),
+                           "dialog": pg.locator(".modal").count()}
+
+    # Kotor -> ditanya; "Tetap di sini" mengembalikan hash DAN isiannya.
+    pg.goto(BASE + "#/f/procurement/purchase-orders"); pg.wait_for_timeout(2600)
+    pg.locator(".form-page textarea").first.fill("UJI-UX isian yang belum tersimpan")
+    pg.wait_for_timeout(500)
+    pg.evaluate("() => { location.hash = '#/dashboard'; }"); pg.wait_for_timeout(1100)
+    out["kotor_ditanya"] = {"dialog": pg.locator(".modal").count(),
+                            "judul": pg.locator(".modal h2").first.inner_text() if pg.locator(".modal h2").count() else None}
+    if pg.locator(".modal button:has-text('Tetap di sini')").count():
+        click(pg, ".modal button:has-text('Tetap di sini')")
+        pg.wait_for_timeout(1300)
+    out["tetap"] = {"hash": pg.evaluate("() => location.hash"),
+                    "halaman": pg.locator(".form-page").count(),
+                    "isian": pg.evaluate("() => (document.querySelector('.form-page textarea') || {}).value || ''")}
+
+    # "Tinggalkan" -> benar-benar pergi, dan penjaganya tidak tertinggal.
+    pg.evaluate("() => { location.hash = '#/dashboard'; }"); pg.wait_for_timeout(1100)
+    if pg.locator(".modal button:has-text('Tinggalkan')").count():
+        click(pg, ".modal button:has-text('Tinggalkan')")
+        pg.wait_for_timeout(1500)
+    out["tinggalkan"] = {"hash": pg.evaluate("() => location.hash"), "halaman": pg.locator(".form-page").count()}
+    pg.evaluate("() => { location.hash = '#/tugas'; }"); pg.wait_for_timeout(1300)
+    out["penjaga_dilepas"] = {"hash": pg.evaluate("() => location.hash"), "dialog": pg.locator(".modal").count()}
+
+    checks = []
+    b = out["berbaris"]
+    if not b["halaman"] or b["modal"]:
+        checks.append(f"sumber daya berbaris tidak menjadi halaman: {b}")
+    if len(b["crumbs"]) < 3:
+        checks.append(f"remah formulir halaman hanya {b['crumbs']}")
+    if "Batal" not in b["tombol"] or not any(t.startswith("Simpan") for t in b["tombol"]):
+        checks.append(f"tombol kepala halaman formulir: {b['tombol']}")
+    # Inti bentuk halaman: TIDAK ada wadah gulir di dalamnya.
+    if b["gulir_dalam"]:
+        checks.append(f"halaman formulir masih punya wadah gulir dalam ({b['gulir_dalam']} px)")
+
+    t = out["tanpa_baris"]
+    if not t["modal"] or t["halaman"]:
+        checks.append(f"sumber daya tanpa baris tidak lagi memakai dialog: {t}")
+
+    if out["bersih_pergi"]["hash"] != "#/dashboard" or out["bersih_pergi"]["dialog"]:
+        checks.append(f"formulir BERSIH menahan navigasi: {out['bersih_pergi']}")
+    if out["kotor_ditanya"]["dialog"] != 1:
+        checks.append("formulir KOTOR tidak menanyakan apa pun saat ditinggalkan")
+    if "procurement/purchase-orders" not in out["tetap"]["hash"]:
+        checks.append(f"'Tetap di sini' tidak mengembalikan hash: {out['tetap']['hash']!r}")
+    if not out["tetap"]["halaman"]:
+        checks.append("'Tetap di sini' tetap meninggalkan halamannya")
+    if "UJI-UX" not in out["tetap"]["isian"]:
+        checks.append(f"'Tetap di sini' kehilangan isiannya: {out['tetap']['isian']!r}")
+    if out["tinggalkan"]["hash"] != "#/dashboard" or out["tinggalkan"]["halaman"]:
+        checks.append(f"'Tinggalkan' tidak pergi: {out['tinggalkan']}")
+    if out["penjaga_dilepas"]["hash"] != "#/tugas" or out["penjaga_dilepas"]["dialog"]:
+        checks.append(f"penjaga tertinggal sesudah halaman formulir ditinggalkan: {out['penjaga_dilepas']}")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+@scenario("S48_papan_keyboard")
+def s48(pg):
+    """UI-4d: papan kanban akhirnya punya jalan keyboard — lewat jalur yang SAMA dengan seretan.
+
+    Sampai paket ini `.desc` papan sendiri mengakui tidak ada satu pun (diukur
+    8 Sep 2026). Yang diperiksa di sini bukan cuma "kartunya pindah", tetapi
+    bahwa ia pindah lewat keputusan yang sama — penolakannya berbunyi sama —
+    dan bahwa FOKUS tidak hilang sesudahnya, baik saat berhasil maupun ditolak.
+    """
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/b/crm/leads"); pg.wait_for_timeout(2600)
+
+    ST = """() => {
+      const a = document.activeElement;
+      return {
+        fokus: a && a.classList.contains('board-card')
+          ? { id: a.dataset.id, kolom: a.parentElement.dataset.status } : null,
+        kolom: [...document.querySelectorAll('.board-cards')].map(l => l.querySelectorAll('.board-card').length),
+        kartu: document.querySelectorAll('.board-card').length,
+        desc: ((document.querySelector('.page-head .desc') || {}).innerText || ''),
+      };
+    }"""
+
+    out = {"awal": pg.evaluate(ST)}
+    if not out["awal"]["kartu"]:
+        return {**out, "SKIPPED": "papan crm/leads tidak punya kartu di salinan DB ini"}
+
+    pg.locator(".board-card").first.focus(); pg.wait_for_timeout(300)
+    out["fokus_awal"] = pg.evaluate(ST)["fokus"]
+
+    # Panah polos = FOKUS, tidak memindahkan apa pun.
+    before = pg.evaluate(ST)
+    pg.keyboard.press("ArrowRight"); pg.wait_for_timeout(400)
+    out["panah_fokus"] = {**pg.evaluate(ST), "kolom_sama": pg.evaluate(ST)["kolom"] == before["kolom"]}
+
+    # Ctrl+panah = MEMINDAHKAN, lewat onDrop yang sama dengan seretan.
+    pg.locator(".board-card").first.focus(); pg.wait_for_timeout(300)
+    b = pg.evaluate(ST)
+    pg.keyboard.press("Control+ArrowRight"); pg.wait_for_timeout(2800)
+    a = pg.evaluate(ST)
+    out["pindah"] = {
+        "sebelum": b["kolom"], "sesudah": a["kolom"],
+        "berubah": b["kolom"] != a["kolom"],
+        "fokus": a["fokus"],
+        "toast": pg.locator(".toast").first.inner_text()[:120] if pg.locator(".toast").count() else None,
+    }
+
+    # Sekali lagi: apa pun hasilnya (pindah lagi atau ditolak), fokus harus bertahan.
+    pg.keyboard.press("Control+ArrowRight"); pg.wait_for_timeout(2800)
+    out["lagi"] = {"fokus": pg.evaluate(ST)["fokus"],
+                   "toast": pg.locator(".toast").first.inner_text()[:120] if pg.locator(".toast").count() else None}
+
+    checks = []
+    if not out["fokus_awal"]:
+        checks.append("kartu papan tidak bisa difokus")
+    if not out["panah_fokus"]["kolom_sama"]:
+        checks.append("panah POLOS memindahkan kartu; ia hanya boleh memindahkan fokus")
+    if not out["panah_fokus"]["fokus"]:
+        checks.append("panah polos menghilangkan fokus alih-alih memindahkannya")
+    if not out["pindah"]["berubah"] and not (out["pindah"]["toast"] or ""):
+        checks.append("Ctrl+panah tidak memindahkan kartu DAN tidak mengatakan mengapa")
+    # Inti paket ini: fokus tidak boleh hilang sesudah perpindahan, berhasil atau tidak.
+    if not out["pindah"]["fokus"]:
+        checks.append("fokus hilang sesudah perpindahan dengan papan ketik")
+    if not out["lagi"]["fokus"]:
+        checks.append("fokus hilang sesudah perpindahan kedua (jalur ditolak/putBack)")
+    # Jalannya harus TERTULIS, bukan rahasia yang hanya diketahui penemunya.
+    desc = out["awal"]["desc"].lower()
+    if "panah" not in desc or ("ctrl" not in desc and "\u2318" not in desc):
+        checks.append(f"deskripsi papan tidak menyebut jalan keyboardnya: {out['awal']['desc'][:90]!r}")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+@scenario("S49_kepala_dokumen")
+def s49(pg):
+    """UI-4f: kepala dokumen (kode · status · lawan transaksi · nilai · zona aksi), dan detail.groups.
+
+    Dua sumber daya dibandingkan: PO yang MENYATAKAN detail.groups, dan invoice
+    AR yang tidak. Yang kedua harus tetap rata persis seperti sebelumnya —
+    kunci opsional yang diam-diam mengubah layar yang tidak memintanya bukan
+    kunci opsional.
+    """
+    login(pg, "admin@nusantara.test")
+
+    HEAD = """() => {
+      const info = [...document.querySelectorAll('.card')]
+        .find(c => { const h = c.querySelector('h2'); return h && h.innerText.trim() === 'Informasi'; });
+      const meta = document.querySelector('.doc-meta');
+      return {
+        judul: ((document.querySelector('.page-head h1') || {}).innerText || '').trim(),
+        lencana: [...document.querySelectorAll('.page-head .badge')].map(b => b.innerText.trim()),
+        meta: meta ? [...meta.querySelectorAll('.doc-meta-item')].map(n => n.innerText.replace(/\s+/g, ' ').trim()) : null,
+        zona: [...document.querySelectorAll('.page-head .actions .zone')].length,
+        kelompok: info ? [...info.querySelectorAll('.info-group-label')].map(n => n.innerText.trim()) : [],
+        blok: info ? info.querySelectorAll('.info-group').length : 0,
+        dt: info ? info.querySelectorAll('dt').length : 0,
+      };
+    }"""
+
+    pg.goto(BASE + "#/d/procurement/purchase-orders/1"); pg.wait_for_timeout(2600)
+    out = {"berkelompok": pg.evaluate(HEAD)}
+    pg.screenshot(path=f"{OUT}/s49-kepala-dokumen.png")
+
+    pg.goto(BASE + "#/d/finance/ar-invoices/1"); pg.wait_for_timeout(2600)
+    out["rata"] = pg.evaluate(HEAD)
+
+    checks = []
+    g = out["berkelompok"]
+    if not g["judul"]:
+        checks.append("kepala dokumen tanpa judul")
+    if not g["lencana"]:
+        checks.append("kepala dokumen tanpa lencana status")
+    if g["zona"] != 3:
+        checks.append(f"bilah aksi dokumen bukan tiga zona ({g['zona']})")
+    # Lawan transaksi DAN nilai — dua fakta yang membuat orang mengenali dokumen mana ini.
+    if not g["meta"]:
+        checks.append("kepala dokumen tidak menyebut lawan transaksi maupun nilainya")
+    else:
+        teks = " · ".join(g["meta"])
+        if "Rp" not in teks:
+            checks.append(f"nilai dokumen tidak tergambar di kepalanya: {g['meta']}")
+        if any(one.rstrip().endswith("—") for one in g["meta"]):
+            checks.append(f"kepala dokumen memajang '—': keterisian diperiksa berbeda dari cara menggambarnya: {g['meta']}")
+
+    # detail.groups: kelompoknya tergambar…
+    if len(g["kelompok"]) < 3:
+        checks.append(f"PO menyatakan tiga kelompok, tergambar {g['kelompok']}")
+    # …dan TIDAK ADA medan yang hilang karenanya. PO menyebut sembilan kunci di
+    # dalam kelompok; sisanya harus tetap ada, di blok terakhir tanpa judul.
+    if g["blok"] <= len(g["kelompok"]):
+        checks.append(f"blok sisa tidak tergambar: {g['blok']} blok untuk {len(g['kelompok'])} kelompok — medan yang tidak disebut lenyap")
+    if g["dt"] <= 9:
+        checks.append(f"panel Informasi PO hanya {g['dt']} medan; sembilan di antaranya disebut kelompok, jadi sisanya hilang")
+
+    # Sumber daya yang TIDAK menyatakannya tidak berubah.
+    f = out["rata"]
+    if f["kelompok"]:
+        checks.append(f"sumber daya tanpa detail.groups ikut dikelompokkan: {f['kelompok']}")
+    if f["blok"]:
+        checks.append("sumber daya tanpa detail.groups tetap dibungkus .info-group")
+    if not f["dt"]:
+        checks.append("panel Informasi sumber daya rata jadi kosong")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -12508,6 +12859,522 @@ def s42m(browser):
         _f5_reset()
 
 
+
+# Bilah seleksi + kolom centang daftar generik (UI-4b). Satu bacaan, supaya setiap
+# langkah di bawah menanyakan hal yang sama dan jawabannya bisa diperbandingkan.
+SEL = """() => {
+  const bar = document.querySelector('.selbar');
+  const boxes = [...document.querySelectorAll('table.data tbody td.pick input')];
+  const all = document.querySelector('table.data thead th.pick input');
+  return {
+    ada_kolom: !!document.querySelector('table.data thead th.pick'),
+    ada_bilah: !!bar,
+    bilah_tersembunyi: bar ? bar.hidden : null,
+    hitungan: bar && !bar.hidden ? (bar.querySelector('span') || {}).innerText || '' : null,
+    tombol: bar ? [...bar.querySelectorAll('button')].map(b => {
+      // Warna TERHITUNG, bukan kelasnya: sebuah tombol boleh punya label yang
+      // sempurna di DOM dan menggambar nol piksel yang terbaca. Latar putih di
+      // bawah huruf putih tidak menghasilkan satu pun galat, dan innerText
+      // tetap menjawab 'Ajukan (1)'. Satu-satunya cara menangkapnya adalah
+      // menanyakan kedua warnanya ke peramban.
+      const cs = getComputedStyle(b);
+      return {
+        label: b.innerText.trim(), mati: b.disabled, title: b.title || '',
+        warna: cs.color, latar: cs.backgroundColor,
+      };
+    }) : [],
+    baris: document.querySelectorAll('table.data tbody tr').length,
+    kotak: boxes.length,
+    kotak_mati: boxes.filter(b => b.disabled).length,
+    alasan_mati: boxes.filter(b => b.disabled).map(b => b.title).filter(Boolean)[0] || null,
+    tercentang: boxes.filter(b => b.checked).length,
+    baris_tersorot: document.querySelectorAll('table.data tbody tr.selected').length,
+    semua_tercentang: all ? all.checked : null,
+    semua_separuh: all ? all.indeterminate : null,
+    semua_mati: all ? all.disabled : null,
+  };
+}"""
+
+
+@scenario("S45_seleksi_massal")
+def s45(pg):
+    """UI-4b: kolom centang, bilah seleksi, dan satu putaran yang tidak berhenti pada kegagalan.
+
+    Tiga layar dengan tiga peran berbeda, karena tiga syaratnya hanya bisa dibuktikan
+    terpisah:
+
+      1. `crm/customers` — layar TANPA aksi massal: nol kotak centang, nol bilah. 76 dari
+         97 sumber daya berbentuk begini, dan sebuah kotak yang bisa dicentang lalu tidak
+         menawarkan apa pun adalah janji yang tidak ditepati.
+      2. `servicedesk/field-reports` — DUA aksi massal yang berlaku pada keadaan yang
+         BERBEDA (Ajukan pada draf, Kembalikan ke Draf pada yang diajukan). Di sinilah
+         angka pada tombol boleh berbeda dari jumlah yang dicentang, dan harus.
+      3. `finance/journals` sebagai finance-manager — putaran sungguhan ke server, dengan
+         satu dokumen yang sengaja dibuat BASI supaya kegagalannya nyata: ia diposting
+         lewat API setelah daftarnya tergambar. Maker-checker modul keuangan memaksa
+         pemisahan ini juga di fixture-nya: jurnal dibuat admin, diposting orang lain.
+    """
+    out = {}
+    galat = []
+    admin = token_for("admin@nusantara.test")
+
+    # ---------------------------------------------------------------- 1. tanpa aksi
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/r/crm/customers"); pg.wait_for_timeout(2000)
+    out["tanpa_aksi"] = pg.evaluate(SEL)
+    if out["tanpa_aksi"]["ada_kolom"] or out["tanpa_aksi"]["ada_bilah"]:
+        galat.append("crm/customers tidak punya aksi massal tetapi tetap menggambar kolom centang/bilah seleksi")
+
+    # ------------------------------------------------- 2. dua aksi, dua keadaan baris
+    # Fixture: satu berita acara draf + satu yang sudah diajukan, dari tiket yang sama.
+    fr = []
+    for i in (1, 2):
+        st, body = api("servicedesk/field-reports", admin, "POST", {
+            "ticket_id": 4, "report_date": "2026-09-18", "technician_employee_id": 1,
+            "findings": f"UI-4b fixture {i}", "actions_taken": "uji seleksi massal",
+        })
+        if st < 300:
+            fr.append(body["data"])
+    if len(fr) < 2:
+        out["SKIPPED"] = "fixture berita acara tidak terbentuk"
+        return out
+    api(f"servicedesk/field-reports/{fr[1]['id']}/submit", admin, "POST", {})
+    out["fixture"] = {"draf": fr[0]["code"], "diajukan": fr[1]["code"]}
+
+    pg.goto(BASE + "#/r/servicedesk/field-reports"); pg.wait_for_timeout(2400)
+    out["dua_aksi_awal"] = pg.evaluate(SEL)
+    if not out["dua_aksi_awal"]["ada_kolom"]:
+        galat.append("berita acara punya aksi massal tetapi tidak menggambar kolom centang")
+    if out["dua_aksi_awal"]["bilah_tersembunyi"] is not True:
+        galat.append("bilah seleksi terlihat padahal belum ada baris tercentang")
+
+    # Centang DUA baris fixture — satu draf, satu diajukan.
+    CENTANG = """(kode) => {
+      const tr = [...document.querySelectorAll('table.data tbody tr')]
+        .find(r => r.innerText.includes(kode));
+      if (!tr) return 'baris tidak ditemukan';
+      const box = tr.querySelector('td.pick input');
+      if (!box) return 'kotak tidak ada';
+      if (box.disabled) return 'kotak mati';
+      box.click();
+      return 'ok';
+    }"""
+    out["centang"] = [pg.evaluate(CENTANG, fr[0]["code"]), pg.evaluate(CENTANG, fr[1]["code"])]
+    pg.wait_for_timeout(500)
+    out["dua_aksi_terpilih"] = pg.evaluate(SEL)
+    pg.screenshot(path=f"{OUT}/s45-selbar.png")
+
+    m = out["dua_aksi_terpilih"]
+    if m["bilah_tersembunyi"] is not False:
+        galat.append("dua baris tercentang tetapi bilah seleksi masih tersembunyi")
+    if "2" not in (m["hitungan"] or ""):
+        galat.append(f"bilah seleksi tidak menyebut 2 baris terpilih: {m['hitungan']!r}")
+    if m["baris_tersorot"] != 2:
+        galat.append(f"{m['baris_tersorot']} baris ber-.selected, seharusnya 2")
+    # Inti syaratnya: angka pada tombol adalah angka yang AKAN dikerjakan.
+    berlabel = {t["label"].split(" (")[0]: t for t in m["tombol"]}
+    for nama in ("Ajukan", "Kembalikan ke Draf"):
+        t = berlabel.get(nama)
+        if not t:
+            galat.append(f"tombol '{nama}' tidak ada di bilah seleksi")
+        elif not t["label"].endswith("(1)"):
+            galat.append(f"tombol '{t['label']}' — dua baris tercentang, tetapi hanya SATU yang dalam keadaan tepat: labelnya harus (1)")
+        elif t["mati"]:
+            galat.append(f"tombol '{t['label']}' mati padahal satu baris berlaku")
+        elif "1 dari 2" not in t["title"]:
+            galat.append(f"tombol '{t['label']}' tidak menjelaskan baris yang akan dilewati: {t['title']!r}")
+
+    # Label yang benar-benar TERGAMBAR: warna huruf tidak boleh sama dengan latarnya.
+    for t in m["tombol"]:
+        if t["warna"] == t["latar"]:
+            galat.append(f"tombol '{t['label']}' menggambar huruf {t['warna']} di atas latar yang sama — labelnya tidak terbaca")
+
+    # Mencentang TIDAK membuka dokumen.
+    out["url_setelah_centang"] = pg.url.split("#")[-1]
+    if "/d/" in out["url_setelah_centang"]:
+        galat.append(f"mencentang kotak membuka halaman dokumen: {out['url_setelah_centang']}")
+
+    # Kotak "pilih semua" punya TIGA keadaan, dan yang mana bergantung pada berapa
+    # baris halaman ini yang memang bisa dicentang — bukan pada angka tetap. Versi
+    # pertama gerbang ini menuntut `indeterminate` tanpa syarat dan lolos hanya
+    # karena sisa fixture run sebelumnya membuat halaman itu punya empat baris yang
+    # bisa dicentang; pada DB bersih keduanya justru SELURUH yang bisa dicentang,
+    # dan keadaan yang benar adalah "tercentang penuh".
+    bisa = m["kotak"] - m["kotak_mati"]
+    if m["tercentang"] == bisa:
+        if m["semua_tercentang"] is not True or m["semua_separuh"] is not False:
+            galat.append(f"seluruh {bisa} baris yang bisa dicentang terpilih, tetapi 'pilih semua' "
+                         f"berkeadaan checked={m['semua_tercentang']} indeterminate={m['semua_separuh']}")
+    elif 0 < m["tercentang"] < bisa:
+        if m["semua_separuh"] is not True:
+            galat.append(f"{m['tercentang']} dari {bisa} baris tercentang, tetapi 'pilih semua' "
+                         "tidak berkeadaan separuh — kotak kosong di atas baris tercentang "
+                         "mengundang klik yang MEMBUANG pilihan itu")
+
+    # Seleksi MATI saat daftarnya dimuat ulang dengan filter lain.
+    pg.goto(BASE + "#/r/servicedesk/field-reports?status=draft"); pg.wait_for_timeout(2200)
+    out["setelah_filter"] = pg.evaluate(SEL)
+    if out["setelah_filter"]["tercentang"] or out["setelah_filter"]["bilah_tersembunyi"] is not True:
+        galat.append("seleksi bertahan melewati perubahan filter — ia menunjuk baris yang tidak lagi di layar")
+
+    # ------------------------------------------------ 3. putaran sungguhan + kegagalan
+    # Tiga jurnal draf dibuat ADMIN; yang memposting orang lain (pemisahan tugas).
+    jv = []
+    for i in (1, 2, 3):
+        st, body = api("finance/journals", admin, "POST", {
+            "journal_date": "2026-09-18", "description": f"UI-4b jurnal massal {i}",
+            "lines": [
+                {"account_id": 3, "description": "d", "debit": 1000 * i, "credit": 0},
+                {"account_id": 5, "description": "k", "debit": 0, "credit": 1000 * i},
+            ],
+        })
+        if st < 300:
+            jv.append(body["data"])
+    if len(jv) < 3:
+        out["SKIPPED"] = "fixture jurnal tidak terbentuk"
+        return out
+    out["jurnal"] = [j["code"] for j in jv]
+
+    # Ganti pengguna: sesi admin masih hidup di localStorage, dan login() menunggu
+    # halaman masuk yang tidak akan pernah muncul selama token itu ada.
+    pg.context.clear_cookies(); pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
+    login(pg, "finance-manager@nusantara.test")
+    pg.goto(BASE + "#/r/finance/journals?status=draft"); pg.wait_for_timeout(2400)
+    out["jv_awal"] = pg.evaluate(SEL)
+
+    # Semua baris draf halaman ini.
+    click(pg, "table.data thead th.pick input")
+    pg.wait_for_timeout(500)
+    out["jv_terpilih"] = pg.evaluate(SEL)
+    if out["jv_terpilih"]["semua_tercentang"] is not True:
+        galat.append("'pilih semua' tidak mencentang seluruh baris yang bisa dikenai aksi")
+
+    # SATU dokumen dibuat basi SETELAH daftarnya tergambar: diposting lewat API oleh
+    # orang lain. Inilah kegagalan yang harus disebut namanya tanpa menghentikan sisanya.
+    basi = jv[1]["code"]
+    st, _ = api(f"finance/journals/{jv[1]['id']}/post", token_for("finance@nusantara.test"), "POST", {})
+    if st >= 300:
+        st, _ = api(f"finance/journals/{jv[1]['id']}/post", token_for("direktur@nusantara.test"), "POST", {})
+    out["dibuat_basi"] = {"kode": basi, "status": st}
+    if st >= 300:
+        out["SKIPPED"] = f"tidak bisa membuat {basi} basi: {st}"
+        return out
+
+    # Jalankan. Dialog konfirmasi HARUS menyebut nomor dokumennya.
+    click(pg, ".selbar .cluster button.btn")
+    pg.wait_for_timeout(700)
+    out["dialog"] = pg.evaluate("""() => {
+      const m = document.querySelector('.modal');
+      return m ? m.innerText.replace(/\\n+/g, ' | ').slice(0, 500) : null;
+    }""")
+    if not out["dialog"]:
+        galat.append("aksi massal berjalan tanpa konfirmasi — satu klik keliru berharga seluruh halaman")
+    else:
+        hilang = [j["code"] for j in jv if j["code"] not in out["dialog"]]
+        if hilang:
+            galat.append(f"dialog konfirmasi tidak menyebut dokumen: {hilang}")
+
+    click(pg, ".modal .modal-foot .btn.primary")
+    pg.wait_for_timeout(5000)
+    out["toast"] = toasts(pg)
+    gabung = " ".join(out["toast"])
+
+    # Dua berhasil, satu gagal — dan yang gagal DISEBUT NAMANYA.
+    berhasil = [j["code"] for j in jv if j["code"] != basi]
+    for kode in berhasil:
+        if kode not in gabung:
+            galat.append(f"{kode} berhasil diposting tetapi tidak disebut di toast mana pun")
+    if basi not in gabung:
+        galat.append(f"{basi} gagal tetapi toast tidak menyebut dokumennya — laporan yang memaksa orang memeriksa tiga dokumen satu per satu")
+
+    # Yang berhasil BENAR-BENAR terposting: kegagalan di tengah tidak menghentikan sisanya.
+    keadaan = {}
+    for j in jv:
+        st, body = api(f"finance/journals/{j['id']}", admin)
+        keadaan[j["code"]] = (body.get("data") or {}).get("status")
+    out["keadaan_akhir"] = keadaan
+    belum = [k for k, v in keadaan.items() if v != "posted"]
+    if belum:
+        galat.append(f"putaran berhenti pada kegagalan — masih draf: {belum}")
+
+    pg.wait_for_timeout(1500)
+    out["jv_akhir"] = pg.evaluate(SEL)
+    if out["jv_akhir"]["tercentang"]:
+        galat.append("seleksi tidak dikosongkan setelah aksi massal dijalankan")
+
+    out["galat"] = galat
+    out["failed_checks"] = galat
+    out["ok"] = not galat
+    return out
+
+
+
+# Baris tampilan tersimpan (UI-4c). Satu bacaan, dipakai setiap langkah di bawah.
+VIEWS = """() => {
+  const row = document.querySelector('.chips.views');
+  const wrap = (c) => c.closest('.chip-wrap');
+  return {
+    ada: !!row,
+    tersembunyi: row ? row.hidden : null,
+    label: row && !row.hidden ? ((row.querySelector('.chips-label') || {}).innerText || '').trim() : null,
+    chips: row ? [...row.querySelectorAll('.chip-view')].map((c) => ({
+      nama: c.innerText.trim(),
+      aktif: c.classList.contains('on'),
+      pressed: c.getAttribute('aria-pressed'),
+      // Keaktifan harus TERLIHAT, bukan hanya berupa kelas: chip aktif dan chip
+      // biasa yang menggambar latar yang sama adalah keadaan yang tidak pernah
+      // sampai ke mata siapa pun.
+      latar: wrap(c) ? getComputedStyle(wrap(c)).backgroundColor : null,
+      buang: !!(wrap(c) && wrap(c).querySelector('.chip-x')),
+    })) : [],
+    simpan: row ? [...row.querySelectorAll('button.btn')].map((b) => b.innerText.trim()) : [],
+    saring: [...document.querySelectorAll('.chips.active-filters .chip')].length,
+    baris: document.querySelectorAll('table.data tbody tr').length,
+    url: (location.hash.split('?')[1] || ''),
+  };
+}"""
+
+
+@scenario("S46_tampilan_tersimpan")
+def s46(browser):
+    """UI-4c: keadaan layar daftar yang diberi nama — dan yang benar-benar mengikuti ORANGNYA.
+
+    Dijalankan dengan DUA konteks peramban, dan itu syarat utamanya: sebuah tampilan
+    yang hanya hidup di localStorage adalah persis cacat yang P1-C pindahkan favorit ke
+    server untuk memperbaikinya (disusun di desktop kantor, tidak ada di tablet
+    lapangan). Konteks kedua tidak pernah menyimpan apa pun; kalau ia melihat
+    tampilannya, yang menyimpan adalah `core_user_preferences`.
+    """
+    admin = token_for("admin@nusantara.test")
+    # Mulai dari nol supaya "chip lahir" benar-benar berarti lahir.
+    api("core/me/preferences/list.views", admin, "PUT", {"value": []})
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    galat = []
+    out = {}
+    # Sebuah pengecualian di paintViews() menghentikan renderAll() SEBELUM baris
+    # chip saringan lahir — layar yang kehilangan separuh dirinya tanpa satu pun
+    # gerbang di bawah yang menyadarinya.
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+
+    try:
+        login(pg, "admin@nusantara.test")
+
+        RUTE = "#/r/procurement/purchase-orders"
+
+        # 1. Polos, belum ada tampilan: barisnya TIDAK ADA di layar.
+        pg.goto(BASE + RUTE); pg.wait_for_timeout(2200)
+        out["polos"] = pg.evaluate(VIEWS)
+        if out["polos"]["tersembunyi"] is not True:
+            galat.append("baris tampilan terlihat padahal belum ada tampilan tersimpan dan daftarnya polos")
+
+        # 2. Tersaring: barisnya muncul, dengan tawaran menyimpan dan nol chip.
+        pg.goto(BASE + RUTE + "?q=PO&status=approved"); pg.wait_for_timeout(2400)
+        out["tersaring"] = pg.evaluate(VIEWS)
+        if out["tersaring"]["tersembunyi"] is not False:
+            galat.append("daftar tersaring tetapi baris tampilan masih tersembunyi")
+        if out["tersaring"]["simpan"] != ["Simpan tampilan ini"]:
+            galat.append(f"tawaran menyimpan tidak ada: {out['tersaring']['simpan']}")
+
+        # 3. Simpan.
+        click(pg, ".chips.views button.btn"); pg.wait_for_timeout(700)
+        pg.fill(".modal input[type=text]", "Menunggu saya")
+        click(pg, ".modal .modal-foot .btn.primary"); pg.wait_for_timeout(1800)
+        out["tersimpan"] = pg.evaluate(VIEWS)
+        out["toast"] = toasts(pg)
+
+        m = out["tersimpan"]
+        if len(m["chips"]) != 1 or m["chips"][0]["nama"] != "Menunggu saya":
+            galat.append(f"chip tampilan tidak lahir: {m['chips']}")
+        elif not m["chips"][0]["aktif"] or m["chips"][0]["pressed"] != "true":
+            galat.append("tampilan yang baru disimpan adalah yang sedang tampil, tetapi chipnya tidak aktif")
+        elif not m["chips"][0]["buang"]:
+            galat.append("chip tampilan tidak punya tombol hapus — ia akan menumpuk selamanya")
+        if m["simpan"]:
+            galat.append(f"tawaran menyimpan masih ada padahal yang tampil persis tampilan tersimpan: {m['simpan']}")
+        if not any("Menunggu saya" in t for t in out["toast"]):
+            galat.append(f"toast tidak menyebut nama tampilannya: {out['toast']}")
+
+        # 4. SERVER yang menyimpannya, dibaca lewat API — bukan dari layar.
+        _, body = api("core/me/preferences", admin)
+        rows = {r["key"]: r["value"] for r in (body.get("data") or [])}
+        out["server"] = rows.get("list.views")
+        if not isinstance(out["server"], list) or len(out["server"]) != 1:
+            galat.append(f"core_user_preferences tidak memegang tampilannya: {out['server']}")
+        else:
+            row = out["server"][0]
+            if row.get("route") != "r/procurement/purchase-orders" or row.get("name") != "Menunggu saya":
+                galat.append(f"baris server bukan tampilan yang disimpan: {row}")
+            # Yang disimpan adalah QUERY STRING-nya, bukan bentuk data kedua.
+            if sorted((row.get("query") or "").split("&")) != ["q=PO", "status=approved"]:
+                galat.append(f"query tersimpan bukan query string layarnya: {row.get('query')!r}")
+
+        # 5. Keadaan lain: chipnya tidak aktif, dan tawaran menyimpan kembali.
+        pg.goto(BASE + RUTE + "?status=draft"); pg.wait_for_timeout(2400)
+        out["beda"] = pg.evaluate(VIEWS)
+        if out["beda"]["chips"] and out["beda"]["chips"][0]["aktif"]:
+            galat.append("chip tampilan menyala untuk saringan yang bukan tampilannya")
+        if not out["beda"]["simpan"]:
+            galat.append("keadaan baru tidak menawarkan disimpan")
+        # Aktif vs tidak aktif harus BERBEDA di layar, bukan hanya di kelasnya.
+        if out["tersimpan"]["chips"] and out["beda"]["chips"]:
+            if out["tersimpan"]["chips"][0]["latar"] == out["beda"]["chips"][0]["latar"]:
+                galat.append(f"chip aktif dan chip biasa menggambar latar yang sama ({out['beda']['chips'][0]['latar']})")
+
+        # 6. Terapkan: URL-nya kembali PERSIS.
+        click(pg, ".chip-view"); pg.wait_for_timeout(2200)
+        out["diterapkan"] = pg.evaluate(VIEWS)
+        if sorted(out["diterapkan"]["url"].split("&")) != ["q=PO", "status=approved"]:
+            galat.append(f"menerapkan tampilan tidak memulihkan keadaannya: {out['diterapkan']['url']!r}")
+        if not (out["diterapkan"]["chips"] and out["diterapkan"]["chips"][0]["aktif"]):
+            galat.append("tampilan diterapkan tetapi chipnya tidak menyala")
+
+        # 7. URUTAN MENGISI FILTER TIDAK MENGUBAH KEAKTIFAN.
+        #
+        #    Lewat KONTROLNYA sendiri, bukan lewat URL, dan di layar dengan DUA
+        #    filter <select>. Seed dari URL selalu membangun ui.filters urut
+        #    deklarasi skema, jadi dua URL dengan parameter terbalik menghasilkan
+        #    string yang sama persis dan tidak menguji apa pun — versi pertama
+        #    gerbang ini melakukan itu, dan tetap hijau saat pembakuan urutannya
+        #    dibuang. Yang benar-benar bervariasi adalah urutan ORANGNYA mengisi:
+        #    `ui.filters[key] = value` menyisipkan kunci sesuai urutan klik.
+        PENAWARAN = "#/r/crm/quotations"
+        pg.goto(BASE + PENAWARAN); pg.wait_for_timeout(2600)
+        pilihan = pg.evaluate("""() => ({
+          status: [...document.querySelectorAll('.filters select[aria-label="Status"] option')].map((o) => o.value).filter(Boolean),
+          lingkup: [...document.querySelectorAll('.filters select[aria-label="Lingkup"] option')].map((o) => o.value).filter(Boolean),
+        })""")
+        if not pilihan["status"] or not pilihan["lingkup"]:
+            out["SKIPPED"] = f"layar penawaran tidak punya dua filter select: {pilihan}"
+            return out
+        st, lk = pilihan["status"][0], pilihan["lingkup"][0]
+
+        pg.select_option('.filters select[aria-label="Status"]', st); pg.wait_for_timeout(1700)
+        pg.select_option('.filters select[aria-label="Lingkup"]', lk); pg.wait_for_timeout(1900)
+        out["urutan_a"] = pg.evaluate(VIEWS)
+
+        click(pg, ".chips.views button.btn"); pg.wait_for_timeout(700)
+        pg.fill(".modal input[type=text]", "Urutan A")
+        click(pg, ".modal .modal-foot .btn.primary"); pg.wait_for_timeout(1800)
+
+        # Saringan yang SAMA, diisi TERBALIK: Lingkup dulu, baru Status.
+        click(pg, ".chips.active-filters button.btn"); pg.wait_for_timeout(1900)   # Hapus semua
+        pg.select_option('.filters select[aria-label="Lingkup"]', lk); pg.wait_for_timeout(1700)
+        pg.select_option('.filters select[aria-label="Status"]', st); pg.wait_for_timeout(1900)
+        out["urutan_terbalik"] = pg.evaluate(VIEWS)
+
+        if out["urutan_terbalik"]["url"] == out["urutan_a"]["url"]:
+            galat.append(f"kedua urutan menghasilkan query yang sama ({out['urutan_a']['url']!r}) — "
+                         "gerbang ini tidak menguji apa pun")
+        elif not any(c["aktif"] for c in out["urutan_terbalik"]["chips"]):
+            galat.append("saringan yang SAMA, diisi dengan urutan berbeda, dibaca sebagai tampilan lain: "
+                         f"{out['urutan_a']['url']!r} vs {out['urutan_terbalik']['url']!r}")
+
+        pg.goto(BASE + RUTE + "?q=PO&status=approved"); pg.wait_for_timeout(2400)
+
+        # 8. Tampilan "semua": query KOSONG, dan menerapkannya benar-benar MEMBUANG
+        #    saringan yang sedang terpasang. seedFromUrl sendiri tidak mereset apa pun
+        #    untuk query yang tidak mengandung kunci yang dikenalnya.
+        #    Saringannya dibuang lewat "Hapus semua" dan bukan dengan membuka URL
+        #    polos: URL tanpa satu kunci pun yang dikenali sengaja MEMBIARKAN state
+        #    in-memory hidup (navigasi sidebar harus mengingat saringan yang tadi
+        #    dipasang), jadi layar itu masih tersaring — dan masih tampilan yang sama.
+        click(pg, ".chips.active-filters button.btn"); pg.wait_for_timeout(2200)
+        out["setelah_hapus_saringan"] = pg.evaluate(VIEWS)
+        if out["setelah_hapus_saringan"]["url"] != "":
+            galat.append(f"'Hapus semua' menyisakan saringan: {out['setelah_hapus_saringan']['url']!r}")
+        click(pg, ".chips.views button.btn"); pg.wait_for_timeout(700)
+        pg.fill(".modal input[type=text]", "Semua PO")
+        click(pg, ".modal .modal-foot .btn.primary"); pg.wait_for_timeout(1800)
+
+        pg.goto(BASE + RUTE + "?q=PO&status=approved"); pg.wait_for_timeout(2400)
+        out["sebelum_semua"] = pg.evaluate(VIEWS)
+        pg.evaluate("""() => {
+          const chip = [...document.querySelectorAll('.chip-view')].find(c => c.innerText.trim() === 'Semua PO');
+          chip.click();
+        }""")
+        pg.wait_for_timeout(2200)
+        out["semua"] = pg.evaluate(VIEWS)
+        if out["semua"]["url"] != "":
+            galat.append(f"tampilan 'semua' tidak membuang saringannya: url masih {out['semua']['url']!r}")
+        if out["semua"]["saring"]:
+            galat.append(f"{out['semua']['saring']} chip saringan masih terpasang setelah tampilan 'semua' diterapkan")
+
+        # 9. PERAMBAN KEDUA, konteks bersih: ia tidak pernah menyimpan apa pun.
+        ctx2 = browser.new_context(viewport={"width": 1440, "height": 900})
+        pg2 = ctx2.new_page()
+        try:
+            login(pg2, "admin@nusantara.test")
+            pg2.goto(BASE + RUTE); pg2.wait_for_timeout(2400)
+            out["peramban_kedua"] = pg2.evaluate(VIEWS)
+            names = sorted(c["nama"] for c in out["peramban_kedua"]["chips"])
+            if names != ["Menunggu saya", "Semua PO"]:
+                galat.append(f"peramban kedua tidak melihat tampilan yang sama: {names} — ia hidup di localStorage, bukan di akun")
+            pg2.screenshot(path=f"{OUT}/s46-tampilan.png")
+        finally:
+            ctx2.close()
+
+        # 10. Hapus: dikonfirmasi, chipnya hilang, dan baris server ikut menyusut.
+        # …dan TAUTAN ke keadaan yang tadi dibuka benar-benar menggambarnya lagi.
+        #
+        # Router menyimpan hash PENUH di `current` dan melewatkan hashchange yang
+        # sama dengannya. syncUrl/applyView yang menulis URL lewat
+        # history.replaceState langsung membuat `current` basi: layar tetap
+        # menampilkan tampilan "semua" sementara bilah alamat berkata tersaring,
+        # tanpa satu pun galat. Gerbang inilah yang menuntut keduanya sepadan.
+        pg.goto(BASE + RUTE + "?q=PO&status=approved"); pg.wait_for_timeout(2400)
+        out["sebelum_hapus"] = pg.evaluate(VIEWS)
+        if out["sebelum_hapus"]["saring"] != 2 or out["sebelum_hapus"]["url"] != "q=PO&status=approved":
+            galat.append("tautan ke keadaan yang tadi dibuka tidak menggambarnya lagi — "
+                         f"URL {out['sebelum_hapus']['url']!r} tetapi {out['sebelum_hapus']['saring']} chip saringan")
+        if any(c["aktif"] and c["nama"] == "Semua PO" for c in out["sebelum_hapus"]["chips"]):
+            galat.append("layar masih menampilkan tampilan 'Semua PO' padahal URL-nya tersaring")
+        click(pg, ".chip-wrap .chip-x"); pg.wait_for_timeout(700)
+        out["dialog_hapus"] = pg.evaluate(
+            "() => { const m = document.querySelector('.modal'); return m ? m.innerText.replace(/\\n+/g, ' | ').slice(0, 300) : null; }")
+        if not out["dialog_hapus"]:
+            galat.append("menghapus tampilan tersimpan tidak dikonfirmasi")
+        click(pg, ".modal .modal-foot .btn.danger"); pg.wait_for_timeout(1800)
+        out["setelah_hapus"] = pg.evaluate(VIEWS)
+        if any(c["nama"] == "Menunggu saya" for c in out["setelah_hapus"]["chips"]):
+            galat.append("tampilan yang dihapus masih tergambar")
+        # Daftar yang sedang tampil TIDAK ikut berubah: yang dihapus tampilannya.
+        # Dibandingkan dengan keadaan TEPAT SEBELUM klik hapus, bukan dengan
+        # pengukuran beberapa langkah sebelumnya: dua pengukuran yang dipisahkan
+        # empat navigasi membandingkan lebih dari satu perubahan.
+        if out["setelah_hapus"]["saring"] != out["sebelum_hapus"]["saring"]:
+            galat.append(f"menghapus tampilan ikut mengubah saringan yang sedang terpasang "
+                         f"({out['sebelum_hapus']['saring']} → {out['setelah_hapus']['saring']})")
+        if out["setelah_hapus"]["url"] != out["sebelum_hapus"]["url"]:
+            galat.append(f"menghapus tampilan ikut mengubah URL layarnya "
+                         f"({out['sebelum_hapus']['url']!r} → {out['setelah_hapus']['url']!r})")
+
+        _, body = api("core/me/preferences", admin)
+        rows = {r["key"]: r["value"] for r in (body.get("data") or [])}
+        out["server_akhir"] = rows.get("list.views")
+        # Disaring per rute: sejak langkah 7 akun ini juga memegang tampilan
+        # layar jurnal, dan tampilan layar lain tidak ada urusannya dengan
+        # penghapusan di layar PO.
+        po = [v.get("name") for v in (out["server_akhir"] or []) if v.get("route") == "r/procurement/purchase-orders"]
+        if po != ["Semua PO"]:
+            galat.append(f"penghapusan tidak sampai ke server: {po}")
+    finally:
+        ctx.close()
+        api("core/me/preferences/list.views", admin, "PUT", {"value": []})
+
+    out["console_errors"] = errors
+    if errors:
+        galat.append(f"galat konsol: {errors[:3]}")
+
+    out["galat"] = galat
+    out["failed_checks"] = galat
+    out["ok"] = not galat
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -12518,7 +13385,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

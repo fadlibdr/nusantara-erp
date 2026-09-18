@@ -55,7 +55,7 @@ const RECENT_FIELDS = ['route', 'label', 'sub', 'at'];
  * pun — dan angka yang diumumkannya (16384) bukan angka yang berlaku untuk
  * kedua kunci ini (4096 dan 8192).
  */
-const LIMIT_DEFAULTS = { favorites: 50, recent: 20 };
+const LIMIT_DEFAULTS = { favorites: 50, recent: 20, 'list.views': 20 };
 const limits = { ...LIMIT_DEFAULTS };
 
 function limitOf(key) {
@@ -352,6 +352,59 @@ export function rememberRecent(route, label, sub) {
   return next;
 }
 
+/* ----------------------------------------------------- tampilan tersimpan
+ *
+ * Satu tampilan = { route, name, query } — dan `query` adalah PERSIS query
+ * string yang syncUrl() milik list.js tulis ke bilah alamat. Sebuah tampilan
+ * tersimpan karena itu bukan bentuk data baru: ia sebuah tautan yang disalin
+ * dari bilah alamat, dengan nama.
+ *
+ * Aturannya di SINI dan bukan di list.js, dengan alasan yang sama seperti
+ * favorit: bentuk ini adalah KONTRAK dengan validator server
+ * (UserPreferences::keys()['list.views']), dan plafonnya diumumkan server lewat
+ * meta.keys. Yang menyalinnya ke layar kedua nanti tidak boleh menyalin
+ * bentuknya juga.
+ */
+
+/** @returns {Array<{route:string,name:string,query:string}>} tampilan layar ini, atau semuanya bila `route` kosong. */
+export function savedViews(route) {
+  const list = get('list.views', []);
+  const all = Array.isArray(list)
+    ? list.filter((one) => one && typeof one === 'object'
+      && typeof one.route === 'string' && typeof one.name === 'string')
+      .map((one) => ({ route: one.route, name: one.name, query: typeof one.query === 'string' ? one.query : '' }))
+    : [];
+  return route ? all.filter((one) => one.route === route) : all;
+}
+
+/**
+ * Simpan (atau timpa) satu tampilan. `null` = ditolak karena plafon penuh.
+ *
+ * TIDAK memakai `.slice(-limit)` seperti toggleFavorite: membuang yang tertua
+ * diam-diam benar untuk bintang — memasangnya lagi satu klik — dan salah di
+ * sini. Sebuah tampilan bernama membawa saringan yang disusun orangnya, dan
+ * yang hilang diam-diam baru ketahuan berminggu-minggu kemudian, saat ia
+ * mencarinya. Penolakan yang menyebut plafonnya bisa dijawab; penghapusan diam
+ * tidak.
+ */
+export function saveView(route, name, query) {
+  const all = savedViews();
+  const kept = all.filter((one) => !(one.route === route && one.name === name));
+  if (kept.length >= limitOf('list.views')) return null;
+
+  const next = [...kept, { route, name, query: query || '' }];
+  set('list.views', next);
+  announce('erp:views-changed', { route, now: next.length });
+  return next.filter((one) => one.route === route);
+}
+
+export function deleteView(route, name) {
+  const next = savedViews().filter((one) => !(one.route === route && one.name === name));
+  set('list.views', next);
+  announce('erp:views-changed', { route, now: next.length });
+  return next.filter((one) => one.route === route);
+}
+
 function announce(name, detail) {
   window.dispatchEvent(new CustomEvent(name, { detail }));
 }
@@ -380,7 +433,7 @@ function loaded() {
 
 export const prefs = {
   get, set, has, load, loaded, favorites, isFavorite, toggleFavorite, recent, rememberRecent, visibleRecent, resourceKeyOf,
-  limitOf, DENSITIES,
+  savedViews, saveView, deleteView, limitOf, DENSITIES,
 };
 
 // Dibaca dari luar sebagai session.prefs (objek yang sama, bukan salinan).

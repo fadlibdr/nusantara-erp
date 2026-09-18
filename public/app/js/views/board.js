@@ -61,7 +61,7 @@ const PER_LANE = 50;
 /** Nama grup SortableJS; satu papan = satu grup. */
 const GROUP = 'erp-board';
 
-export async function renderBoard(host, { key, def }) {
+export async function renderBoard(host, { key, def, focusCardId = null }) {
   clear(host);
 
   const board = def.board;
@@ -70,15 +70,17 @@ export async function renderBoard(host, { key, def }) {
     el('div', [
       el('h1', { text: `Papan ${def.label}` }),
       el('.desc', {
-        /* Kalimat ketiga ada untuk orang yang TIDAK BISA MENYERET: papan ini
-           tidak punya jalan keyboard untuk memindahkan kartu (diukur 8 Sep
-           2026 — panah, Spasi dan Tab tidak memindahkan apa pun), dan jalan
-           yang memang ada — tombol aksi di halaman dokumennya — harus tertulis
-           di tempat orang membacanya, bukan hanya diketahui orang yang sudah
-           menemukannya. */
+        /* Kalimat ketiga ada untuk orang yang TIDAK BISA MENYERET. Sampai UI-4d
+           ia berbunyi "papan ini tidak punya jalan keyboard untuk memindahkan
+           kartu" (diukur 8 Sep 2026 — panah, Spasi dan Tab tidak memindahkan
+           apa pun) dan hanya bisa menunjuk ke tombol aksi di halaman dokumen.
+           Sekarang jalan itu ada, dan ia harus tertulis di tempat orang
+           membacanya — sebuah pintasan yang hanya diketahui penemunya bukan
+           jalan keyboard, ia rahasia. */
         text: 'Seret kartu ke kolom berikutnya untuk menjalankan aksinya. Perpindahan memakai tombol yang '
           + 'sama dengan halaman dokumen — termasuk catatan, alasan wajib, dan aturan persetujuan. '
-          + 'Tanpa menyeret: buka kartunya (Enter atau Spasi) lalu pakai tombol aksi di halaman dokumennya.',
+          + 'Dengan papan ketik: panah memindahkan fokus, Ctrl (atau ⌘) + panah kiri/kanan memindahkan '
+          + 'kartunya, dan Enter atau Spasi membuka dokumennya.',
       }),
     ]),
     el('.actions', [
@@ -114,7 +116,14 @@ export async function renderBoard(host, { key, def }) {
   }
 
   clear(body);
-  paint(body, { key, def, board, rows, lanesMeta, reload: () => renderBoard(host, { key, def }) });
+  /* `ctx` dibuat BARU pada tiap render, jadi apa pun yang dititipkan padanya
+     tidak selamat dari reload — itulah sebabnya id kartu yang harus difokus
+     lagi dibawa lewat argumen reload, bukan lewat ctx. Putaran pertama
+     menitipkannya di ctx dan fokusnya tetap hilang, tanpa satu pun galat. */
+  paint(body, {
+    key, def, board, rows, lanesMeta, focusCardId,
+    reload: (nextFocus = null) => renderBoard(host, { key, def, focusCardId: nextFocus }),
+  });
 }
 
 function paint(host, ctx) {
@@ -168,6 +177,18 @@ function paint(host, ctx) {
   host.appendChild(grid);
   ctx.grid = grid;
 
+  /* Perpindahan yang BERHASIL memanggil ctx.reload(), yang membangun ulang
+     seluruh papan — jadi kartu yang baru saja dipindahkan dengan papan ketik
+     adalah elemen yang BERBEDA, dan fokus yang menempel pada elemen lama ikut
+     hilang. Diukur: sesudah Ctrl+panah yang berhasil, document.activeElement
+     kembali ke <body>, dan pemakai papan ketik terlempar ke puncak dokumen
+     tepat setelah melakukan sesuatu yang berhasil. Id-nya dititipkan sebelum
+     perpindahan dan fokusnya dipasang lagi di sini. */
+  if (ctx.focusCardId) {
+    const back = grid.querySelector(`.board-card[data-id="${CSS.escape(String(ctx.focusCardId))}"]`);
+    if (back) back.focus();
+  }
+
   if (outside.length) {
     host.appendChild(el('p.cell-sub', {
       text: `${outside.length} dokumen berstatus di luar papan ini (${[...new Set(outside.map((row) => enumLabel(board.enum, row.status) || row.status))].join(', ')}) `
@@ -180,7 +201,8 @@ function paint(host, ctx) {
 }
 
 /** Satu kartu: kode, judul, dan angka yang membedakan satu dokumen dari lainnya. */
-function card(row, { def }) {
+function card(row, ctx) {
+  const { def } = ctx;
   const columns = def.columns || [];
   const money = columns.find((column) => column.type === 'currency');
   const date = columns.find((column) => column.type === 'date');
@@ -188,7 +210,7 @@ function card(row, { def }) {
 
   const open = () => navigate(`d/${def.apiKey || def.api}/${row.id}`);
 
-  return el('.board-card', {
+  const node = el('.board-card', {
     dataset: { id: String(row.id) },
     tabindex: '0',
     /* Bisa difokus BERARTI punya peran: tanpa role="button" pembaca layar
@@ -201,9 +223,34 @@ function card(row, { def }) {
     'aria-label': `${row.code || `#${row.id}`} — buka dokumennya`,
     onclick: open,
     onkeydown: (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+      if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+        event.preventDefault();
+        open();
+        return;
+      }
+
+      /*
+       * Jalan keyboard (UI-4d). Sampai sini papan ini TIDAK punya satu pun —
+       * `.desc`-nya sendiri mengakuinya sejak 8 Sep 2026 ("panah, Spasi dan Tab
+       * tidak memindahkan apa pun"), dan satu-satunya jalan bagi orang yang
+       * tidak bisa menyeret adalah membuka dokumennya lalu memakai tombol aksi
+       * di sana.
+       *
+       * Panah polos memindahkan FOKUS; panah bermodifier memindahkan KARTU.
+       * Enter dan Spasi sengaja tidak dipakai untuk "angkat kartu" seperti pola
+       * kanban yang lazim: keduanya sudah membuka dokumen, itu perilaku yang
+       * didokumentasikan dan diuji, dan menukar maknanya di papan akan membuat
+       * tombol yang sama berarti dua hal berbeda di dua layar.
+       */
+      const sideways = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+      const vertical = { ArrowUp: -1, ArrowDown: 1 }[event.key];
+      if (sideways === undefined && vertical === undefined) return;
       event.preventDefault();
-      open();
+
+      const moving = event.ctrlKey || event.metaKey || event.altKey;
+      if (sideways !== undefined && moving) moveCardByKeyboard(node, sideways, ctx);
+      else if (sideways !== undefined) focusAcross(node, sideways, ctx);
+      else focusWithinLane(node, vertical);
     },
   }, [
     el('.board-card-head', [
@@ -234,6 +281,73 @@ function card(row, { def }) {
       .filter((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')
       .map((field) => el('span.cell-sub', { text: String(row[field]), style: { display: 'block' } }))),
   ]);
+
+  return node;
+}
+
+/** Kolom-kolom kartu papan, kiri ke kanan. */
+function lanesOf(ctx) {
+  return ctx.grid ? [...ctx.grid.querySelectorAll('.board-cards')] : [];
+}
+
+/**
+ * Memindahkan kartu dengan papan ketik — lewat JALUR YANG SAMA dengan seretan.
+ *
+ * Yang dibangun di sini hanyalah bentuk peristiwa yang SortableJS berikan
+ * (`item`, `from`, `to`, `oldIndex`); keputusannya — `refuse()`, aksi yang
+ * dijalankan, catatan wajib, aturan persetujuan, dan pengembalian kartu saat
+ * gagal — tetap milik onDrop. Menyalin kebijakan itu ke jalur kedua berarti dua
+ * salinan yang akan hanyut, dan yang hanyut di sini adalah siapa boleh
+ * menyetujui apa.
+ */
+function moveCardByKeyboard(node, direction, ctx) {
+  const from = node.parentElement;
+  const lanes = lanesOf(ctx);
+  const to = lanes[lanes.indexOf(from) + direction];
+  if (!to) return;                          // sudah di ujung papan
+
+  const oldIndex = [...from.children].indexOf(node);
+  to.appendChild(node);
+  node.focus();
+  /* Dititipkan SEBELUM perpindahan: kalau ia berhasil, ctx.reload() membangun
+     ulang papan dan kartunya menjadi elemen baru — lihat pemulihan fokus di
+     renderLanes. Kalau ia ditolak atau gagal, putBack() memindahkan node yang
+     SAMA kembali dan fokusnya ikut tanpa perlu apa pun. */
+  ctx.movedByKeyboard = node.dataset.id;
+
+  /* Fokus dipasang lagi SESUDAH onDrop selesai, dan dua jalannya berbeda.
+     Diukur, bukan diasumsikan: memindahkan elemen yang sedang difokus dengan
+     appendChild/insertBefore MELEPAS fokusnya di Chromium — jadi baik
+     putBack() maupun reload() meninggalkan pemakai papan ketik di <body>,
+     tepat sesudah ia melakukan sesuatu. Komentar pertama saya di baris ini
+     mengklaim sebaliknya.
+       - ditolak / gagal: node yang SAMA dikembalikan, jadi ia masih terpasang
+         dan cukup difokus lagi di sini;
+       - berhasil: ctx.reload() menggantinya dengan elemen baru, jadi node ini
+         tidak lagi terpasang dan yang memulihkan fokus adalah renderLanes,
+         lewat id yang dibawa argumen reload. */
+  onDrop({ item: node, from, to, oldIndex }, ctx).then(() => {
+    if (node.isConnected) node.focus();
+  });
+}
+
+/** Fokus ke kolom sebelah, pada posisi yang sedekat mungkin dengan yang sekarang. */
+function focusAcross(node, direction, ctx) {
+  const from = node.parentElement;
+  const lanes = lanesOf(ctx);
+  const to = lanes[lanes.indexOf(from) + direction];
+  if (!to) return;
+  const at = [...from.children].indexOf(node);
+  const cards = [...to.querySelectorAll('.board-card')];
+  const target = cards[Math.min(at, cards.length - 1)];
+  if (target) target.focus();
+}
+
+/** Fokus naik/turun di dalam kolom yang sama. */
+function focusWithinLane(node, direction) {
+  const cards = [...node.parentElement.querySelectorAll('.board-card')];
+  const target = cards[cards.indexOf(node) + direction];
+  if (target) target.focus();
 }
 
 /**
@@ -343,7 +457,7 @@ async function onDrop(event, ctx) {
   // Berhasil: muat ulang, karena satu aksi bisa mengubah lebih dari satu
   // medan kartu (kode, nilai, tanggal) dan karena server berhak menaruh
   // dokumennya di status yang BUKAN kolom tujuan.
-  ctx.reload();
+  ctx.reload(ctx.movedByKeyboard || null);
 }
 
 /**

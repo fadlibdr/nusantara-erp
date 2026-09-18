@@ -2659,6 +2659,20 @@ export const RESOURCES = {
       }],
     },
     detail: {
+      /*
+       * Pengelompokan panel Informasi (UI-4f). Kunci OPSIONAL: sumber daya yang
+       * tidak menyatakannya tetap rata. PO dipakai sebagai contoh pertama —
+       * ia memajang 13 medan, yang justru kasus tempat satu daftar rata
+       * berhenti bisa dibaca. Adopsi untuk sumber daya lain milik UI-6.
+       *
+       * Apa pun yang tidak disebut di sini TETAP tergambar, di blok terakhir
+       * tanpa judul; menyebut sebuah kelompok tidak boleh menghilangkan medan.
+       */
+      groups: [
+        { label: 'Asal & tujuan', keys: ['rfq_id', 'project_id', 'warehouse_id', 'delivery_address'] },
+        { label: 'Jadwal', keys: ['order_date', 'expected_date'] },
+        { label: 'Termin & pajak', keys: ['payment_term_days', 'ppn_rate', 'needs_director_approval'] },
+      ],
       summary: ['subtotal', 'discount_amount', 'dpp', 'ppn_amount', 'total'],
       tables: [{
         key: 'items', label: 'Item pesanan',

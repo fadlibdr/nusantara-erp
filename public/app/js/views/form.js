@@ -675,7 +675,47 @@ function clearCellError(cell) {
  * kontrak yang disimpan ke crm/quotations/{id}/create-contract (T3.6);
  * lihat `submitTo` di actions.js.
  */
-export async function openForm({ def, key, row, prefill, onSaved, endpoint = null }) {
+/*
+ * Presenter bawaan: dialog — bentuk yang dipakai 57 sumber daya tanpa `lines`.
+ * `footer` diterima sebagai fungsi supaya tombol Batal bisa memanggil
+ * requestClose() milik permukaan yang BELUM ada saat footernya disusun.
+ */
+export function presentModal(spec) {
+  return modal(spec);
+}
+
+/*
+ * Dialog atau halaman? (UI-4d)
+ *
+ * Aturan pemutusnya keputusan pemilik #2 seperti yang rencana tulis: apakah
+ * sumber daya menyatakan `lines`. Terukur pada schema.js — 92 sumber daya
+ * berformulir, 35 menyatakan lines. Formulir master-data empat medan tidak
+ * mendapat apa-apa dari sebuah halaman; yang punya tabel baris mendapat 89 px
+ * (ASESMEN-UX §1.2: tabel baris mulai y = 843 di modal 960 px, 754 di halaman).
+ */
+export function formIsPaged(def) {
+  return Boolean(def && def.form && (def.form.lines || []).length);
+}
+
+/*
+ * Jalan masuk GENERIK ke formulir: halaman bila sumber dayanya berbaris,
+ * dialog bila tidak.
+ *
+ * `prefill` dan `endpoint` memaksa dialog, dan itu batas yang jujur: keduanya
+ * membawa konteks yang hanya dimiliki pemanggilnya ("Tagih termin ini" sudah
+ * tahu kontrak, pelanggan dan termin mana), dan sebuah URL tidak bisa
+ * menyusunnya kembali. Memaksa mereka ke halaman berarti membuang isian yang
+ * sudah diketahui.
+ */
+export function startForm({ def, key, row, prefill, onSaved, endpoint = null }) {
+  if (!prefill && !endpoint && formIsPaged(def)) {
+    navigate(row ? `f/${key}/${row.id}` : `f/${key}`);
+    return undefined;
+  }
+  return openForm({ def, key, row, prefill, onSaved, endpoint });
+}
+
+export async function openForm({ def, key, row, prefill, onSaved, endpoint = null, present = presentModal }) {
   const isEdit = Boolean(row);
   const sections = def.form.sections || [];
   const lineDefs = def.form.lines || [];
@@ -929,7 +969,21 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
   body.addEventListener('change', scheduleDraft, true);
   const unregisterFlush = registerDraftFlush(persistDraft);
 
-  const dialog = modal({
+  /*
+   * Permukaannya dipilih pemanggil (UI-4d), isinya tidak.
+   *
+   * Semua di atas — kontrol, tabel baris, snapshot, draf otomatis, pemetaan
+   * galat 422 — dibangun sekali dan tidak tahu ia akan duduk di dalam dialog
+   * atau di dalam halaman. Yang membedakan keduanya hanya DUA hal, dan itulah
+   * sebabnya seam ini sesempit ini: `requestClose()` yang bertanya lebih dulu,
+   * dan `close()` yang tidak. Tidak ada cabang `if (halaman)` di bawah sini.
+   *
+   * Tombol Batal menutup `dialog` sebelum ia ada — sama seperti sebelumnya:
+   * penanganya baru berjalan setelah present() kembali.
+   */
+  // eslint-disable-next-line prefer-const -- footer menutup `dialog` sebelum ia ada
+  let dialog;
+  dialog = present({
     title: `${isEdit ? 'Ubah' : 'Tambah'} ${def.labelOne}`,
     width: lineDefs.length ? 'wide' : '',
     body,
