@@ -12,7 +12,7 @@
  */
 
 import { api } from '../api.js';
-import { el, icon } from '../ui.js';
+import { el, icon, reportHead } from '../ui.js';
 import * as fmt from '../format.js';
 
 const ACTIVITY_LABELS = {
@@ -85,6 +85,14 @@ export async function cashFlowStatement(controls, params, refresh) {
   );
 
   return el('.stack.loose', [
+    reportHead('Laporan Arus Kas', [
+      ['Periode', `${fmt.date(report.from)} – ${fmt.date(report.to)}`],
+      // Metodenya bukan tebakan: kontrak modul ini (komentar kepala berkas)
+      // menyebut PSAK 2 metode langsung, dan tabelnya memang per akun lawan.
+      ['Metode', 'Langsung (PSAK 2)'],
+      ['Rekonsiliasi', report.reconciled ? 'Saldo awal + arus = saldo akhir' : 'TIDAK cocok'],
+      ['Mata uang', 'IDR — rupiah penuh'],
+    ]),
     el(`.alert.${report.reconciled ? 'info' : 'error'}`, [
       icon(report.reconciled ? 'check' : 'warn', 15),
       el('div', {
@@ -167,6 +175,17 @@ export async function cashProjection(controls, params, refresh) {
   const overdueBucket = report.buckets.find((bucket) => bucket.key === 'overdue');
 
   return el('.stack.loose', [
+    reportHead('Proyeksi Kas', [
+      // as_of dari SERVER — jam klien tidak dipercaya di berkas ini, lihat
+      // catatan di ubin "Saldo kas hari ini".
+      ['Per tanggal', fmt.dateLong(report.as_of)],
+      ['Horizon', `${days} hari ke depan`],
+      // Kontrak angka yang komentar kepala berkas ini sebut: piutang telat
+      // TIDAK ikut saldo berjalan. Sebuah proyeksi yang tidak menyebutkan itu
+      // terbaca lebih pesimis daripada yang dimaksud.
+      ['Piutang lewat jatuh tempo', 'Tidak masuk saldo berjalan'],
+      ['Mata uang', 'IDR — rupiah penuh'],
+    ]),
     report.warnings.length
       ? el('.alert.error', [
         icon('warn', 15),

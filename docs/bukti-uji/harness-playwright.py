@@ -633,7 +633,8 @@ UI2_MEASURE = """() => {
     document.querySelector('.main').appendChild(n);
     const cs = getComputedStyle(n);
     const r = { display: cs.display, flexDirection: cs.flexDirection, gap: cs.gap,
-                fontSize: cs.fontSize, flexGrow: cs.flexGrow, fontWeight: cs.fontWeight };
+                fontSize: cs.fontSize, flexGrow: cs.flexGrow, fontWeight: cs.fontWeight,
+                color: cs.color };
     n.remove();
     return r;
   };
@@ -663,6 +664,20 @@ UI2_MEASURE = """() => {
   // dengan spesifisitas yang sama, jadi ia diam-diam mengalahkan setiap .fs-* pada
   // elemen mono — dan tidak ada satu pun agen yang tersandung. Ukurannya dipaku di
   // sini supaya urutan itu tidak bisa terbalik lagi tanpa suara.
+  /* NADA harus MENANG atas warna komponen (UI-6a). `.tone-*` lahir di UI-2 pada
+     baris 343, SEBELUM setiap kelas komponen yang menyetel warnanya sendiri pada
+     spesifisitas yang sama — `.muted`, `.cell-sub`, `.module-kpi-label`. Akibatnya
+     `.cell-sub.tone-neg` tergambar abu-abu, bukan merah. Diukur di sini pada
+     kombinasi yang sesungguhnya, bukan pada kelas nada sendirian. */
+  out.tone_cascade = {
+    neg_alone: probe('tone-neg').color,
+    neg_on_cell_sub: probe('cell-sub tone-neg').color,
+    neg_on_muted: probe('muted tone-neg').color,
+    danger: (() => { const n = document.createElement('div');
+      n.style.color = 'var(--danger)'; document.querySelector('.main').appendChild(n);
+      const c = getComputedStyle(n).color; n.remove(); return c; })(),
+  };
+
   out.mono_cascade = { mono_only: probe('mono').fontSize,
                        mono_secondary: probe('mono fs-secondary').fontSize,
                        mono_body: probe('mono fs-body').fontSize };
@@ -770,6 +785,13 @@ def s43(pg):
             galat.append(f"{tema}: .mono.fs-secondary {m['mono_cascade']['mono_secondary']} != 12px — urutan .mono/.fs-* terbalik lagi")
         if m["mono_cascade"]["mono_body"] != "13px":
             galat.append(f"{tema}: .mono.fs-body {m['mono_cascade']['mono_body']} != 13px — urutan .mono/.fs-* terbalik lagi")
+        t = m.get("tone_cascade") or {}
+        if t and t.get("danger"):
+            for kombinasi in ("neg_alone", "neg_on_cell_sub", "neg_on_muted"):
+                if t.get(kombinasi) != t["danger"]:
+                    galat.append(
+                        f"{tema}: .{kombinasi} {t.get(kombinasi)} != --danger {t['danger']} — "
+                        "kelas komponen mengalahkan utilitas nada; .tone-* harus ditulis PALING AKHIR di app.css")
         for sel, v in m["flat_shadow"].items():
             if v not in (None, "none"):
                 galat.append(f"{tema}: {sel} masih berbayang ({v})")
@@ -1134,6 +1156,122 @@ def s49(pg):
         checks.append("sumber daya tanpa detail.groups tetap dibungkus .info-group")
     if not f["dt"]:
         checks.append("panel Informasi sumber daya rata jadi kosong")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+@scenario("S50_kepala_laporan_keuangan")
+def s50(pg):
+    """UI-6a: setiap laporan keuangan menyebut NAMANYA dan parameternya — juga di kertas.
+
+    Pengukuran yang melahirkan skenario ini, 18 Sep 2026 di pohon UI-5, dengan
+    `emulate_media('print')` pada kedelapan tab #/reports: blok cetak app.css
+    menyembunyikan `.tabs` DAN `.filters`, sehingga kedelapannya keluar dari
+    printer di bawah judul yang sama persis — "Laporan Keuangan · Dihitung dari
+    jurnal yang sudah diposting." Dua lembar Laba Rugi untuk dua rentang tanggal
+    berbeda tidak bisa dibedakan, dan tidak satu lembar pun menyebut periodenya.
+
+    Jadi yang digerbangi bukan "ada div .report-head", melainkan tiga hal yang
+    membuat selembar kertas bisa dilampirkan: ia punya nama, namanya BERBEDA
+    antar laporan, dan ia masih terbaca saat media-nya cetak.
+    """
+    login(pg, "admin@nusantara.test")
+
+    HEAD = """() => {
+      const h = document.querySelector('.main .report-head');
+      if (!h) return { ada: false };
+      const t = h.querySelector('.report-title');
+      const vis = (e) => { const cs = getComputedStyle(e);
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && e.getClientRects().length > 0; };
+      return {
+        ada: true,
+        terlihat: vis(h),
+        judul: ((t || {}).innerText || '').trim(),
+        px: t ? getComputedStyle(t).fontSize : null,
+        baris: [...h.querySelectorAll('.report-meta > div')].map(d =>
+          ((d.querySelector('dt') || {}).innerText || '').trim() + ' = ' +
+          ((d.querySelector('dd') || {}).innerText || '').trim()),
+      };
+    }"""
+
+    # Tujuh tab menggambar laporannya tanpa parameter wajib; profitabilitas
+    # proyek menuntut satu proyek dipilih dulu, dan sampai itu ia memang TIDAK
+    # punya kepala — belum ada laporan yang dijalankan.
+    tabs = ["trial-balance", "profit-loss", "balance-sheet", "cash-flow",
+            "cash-projection", "ar-aging", "ap-aging"]
+    out = {"layar": {}, "kertas": {}}
+
+    for tab in tabs:
+        pg.goto(BASE + "#/reports?tab=" + tab); pg.wait_for_timeout(2600)
+        out["layar"][tab] = pg.evaluate(HEAD)
+        pg.emulate_media(media="print")
+        out["kertas"][tab] = pg.evaluate(HEAD)
+        pg.emulate_media(media="screen")
+
+    pg.goto(BASE + "#/reports?tab=project-profitability"); pg.wait_for_timeout(2600)
+    out["profitabilitas_sebelum_pilih"] = pg.evaluate(HEAD)
+    if pg.locator("select[aria-label='Proyek']").count():
+        pg.select_option("select[aria-label='Proyek']", "1"); pg.wait_for_timeout(2800)
+    out["layar"]["project-profitability"] = pg.evaluate(HEAD)
+    pg.emulate_media(media="print")
+    out["kertas"]["project-profitability"] = pg.evaluate(HEAD)
+    pg.emulate_media(media="screen")
+    pg.screenshot(path=f"{OUT}/s50-kepala-laporan.png")
+
+    # Buku besar: kepalanya baru ada sesudah satu akun dipilih, karena sampai
+    # itu belum ada buku besar — layarnya sendiri berkata "Pilih akun".
+    pg.goto(BASE + "#/buku-besar"); pg.wait_for_timeout(2400)
+    box = pg.locator("input.combo-input[aria-label='Akun']")
+    if box.count():
+        box.click(); box.fill(""); box.type("1-1210", delay=40); pg.wait_for_timeout(900)
+        pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter"); pg.wait_for_timeout(3000)
+    out["layar"]["buku-besar"] = pg.evaluate(HEAD)
+    pg.emulate_media(media="print")
+    out["kertas"]["buku-besar"] = pg.evaluate(HEAD)
+    pg.emulate_media(media="screen")
+
+    # Separuh klien dari perbaikan as_of: sampai UI-6a layar umur tidak punya
+    # kotak tanggal sama sekali dan tidak pernah mengirim parameternya, jadi
+    # umur Juni tidak bisa direkonsiliasi terhadap neraca Juni.
+    permintaan = []
+    pg.on("request", lambda r: permintaan.append(r.url) if "ar-aging" in r.url else None)
+    pg.goto(BASE + "#/reports?tab=ar-aging"); pg.wait_for_timeout(2600)
+    if pg.locator("input[aria-label='Per tanggal']").count():
+        pg.fill("input[aria-label='Per tanggal']", "2026-06-30"); pg.wait_for_timeout(2800)
+    out["umur_as_of"] = {
+        "kotak": pg.locator("input[aria-label='Per tanggal']").count(),
+        "permintaan": [u.split("/api/")[-1] for u in permintaan],
+        "kepala": pg.evaluate(HEAD),
+    }
+
+    checks = []
+    for tab, r in out["layar"].items():
+        if not r.get("ada"):
+            checks.append(f"{tab}: tidak ada kepala laporan")
+            continue
+        if not r["judul"]:
+            checks.append(f"{tab}: kepala laporan tanpa judul")
+        if not r["baris"]:
+            checks.append(f"{tab}: kepala laporan tanpa satu pun parameter — ia hanya judul kedua")
+        k = out["kertas"].get(tab) or {}
+        if not k.get("ada") or not k.get("terlihat"):
+            checks.append(f"{tab}: kepala laporan hilang di media cetak — persis keadaan yang paket ini perbaiki")
+
+    # Judulnya harus MEMBEDAKAN. Inilah cacat aslinya: delapan laporan, satu judul.
+    judul = [r["judul"] for r in out["layar"].values() if r.get("ada") and r.get("judul")]
+    if len(set(judul)) != len(judul):
+        checks.append(f"dua laporan memakai judul yang sama di kertas: {sorted(judul)}")
+    if len(judul) < 9:
+        checks.append(f"hanya {len(judul)} dari 9 laporan keuangan yang menyebut namanya")
+
+    if not out["umur_as_of"]["kotak"]:
+        checks.append("layar umur piutang tidak punya kotak 'Per tanggal'")
+    elif not any("as_of=2026-06-30" in u for u in out["umur_as_of"]["permintaan"]):
+        checks.append(
+            "tanggal yang dipilih tidak ikut terkirim ke ar-aging: "
+            f"{out['umur_as_of']['permintaan']} — server menerima as_of sejak perbaikan "
+            "penanggalan penerimaan, dan separuh kliennya yang hilang adalah cacatnya")
 
     out["failed_checks"] = checks
     out["ok"] = not checks
@@ -13423,7 +13561,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

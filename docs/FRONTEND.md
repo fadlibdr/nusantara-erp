@@ -74,7 +74,12 @@ public/app/
     format.js           id-ID money/date/percent formatting
     ui.js               el() DOM builder, buttons, badges, modal, toast (with an optional single
                         action button), offlineRibbon()/networkDown(), fields, svgIcon(),
-                        emptyState({ kind }) — CONVENTIONS §14
+                        emptyState({ kind }) — CONVENTIONS §14 — and reportHead(title, meta),
+                        the identity block of a financial report (UI-6a): its name and the
+                        parameters that produced it, on screen AND on paper. Measured before
+                        it existed: the print block hides .tabs and .filters, so all eight
+                        #/reports tabs came out of the printer under the same heading
+                        ("Laporan Keuangan") with no period on any of them
     illustrations.js    five stroke-only empty-state drawings (inbox/search/filter/error/done),
                         coloured by app.css tokens — no hex literals
     charts.js           SVG charts (line/bar/donut/sparkline/gantt) — since P1-E the ONLY

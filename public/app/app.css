@@ -339,10 +339,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Nada angka — pengganti `color: v < 0 ? 'var(--danger)' : …` sebaris.
    Dipakai HANYA pada angka yang benar-benar merugikan; kalau setiap
-   angka berwarna, tidak ada yang terbaca. */
-.tone-pos { color: var(--success); }
-.tone-neg { color: var(--danger); }
-.tone-warn { color: var(--warning); }
+   angka berwarna, tidak ada yang terbaca.
+   ATURANNYA SENDIRI ADA DI AKHIR BERKAS — lihat catatan di sana. */
 
 /* .strong sebagai utilitas, bukan hanya sebagai td.
    cells.js:52 memasang kelas ini pada <span> DI DALAM sel, sementara
@@ -1897,6 +1895,57 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   body { background: #fff; }
 }
 
+/* ----------------------------------------------------- kepala laporan
+   Blok identitas satu laporan keuangan: namanya, dan parameter yang
+   menghasilkan angkanya. Dibangun `reportHead()` di ui.js — komentar di sana
+   memuat pengukuran yang melahirkannya dan tiga baris yang SENGAJA tidak ada.
+
+   Ukuran judulnya beda di layar dan di kertas, dan itu keputusan, bukan
+   kelalaian. Di LAYAR halaman sudah punya h1 ("Laporan Keuangan") dan tab yang
+   menyebut laporannya, jadi judul ini kepala seksi: --fs-section. Di KERTAS
+   keduanya hilang — blok cetak menyembunyikan .tabs, dan h1-nya sama untuk
+   kedelapan tab — jadi di sanalah judul ini menjadi judul dokumen: --fs-page.
+
+   Tepi dan latarnya juga hanya untuk layar: di kertas ia bukan kartu di antara
+   kartu lain, ia kop surat. */
+.report-head {
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: var(--space-4);
+}
+.report-title { font-size: var(--fs-section); letter-spacing: -.015em; }
+.report-meta {
+  display: grid; gap: var(--space-3) var(--space-5);
+  /* auto-FILL, bukan auto-fit — dan itu satu-satunya beda dari prototipe.
+     Prototipe memakai auto-fit karena kepalanya membawa enam baris dan treknya
+     memang penuh; kepala di sini membawa dua sampai lima. auto-fit MERUNTUHKAN
+     trek kosong, jadi dua parameter membagi rata seluruh lebar: diukur 18 Sep
+     2026 pada lembar Laba Rugi tanpa saring proyek, keduanya terlempar 550 px
+     berjauhan dan terbaca sebagai kecelakaan tata letak. auto-fill menahan trek
+     kosongnya, jadi dua parameter duduk di dua trek pertama.
+
+     Membatasi trek ke 220 px sempat dicoba dan LEBIH BURUK: kotak isi kepala
+     pada 768 px hanya 434 px, dan 220 + 20 + 220 = 460 tidak muat, jadi kisinya
+     runtuh ke satu kolom dan kepalanya tumbuh 169 → 269 px. */
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  margin: var(--space-4) 0 0; padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.report-meta dt {
+  font-size: var(--fs-caption); font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
+}
+.report-meta dd { margin: 2px 0 0; font-size: var(--fs-body); font-variant-numeric: tabular-nums; }
+@media print {
+  .report-head {
+    padding: 0; border: 0; border-radius: 0; background: none;
+    margin-bottom: 10px; break-after: avoid; break-inside: avoid;
+  }
+  .report-title { font-size: var(--fs-page); }
+  .report-meta { margin-top: 8px; padding-top: 6px; gap: 6px var(--space-5); }
+}
+
 /* Judul khusus cetak (dipakai layar run PSAK 115): di layar judulnya kode run
    di .page-head, tetapi kertas yang dilampirkan KAP sebagai working paper
    harus menyebut nama laporannya — "WIP Schedule", bukan "REV/2026/…". */
@@ -2830,3 +2879,33 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 @media (max-width: 760px) {
   .board-lane { flex-basis: 78vw; min-width: 78vw; }
 }
+
+/* ------------------------------------------------------ nada angka (UI-6a) */
+/*
+ * `.tone-pos` / `.tone-neg` / `.tone-warn` ditulis PALING AKHIR, dan itu satu-
+ * satunya alasan mereka bekerja.
+ *
+ * Mereka lahir di UI-2 sebagai utilitas, di baris 343 — SEBELUM setiap kelas
+ * komponen yang menyetel warnanya sendiri pada spesifisitas yang sama (0,1,0).
+ * Terhitung 18 Sep 2026 ada LIMA BELAS selektor semacam itu antara baris 343 dan
+ * aturan di bawah ini (`awk 'NR>343 && /^\.[a-z0-9-]+ \{/ && /color:/'` memberi
+ * 18 baris; tiga terakhirnya adalah `.tone-*` sendiri), di antaranya `.muted`
+ * (386), `.cell-sub` (1099), `.module-kpi-label` (1301) dan `.home-kpi-unit`
+ * (1393). Akibatnya `.cell-sub.tone-neg` tergambar ABU-ABU, bukan merah: kelas
+ * yang ditulis belakangan menang, dan angka yang seharusnya berteriak diam.
+ *
+ * Saat ditemukan belum ada satu pun pemakaian seperti itu — jebakan yang belum
+ * meledak, bukan cacat yang terlihat. Ia ditemukan bukan oleh pembacaan CSS
+ * melainkan oleh sebuah agen penyapu yang MENOLAK menukar `color: var(--danger)`
+ * sebaris pada `.cell-sub` menjadi `.tone-neg`, dan menuliskan alasannya.
+ * Penolakan itu benar. UI-6a lalu MEMBUAT pemakaian pertamanya, di kartu
+ * realisasi-vs-anggaran `reports.js` — yang kini bergantung pada urutan ini.
+ *
+ * Bentuk jebakannya sama persis dengan `.mono` lawan `.fs-*` yang UI-2b
+ * temukan, dan obatnya sama: URUTAN. Sebuah utilitas nada harus menang atas
+ * warna komponen — itulah gunanya ia ada — jadi ia ditulis terakhir.
+ * Harness S43 memaku urutan ini.
+ */
+.tone-pos { color: var(--success); }
+.tone-neg { color: var(--danger); }
+.tone-warn { color: var(--warning); }

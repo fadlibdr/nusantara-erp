@@ -322,9 +322,8 @@ async function renderFund(host, { id }) {
   host.appendChild(el('.stat-row', [
     el('.stat', [el('.label', { text: 'Dana tetap (float)' }), el('.value.sm', { text: fmt.rupiah(fund.float_amount) })]),
     el('.stat', [el('.label', { text: 'Saldo laci (GL)' }), el('.value.sm', { text: fmt.rupiah(fund.balance) })]),
-    el('.stat', [el('.label', { text: 'Perlu diisi ulang' }), el('.value.sm', {
+    el('.stat', [el('.label', { text: 'Perlu diisi ulang' }), el(due > 0 ? '.value.sm.tone-warn' : '.value.sm', {
       text: fmt.rupiah(Math.max(due, 0)),
-      style: due > 0 ? { color: 'var(--warning)' } : {},
     })]),
     el('.stat', [el('.label', { text: 'Bon belum diganti' }), el('.value.sm', { text: fmt.rupiah(fund.unreplenished_voucher_total) })]),
     el('.stat', [el('.label', { text: 'Kasbon berjalan' }), el('.value.sm', { text: fmt.rupiah(fund.outstanding_kasbon_total) })]),
@@ -355,7 +354,7 @@ async function renderFund(host, { id }) {
         // saat diajukan, sebelum uang bank bergerak.
         el('td.center', row.replenishment_payment_id
           ? (((row.replenishment_payment || {}).status || 'posted') === 'posted'
-            ? el('span', { text: '✓', style: { color: 'var(--success)', fontWeight: '700' } })
+            ? el('span.tone-pos', { text: '✓', style: { fontWeight: '700' } })
             : el('span.muted', { text: 'diajukan', style: { fontSize: '11.5px' } }))
           : el('span.muted', { text: '–' })),
         el('td', badge(row.status, fmt.statusTone(row.status))),
@@ -513,10 +512,10 @@ async function renderKasbon(host, { id }) {
      satu transaksi di server: jurnal + biaya proyek + status. */
   const rows = [];
   const linesBody = el('tbody');
-  const summary = el('div', {
+  const summary = el('div.fs-body.strong', {
     style: {
       padding: '11px 16px', borderTop: '1px solid var(--border)', display: 'flex',
-      justifyContent: 'flex-end', gap: '18px', fontSize: '13px', fontWeight: '600',
+      justifyContent: 'flex-end', gap: '18px',
     },
   });
 
@@ -528,11 +527,10 @@ async function renderKasbon(host, { id }) {
     clear(summary).append(
       el('span', [el('span.muted', { text: 'Belanja: ' }), el('span.num', { text: fmt.rupiah(spent) })]),
       el('span', [el('span.muted', { text: 'Kasbon: ' }), el('span.num', { text: fmt.rupiah(kasbon.amount) })]),
-      el('span', {
+      el(backAmount >= 0 ? 'span.tone-pos' : 'span.tone-warn', {
         text: backAmount >= 0
           ? `Sisa kembali ke laci ${fmt.rupiah(backAmount)}`
           : `Kekurangan dibayar laci ${fmt.rupiah(-backAmount)}`,
-        style: { color: backAmount >= 0 ? 'var(--success)' : 'var(--warning)' },
       }),
     );
   }

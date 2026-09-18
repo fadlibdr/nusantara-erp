@@ -46,6 +46,27 @@ Sesudahnya: beranda dan beranda modul keduanya **22 px**, label 11,5 → 11 px, 
 berdampingan di dalam kartu widget, bukan satu angka pahlawan — dan pelajaran UI-2 berlaku sama,
 begitu ada nama untuk setiap ukuran, skalanya berhenti menjadi skala.
 
+## Koreksi terhadap paket ini (ditambahkan 18 Sep 2026, saat UI-6a dimulai)
+
+Bagian 2 di atas menaikkan `.stat .value` dari 20 px ke `--fs-kpi` (22 px) dan menyebut aturan 20 px
+itu "tidak terjangkau dari dasbor". Itu **benar tentang dasbor dan hanya tentang dasbor** — setiap
+ubin dasbor memakai `.value.sm`. Di luar keluarga dasbor ada **29 pemakai `.value` telanjang**, dan
+mereka ikut bergeser 20 → 22 px **tanpa saya ukur**. Auditnya sendiri menyebut keduanya di dua
+kalimat terpisah; saya membaca yang pertama dan tidak menghubungkannya dengan yang kedua.
+
+Diukur sesudahnya, dua pohon berdampingan pada 1440 dan 390 px:
+
+| layar | pra-UI-5 | kini | terpotong | gulir menyamping |
+|---|---|---|---|---|
+| `#/csat` | 4 × 20 px | 4 × **22 px** | tidak ada | 0 |
+| `#/usulan-pesan-ulang` | 3 × 20 px | 3 × **22 px** | tidak ada | 0 |
+| `#/tax-exports` | 2 × 20 px | 2 × **22 px** | tidak ada | 0 |
+
+Perubahannya **dipertahankan** — satu peran, satu ukuran, dan `.stat` memang komponen yang sama —
+tetapi ia dikirim tanpa diukur, dan itu dicatat di sini alih-alih ditemukan orang lain nanti.
+
+---
+
 ## 3. Tujuh ubin dirakit tangan
 
 `ap-aging`, `ar-aging` dan `proyeksi-kas` menulis `.stat`/`.label`/`.value.sm` sendiri tanpa
