@@ -8,7 +8,7 @@ import { attachmentsCard } from './attachments.js';
 import { activitiesCard, ACTIVITY_DOCUMENTS } from './activities.js';
 import { externalApprovalsCard } from './external.js';
 import { preload, labelFor } from '../lookup.js';
-import { openForm } from './form.js';
+import { openForm, startForm } from './form.js';
 import { RESOURCES } from '../schema.js';
 import { actionButtons } from './actions.js';
 import { downloadPdf, openPrintable, pdfName, xlsxName } from '../print.js';
@@ -915,7 +915,7 @@ export async function renderDetail(host, { key, def, id }) {
   const lifecycle = actionButtons(def, record, reload);
   const notePanels = lifecycle.filter((node) => node.matches('details.action-note'));
   const decisions = [
-    canEdit ? button('Ubah', { iconName: 'edit', onClick: () => openForm({ def, key, row: record, onSaved: reload }) }) : null,
+    canEdit ? button('Ubah', { iconName: 'edit', onClick: () => startForm({ def, key, row: record, onSaved: reload }) }) : null,
     ...lifecycle.filter((node) => !notePanels.includes(node)),
   ].filter(Boolean);
   decisions.filter((node) => node.classList.contains('primary')).slice(1).forEach((node) => node.classList.remove('primary'));

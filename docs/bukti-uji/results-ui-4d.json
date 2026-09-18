@@ -1,0 +1,60 @@
+{
+ "S47_formulir_halaman": {
+  "berbaris": {
+   "modal": false,
+   "halaman": true,
+   "hash": "#/f/procurement/purchase-orders",
+   "crumbs": [
+    "Pengadaan",
+    "Pesanan Pembelian (PO)",
+    "PO baru"
+   ],
+   "judul": "Tambah PO",
+   "tombol": [
+    "Batal",
+    "Simpan"
+   ],
+   "gulir_dalam": 0
+  },
+  "tanpa_baris": {
+   "modal": true,
+   "halaman": false,
+   "hash": "#/r/crm/customers",
+   "crumbs": [
+    "Penjualan",
+    "Pelanggan"
+   ],
+   "judul": "Pelanggan",
+   "tombol": [
+    "",
+    "Tambah Pelanggan"
+   ],
+   "gulir_dalam": 83
+  },
+  "bersih_pergi": {
+   "hash": "#/dashboard",
+   "dialog": 0
+  },
+  "kotor_ditanya": {
+   "dialog": 1,
+   "judul": "Tinggalkan formulir ini?"
+  },
+  "tetap": {
+   "hash": "#/f/procurement/purchase-orders",
+   "halaman": 1,
+   "isian": "UJI-UX isian yang belum tersimpan"
+  },
+  "tinggalkan": {
+   "hash": "#/dashboard",
+   "halaman": 0
+  },
+  "penjaga_dilepas": {
+   "hash": "#/tugas",
+   "dialog": 0
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 23669,
+  "_clicks": 3
+ }
+}

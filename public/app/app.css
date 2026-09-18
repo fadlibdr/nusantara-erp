@@ -978,6 +978,15 @@ select.filter-w { width: auto; min-width: 138px; max-width: 230px; }
   gap: var(--form-gap);
 }
 .form-grid .span2 { grid-column: 1 / -1; }
+/* Tiga kolom pada halaman formulir yang lebar (UI-4d). Kisi yang sama dipakai
+   di dalam dialog, tempat dua kolom memang pas pada 960 px; sebuah halaman
+   1100 px yang tetap dua kolom membuang ruang yang justru jadi alasan
+   halamannya ada. `.span2` tetap membentang penuh — ia dipakai medan yang
+   memang butuh lebar, dan mengubahnya jadi dua-dari-tiga akan mempersempit
+   textarea, bukan melebarkan. */
+@media (min-width: 1100px) {
+  .form-page.wide .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 
 .form-section + .form-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
 .form-section > h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 12px; }
@@ -2022,6 +2031,20 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .field-photo:last-child { border-bottom: 0; }
 .field-photo-main { flex: 1; min-width: 0; }
 .field-photo .badge { flex: none; }
+
+/* Formulir sebagai halaman (UI-4d). Lebarnya DIBATASI, tidak dibiarkan
+   memenuhi layar: medan yang membentang 1400 px membuat mata melompat dari
+   label ke kontrolnya. 960 px adalah lebar modal `wide` yang digantikannya,
+   jadi formulir berbaris menempati ruang yang sama seperti sebelumnya — yang
+   berubah hanya tingginya, karena ia tidak lagi harus muat di dalam viewport.
+   Formulir tanpa baris tidak pernah sampai ke sini (lihat startForm). */
+.form-page { max-width: 760px; }
+.form-page.wide { max-width: 1100px; }
+/* Blok kepala formulir memakai kisi yang sama dengan di dalam modal — lihat
+   catatan ASESMEN-UX §1.2: satu kartu per seksi terukur LEBIH BURUK daripada
+   modal (y = 887 lawan 843) karena tiap kartu membayar kepala dan paddingnya
+   sendiri sementara 800 px lebar dibiarkan kosong. */
+.form-page > .form-grid { margin-bottom: var(--space-5); }
 
 /* Chip filter aktif (UI-4a). Ia meringkas apa yang MEMPERSEMPIT daftar dan
    memberi jalan membuang satu filter dengan satu klik — tombol Reset yang

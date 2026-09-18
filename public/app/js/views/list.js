@@ -6,7 +6,7 @@ import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
 import { combobox } from '../combobox.js';
-import { openForm, promptFields } from './form.js';
+import { openForm, promptFields, startForm } from './form.js';
 import { runAction, postAction, isBulkAction } from './actions.js';
 import { prefs } from '../prefs.js';
 import { navigate, replacePath } from '../router.js';
@@ -138,7 +138,7 @@ export async function renderList(host, { key, def }) {
       canCreate
         ? button(`Tambah ${def.labelOne}`, {
           variant: 'primary', iconName: 'plus',
-          onClick: () => openForm({ def, key, onSaved: afterCreate }),
+          onClick: () => startForm({ def, key, onSaved: afterCreate }),
         })
         : null,
     ]),
@@ -1138,7 +1138,7 @@ export async function renderList(host, { key, def }) {
         size: 'sm', variant: 'ghost', iconName: 'edit', title: 'Ubah',
         onClick: (event) => {
           event.stopPropagation();
-          openForm({ def, key, row, onSaved: () => load() });
+          startForm({ def, key, row, onSaved: () => load() });
         },
       }), 'Ubah'));
     }
@@ -1279,7 +1279,7 @@ export async function renderList(host, { key, def }) {
         : emptyState(`Belum ada ${def.label.toLowerCase()} yang tercatat.`, {
           kind: 'inbox',
           action: canCreate
-            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => openForm({ def, key, onSaved: afterCreate }) })
+            ? button(`Tambah ${def.labelOne}`, { variant: 'primary', iconName: 'plus', onClick: () => startForm({ def, key, onSaved: afterCreate }) })
             : null,
         }));
       return;

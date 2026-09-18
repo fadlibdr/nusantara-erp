@@ -888,6 +888,108 @@ def s44(pg):
     out["ok"] = not checks
     return out
 
+@scenario("S47_formulir_halaman")
+def s47(pg):
+    """UI-4d: formulir berbaris menjadi HALAMAN, dan navigasi darinya dijaga.
+
+    Aturan pemutusnya `lines` — jadi dua sumber daya diperiksa berpasangan:
+    satu yang menyatakannya (PO) dan satu yang tidak (pelanggan). Yang kedua
+    HARUS tetap dialog; memaksa navigasi halaman untuk empat medan adalah
+    ongkos tanpa untung.
+    """
+    login(pg, "admin@nusantara.test")
+
+    SURFACE = """() => ({
+      modal: !!document.querySelector('.modal'),
+      halaman: !!document.querySelector('.form-page'),
+      hash: location.hash,
+      crumbs: [...document.querySelectorAll('#crumbs > *')].map(n => (n.innerText || '').trim()).filter(Boolean),
+      judul: ((document.querySelector('.page-head h1') || {}).innerText || '').trim(),
+      tombol: [...document.querySelectorAll('.page-head .actions .btn')].map(b => b.innerText.trim()),
+      gulir_dalam: (() => { const m = document.querySelector('.modal-body');
+                            return m ? m.scrollHeight - m.clientHeight : 0; })(),
+    })"""
+
+    out = {}
+
+    # Berbaris -> halaman.
+    pg.goto(BASE + "#/f/procurement/purchase-orders"); pg.wait_for_timeout(2600)
+    out["berbaris"] = pg.evaluate(SURFACE)
+    pg.screenshot(path=f"{OUT}/s45-formulir-halaman.png")
+
+    # Tanpa baris -> dialog, lewat tombol Tambah daftarnya.
+    pg.goto(BASE + "#/r/crm/customers"); pg.wait_for_timeout(2200)
+    if pg.locator(".page-head .btn.primary").count():
+        click(pg, ".page-head .btn.primary")
+        pg.wait_for_timeout(2400)
+    out["tanpa_baris"] = pg.evaluate(SURFACE)
+    if out["tanpa_baris"]["modal"]:
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(700)
+
+    # Penjaga meninggalkan rute: bersih -> pergi diam-diam.
+    pg.goto(BASE + "#/f/procurement/purchase-orders"); pg.wait_for_timeout(2600)
+    pg.evaluate("() => { location.hash = '#/dashboard'; }"); pg.wait_for_timeout(1300)
+    out["bersih_pergi"] = {"hash": pg.evaluate("() => location.hash"),
+                           "dialog": pg.locator(".modal").count()}
+
+    # Kotor -> ditanya; "Tetap di sini" mengembalikan hash DAN isiannya.
+    pg.goto(BASE + "#/f/procurement/purchase-orders"); pg.wait_for_timeout(2600)
+    pg.locator(".form-page textarea").first.fill("UJI-UX isian yang belum tersimpan")
+    pg.wait_for_timeout(500)
+    pg.evaluate("() => { location.hash = '#/dashboard'; }"); pg.wait_for_timeout(1100)
+    out["kotor_ditanya"] = {"dialog": pg.locator(".modal").count(),
+                            "judul": pg.locator(".modal h2").first.inner_text() if pg.locator(".modal h2").count() else None}
+    if pg.locator(".modal button:has-text('Tetap di sini')").count():
+        click(pg, ".modal button:has-text('Tetap di sini')")
+        pg.wait_for_timeout(1300)
+    out["tetap"] = {"hash": pg.evaluate("() => location.hash"),
+                    "halaman": pg.locator(".form-page").count(),
+                    "isian": pg.evaluate("() => (document.querySelector('.form-page textarea') || {}).value || ''")}
+
+    # "Tinggalkan" -> benar-benar pergi, dan penjaganya tidak tertinggal.
+    pg.evaluate("() => { location.hash = '#/dashboard'; }"); pg.wait_for_timeout(1100)
+    if pg.locator(".modal button:has-text('Tinggalkan')").count():
+        click(pg, ".modal button:has-text('Tinggalkan')")
+        pg.wait_for_timeout(1500)
+    out["tinggalkan"] = {"hash": pg.evaluate("() => location.hash"), "halaman": pg.locator(".form-page").count()}
+    pg.evaluate("() => { location.hash = '#/tugas'; }"); pg.wait_for_timeout(1300)
+    out["penjaga_dilepas"] = {"hash": pg.evaluate("() => location.hash"), "dialog": pg.locator(".modal").count()}
+
+    checks = []
+    b = out["berbaris"]
+    if not b["halaman"] or b["modal"]:
+        checks.append(f"sumber daya berbaris tidak menjadi halaman: {b}")
+    if len(b["crumbs"]) < 3:
+        checks.append(f"remah formulir halaman hanya {b['crumbs']}")
+    if "Batal" not in b["tombol"] or not any(t.startswith("Simpan") for t in b["tombol"]):
+        checks.append(f"tombol kepala halaman formulir: {b['tombol']}")
+    # Inti bentuk halaman: TIDAK ada wadah gulir di dalamnya.
+    if b["gulir_dalam"]:
+        checks.append(f"halaman formulir masih punya wadah gulir dalam ({b['gulir_dalam']} px)")
+
+    t = out["tanpa_baris"]
+    if not t["modal"] or t["halaman"]:
+        checks.append(f"sumber daya tanpa baris tidak lagi memakai dialog: {t}")
+
+    if out["bersih_pergi"]["hash"] != "#/dashboard" or out["bersih_pergi"]["dialog"]:
+        checks.append(f"formulir BERSIH menahan navigasi: {out['bersih_pergi']}")
+    if out["kotor_ditanya"]["dialog"] != 1:
+        checks.append("formulir KOTOR tidak menanyakan apa pun saat ditinggalkan")
+    if "procurement/purchase-orders" not in out["tetap"]["hash"]:
+        checks.append(f"'Tetap di sini' tidak mengembalikan hash: {out['tetap']['hash']!r}")
+    if not out["tetap"]["halaman"]:
+        checks.append("'Tetap di sini' tetap meninggalkan halamannya")
+    if "UJI-UX" not in out["tetap"]["isian"]:
+        checks.append(f"'Tetap di sini' kehilangan isiannya: {out['tetap']['isian']!r}")
+    if out["tinggalkan"]["hash"] != "#/dashboard" or out["tinggalkan"]["halaman"]:
+        checks.append(f"'Tinggalkan' tidak pergi: {out['tinggalkan']}")
+    if out["penjaga_dilepas"]["hash"] != "#/tugas" or out["penjaga_dilepas"]["dialog"]:
+        checks.append(f"penjaga tertinggal sesudah halaman formulir ditinggalkan: {out['penjaga_dilepas']}")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -13134,7 +13236,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

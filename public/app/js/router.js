@@ -73,9 +73,58 @@ export function resolve() {
   return undefined;
 }
 
+/*
+ * Penjaga meninggalkan rute (UI-4d).
+ *
+ * Formulir modal dijaga `dirty()` milik modal(): menutupnya menanyakan dulu.
+ * Formulir HALAMAN tidak punya penutup — yang meninggalkannya adalah navigasi,
+ * dan sampai sekarang router tidak punya cara menolaknya. Tanpa ini, satu klik
+ * pada tautan sidebar membuang lima belas baris yang belum tersimpan tanpa satu
+ * pun pertanyaan.
+ *
+ * Penjaganya ASINKRON karena pertanyaannya sebuah dialog. Selama ia terbuka,
+ * bilah alamat sudah memuat hash yang baru; kalau jawabannya "tetap di sini",
+ * hash lama ditulis kembali lewat history.replaceState — yang TIDAK memicu
+ * hashchange, jadi tidak ada putaran yang perlu diredam dan `current` memang
+ * masih bernilai hash lama.
+ *
+ * Izinnya sekali pakai: sesudah pengguna memilih meninggalkan, penjaganya
+ * dilepas, sehingga navigasi yang sama tidak ditanyai dua kali.
+ */
+let leaveGuard = null;
+
+export function setLeaveGuard(fn) {
+  leaveGuard = fn;
+}
+
+/* Dilepas HANYA oleh pemasangnya sendiri: sebuah layar yang sudah digantikan
+   tidak boleh mencabut penjaga milik layar penggantinya. */
+export function clearLeaveGuard(fn) {
+  if (leaveGuard === fn) leaveGuard = null;
+}
+
 export function start() {
-  window.addEventListener('hashchange', () => {
-    if (currentPath() !== current) resolve();
+  window.addEventListener('hashchange', async () => {
+    if (currentPath() === current) return;
+
+    if (leaveGuard) {
+      const from = current;
+      const guard = leaveGuard;
+      let mayLeave = true;
+      try {
+        mayLeave = await guard();
+      } catch {
+        /* Penjaga yang melempar tidak boleh mengunci aplikasi di satu layar. */
+        mayLeave = true;
+      }
+      if (!mayLeave) {
+        history.replaceState(null, '', `#/${from}`);
+        return;
+      }
+      clearLeaveGuard(guard);
+    }
+
+    resolve();
   });
   resolve();
 }
