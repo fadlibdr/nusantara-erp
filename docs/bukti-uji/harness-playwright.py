@@ -990,6 +990,81 @@ def s47(pg):
     out["ok"] = not checks
     return out
 
+@scenario("S48_papan_keyboard")
+def s48(pg):
+    """UI-4d: papan kanban akhirnya punya jalan keyboard — lewat jalur yang SAMA dengan seretan.
+
+    Sampai paket ini `.desc` papan sendiri mengakui tidak ada satu pun (diukur
+    8 Sep 2026). Yang diperiksa di sini bukan cuma "kartunya pindah", tetapi
+    bahwa ia pindah lewat keputusan yang sama — penolakannya berbunyi sama —
+    dan bahwa FOKUS tidak hilang sesudahnya, baik saat berhasil maupun ditolak.
+    """
+    login(pg, "admin@nusantara.test")
+    pg.goto(BASE + "#/b/crm/leads"); pg.wait_for_timeout(2600)
+
+    ST = """() => {
+      const a = document.activeElement;
+      return {
+        fokus: a && a.classList.contains('board-card')
+          ? { id: a.dataset.id, kolom: a.parentElement.dataset.status } : null,
+        kolom: [...document.querySelectorAll('.board-cards')].map(l => l.querySelectorAll('.board-card').length),
+        kartu: document.querySelectorAll('.board-card').length,
+        desc: ((document.querySelector('.page-head .desc') || {}).innerText || ''),
+      };
+    }"""
+
+    out = {"awal": pg.evaluate(ST)}
+    if not out["awal"]["kartu"]:
+        return {**out, "SKIPPED": "papan crm/leads tidak punya kartu di salinan DB ini"}
+
+    pg.locator(".board-card").first.focus(); pg.wait_for_timeout(300)
+    out["fokus_awal"] = pg.evaluate(ST)["fokus"]
+
+    # Panah polos = FOKUS, tidak memindahkan apa pun.
+    before = pg.evaluate(ST)
+    pg.keyboard.press("ArrowRight"); pg.wait_for_timeout(400)
+    out["panah_fokus"] = {**pg.evaluate(ST), "kolom_sama": pg.evaluate(ST)["kolom"] == before["kolom"]}
+
+    # Ctrl+panah = MEMINDAHKAN, lewat onDrop yang sama dengan seretan.
+    pg.locator(".board-card").first.focus(); pg.wait_for_timeout(300)
+    b = pg.evaluate(ST)
+    pg.keyboard.press("Control+ArrowRight"); pg.wait_for_timeout(2800)
+    a = pg.evaluate(ST)
+    out["pindah"] = {
+        "sebelum": b["kolom"], "sesudah": a["kolom"],
+        "berubah": b["kolom"] != a["kolom"],
+        "fokus": a["fokus"],
+        "toast": pg.locator(".toast").first.inner_text()[:120] if pg.locator(".toast").count() else None,
+    }
+
+    # Sekali lagi: apa pun hasilnya (pindah lagi atau ditolak), fokus harus bertahan.
+    pg.keyboard.press("Control+ArrowRight"); pg.wait_for_timeout(2800)
+    out["lagi"] = {"fokus": pg.evaluate(ST)["fokus"],
+                   "toast": pg.locator(".toast").first.inner_text()[:120] if pg.locator(".toast").count() else None}
+
+    checks = []
+    if not out["fokus_awal"]:
+        checks.append("kartu papan tidak bisa difokus")
+    if not out["panah_fokus"]["kolom_sama"]:
+        checks.append("panah POLOS memindahkan kartu; ia hanya boleh memindahkan fokus")
+    if not out["panah_fokus"]["fokus"]:
+        checks.append("panah polos menghilangkan fokus alih-alih memindahkannya")
+    if not out["pindah"]["berubah"] and not (out["pindah"]["toast"] or ""):
+        checks.append("Ctrl+panah tidak memindahkan kartu DAN tidak mengatakan mengapa")
+    # Inti paket ini: fokus tidak boleh hilang sesudah perpindahan, berhasil atau tidak.
+    if not out["pindah"]["fokus"]:
+        checks.append("fokus hilang sesudah perpindahan dengan papan ketik")
+    if not out["lagi"]["fokus"]:
+        checks.append("fokus hilang sesudah perpindahan kedua (jalur ditolak/putBack)")
+    # Jalannya harus TERTULIS, bukan rahasia yang hanya diketahui penemunya.
+    desc = out["awal"]["desc"].lower()
+    if "panah" not in desc or ("ctrl" not in desc and "\u2318" not in desc):
+        checks.append(f"deskripsi papan tidak menyebut jalan keyboardnya: {out['awal']['desc'][:90]!r}")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -13236,7 +13311,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
