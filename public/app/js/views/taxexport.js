@@ -86,7 +86,7 @@ function formatsCard(formats, summary) {
   Object.assign(headBadge.style, { whiteSpace: 'normal', height: 'auto' });
   // minWidth 0 pada setiap tingkat grid/flex: tanpa itu isi terpanjang menentukan lebar track
   // dan kartu meluber 22 px di 390 px — 'tanpa gulir samping' hanya karena leluhur memotongnya.
-  const text = { fontSize: '12px', minWidth: 0, overflowWrap: 'anywhere' };
+  const text = { minWidth: 0, overflowWrap: 'anywhere' };
   return el('.card', { style: { minWidth: 0 } }, [
     el('.card-head.djp-formats-head', { style: { flexWrap: 'wrap', rowGap: '6px' } }, [
       el('h2', { text: 'Format berkas DJP/BPJS — status verifikasi' }),
@@ -101,14 +101,14 @@ function formatsCard(formats, summary) {
         'data-verified': String(Boolean(format.verified)),
         style: { display: 'grid', gap: '4px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', minWidth: 0 },
       }, [
-        el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', minWidth: 0 } }, [
+        el('div.cluster', { style: { minWidth: 0 } }, [
           el('strong', { style: { minWidth: 0, overflowWrap: 'anywhere' }, text: format.label }),
           ...formatBadges(format),
         ]),
-        el('.muted', { style: text, text: `Sumber: ${format.source}` }),
-        el('.muted.djp-verification', { style: text, text: format.verification }),
+        el('.muted.fs-secondary', { style: text, text: `Sumber: ${format.source}` }),
+        el('.muted.djp-verification.fs-secondary', { style: text, text: format.verification }),
         format.awaiting_file
-          ? el('.djp-awaiting-file', { style: { ...text, color: 'var(--warning)' }, text: format.awaiting_file })
+          ? el('.djp-awaiting-file.fs-secondary.tone-warn', { style: text, text: format.awaiting_file })
           : null,
         recap && session.can(recap.perm)
           ? el('div', button(recap.label, { size: 'sm', onClick: () => navigate(recap.route) }))
@@ -129,11 +129,24 @@ function summaryTiles(exp, tab) {
           + (s.noted ? ` · ${s.noted} baris perlu dicocokkan` : ''),
       }),
     ]),
-    el('.stat', [el('.label', { text: 'Total DPP' }), el('.value.sm', { text: fmt.rupiah(s.dpp) })]),
-    el('.stat', [el('.label', { text: tab.valueLabel }), el('.value.sm', { text: fmt.rupiah(s[tab.valueKey]) })]),
+    /* Satu ukuran untuk satu baris (UI-6d): sampai paket ini baris ini
+       menggambar dua hitungan pada 22 px di sebelah dua angka uang pada 16 px,
+       tanpa alasan yang bisa dibaca siapa pun. Uang memakai bentuk ringkas
+       supaya angka panjang tidak meluber di petak 278 px, dan angka penuhnya
+       turun ke baris konteks. */
+    el('.stat', [
+      el('.label', { text: 'Total DPP' }),
+      el('.value', { text: fmt.rupiahShort(s.dpp), title: fmt.rupiah(s.dpp) }),
+      el('.delta', { text: fmt.rupiah(s.dpp) }),
+    ]),
+    el('.stat', [
+      el('.label', { text: tab.valueLabel }),
+      el('.value', { text: fmt.rupiahShort(s[tab.valueKey]), title: fmt.rupiah(s[tab.valueKey]) }),
+      el('.delta', { text: fmt.rupiah(s[tab.valueKey]) }),
+    ]),
     el('.stat', [
       el('.label', { text: 'Tertahan' }),
-      el('.value', { text: String(s.blocked), style: s.blocked ? { color: 'var(--danger)' } : {} }),
+      el(`.value${s.blocked ? '.tone-neg' : ''}`, { text: String(s.blocked) }),
       el('.delta', { text: s.blocked ? 'perlu dilengkapi' : 'tidak ada' }),
     ]),
   ]);
@@ -303,7 +316,7 @@ export async function renderTaxExport(host) {
       icon('warn', 15),
       el('div', [
         el('div', { text: `Periode ${exp.period.label} · NPWP ${exp.company.npwp || '—'} · ${exp.format.label}` }),
-        el('.muted', { style: { fontSize: '12px' }, text: exp.format.verification }),
+        el('.muted.fs-secondary', { text: exp.format.verification }),
       ]),
     ]));
 
@@ -324,13 +337,13 @@ export async function renderTaxExport(host) {
             disabled: exp.rows.length === 0,
             onClick: () => downloadCsv(exp.filename, exp.csv),
           })
-          : el('.muted.djp-awaiting-file', { style: { fontSize: '12px' }, text: exp.format.awaiting_file || exp.format.verification }),
+          : el('.muted.djp-awaiting-file.fs-secondary', { text: exp.format.awaiting_file || exp.format.verification }),
       ]),
       /* V3b-7: baris pertama berkas adalah komentar '#' — kalimat "hapus baris
          itu sebelum mengimpor" datang dari registri (file_note), bukan dari SPA. */
       exp.format.file_note
         ? el('.card-body.djp-file-note', { style: { paddingTop: 0 } },
-          el('p.muted', { style: { margin: 0, fontSize: '12px' }, text: exp.format.file_note }))
+          el('p.muted.fs-secondary', { style: { margin: 0 }, text: exp.format.file_note }))
         : null,
       rowsTable(exp),
     ]));

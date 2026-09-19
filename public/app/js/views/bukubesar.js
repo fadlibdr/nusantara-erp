@@ -22,7 +22,7 @@ import { api, session } from '../api.js';
 // append() dari ui.js, bukan Element.append() bawaan DOM: yang bawaan
 // mengubah null menjadi teks "null" di layar, sedangkan beberapa blok di
 // bawah ini memang null kalau kondisinya tidak berlaku.
-import { el, append, clear, button, icon, errorState, skeletonTable, toast, toastError, withBusy } from '../ui.js';
+import { el, append, clear, button, icon, errorState, skeletonTable, toast, toastError, withBusy, reportHead } from '../ui.js';
 import * as fmt from '../format.js';
 import { combobox } from '../combobox.js';
 import { loadSource, optionsFor, sourceState, noticeFor } from '../lookup.js';
@@ -218,9 +218,8 @@ function summary(report) {
     ]),
     el('.stat', [
       el('.label', { text: 'Saldo akhir' }),
-      el('.value.sm', {
+      el(`.value.sm${Number(report.closing) < 0 ? '.tone-neg' : ''}`, {
         text: fmt.rupiah(report.closing),
-        style: { color: Number(report.closing) < 0 ? 'var(--danger)' : 'inherit' },
       }),
       // Saldo minus pada sisi normalnya sendiri adalah anomali yang layak
       // dilihat (bank bersaldo kredit, beban bersaldo kredit), bukan sekadar
@@ -262,8 +261,8 @@ function ledgerTable(report, reload) {
         el('th.right', { text: 'Saldo' }),
       ])),
       el('tbody', [
-        el('tr', { style: { background: 'var(--surface-2)' } }, [
-          el('td', { text: carried ? 'Saldo pindahan' : 'Saldo awal', colspan: 5, style: { fontWeight: '600' } }),
+        el('tr.emphasis', [
+          el('td.strong', { text: carried ? 'Saldo pindahan' : 'Saldo awal', colspan: 5 }),
           el('td.right.num', { text: '—' }),
           el('td.right.num', { text: '—' }),
           el('td.right.num.strong', { text: fmt.rupiah(report.page_opening) }),
@@ -370,11 +369,12 @@ async function render(host) {
   const reload = () => render(host);
 
   try {
+    const project = await projectSelect((value) => { state.projectId = value; state.page = 1; reload(); });
     controls.append(
       await accountPicker(reload),
       dateInput('Dari', state.from, (value) => { state.from = value; state.page = 1; reload(); }),
       dateInput('Sampai', state.to, (value) => { state.to = value; state.page = 1; reload(); }),
-      await projectSelect((value) => { state.projectId = value; state.page = 1; reload(); }),
+      project,
     );
 
     if (!state.accountId) {
@@ -389,6 +389,16 @@ async function render(host) {
     controls.appendChild(csvButton(report));
 
     append(clear(body), [
+      reportHead('Buku Besar', [
+        ['Akun', `${report.account.code} — ${report.account.name}`],
+        ['Periode', `${fmt.date(report.from)} – ${fmt.date(report.to)}`],
+        // Saldo berjalan mengikuti sisi normal akun (komentar kepala berkas
+        // ini), jadi sebuah lembar buku besar tanpa baris ini menyuruh
+        // pembacanya menebak arah kolom saldonya.
+        ['Saldo normal', report.account.normal_balance === 'credit' ? 'Kredit' : 'Debit'],
+        ['Proyek', project.value ? (project.options[project.selectedIndex] || {}).text || '' : ''],
+        ['Mata uang', 'IDR — rupiah penuh'],
+      ]),
       el('.card', el('.card-body', el('div', {
         style: { display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' },
       }, [

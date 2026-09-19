@@ -46,6 +46,53 @@ Sesudahnya: beranda dan beranda modul keduanya **22 px**, label 11,5 → 11 px, 
 berdampingan di dalam kartu widget, bukan satu angka pahlawan — dan pelajaran UI-2 berlaku sama,
 begitu ada nama untuk setiap ukuran, skalanya berhenti menjadi skala.
 
+## Koreksi terhadap paket ini (ditambahkan 18 Sep 2026, saat UI-6a dimulai)
+
+Bagian 2 di atas menaikkan `.stat .value` dari 20 px ke `--fs-kpi` (22 px) dan menyebut aturan 20 px
+itu "tidak terjangkau dari dasbor". Itu **benar tentang dasbor dan hanya tentang dasbor** — setiap
+ubin dasbor memakai `.value.sm`. Di luar keluarga dasbor ada **29 pemakai `.value` telanjang**, dan
+mereka ikut bergeser 20 → 22 px **tanpa saya ukur**. Auditnya sendiri menyebut keduanya di dua
+kalimat terpisah; saya membaca yang pertama dan tidak menghubungkannya dengan yang kedua.
+
+Diukur sesudahnya, dua pohon berdampingan pada 1440 dan 390 px:
+
+| layar | pra-UI-5 | kini | terpotong | gulir menyamping |
+|---|---|---|---|---|
+| `#/csat` | 4 × 20 px | 4 × **22 px** | tidak ada | 0 |
+| `#/usulan-pesan-ulang` | 3 × 20 px | 3 × **22 px** | tidak ada | 0 |
+| `#/tax-exports` | 2 × 20 px | 2 × **22 px** | tidak ada | 0 |
+
+Perubahannya **dipertahankan** — satu peran, satu ukuran, dan `.stat` memang komponen yang sama —
+tetapi ia dikirim tanpa diukur, dan itu dicatat di sini alih-alih ditemukan orang lain nanti.
+
+---
+
+## Koreksi kedua terhadap paket ini (ditambahkan 18 Sep 2026, saat UI-6b dimulai)
+
+Bagian 1 di atas mengikat tiap ubin ke **tepat tiga trek** (`grid-row: span 3`) supaya labelnya yang
+membungkus melebarkan trek untuk seluruh baris. Itu benar untuk ubin bertiga anak — dan **setiap**
+ubin di keluarga dasbor memang bertiga anak, yang sebabnya paket ini hijau.
+
+Di luar keluarga itu ada **dua** ubin berempat anak, dan pada keduanya anak keempat tidak punya
+baris untuk ditempati sehingga tergambar **DI ATAS** anak ketiga:
+
+| layar | ubin | tindih | rasio |
+|---|---|---|---|
+| `#/d/projects/1` | CPI (BIAYA) | 6.872 px² | 1,0 |
+| `#/evm` | CPI PORTOFOLIO | 4.917 px² | 1,0 |
+
+Yang tertimpa pada keduanya adalah kalimat peringatan *"Biaya aktual belum lengkap — CPI belum dapat
+dipercaya"*, menimpa *"EV ÷ AC per 19 Sep 2026"*. Aturan perataan ini menghapus tepat kalimat yang
+memberi tahu bahwa angka di atasnya tidak boleh dipercaya.
+
+Ditutup di UI-6b dengan `.stat-row > .stat:has(> :nth-child(4)) { grid-row: span 4; }`, dan perataan
+yang paket ini menangkan tetap utuh (0 dari 19 baris visual meleset, diukur di tujuh layar). Sebaran
+sebenarnya, dihitung di 15 rute: **13 ubin dua-anak · 60 tiga-anak · 2 empat-anak**.
+
+Pelajarannya sama dengan koreksi pertama di atas, dan itulah yang membuatnya layak dicatat dua kali:
+`.stat` dan `.value` adalah kosakata BERSAMA, dipakai jauh di luar keluarga yang menamai paket ini.
+Memverifikasi keluarganya bukan memverifikasi kosakatanya.
+
 ## 3. Tujuh ubin dirakit tangan
 
 `ap-aging`, `ar-aging` dan `proyeksi-kas` menulis `.stat`/`.label`/`.value.sm` sendiri tanpa

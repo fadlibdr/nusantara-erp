@@ -1060,6 +1060,50 @@ export function setFieldError(control, message) {
   if (message) wrap.appendChild(el('.err', { text: message }));
 }
 
+/**
+ * Kepala laporan: apa laporan ini, dan atas dasar apa ia dihitung.
+ *
+ * Diukur 18 Sep 2026 pada pohon UI-5, `emulate_media('print')` di kedelapan tab
+ * `#/reports`: cetak menyembunyikan `.tabs` DAN `.filters` (app.css blok cetak),
+ * sehingga KEDELAPANNYA keluar dari printer di bawah judul yang sama persis —
+ * "Laporan Keuangan · Dihitung dari jurnal yang sudah diposting." Dua lembar
+ * Laba Rugi untuk dua rentang tanggal berbeda tidak bisa dibedakan sama sekali,
+ * dan tidak ada satu pun lembar yang menyebut periodenya. Prototipe menamai
+ * masalahnya: "laporan tanpa kepala tidak bisa dilampirkan ke mana pun".
+ *
+ * Aturan kejujuran blok ini, dan sebabnya masing-masing:
+ *
+ *  - Barisnya HANYA parameter yang benar-benar dikirim klien atau digemakan
+ *    server. Tidak ada baris yang dikarang supaya kepalanya terlihat penuh.
+ *  - TIDAK ada baris "Dihitung <jam>". Jam klien tidak dipercaya di basis kode
+ *    ini — `cashflow.js` sudah menuliskannya ("hari ini" adalah as_of dari
+ *    server), dan sebuah stempel waktu yang salah pada kertas yang dilampirkan
+ *    ke working paper lebih buruk daripada tidak ada stempel.
+ *  - TIDAK ada baris entitas (nama PT, NPWP) meskipun prototipe punya: tidak
+ *    ada data perusahaan di sesi, dan menambahkannya berarti mengubah kontrak
+ *    API — keputusan yang sama yang membatalkan slot konteks perusahaan di
+ *    UI-3a.
+ *
+ * @param {string} title nama laporannya, bukan nama layarnya.
+ * @param {Array<[string, *]>} meta pasangan istilah/nilai; yang nilainya
+ *   null/undefined/'' DIBUANG, supaya pemanggil boleh menulis barisnya tanpa
+ *   syarat dan tetap tidak menjanjikan apa pun yang tidak ia punya.
+ */
+export function reportHead(title, meta = []) {
+  const rows = (meta || []).filter((row) =>
+    Array.isArray(row) && row[1] !== null && row[1] !== undefined && row[1] !== '');
+
+  return el('.report-head', [
+    el('h2.report-title', { text: title }),
+    rows.length
+      ? el('dl.report-meta', rows.map(([term, value]) => el('div', [
+        el('dt', { text: term }),
+        el('dd', { text: String(value) }),
+      ])))
+      : null,
+  ]);
+}
+
 export function progressBar(value, tone = '') {
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
   return el(`.progress${tone ? `.${tone}` : ''}`, el('span', { style: { width: `${pct}%` } }));

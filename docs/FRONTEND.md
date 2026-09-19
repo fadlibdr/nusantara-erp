@@ -74,13 +74,21 @@ public/app/
     format.js           id-ID money/date/percent formatting
     ui.js               el() DOM builder, buttons, badges, modal, toast (with an optional single
                         action button), offlineRibbon()/networkDown(), fields, svgIcon(),
-                        emptyState({ kind }) — CONVENTIONS §14
+                        emptyState({ kind }) — CONVENTIONS §14 — and reportHead(title, meta),
+                        the identity block of a financial report (UI-6a): its name and the
+                        parameters that produced it, on screen AND on paper. Measured before
+                        it existed: the print block hides .tabs and .filters, so all eight
+                        #/reports tabs came out of the printer under the same heading
+                        ("Laporan Keuangan") with no period on any of them
     illustrations.js    five stroke-only empty-state drawings (inbox/search/filter/error/done),
                         coloured by app.css tokens — no hex literals
     charts.js           SVG charts (line/bar/donut/sparkline/gantt) — since P1-E the ONLY
                         chart code in the app; the header docblock is
                         the API reference; colours only via --chart-* tokens (harness S20)
-    cells.js            value renderer shared by tables and detail panels
+    cells.js            value renderer shared by tables and detail panels — because EVERY table and
+                        EVERY detail panel goes through it, an inline style here is paid once per
+                        ROW, not once per screen: the `bool` cell wrote `color: var(--success)`
+                        inline 14 times across two list screens before UI-6c made it `.cell-yes`
     enums.js            option lists mirrored from the PHP enums
     lookup.js           cached reference data for pickers and id -> name display
     schema.js           THE RESOURCE CATALOGUE — every screen is an entry here; NAV groups carry
@@ -418,6 +426,11 @@ reading, in another shape. There is no `print` action anywhere in the permission
   `createElementNS` returning to `project.js` / `evm.js` / `hargasatuan.js`. Legends are drawn
   inside the SVG, so no `.legend` block sits beside a chart except the price trend, whose
   distinction (PO vs GRN) is per POINT rather than per series. CONVENTIONS §11.
+  **A chart's rendered SIZE is the screen's decision, not the chart's** (UI-6b): `.chart` forces
+  `width: 100%`, so a 720×260 viewBox in a 1112 px card draws at 1112×402. `#/harga-satuan` was
+  spending 446,520 px² on two data points of equal value — 223,260 px² per point, nine times looser
+  than the project S-curve — next to four 16 px numbers. `.chart-cap` on the card body caps a chart
+  at its own natural width; ask for it wherever the data is sparse.
 - **Dashboard widgets (P1-D)**: `#/dashboard` is composed, not drawn. `views/widgets/registry.js`
   is the catalogue — 19 entries, each `{ id, title, desc, module, perm, route, sizes, size }` —
   and each widget's renderer lives in `views/widgets/<id>.js`, imported **dynamically** only when

@@ -2,7 +2,7 @@
    project profitability — all read-only views over the posted ledger. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, icon, errorState, skeletonTable, progressBar } from '../ui.js';
+import { el, clear, button, badge, icon, errorState, skeletonTable, progressBar, reportHead } from '../ui.js';
 import * as fmt from '../format.js';
 import { toCsv, downloadCsv, csvValue, csvFilename } from '../csv.js';
 import { loadSource, optionsFor } from '../lookup.js';
@@ -22,6 +22,22 @@ const TABS = [
 ];
 
 const state = { tab: 'trial-balance', params: {} };
+
+/* Baris mata uang yang sama untuk setiap laporan berangka uang di layar ini.
+   Kalimatnya benar apa adanya: fmt.rupiah() bawaan decimals 0 dan MEMBULATKAN
+   ke rupiah penuh, jadi lembar ini tidak pernah menampilkan sen. */
+const MATA_UANG = ['Mata uang', 'IDR — rupiah penuh'];
+
+/* Label proyek untuk kepala laporan, dibaca dari <select> yang BARU dibangun —
+   bukan dari fetch kedua. Kalau saringnya kosong, nilainya '' dan reportHead()
+   membuang barisnya; "Semua proyek" tidak ditulis sebagai fakta karena itu
+   ketiadaan saringan, bukan parameter. */
+function projectLabel(select) {
+  const value = select.value || '';
+  if (!value) return '';
+  const picked = select.options[select.selectedIndex];
+  return picked ? picked.text : '';
+}
 
 function moneyCell(value) {
   return el('td.right.num', { text: Number(value) === 0 ? '—' : fmt.rupiah(value) });
@@ -92,6 +108,11 @@ async function trialBalance(host, controls) {
   })));
 
   return el('div', [
+    reportHead('Neraca Saldo', [
+      ['Periode', fmt.periodLabel(report.year, report.month)],
+      ['Keseimbangan', report.balanced ? 'Debit = kredit' : 'TIDAK seimbang'],
+      MATA_UANG,
+    ]),
     el('.alert.info', [
       icon('warn', 15),
       el('div', { text: `Periode ${fmt.periodLabel(report.year, report.month)} — ${report.balanced ? 'buku seimbang.' : 'PERHATIAN: debit dan kredit tidak seimbang.'}` }),
@@ -125,10 +146,11 @@ async function profitLoss(host, controls) {
   const from = state.params.from || `${now.getFullYear()}-01-01`;
   const to = state.params.to || fmt.toDateInput(now);
 
+  const project = await projectSelect((value) => { state.params.project_id = value; render(host); }, state.params.project_id);
   controls.append(
     dateInput('Dari', from, (value) => { state.params.from = value; render(host); }),
     dateInput('Sampai', to, (value) => { state.params.to = value; render(host); }),
-    await projectSelect((value) => { state.params.project_id = value; render(host); }, state.params.project_id),
+    project,
   );
 
   const report = await api.get('finance/reports/profit-loss', {
@@ -157,18 +179,20 @@ async function profitLoss(host, controls) {
     };
   }));
 
+  // .fin-line / .fin-line.total menyalin PERSIS nilai gaya sebaris yang dulu
+  // ada di sini (flex, space-between, gap 16, padding 6/11, garis atas, 700) —
+  // kelas itu lahir dari baris yang sama di cashflow.js, tempat helper kembar
+  // ini sudah memakainya sejak UI-2b.
   const line = (label, value, { strong = false, tone } = {}) => el(
-    `div${strong ? '.fs-section' : '.fs-body'}${tone === 'bad' ? '.tone-neg' : (tone === 'good' ? '.tone-pos' : '')}`,
-    {
-      style: {
-        display: 'flex', justifyContent: 'space-between', gap: '16px',
-        padding: strong ? '11px 0' : '6px 0',
-        borderTop: strong ? '1px solid var(--border)' : 'none',
-        fontWeight: strong ? '700' : '400',
-      },
-    }, [el('span', { text: label }), el('span.num', { text: fmt.rupiah(value) })]);
+    `div${strong ? '.fs-section' : '.fs-body'}.fin-line${strong ? '.total' : ''}${tone === 'bad' ? '.tone-neg' : (tone === 'good' ? '.tone-pos' : '')}`,
+    [el('span', { text: label }), el('span.num', { text: fmt.rupiah(value) })]);
 
   return el('div', [
+    reportHead('Laba Rugi', [
+      ['Periode', `${fmt.date(from)} – ${fmt.date(to)}`],
+      ['Proyek', projectLabel(project)],
+      MATA_UANG,
+    ]),
     el('.stat-row', [
       el('.stat', [el('.label', { text: 'Pendapatan' }), el('.value.sm', { text: fmt.rupiah(report.revenue.total) })]),
       el('.stat', [el('.label', { text: 'Laba kotor' }), el('.value.sm', { text: fmt.rupiah(report.gross_profit) })]),
@@ -194,10 +218,34 @@ async function profitLoss(host, controls) {
 }
 
 async function balanceSheet(host, controls) {
-  const asOf = state.params.as_of || fmt.toDateInput(new Date());
-  controls.append(dateInput('Per tanggal', asOf, (value) => { state.params.as_of = value; render(host); }));
+  /* Tanggalnya datang dari SERVER kalau pengguna belum memilih — aturan yang
+     sama dengan aging() di bawah, dan untuk alasan yang lebih keras di sini.
 
-  const report = await api.get('finance/reports/balance-sheet', { as_of: asOf });
+     Sampai koreksi ini layar ini memakai `fmt.toDateInput(new Date())`, yaitu
+     JAM PERAMBAN, dan selalu mengirimkannya; servernya menggemakan kembali
+     tanggal klien itu, dan sejak UI-6a kepala laporan MENCETAKNYA sebagai
+     parameter resmi di lembar yang dilampirkan ke working paper. Dua lembar
+     yang dibuat di sesi yang sama karena itu bisa membawa "Per tanggal" yang
+     berbeda: bukti paket ini sendiri merekamnya — `results-ui-6a.json` S50
+     mencatat Neraca "18 September 2026" sementara Umur Piutang dan Proyeksi Kas
+     di putaran yang SAMA mencatat "19 September 2026".
+
+     Itu persis cacat yang laporan UI-6a bilang dihindarinya ("tidak ada baris
+     stempel jam klien"), dan komentar arAging() menuntut kedua lembar ini
+     "mampu tanggal yang sama". Kosong kini berarti parameternya tidak ikut
+     sama sekali — perilaku bawaan server tidak berubah (`Carbon::today()`) —
+     dan kotaknya diisi dari `report.as_of`. */
+  const asOfInput = dateInput('Per tanggal', state.params.as_of || '', (value) => {
+    state.params.as_of = value;
+    render(host);
+  });
+  controls.append(asOfInput);
+
+  const report = await api.get('finance/reports/balance-sheet', {
+    as_of: state.params.as_of || undefined,
+  });
+
+  if (!state.params.as_of) asOfInput.value = fmt.toDateInput(report.as_of);
 
   controls.appendChild(csvButton(() => {
     const section = (label, group) => [
@@ -216,6 +264,11 @@ async function balanceSheet(host, controls) {
   }));
 
   return el('div', [
+    reportHead('Neraca', [
+      ['Per tanggal', fmt.dateLong(report.as_of)],
+      ['Keseimbangan', report.balanced ? 'Aset = kewajiban + ekuitas' : 'TIDAK seimbang'],
+      MATA_UANG,
+    ]),
     el(`.alert.${report.balanced ? 'info' : 'error'}`, [
       icon(report.balanced ? 'check' : 'warn', 15),
       el('div', {
@@ -235,7 +288,28 @@ async function balanceSheet(host, controls) {
 }
 
 async function aging(host, controls, side) {
-  const report = await api.get(`finance/reports/${side}-aging`);
+  /* `as_of` SUDAH diterima, divalidasi dan digemakan server sejak perbaikan
+     penanggalan penerimaan — komentar ReportController::arAging() sendiri
+     berkata umur piutang dan neraca "dibaca berdampingan dan harus mampu
+     tanggal yang sama". Separuh servernya mendarat; separuh KLIENNYA tidak
+     pernah: sampai paket ini layar umur tidak punya kotak tanggal sama sekali
+     dan tidak pernah mengirim parameternya, jadi akuntan yang merekonsiliasi
+     umur Juni terhadap neraca Juni tetap mendapat angka hari ini.
+
+     Yang dikirim hanya tanggal yang PENGGUNA pilih. Kosong berarti parameternya
+     tidak ikut sama sekali — persis perilaku hari ini — dan kotaknya diisi dari
+     `report.as_of`, jam SERVER, bukan jam klien. */
+  const asOfInput = dateInput('Per tanggal', state.params.as_of || '', (value) => {
+    state.params.as_of = value;
+    render(host);
+  });
+  controls.append(asOfInput);
+
+  const report = await api.get(`finance/reports/${side}-aging`, {
+    as_of: state.params.as_of || undefined,
+  });
+
+  if (!state.params.as_of) asOfInput.value = fmt.toDateInput(report.as_of);
 
   // Rincian dokumennya yang diserialisasi — baris itulah yang direkonsiliasi;
   // ringkasan keranjang hanyalah penjumlahan ulang dari kolom sisa.
@@ -259,6 +333,14 @@ async function aging(host, controls, side) {
   const max = Math.max(...Object.values(report.buckets), 1);
 
   return el('div', [
+    reportHead(side === 'ar' ? 'Umur Piutang Usaha' : 'Umur Hutang Usaha', [
+      ['Per tanggal', fmt.dateLong(report.as_of)],
+      // Ember dihitung dari due_date (agingReport: daysOverdue = due_date <
+      // asOf), jadi kalimat ini menyebut basis yang benar-benar dipakai.
+      ['Basis umur', 'Sejak jatuh tempo'],
+      ['Dokumen terbuka', `${report.rows.length}`],
+      MATA_UANG,
+    ]),
     el('.card', [
       el('.card-head', [
         el('h2', { text: `Ringkasan umur ${side === 'ar' ? 'piutang' : 'hutang'}` }),
@@ -320,6 +402,11 @@ async function projectProfitability(host, controls) {
   })));
 
   return el('div', [
+    reportHead('Profitabilitas Proyek', [
+      ['Proyek', projectLabel(select)],
+      ['Anggaran', report.total_budget !== null ? 'RAP tersedia' : 'RAP belum ada'],
+      MATA_UANG,
+    ]),
     el('.stat-row', [
       el('.stat', [el('.label', { text: 'Pendapatan tertagih' }), el('.value.sm', { text: fmt.rupiah(report.revenue) })]),
       el('.stat', [el('.label', { text: 'Realisasi biaya' }), el('.value.sm', { text: fmt.rupiah(report.total_cost) })]),
@@ -345,9 +432,8 @@ async function projectProfitability(host, controls) {
         ]),
         progressBar((cost.actual / maxCost) * 100, cost.variance !== null && cost.variance < 0 ? 'red' : ''),
         cost.variance !== null
-          ? el('.cell-sub', {
+          ? el(`.cell-sub${cost.variance < 0 ? '.tone-neg' : ''}`, {
             text: cost.variance >= 0 ? `Sisa anggaran ${fmt.rupiah(cost.variance)}` : `Melebihi anggaran ${fmt.rupiah(-cost.variance)}`,
-            style: { color: cost.variance < 0 ? 'var(--danger)' : 'var(--muted)' },
           })
           : null,
       ]))),

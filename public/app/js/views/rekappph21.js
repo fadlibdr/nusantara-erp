@@ -40,11 +40,19 @@ function summaryTiles(payload) {
       el('.value', { text: String(s.employees) }),
       el('.delta', { text: `${s.slips} slip dari ${s.runs_included} run` }),
     ]),
-    el('.stat', [el('.label', { text: 'Total bruto' }), el('.value.sm', { text: fmt.rupiah(s.gross) })]),
-    el('.stat', [el('.label', { text: 'Total PPh 21' }), el('.value.sm', { text: fmt.rupiah(s.pph21) })]),
+    el('.stat', [
+      el('.label', { text: 'Total bruto' }),
+      el('.value', { text: fmt.rupiahShort(s.gross), title: fmt.rupiah(s.gross) }),
+      el('.delta', { text: fmt.rupiah(s.gross) }),
+    ]),
+    el('.stat', [
+      el('.label', { text: 'Total PPh 21' }),
+      el('.value', { text: fmt.rupiahShort(s.pph21), title: fmt.rupiah(s.pph21) }),
+      el('.delta', { text: fmt.rupiah(s.pph21) }),
+    ]),
     el('.stat.without-tax-id', { 'data-count': String(s.without_tax_id) }, [
       el('.label', { text: 'Pegawai tanpa identitas pajak' }),
-      el('.value', { text: String(s.without_tax_id), style: s.without_tax_id ? { color: 'var(--danger)' } : {} }),
+      el(`.value${s.without_tax_id ? '.tone-neg' : ''}`, { text: String(s.without_tax_id) }),
       // V2-7/V3b-3: sel kosong ≠ tambahan 20 % — sebut berapa yang dihitung tarif normal.
       el('.delta', {
         text: (!s.without_tax_id

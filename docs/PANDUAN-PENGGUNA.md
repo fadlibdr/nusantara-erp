@@ -332,7 +332,9 @@ rata-rata sederhananya memperlakukan proyek Rp 40 M sama beratnya dengan proyek 
 **Sisa** pada invoice: sisa tagihan bukan "total dikurangi dibayar" — invoice yang dibatalkan
 sisanya nol, dan aturan itu tinggal di dokumennya. Laporan Bebas menawarkan **Total** dan saringan
 **Status**; untuk umur piutang pakai `Keuangan › Laporan Keuangan › Umur Piutang`, yang
-menghitungnya di server.
+menghitungnya di server. Layar itu punya kotak **Per tanggal**: kosongkan untuk umur hari
+ini, atau isi tanggal lampau untuk merekonsiliasi umur piutang Juni terhadap Neraca per 30
+Juni. Umurnya dihitung **sejak jatuh tempo**, dan kepala laporan menyebut tanggalnya.
 
 **Sel kosong bukan nol.** Sebuah **`—`** berarti angkanya tidak ada; arahkan kursor ke selnya dan
 keterangannya menyebut yang mana: *tidak ada baris pada kombinasi ini*, atau *ada barisnya, tetapi
@@ -924,6 +926,11 @@ tidak pernah menyebut berkas yang sama dengan dua status berbeda.
 
 1. **Ikon printer "Cetak halaman"** — mencetak layar apa adanya lewat peramban, sidebar
    dan semuanya. Berguna untuk salinan cepat, bukan untuk dokumen yang ditandatangani.
+   Pada **Laporan Keuangan** dan **Buku Besar** lembarnya membawa **kepala laporan**:
+   nama laporannya dan parameter yang menghasilkannya (periode atau tanggal, saringan
+   proyek, akun, mata uang). Sebelumnya tidak — tab dan saringan tidak ikut tercetak,
+   sehingga kedelapan laporan keluar di bawah judul yang sama dan tidak satu lembar pun
+   menyebut periodenya.
 2. **Tombol `PDF`** — hanya tiga dokumen menggambar tombol bernama `PDF`:
    **Invoice Termin (AR)**, **Pesanan Pembelian (PO)**, dan **BAST**. Berkas terunduh.
    **Slip gaji** juga PDF sungguhan, tetapi tombolnya bukan `PDF` — ia ikon unduh per
@@ -6603,8 +6610,10 @@ Layar baca saja.
    *"Pilih akun untuk melihat buku besarnya — ketik kode (mis. 1-1400) atau namanya."*
 2. Setel **Dari** dan **Sampai** (bawaan: tanggal 1 bulan berjalan sampai hari ini) dan,
    bila perlu, pemilih proyek.
-3. Baca strip angka: **Saldo awal / Mutasi debit / Mutasi kredit / Saldo akhir** (dengan
-   "saldo normal debit|kredit" di bawahnya).
+3. Baca **kepala laporan** di atas — akun, periode, saldo normal, saringan proyek dan mata
+   uang — lalu strip angkanya: **Saldo awal / Mutasi debit / Mutasi kredit / Saldo akhir**
+   (dengan "saldo normal debit|kredit" di bawahnya). Kepala itu ikut tercetak; strip dan
+   tabelnya saja tidak menyebutkan akun maupun periodenya di kertas.
 4. Tabelnya: Tanggal · Jurnal · Keterangan · Dokumen · Proyek · Debit · Kredit · Saldo,
    dengan baris "Saldo awal"/"Saldo pindahan" di atas. 100 baris per halaman.
    **Klik baris mana pun untuk membuka jurnalnya.**

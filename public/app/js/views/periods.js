@@ -261,7 +261,7 @@ function periodCard(period) {
   }, [
     el('.row', [
       el('strong', { text: fmt.MONTHS[period.month - 1] || period.code }),
-      el('.spacer', { style: { flex: '1' } }),
+      el('.spacer'),
       badge(period.status_label, period.is_closed ? '' : 'green'),
     ]),
     el('.muted.fs-secondary', { style: { marginTop: '4px' }, text: subtitle() }),
@@ -438,7 +438,7 @@ function actionFoot(data, reload) {
   return el('.card-foot', [
     reason
       ? el('.muted.fs-secondary', { style: { marginRight: 'auto', maxWidth: '62ch' }, text: reason })
-      : el('.spacer', { style: { flex: '1' } }),
+      : el('.spacer'),
     canClose
       ? button(summary.blockers ? `Tutup Periode (${summary.blockers} penghalang)` : `Tutup ${data.label}`, {
         variant: 'primary',

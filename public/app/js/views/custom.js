@@ -150,15 +150,30 @@ export async function renderStock(host) {
            Total dimiliki benar-benar identitas yang terpatri ke GL 1-1400. */
         const showTransit = inTransit > 0 && !state.warehouse && !state.q;
         clear(body).appendChild(el('div', [
+          /* Satu ukuran untuk satu peran (UI-6c), obat yang sama dengan baris
+             ubin pahlawan proyek di UI-6b: sampai paket ini "Nilai persediaan"
+             — subjek layar ini — tergambar 16 px di sebelah "Baris saldo" pada
+             22 px, karena rupiah penuh tidak muat di petak 158 px. Bentuk
+             ringkas menyelesaikan sebabnya; angka penuhnya turun ke baris
+             konteks (dan tetap ada di title). */
           el('.stat-row', [
-            el('.stat', [el('.label', { text: 'Nilai persediaan' }), el('.value.sm', { text: fmt.rupiah(onHand) })]),
+            el('.stat', [
+              el('.label', { text: 'Nilai persediaan' }),
+              el('.value', { text: fmt.rupiahShort(onHand), title: fmt.rupiah(onHand) }),
+              el('.delta', { text: fmt.rupiah(onHand) }),
+            ]),
             showTransit ? el('.stat', [
               el('.label', { text: `Dalam perjalanan · ${Number(totals.in_transit_transfers || 0)} transfer` }),
-              el('.value.sm', { text: fmt.rupiah(inTransit) }),
+              el('.value', { text: fmt.rupiahShort(inTransit), title: fmt.rupiah(inTransit) }),
+              el('.delta', { text: fmt.rupiah(inTransit) }),
             ]) : null,
             showTransit ? el('.stat', [
               el('.label', { text: 'Total dimiliki' }),
-              el('.value.sm', { text: fmt.rupiah(Number(totals.owned_value || 0)) }),
+              el('.value', {
+                text: fmt.rupiahShort(Number(totals.owned_value || 0)),
+                title: fmt.rupiah(Number(totals.owned_value || 0)),
+              }),
+              el('.delta', { text: fmt.rupiah(Number(totals.owned_value || 0)) }),
             ]) : null,
             el('.stat', [el('.label', { text: 'Baris saldo' }), el('.value', { text: String(meta.total != null ? meta.total : rows.length) })]),
           ]),
@@ -307,10 +322,21 @@ export async function renderPayrollRun(host, { id }) {
     badge(run.status_label || run.status, fmt.statusTone(run.status)),
   ));
 
+  /* Satu ukuran untuk satu baris (koreksi UI-6d, 19 Sep 2026). Sensus peramban
+     UI-6d hanya menyinggahi 13 rute dan MELEWATKAN baris ini; sensus STATIS
+     atas seluruh `views/` menemukan enam baris campur lagi. Aturannya ditulis
+     ke CONVENTIONS §17, jadi kode yang melanggarnya harus ikut diperbaiki —
+     bukan aturannya yang dilunakkan. Uang memakai bentuk ringkas pada ukuran
+     yang sama, angka penuhnya turun ke baris konteks. */
+  const uang = (label, value) => el('.stat', [
+    el('.label', { text: label }),
+    el('.value', { text: fmt.rupiahShort(value), title: fmt.rupiah(value) }),
+    el('.delta', { text: fmt.rupiah(value) }),
+  ]);
   host.appendChild(el('.stat-row', [
-    el('.stat', [el('.label', { text: 'Total bruto' }), el('.value.sm', { text: fmt.rupiah(run.total_gross) })]),
-    el('.stat', [el('.label', { text: 'Total potongan' }), el('.value.sm', { text: fmt.rupiah(run.total_deductions) })]),
-    el('.stat', [el('.label', { text: 'Total netto' }), el('.value.sm', { text: fmt.rupiah(run.total_net) })]),
+    uang('Total bruto', run.total_gross),
+    uang('Total potongan', run.total_deductions),
+    uang('Total netto', run.total_net),
     el('.stat', [el('.label', { text: 'Jumlah slip' }), el('.value', { text: String(payslips.length) })]),
   ]));
 

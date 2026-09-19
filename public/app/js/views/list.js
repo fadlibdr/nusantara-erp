@@ -1124,7 +1124,7 @@ export async function renderList(host, { key, def }) {
   }
 
   function rowActions(row) {
-    const wrap = el('div', { style: { display: 'flex', gap: '4px', justifyContent: 'flex-end' } });
+    const wrap = el('.cell-actions');
 
     printRowButtons(row).forEach((btn) => wrap.appendChild(btn));
 
@@ -1412,10 +1412,15 @@ export async function renderList(host, { key, def }) {
      * selalu mengambil semua halaman, berapa pun pilihan di sini.
      */
     const choices = [...new Set([def.perPage || 20, 25, 50, 100, 200])].sort((a, b) => a - b);
-    const perPageSelect = el('select', {
+    /* .fs-secondary, bukan `fontSize: '12.5px'` sebaris: 12,5 px adalah salah
+       satu nilai di luar skala yang audit UI-1 daftarkan, dan ia ada di lapisan
+       GENERIK — satu di tiap layar daftar. Primitifnya sudah ada sejak UI-2;
+       geometrinya (lebar/tinggi kontrol) tetap sebaris karena ia memang
+       geometri, bukan tipografi. */
+    const perPageSelect = el('select.fs-secondary', {
       'aria-label': 'Baris per halaman',
       title: 'Baris per halaman',
-      style: { width: 'auto', height: '28px', fontSize: '12.5px' },
+      style: { width: 'auto', height: '28px' },
     }, choices.map((size) => el('option', { value: String(size), text: `${size} / halaman` })));
     perPageSelect.value = String(ui.perPage);
     perPageSelect.addEventListener('change', () => {

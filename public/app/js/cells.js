@@ -89,7 +89,7 @@ export function renderCell(row, column) {
 
     case 'bool':
       return raw
-        ? el('span', { text: '✓', style: { color: 'var(--success)', fontWeight: '700' } })
+        ? el('span.cell-yes', { text: '✓' })
         : el('span.muted', { text: '–' });
 
     case 'flag':

@@ -633,7 +633,8 @@ UI2_MEASURE = """() => {
     document.querySelector('.main').appendChild(n);
     const cs = getComputedStyle(n);
     const r = { display: cs.display, flexDirection: cs.flexDirection, gap: cs.gap,
-                fontSize: cs.fontSize, flexGrow: cs.flexGrow, fontWeight: cs.fontWeight };
+                fontSize: cs.fontSize, flexGrow: cs.flexGrow, fontWeight: cs.fontWeight,
+                color: cs.color };
     n.remove();
     return r;
   };
@@ -663,6 +664,20 @@ UI2_MEASURE = """() => {
   // dengan spesifisitas yang sama, jadi ia diam-diam mengalahkan setiap .fs-* pada
   // elemen mono — dan tidak ada satu pun agen yang tersandung. Ukurannya dipaku di
   // sini supaya urutan itu tidak bisa terbalik lagi tanpa suara.
+  /* NADA harus MENANG atas warna komponen (UI-6a). `.tone-*` lahir di UI-2 pada
+     baris 343, SEBELUM setiap kelas komponen yang menyetel warnanya sendiri pada
+     spesifisitas yang sama — `.muted`, `.cell-sub`, `.module-kpi-label`. Akibatnya
+     `.cell-sub.tone-neg` tergambar abu-abu, bukan merah. Diukur di sini pada
+     kombinasi yang sesungguhnya, bukan pada kelas nada sendirian. */
+  out.tone_cascade = {
+    neg_alone: probe('tone-neg').color,
+    neg_on_cell_sub: probe('cell-sub tone-neg').color,
+    neg_on_muted: probe('muted tone-neg').color,
+    danger: (() => { const n = document.createElement('div');
+      n.style.color = 'var(--danger)'; document.querySelector('.main').appendChild(n);
+      const c = getComputedStyle(n).color; n.remove(); return c; })(),
+  };
+
   out.mono_cascade = { mono_only: probe('mono').fontSize,
                        mono_secondary: probe('mono fs-secondary').fontSize,
                        mono_body: probe('mono fs-body').fontSize };
@@ -770,6 +785,13 @@ def s43(pg):
             galat.append(f"{tema}: .mono.fs-secondary {m['mono_cascade']['mono_secondary']} != 12px — urutan .mono/.fs-* terbalik lagi")
         if m["mono_cascade"]["mono_body"] != "13px":
             galat.append(f"{tema}: .mono.fs-body {m['mono_cascade']['mono_body']} != 13px — urutan .mono/.fs-* terbalik lagi")
+        t = m.get("tone_cascade") or {}
+        if t and t.get("danger"):
+            for kombinasi in ("neg_alone", "neg_on_cell_sub", "neg_on_muted"):
+                if t.get(kombinasi) != t["danger"]:
+                    galat.append(
+                        f"{tema}: .{kombinasi} {t.get(kombinasi)} != --danger {t['danger']} — "
+                        "kelas komponen mengalahkan utilitas nada; .tone-* harus ditulis PALING AKHIR di app.css")
         for sel, v in m["flat_shadow"].items():
             if v not in (None, "none"):
                 galat.append(f"{tema}: {sel} masih berbayang ({v})")
@@ -1135,6 +1157,553 @@ def s49(pg):
     if not f["dt"]:
         checks.append("panel Informasi sumber daya rata jadi kosong")
 
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+@scenario("S50_kepala_laporan_keuangan")
+def s50(pg):
+    """UI-6a: setiap laporan keuangan menyebut NAMANYA dan parameternya — juga di kertas.
+
+    Pengukuran yang melahirkan skenario ini, 18 Sep 2026 di pohon UI-5, dengan
+    `emulate_media('print')` pada kedelapan tab #/reports: blok cetak app.css
+    menyembunyikan `.tabs` DAN `.filters`, sehingga kedelapannya keluar dari
+    printer di bawah judul yang sama persis — "Laporan Keuangan · Dihitung dari
+    jurnal yang sudah diposting." Dua lembar Laba Rugi untuk dua rentang tanggal
+    berbeda tidak bisa dibedakan, dan tidak satu lembar pun menyebut periodenya.
+
+    Jadi yang digerbangi bukan "ada div .report-head", melainkan tiga hal yang
+    membuat selembar kertas bisa dilampirkan: ia punya nama, namanya BERBEDA
+    antar laporan, dan ia masih terbaca saat media-nya cetak.
+    """
+    login(pg, "admin@nusantara.test")
+
+    HEAD = """() => {
+      const h = document.querySelector('.main .report-head');
+      if (!h) return { ada: false };
+      const t = h.querySelector('.report-title');
+      const vis = (e) => { const cs = getComputedStyle(e);
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && e.getClientRects().length > 0; };
+      return {
+        ada: true,
+        terlihat: vis(h),
+        judul: ((t || {}).innerText || '').trim(),
+        px: t ? getComputedStyle(t).fontSize : null,
+        baris: [...h.querySelectorAll('.report-meta > div')].map(d =>
+          ((d.querySelector('dt') || {}).innerText || '').trim() + ' = ' +
+          ((d.querySelector('dd') || {}).innerText || '').trim()),
+      };
+    }"""
+
+    # Tujuh tab menggambar laporannya tanpa parameter wajib; profitabilitas
+    # proyek menuntut satu proyek dipilih dulu, dan sampai itu ia memang TIDAK
+    # punya kepala — belum ada laporan yang dijalankan.
+    tabs = ["trial-balance", "profit-loss", "balance-sheet", "cash-flow",
+            "cash-projection", "ar-aging", "ap-aging"]
+    out = {"layar": {}, "kertas": {}}
+
+    for tab in tabs:
+        pg.goto(BASE + "#/reports?tab=" + tab); pg.wait_for_timeout(2600)
+        out["layar"][tab] = pg.evaluate(HEAD)
+        pg.emulate_media(media="print")
+        out["kertas"][tab] = pg.evaluate(HEAD)
+        pg.emulate_media(media="screen")
+
+    pg.goto(BASE + "#/reports?tab=project-profitability"); pg.wait_for_timeout(2600)
+    out["profitabilitas_sebelum_pilih"] = pg.evaluate(HEAD)
+    if pg.locator("select[aria-label='Proyek']").count():
+        pg.select_option("select[aria-label='Proyek']", "1"); pg.wait_for_timeout(2800)
+    out["layar"]["project-profitability"] = pg.evaluate(HEAD)
+    pg.emulate_media(media="print")
+    out["kertas"]["project-profitability"] = pg.evaluate(HEAD)
+    pg.emulate_media(media="screen")
+    pg.screenshot(path=f"{OUT}/s50-kepala-laporan.png")
+
+    # Buku besar: kepalanya baru ada sesudah satu akun dipilih, karena sampai
+    # itu belum ada buku besar — layarnya sendiri berkata "Pilih akun".
+    pg.goto(BASE + "#/buku-besar"); pg.wait_for_timeout(2400)
+    box = pg.locator("input.combo-input[aria-label='Akun']")
+    if box.count():
+        box.click(); box.fill(""); box.type("1-1210", delay=40); pg.wait_for_timeout(900)
+        pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter"); pg.wait_for_timeout(3000)
+    out["layar"]["buku-besar"] = pg.evaluate(HEAD)
+    pg.emulate_media(media="print")
+    out["kertas"]["buku-besar"] = pg.evaluate(HEAD)
+    pg.emulate_media(media="screen")
+
+    # Separuh klien dari perbaikan as_of: sampai UI-6a layar umur tidak punya
+    # kotak tanggal sama sekali dan tidak pernah mengirim parameternya, jadi
+    # umur Juni tidak bisa direkonsiliasi terhadap neraca Juni.
+    permintaan = []
+    pg.on("request", lambda r: permintaan.append(r.url) if "ar-aging" in r.url else None)
+    pg.goto(BASE + "#/reports?tab=ar-aging"); pg.wait_for_timeout(2600)
+    if pg.locator("input[aria-label='Per tanggal']").count():
+        pg.fill("input[aria-label='Per tanggal']", "2026-06-30"); pg.wait_for_timeout(2800)
+    out["umur_as_of"] = {
+        "kotak": pg.locator("input[aria-label='Per tanggal']").count(),
+        "permintaan": [u.split("/api/")[-1] for u in permintaan],
+        "kepala": pg.evaluate(HEAD),
+    }
+
+    checks = []
+    for tab, r in out["layar"].items():
+        if not r.get("ada"):
+            checks.append(f"{tab}: tidak ada kepala laporan")
+            continue
+        if not r["judul"]:
+            checks.append(f"{tab}: kepala laporan tanpa judul")
+        if not r["baris"]:
+            checks.append(f"{tab}: kepala laporan tanpa satu pun parameter — ia hanya judul kedua")
+        k = out["kertas"].get(tab) or {}
+        if not k.get("ada") or not k.get("terlihat"):
+            checks.append(f"{tab}: kepala laporan hilang di media cetak — persis keadaan yang paket ini perbaiki")
+
+    # Judulnya harus MEMBEDAKAN. Inilah cacat aslinya: delapan laporan, satu judul.
+    judul = [r["judul"] for r in out["layar"].values() if r.get("ada") and r.get("judul")]
+    if len(set(judul)) != len(judul):
+        checks.append(f"dua laporan memakai judul yang sama di kertas: {sorted(judul)}")
+    if len(judul) < 9:
+        checks.append(f"hanya {len(judul)} dari 9 laporan keuangan yang menyebut namanya")
+
+    # Lembar yang dibaca BERDAMPINGAN harus sepakat soal "hari ini".
+    #
+    # S50 versi pertama memeriksa tiap kepala sendiri-sendiri dan lulus sementara
+    # buktinya sendiri merekam Neraca "18 September 2026" di sebelah Umur Piutang
+    # "19 September 2026" DALAM SATU PUTARAN: balanceSheet() memakai jam PERAMBAN
+    # (`new Date()`) dan selalu mengirimkannya, sementara aging() memakai gemaan
+    # server. Komentar ReportController::arAging() menuntut keduanya "mampu
+    # tanggal yang sama"; sebuah kepala laporan yang dicetak ke working paper
+    # membuat ketidaksepakatan itu permanen di kertas.
+    #
+    # Catatan pada pencocokan di bawah: `dt` dibaca lewat innerText, dan
+    # `.report-meta dt` memakai `text-transform: uppercase` — jadi teks yang
+    # sampai ke sini "PER TANGGAL", bukan "Per tanggal". Versi pertama
+    # pemeriksaan ini mencocokkan huruf kecil dan karena itu tidak pernah cocok
+    # dengan apa pun; ia lulus dengan kamus kosong. Penjaga di bawahnya ada
+    # supaya kegagalan mencocokkan itu tidak bisa terbaca sebagai lulus lagi.
+    per_tanggal = {}
+    for tab, r in out["layar"].items():
+        for baris in (r.get("baris") or []):
+            if baris.upper().startswith("PER TANGGAL = "):
+                per_tanggal[tab] = baris.split(" = ", 1)[1]
+    if len(per_tanggal) < 2:
+        checks.append(
+            f"hanya {len(per_tanggal)} kepala laporan yang membawa baris 'Per tanggal' — "
+            "pemeriksaan kesepakatan tanggal tidak menguji apa pun "
+            f"(baris yang terbaca: {[r.get('baris') for r in out['layar'].values()]})")
+    if len(set(per_tanggal.values())) > 1:
+        checks.append(
+            f"lembar yang dibaca berdampingan tidak sepakat soal 'Per tanggal': {per_tanggal} — "
+            "satu di antaranya memakai jam peramban, bukan gemaan server")
+    out["per_tanggal"] = per_tanggal
+
+    if not out["umur_as_of"]["kotak"]:
+        checks.append("layar umur piutang tidak punya kotak 'Per tanggal'")
+    elif not any("as_of=2026-06-30" in u for u in out["umur_as_of"]["permintaan"]):
+        checks.append(
+            "tanggal yang dipilih tidak ikut terkirim ke ar-aging: "
+            f"{out['umur_as_of']['permintaan']} — server menerima as_of sejak perbaikan "
+            "penanggalan penerimaan, dan separuh kliennya yang hilang adalah cacatnya")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+@scenario("S51_ubin_proyek_dan_grafik")
+def s51(pg):
+    """UI-6b: tidak ada teks yang tergambar menimpa teks lain, dan grafik tidak lebih keras dari angkanya.
+
+    Skenario ini lahir dari sebuah REGRESI yang paket sebelumnya kirim. UI-5
+    meratakan ubin KPI dengan `subgrid` dan mengikat tiap ubin ke TEPAT tiga
+    trek (`grid-row: span 3`). Ubin berempat anak karena itu tidak punya baris
+    untuk anak keempatnya dan menggambarnya DI ATAS anak ketiga. Diukur 18 Sep
+    2026: dua ubin di seluruh aplikasi berempat anak — CPI di #/evm dan di
+    #/d/projects/1 — dan pada keduanya yang tertimpa adalah kalimat peringatan
+    yang memberi tahu bahwa angka di atasnya tidak boleh dipercaya.
+
+    UI-5 hijau karena ia mengukur keluarga dasbor, tempat SETIAP ubin berisi
+    tepat tiga anak. Jadi yang digerbangi di sini bukan "ubin CPI benar",
+    melainkan aturan umum: DI SELURUH layar ini, tidak boleh ada dua daun teks
+    yang kotaknya bertindih. Itulah bentuk yang akan menangkap regresi
+    berikutnya, yang tidak akan berbentuk ubin CPI.
+    """
+    login(pg, "admin@nusantara.test")
+
+    # Dua daun teks yang saling menimpa >35% kotak terkecil. Ambangnya bukan 0
+    # karena badge, chip dan ikon memang sengaja bertumpuk beberapa piksel.
+    #
+    # PROBE INI DIBANGUN ULANG DUA KALI. Dicatat lengkap karena kedua kesalahan
+    # itu berlaku untuk probe geometri apa pun, bukan hanya yang ini.
+    #
+    #  v1 `getBoundingClientRect()` — 19 tabrakan PALSU di 768 px pada
+    #     #/d/projects/1; dipotret dengan kedua belah diberi garis warna di
+    #     putaran pengukuran yang sama, tidak satu glyph bersentuhan.
+    #
+    #  v2 `getClientRects()` — hipotesisnya: bounding box elemen inline yang
+    #     membungkus adalah GABUNGAN kotak barisnya, jadi memuat ruang kosong.
+    #     Masuk akal, dan SALAH: jumlahnya tetap 19.
+    #
+    #  v2b kotak baris + saringan `elementFromPoint` — nol palsu, terlihat
+    #     sempurna, dan GERBANG MATI: pada tabrakan sungguhan satu elemen
+    #     MENUTUPI yang lain, jadi yang tertutup selalu gagal uji titik.
+    #     Dibuktikan dengan mencabut perbaikannya: ia tetap menjawab 0.
+    #
+    #     Sebab sebenarnya cuma satu: baris tabel yang tergulung keluar
+    #     `.table-wrap` tetap punya geometri, dan geometrinya jatuh di atas
+    #     kartu berikutnya.
+    #
+    #  v3 (di bawah) kotak baris DIPOTONG terhadap tiap leluhur yang menggulung.
+    #     Yang tergulung keluar kehilangan seluruh kotaknya; yang tertutup
+    #     tetangganya tidak. Benar di kedua arah — 0 pada pohon yang diperbaiki,
+    #     dan tepat satu pasangan rasio 1,0 per layar saat disabotase.
+    OVERLAP = """() => {
+      const vis = (e) => { const cs = getComputedStyle(e);
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && e.getClientRects().length > 0; };
+      const leaves = [...document.querySelectorAll('.main *')].filter(e =>
+        e.children.length === 0 && (e.textContent || '').trim().length > 2 && vis(e));
+      const clipOf = (e) => {
+        const boxes = [];
+        for (let p = e.parentElement; p; p = p.parentElement) {
+          const cs = getComputedStyle(p);
+          if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') boxes.push(p.getBoundingClientRect());
+        }
+        return boxes;
+      };
+      const clipped = (rects, clips) => rects.map(r => {
+        let x1 = r.x, y1 = r.y, x2 = r.x + r.width, y2 = r.y + r.height;
+        for (const c of clips) {
+          x1 = Math.max(x1, c.x); y1 = Math.max(y1, c.y);
+          x2 = Math.min(x2, c.x + c.width); y2 = Math.min(y2, c.y + c.height);
+        }
+        return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+      }).filter(r => r.w > 1 && r.h > 1);
+      const items = leaves.map(e => ({
+        e, rects: clipped([...e.getClientRects()], clipOf(e)),
+        txt: (e.textContent || '').trim().slice(0, 44),
+        cls: e.getAttribute('class') || e.tagName.toLowerCase() })).filter(i => i.rects.length);
+      const hits = [];
+      for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+        const a = items[i], b = items[j];
+        if (a.e.contains(b.e) || b.e.contains(a.e)) continue;
+        let worst = 0;
+        for (const ra of a.rects) for (const rb of b.rects) {
+          const ox = Math.min(ra.x + ra.w, rb.x + rb.w) - Math.max(ra.x, rb.x);
+          const oy = Math.min(ra.y + ra.h, rb.y + rb.h) - Math.max(ra.y, rb.y);
+          if (ox > 4 && oy > 4) {
+            const min = Math.min(ra.w * ra.h, rb.w * rb.h);
+            if (min > 0) worst = Math.max(worst, ox * oy / min);
+          }
+        }
+        // Kedua belah harus benar-benar tergambar di titik tindihnya. Kalau
+        // salah satunya dipotong leluhur yang menggulung, tidak ada yang
+        // bertabrakan di layar — hanya di dalam sistem koordinat.
+        if (worst > 0.35)
+          hits.push({ a: a.txt, b: b.txt, acls: a.cls, bcls: b.cls, rasio: +worst.toFixed(2) });
+      }
+      return hits;
+    }"""
+
+    # Baris ubin TINGKAT ATAS: satu ukuran untuk satu peran. Ubin di dalam kartu
+    # sengaja tidak ikut — di sana 16 px adalah peran yang berbeda (UI-5).
+    SIZES = """() => {
+      const out = {};
+      document.querySelectorAll('.main .stat-row > .stat > .value').forEach(v => {
+        if (v.closest('.card')) return;                 // ubin di dalam kartu: peran lain
+        const px = getComputedStyle(v).fontSize;
+        out[px] = (out[px] || 0) + 1;
+      });
+      return out;
+    }"""
+
+    # Grafik lawan angkanya: luas kanvas per titik data, dan ukuran angka di layar yang sama.
+    CHART = """() => {
+      const vis = (e) => e.getClientRects().length > 0;
+      const svgs = [...document.querySelectorAll('.main svg.chart-lib')].filter(vis).map(s => {
+        const r = s.getBoundingClientRect();
+        const marks = s.querySelectorAll('.mark').length;
+        return { w: Math.round(r.width), h: Math.round(r.height),
+                 luas: Math.round(r.width * r.height), mark: marks,
+                 per_mark: marks ? Math.round(r.width * r.height / marks) : null };
+      });
+      const nilai = [...document.querySelectorAll('.main .stat-row > .stat > .value')]
+        .map(v => getComputedStyle(v).fontSize);
+      return { svg: svgs, nilai };
+    }"""
+
+    out = {}
+    for route in ["#/d/projects/1", "#/evm", "#/harga-satuan", "#/dashboard"]:
+        pg.goto(BASE + route); pg.wait_for_timeout(3600)
+        out[route] = {"tabrakan": pg.evaluate(OVERLAP), "ukuran": pg.evaluate(SIZES)}
+        if route == "#/harga-satuan":
+            out[route]["grafik"] = pg.evaluate(CHART)
+            pg.screenshot(path=f"{OUT}/s51-harga-satuan.png")
+        if route == "#/d/projects/1":
+            pg.screenshot(path=f"{OUT}/s51-workspace-proyek.png")
+
+    # …dan sekali lagi di 768 px, tempat instrumen versi pertama paling lemah:
+    # di sanalah teks membungkus, dan di sanalah bounding box inline berbohong.
+    pg.set_viewport_size({"width": 768, "height": 900})
+    for route in ["#/d/projects/1", "#/evm"]:
+        pg.goto(BASE + route); pg.wait_for_timeout(3600)
+        out[f"{route} @768"] = {"tabrakan": pg.evaluate(OVERLAP)}
+    pg.set_viewport_size({"width": 1440, "height": 900})
+
+    checks = []
+    for route, r in out.items():
+        for h in r["tabrakan"]:
+            checks.append(
+                f"{route}: teks menimpa teks (rasio {h['rasio']}) — .{h['acls']} {h['a']!r} "
+                f"di atas .{h['bcls']} {h['b']!r}")
+
+    # Baris pahlawan workspace proyek: SATU ukuran. Sampai UI-6b ia menggambar
+    # "Rp 48.500.000.000" pada 16 px di sebelah "2" pada 22 px — angka yang
+    # paling mengenali proyek adalah yang paling kecil.
+    hero = out["#/d/projects/1"]["ukuran"]
+    # Prasyaratnya harus ditegaskan. `{}` punya panjang 0, jadi tanpa baris ini
+    # sebuah probe yang tidak menemukan apa pun — kelas berubah nama, baris
+    # pahlawan dibungkus `.card`, render gagal — LULUS diam-diam. Bahwa probe
+    # ini benar-benar bisa mengembalikan `{}` bukan spekulasi: bukti cabang ini
+    # sendiri merekam `"#/dashboard": {"ukuran": {}}` dari probe yang sama.
+    if not hero:
+        checks.append(
+            "probe ukuran tidak menemukan satu pun ubin tingkat atas di #/d/projects/1 — "
+            "gerbang satu-ukuran tidak menguji apa pun di sini")
+    if len(hero) > 1:
+        checks.append(
+            f"baris ubin tingkat atas #/d/projects/1 memakai {len(hero)} ukuran sekaligus: {hero} — "
+            "pembelahnya panjang string, bukan kepentingan; uang memakai bentuk ringkas pada ukuran yang sama")
+
+    # Grafik tidak boleh melar melebihi viewBox-nya sendiri (720 px).
+    g = out["#/harga-satuan"].get("grafik") or {}
+    for svg in g.get("svg", []):
+        if svg["w"] > 760:
+            checks.append(
+                f"#/harga-satuan: grafik {svg['w']}x{svg['h']} = {svg['luas']:,} px2 untuk {svg['mark']} titik "
+                f"({svg['per_mark']:,} px2 per titik) — viewBox-nya 720 px; .chart-cap hilang")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+@scenario("S52_lapisan_daftar_generik")
+def s52(pg):
+    """UI-6c: bilah aksi di dalam sel tidak pernah membungkus, dan sel boolean memakai tokennya.
+
+    Dua hal yang digerbangi di sini hidup di lapisan GENERIK — `list.js` dan
+    `cells.js` — sehingga biayanya tumbuh bersama jumlah BARIS, bukan jumlah
+    layar, dan salahnya muncul di ke-97 sumber daya sekaligus.
+
+    Gerbang pertama lahir dari nyaris-kiriman. Mencabut gaya sebaris dari
+    `rowActions()` terlihat seperti pekerjaan memakai-ulang-kelas yang rapi:
+    `.row-actions` sudah ada dan bentuknya "sama". Ia TIDAK sama — ia membawa
+    `flex-wrap: wrap`, dan pembungkusan itu menaikkan tinggi baris tabel
+    56 → 81 px di #/r/inventory/items, #/r/procurement/vendors dan
+    #/r/hr/employees. Itu 45% lebih tinggi, dan kepadatan baris adalah KEPUTUSAN
+    PEMILIK yang dibekukan. Diukur lewat A/B sebelum dikirim, lalu diganti kelas
+    sendiri (`.cell-actions`) yang menyalin persis nilai sebarisnya — nol piksel
+    bergerak di 15 rute.
+
+    KOREKSI terhadap versi pertama docstring ini (19 Sep 2026). Ia berbunyi "S21
+    memaku `--row-h` sebagai TOKEN", dan itu SALAH — sebuah klaim yang mengecilkan
+    gerbang yang sudah ada. S21 memaku GEOMETRI TERGAMBAR: baris 5219-5220
+    menuntut `near(dens['compact']['all'], 32)` dan `near(..., 48)`, yaitu setiap
+    baris satu-garis dalam 0,5 px dari nilai beku; `row_h_token` dicatat tetapi
+    tidak pernah diasersi. Baris yang ia ukur di #/r/inventory/item-categories
+    bahkan jenis TOMBOL (`by_kind: {'button': [32]}`) — persis baris yang membawa
+    `.cell-actions`. Pada kepadatan rapat, pembungkusan di layar ITU akan
+    menjatuhkan S21.
+
+    Celah yang sebenarnya lebih sempit, dan itulah alasan skenario ini tetap ada:
+    S21 hanya mengukur tiga rute daftar (item-categories, purchase-orders,
+    finance/accounts) — bukan ketiga layar tempat pembungkusan itu terukur
+    (#/r/inventory/items, #/r/procurement/vendors, #/r/hr/employees) — dan pada
+    kepadatan NORMAL, yaitu bawaannya, ia membandingkan `by_kind` terhadap
+    BASELINE alih-alih terhadap 38,5, sehingga regresi yang seragam di sana tidak
+    terlihat. Skenario ini menutup layar dan kepadatan yang S21 tidak sentuh.
+    """
+    login(pg, "admin@nusantara.test")
+
+    # Membungkus = anak-anaknya tidak lagi berbagi satu garis atas.
+    WRAP = """() => {
+      const bars = [...document.querySelectorAll('.main table.data .cell-actions')];
+      const membungkus = bars.filter(b => {
+        const kids = [...b.children].filter(k => k.getClientRects().length);
+        if (kids.length < 2) return false;
+        const tops = kids.map(k => Math.round(k.getBoundingClientRect().top));
+        return Math.max(...tops) - Math.min(...tops) > 2;
+      }).length;
+      return { bilah: bars.length, membungkus,
+               gaya_sebaris: bars.filter(b => b.getAttribute('style')).length };
+    }"""
+
+    # Sel boolean: warnanya harus token --success, bukan abu-abu warisan.
+    BOOL = """() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--success)';
+      document.querySelector('.main').appendChild(probe);
+      const token = getComputedStyle(probe).color;
+      probe.remove();
+      const sel = [...document.querySelectorAll('.main table.data .cell-yes')];
+      return { jumlah: sel.length, token,
+               warna: [...new Set(sel.map(e => getComputedStyle(e).color))],
+               bobot: [...new Set(sel.map(e => getComputedStyle(e).fontWeight))] };
+    }"""
+
+    SIZES = """() => {
+      const out = {};
+      document.querySelectorAll('.main .stat-row > .stat > .value').forEach(v => {
+        if (v.closest('.card')) return;
+        const px = getComputedStyle(v).fontSize;
+        out[px] = (out[px] || 0) + 1;
+      });
+      return out;
+    }"""
+
+    out = {}
+    for route in ["#/r/inventory/items", "#/r/procurement/vendors", "#/r/hr/employees",
+                  "#/r/procurement/purchase-orders"]:
+        pg.goto(BASE + route); pg.wait_for_timeout(3200)
+        out[route] = {"bilah": pg.evaluate(WRAP), "bool": pg.evaluate(BOOL)}
+    pg.screenshot(path=f"{OUT}/s52-daftar-generik.png")
+
+    for route in ["#/stock", "#/usulan-pesan-ulang"]:
+        pg.goto(BASE + route); pg.wait_for_timeout(3200)
+        out[route] = {"ukuran": pg.evaluate(SIZES)}
+
+    checks = []
+    for route, r in out.items():
+        bar = r.get("bilah")
+        if bar:
+            # Daftar TANPA bilah aksi itu sah: #/r/procurement/purchase-orders
+            # tidak menggambar tombol baris sama sekali (diukur 18 Sep 2026).
+            # Yang tidak sah adalah SELURUH himpunan kosong — itu gerbang hampa,
+            # dan diperiksa sekali di bawah, bukan per layar.
+            if bar["membungkus"]:
+                checks.append(
+                    f"{route}: {bar['membungkus']} dari {bar['bilah']} bilah aksi sel MEMBUNGKUS — "
+                    "itu menaikkan tinggi baris tabel, dan kepadatan baris adalah keputusan pemilik yang dibekukan")
+            if bar["gaya_sebaris"]:
+                checks.append(f"{route}: {bar['gaya_sebaris']} bilah aksi kembali membawa gaya sebaris")
+        b = r.get("bool")
+        if b and b["jumlah"]:
+            salah = [w for w in b["warna"] if w != b["token"]]
+            if salah:
+                checks.append(f"{route}: sel boolean tergambar {salah} bukan --success {b['token']}")
+        size = r.get("ukuran")
+        if size is not None and len(size) > 1:
+            checks.append(
+                f"{route}: baris ubin tingkat atas memakai {len(size)} ukuran sekaligus: {size} — "
+                "uang memakai bentuk ringkas pada ukuran yang sama, bukan ukuran yang dikecilkan")
+
+    # Penjaga anti-gerbang-hampa: kalau tidak ada satu pun bilah aksi di SELURUH
+    # himpunan, uji pembungkusan di atas tidak menguji apa pun.
+    total_bilah = sum((r.get("bilah") or {}).get("bilah", 0) for r in out.values() if isinstance(r, dict))
+    total_bool = sum((r.get("bool") or {}).get("jumlah", 0) for r in out.values() if isinstance(r, dict))
+    if not total_bilah:
+        checks.append("nol .cell-actions di seluruh himpunan — uji pembungkusan tidak menguji apa pun")
+    if not total_bool:
+        checks.append("nol sel .cell-yes di seluruh himpunan — uji warna boolean tidak menguji apa pun")
+    out["total_bilah"] = total_bilah
+    out["total_bool"] = total_bool
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+@scenario("S53_satu_ukuran_per_baris_ubin")
+def s53(pg):
+    """UI-6d: satu baris ubin tingkat atas memakai SATU ukuran angka.
+
+    Aturannya sempit dengan sengaja, dan batasnya diukur bukan diselerakan:
+
+      * DI DALAM KARTU, 16 px adalah peran tersendiri dan UI-5 mempertahankannya
+        dengan sengaja — 37 ubin lawan 3 di seluruh aplikasi. Skenario ini tidak
+        menyentuhnya.
+      * DI BARIS TINGKAT ATAS, mencampur dua ukuran dalam SATU baris tidak
+        terbaca sebagai hierarki. Sensus 13 baris tingkat atas (18 Sep 2026)
+        menemukan DUA yang campur: #/evm (3 indeks 22 px + 3 uang 16 px) dan
+        #/tax-exports (2 hitungan 22 px + 2 uang 16 px). Pembelahnya panjang
+        string — rupiah penuh tidak muat — bukan kepentingan.
+
+    Yang TIDAK digerbangi: ukuran mana yang dipakai antar-layar. Sensus yang sama
+    menemukan tujuh baris seragam 16 px dan empat seragam 22 px; menyatukannya
+    adalah keputusan nilai untuk seluruh aplikasi dan dicatat untuk UI-7, bukan
+    diputuskan diam-diam di sini. Yang digerbangi hanya kontradiksi DI DALAM satu
+    baris, yang selalu cacat.
+    """
+    login(pg, "admin@nusantara.test")
+
+    CENSUS = """() => {
+      const rows = [];
+      document.querySelectorAll('.main .stat-row').forEach(row => {
+        if (row.closest('.card')) return;   // ubin di dalam kartu: peran lain (UI-5)
+        const vals = [...row.children]
+          .filter(t => t.classList.contains('stat'))
+          .map(t => t.querySelector('.value'))
+          .filter(v => v && v.getClientRects().length);
+        if (vals.length < 2) return;
+        const sizes = {};
+        vals.forEach(v => { const px = getComputedStyle(v).fontSize; sizes[px] = (sizes[px] || 0) + 1; });
+        rows.push({
+          ubin: vals.length, ukuran: sizes,
+          label: vals.map(v => {
+            const st = v.closest('.stat');
+            return ((st.querySelector('.label') || {}).innerText || '').trim().slice(0, 22);
+          }),
+          // MELUBER, bukan "terpotong". `scrollWidth > clientWidth` tidak pernah
+          // benar di sini: di dalam blok @supports subgrid `.stat` adalah grid
+          // dan `.value` grid item dengan `min-width: auto`, jadi ia tidak
+          // pernah dipampatkan di bawah lebar min-content — ia TUMBUH keluar
+          // dari ubinnya. Diukur: dengan .stat dipaksa 90px dan .value
+          // white-space:nowrap, clientWidth === scrollWidth === 111 sementara
+          // teksnya jelas keluar kotak. Yang harus diperiksa adalah tepinya.
+          meluber: vals.filter(v => {
+            const st = v.closest('.stat');
+            if (!st) return false;
+            const cs = getComputedStyle(st);
+            const batas = st.getBoundingClientRect().right - parseFloat(cs.paddingRight || 0);
+            return v.getBoundingClientRect().right > batas + 1;
+          }).map(v => (v.innerText || '').trim().slice(0, 20)),
+        });
+      });
+      return rows;
+    }"""
+
+    # Daftar rute ini pernah MELEWATKAN enam baris campur (koreksi 19 Sep 2026).
+    # Sensus peramban UI-6d menyinggahi 13 rute sementara `.stat-row` muncul di
+    # 38 berkas view; sensus STATIS atas seluruh views/ menemukan sisanya di
+    # bankrecon, custom (payroll), rekappph21 dan timesheet. Kalau menambah baris
+    # ubin di layar baru, TAMBAHKAN rutenya di sini — aturan yang gerbangnya
+    # tidak bisa lihat bukan aturan.
+    routes = ["#/evm", "#/tax-exports", "#/sla-breaches", "#/csat", "#/d/projects/1", "#/stock",
+              "#/usulan-pesan-ulang", "#/periods", "#/harga-satuan", "#/reports?tab=profit-loss",
+              "#/reports?tab=cash-flow", "#/reports?tab=cash-projection",
+              "#/d/procurement/purchase-orders/1",
+              "#/bank-recon", "#/rekap-pph21", "#/timesheet", "#/absensi",
+              "#/d/hr/payroll-runs/1", "#/buku-besar", "#/kas-kecil", "#/tugas"]
+    out = {}
+    for route in routes:
+        pg.goto(BASE + route); pg.wait_for_timeout(2900)
+        out[route] = pg.evaluate(CENSUS)
+    pg.screenshot(path=f"{OUT}/s53-sensus-ubin.png")
+
+    checks = []
+    baris = 0
+    for route, rows in out.items():
+        for row in rows:
+            baris += 1
+            if len(row["ukuran"]) > 1:
+                checks.append(
+                    f"{route}: satu baris {row['ubin']} ubin memakai {len(row['ukuran'])} ukuran "
+                    f"sekaligus {row['ukuran']} — {row['label']}")
+            if row["meluber"]:
+                checks.append(f"{route}: nilai ubin meluber keluar petaknya {row['meluber']}")
+
+    # Anti-gerbang-hampa: tanpa baris ber-≥2 ubin, uji di atas tidak menguji apa pun.
+    if baris < 8:
+        checks.append(f"hanya {baris} baris ubin tingkat atas ditemukan (diharapkan ≥ 8) — sensusnya tidak sampai")
+
+    out["baris_diperiksa"] = baris
     out["failed_checks"] = checks
     out["ok"] = not checks
     return out
@@ -13423,7 +13992,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
