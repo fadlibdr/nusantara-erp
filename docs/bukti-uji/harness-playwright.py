@@ -1265,6 +1265,38 @@ def s50(pg):
     if len(judul) < 9:
         checks.append(f"hanya {len(judul)} dari 9 laporan keuangan yang menyebut namanya")
 
+    # Lembar yang dibaca BERDAMPINGAN harus sepakat soal "hari ini".
+    #
+    # S50 versi pertama memeriksa tiap kepala sendiri-sendiri dan lulus sementara
+    # buktinya sendiri merekam Neraca "18 September 2026" di sebelah Umur Piutang
+    # "19 September 2026" DALAM SATU PUTARAN: balanceSheet() memakai jam PERAMBAN
+    # (`new Date()`) dan selalu mengirimkannya, sementara aging() memakai gemaan
+    # server. Komentar ReportController::arAging() menuntut keduanya "mampu
+    # tanggal yang sama"; sebuah kepala laporan yang dicetak ke working paper
+    # membuat ketidaksepakatan itu permanen di kertas.
+    #
+    # Catatan pada pencocokan di bawah: `dt` dibaca lewat innerText, dan
+    # `.report-meta dt` memakai `text-transform: uppercase` — jadi teks yang
+    # sampai ke sini "PER TANGGAL", bukan "Per tanggal". Versi pertama
+    # pemeriksaan ini mencocokkan huruf kecil dan karena itu tidak pernah cocok
+    # dengan apa pun; ia lulus dengan kamus kosong. Penjaga di bawahnya ada
+    # supaya kegagalan mencocokkan itu tidak bisa terbaca sebagai lulus lagi.
+    per_tanggal = {}
+    for tab, r in out["layar"].items():
+        for baris in (r.get("baris") or []):
+            if baris.upper().startswith("PER TANGGAL = "):
+                per_tanggal[tab] = baris.split(" = ", 1)[1]
+    if len(per_tanggal) < 2:
+        checks.append(
+            f"hanya {len(per_tanggal)} kepala laporan yang membawa baris 'Per tanggal' — "
+            "pemeriksaan kesepakatan tanggal tidak menguji apa pun "
+            f"(baris yang terbaca: {[r.get('baris') for r in out['layar'].values()]})")
+    if len(set(per_tanggal.values())) > 1:
+        checks.append(
+            f"lembar yang dibaca berdampingan tidak sepakat soal 'Per tanggal': {per_tanggal} — "
+            "satu di antaranya memakai jam peramban, bukan gemaan server")
+    out["per_tanggal"] = per_tanggal
+
     if not out["umur_as_of"]["kotak"]:
         checks.append("layar umur piutang tidak punya kotak 'Per tanggal'")
     elif not any("as_of=2026-06-30" in u for u in out["umur_as_of"]["permintaan"]):
@@ -1427,6 +1459,15 @@ def s51(pg):
     # "Rp 48.500.000.000" pada 16 px di sebelah "2" pada 22 px — angka yang
     # paling mengenali proyek adalah yang paling kecil.
     hero = out["#/d/projects/1"]["ukuran"]
+    # Prasyaratnya harus ditegaskan. `{}` punya panjang 0, jadi tanpa baris ini
+    # sebuah probe yang tidak menemukan apa pun — kelas berubah nama, baris
+    # pahlawan dibungkus `.card`, render gagal — LULUS diam-diam. Bahwa probe
+    # ini benar-benar bisa mengembalikan `{}` bukan spekulasi: bukti cabang ini
+    # sendiri merekam `"#/dashboard": {"ukuran": {}}` dari probe yang sama.
+    if not hero:
+        checks.append(
+            "probe ukuran tidak menemukan satu pun ubin tingkat atas di #/d/projects/1 — "
+            "gerbang satu-ukuran tidak menguji apa pun di sini")
     if len(hero) > 1:
         checks.append(
             f"baris ubin tingkat atas #/d/projects/1 memakai {len(hero)} ukuran sekaligus: {hero} — "
@@ -1462,8 +1503,23 @@ def s52(pg):
     sendiri (`.cell-actions`) yang menyalin persis nilai sebarisnya — nol piksel
     bergerak di 15 rute.
 
-    S21 memaku `--row-h` sebagai TOKEN. Skenario ini memaku MEKANISME yang bisa
-    menaikkan tinggi baris tanpa menyentuh token itu sama sekali.
+    KOREKSI terhadap versi pertama docstring ini (19 Sep 2026). Ia berbunyi "S21
+    memaku `--row-h` sebagai TOKEN", dan itu SALAH — sebuah klaim yang mengecilkan
+    gerbang yang sudah ada. S21 memaku GEOMETRI TERGAMBAR: baris 5219-5220
+    menuntut `near(dens['compact']['all'], 32)` dan `near(..., 48)`, yaitu setiap
+    baris satu-garis dalam 0,5 px dari nilai beku; `row_h_token` dicatat tetapi
+    tidak pernah diasersi. Baris yang ia ukur di #/r/inventory/item-categories
+    bahkan jenis TOMBOL (`by_kind: {'button': [32]}`) — persis baris yang membawa
+    `.cell-actions`. Pada kepadatan rapat, pembungkusan di layar ITU akan
+    menjatuhkan S21.
+
+    Celah yang sebenarnya lebih sempit, dan itulah alasan skenario ini tetap ada:
+    S21 hanya mengukur tiga rute daftar (item-categories, purchase-orders,
+    finance/accounts) — bukan ketiga layar tempat pembungkusan itu terukur
+    (#/r/inventory/items, #/r/procurement/vendors, #/r/hr/employees) — dan pada
+    kepadatan NORMAL, yaitu bawaannya, ia membandingkan `by_kind` terhadap
+    BASELINE alih-alih terhadap 38,5, sehingga regresi yang seragam di sana tidak
+    terlihat. Skenario ini menutup layar dan kepadatan yang S21 tidak sentuh.
     """
     login(pg, "admin@nusantara.test")
 
@@ -1594,17 +1650,37 @@ def s53(pg):
             const st = v.closest('.stat');
             return ((st.querySelector('.label') || {}).innerText || '').trim().slice(0, 22);
           }),
-          terpotong: vals.filter(v => v.scrollWidth > v.clientWidth + 1)
-                         .map(v => (v.innerText || '').trim().slice(0, 20)),
+          // MELUBER, bukan "terpotong". `scrollWidth > clientWidth` tidak pernah
+          // benar di sini: di dalam blok @supports subgrid `.stat` adalah grid
+          // dan `.value` grid item dengan `min-width: auto`, jadi ia tidak
+          // pernah dipampatkan di bawah lebar min-content — ia TUMBUH keluar
+          // dari ubinnya. Diukur: dengan .stat dipaksa 90px dan .value
+          // white-space:nowrap, clientWidth === scrollWidth === 111 sementara
+          // teksnya jelas keluar kotak. Yang harus diperiksa adalah tepinya.
+          meluber: vals.filter(v => {
+            const st = v.closest('.stat');
+            if (!st) return false;
+            const cs = getComputedStyle(st);
+            const batas = st.getBoundingClientRect().right - parseFloat(cs.paddingRight || 0);
+            return v.getBoundingClientRect().right > batas + 1;
+          }).map(v => (v.innerText || '').trim().slice(0, 20)),
         });
       });
       return rows;
     }"""
 
+    # Daftar rute ini pernah MELEWATKAN enam baris campur (koreksi 19 Sep 2026).
+    # Sensus peramban UI-6d menyinggahi 13 rute sementara `.stat-row` muncul di
+    # 38 berkas view; sensus STATIS atas seluruh views/ menemukan sisanya di
+    # bankrecon, custom (payroll), rekappph21 dan timesheet. Kalau menambah baris
+    # ubin di layar baru, TAMBAHKAN rutenya di sini — aturan yang gerbangnya
+    # tidak bisa lihat bukan aturan.
     routes = ["#/evm", "#/tax-exports", "#/sla-breaches", "#/csat", "#/d/projects/1", "#/stock",
               "#/usulan-pesan-ulang", "#/periods", "#/harga-satuan", "#/reports?tab=profit-loss",
               "#/reports?tab=cash-flow", "#/reports?tab=cash-projection",
-              "#/d/procurement/purchase-orders/1"]
+              "#/d/procurement/purchase-orders/1",
+              "#/bank-recon", "#/rekap-pph21", "#/timesheet", "#/absensi",
+              "#/d/hr/payroll-runs/1", "#/buku-besar", "#/kas-kecil", "#/tugas"]
     out = {}
     for route in routes:
         pg.goto(BASE + route); pg.wait_for_timeout(2900)
@@ -1620,8 +1696,8 @@ def s53(pg):
                 checks.append(
                     f"{route}: satu baris {row['ubin']} ubin memakai {len(row['ukuran'])} ukuran "
                     f"sekaligus {row['ukuran']} — {row['label']}")
-            if row["terpotong"]:
-                checks.append(f"{route}: nilai ubin terpotong {row['terpotong']}")
+            if row["meluber"]:
+                checks.append(f"{route}: nilai ubin meluber keluar petaknya {row['meluber']}")
 
     # Anti-gerbang-hampa: tanpa baris ber-≥2 ubin, uji di atas tidak menguji apa pun.
     if baris < 8:

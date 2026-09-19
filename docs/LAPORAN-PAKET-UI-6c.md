@@ -66,8 +66,17 @@ dikirim:
 
 Tinggi baris tabel naik **56 → 81 px, 45%**, karena tombol aksinya mulai membungkus ke baris kedua
 di dalam selnya. **Kepadatan baris adalah keputusan pemilik yang DIBEKUKAN** (Padat 32 · Normal 38,5
-· Lega 48 · kaki 41) — dan ia naik tanpa satu pun token kepadatan disentuh, jadi **S21 tidak akan
-melihatnya**: S21 memaku `--row-h`, bukan tinggi baris yang benar-benar tergambar.
+· Lega 48 · kaki 41) — dan ia naik tanpa satu pun token kepadatan disentuh.
+
+> **Koreksi (19 Sep 2026, saat tinjauan pra-gabung).** Kalimat aslinya di sini berbunyi "S21 tidak
+> akan melihatnya: S21 memaku `--row-h`, bukan tinggi baris yang benar-benar tergambar." Itu
+> **salah**, dan salahnya ke arah yang mengecilkan gerbang yang sudah ada. S21 mengasersi geometri
+> TERGAMBAR — `near(dens['compact']['all'], 32)` dan `near(..., 48)`, setiap baris satu-garis dalam
+> 0,5 px — dan baris yang ia ukur di `#/r/inventory/item-categories` adalah baris ber-TOMBOL, persis
+> jenis yang membawa `.cell-actions`. Pada kepadatan rapat, pembungkusan di layar itu akan
+> menjatuhkannya. Celah yang sebenarnya lebih sempit: S21 hanya mengunjungi tiga rute daftar, tidak
+> satu pun di antaranya ketiga layar tempat pembungkusan itu terukur, dan pada kepadatan NORMAL ia
+> membandingkan terhadap baseline alih-alih terhadap 38,5. Itulah yang S52 tutup.
 
 Diganti kelas sendiri, `.cell-actions`, yang menyalin **persis** nilai sebaris yang digantikannya.
 Sesudah itu A/B yang sama berbunyi **beda 0 di kelima belas rute**.

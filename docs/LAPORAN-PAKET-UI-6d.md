@@ -55,6 +55,33 @@ Maka garisnya ditarik di tempat yang bisa dipertahankan:
 Dan **di dalam kartu tidak disentuh sama sekali**: 16 px di sana adalah peran tersendiri yang UI-5
 pertahankan dengan sengaja — 37 ubin lawan 3 di seluruh aplikasi.
 
+## Koreksi terhadap paket ini (19 Sep 2026, tinjauan pra-gabung)
+
+**Sensus di atas tidak lengkap, dan cara ia tidak lengkap adalah persis kesalahan yang paket ini
+mengaku memperbaikinya.** Ia dijalankan di PERAMBAN atas 13 rute, sementara `.stat-row` dibangun di
+puluhan berkas view. Sebuah pemindaian STATIS atas seluruh `views/` menemukan **enam baris campur
+lagi**, semuanya di layar yang butuh keadaan atau data yang tidak ada di basis data demo — jadi
+tidak ada putaran peramban yang akan pernah melihatnya:
+
+| berkas | isi | keadaan yang dibutuhkan |
+|---|---|---|
+| `bankrecon.js:910` | 3 uang 16 px + 1 hitungan 22 px | satu rekening bank dipilih |
+| `bankrecon.js:1043` | 4 hitungan 22 px + 1 stempel 16 px | tab folder terpantau |
+| `bankrecon.js:536` | 3 uang 16 px + 1 hitungan 22 px | **di dalam kartu** — normanya 16 px |
+| `custom.js:325` | 3 uang 16 px + 1 hitungan 22 px | satu payroll run dibuka |
+| `rekappph21.js:37` | 2 hitungan 22 px + 2 uang 16 px | `#/rekap-pph21` dengan data |
+| `timesheet.js:531` | 1 hitungan 22 px + 2 durasi 16 px | periode timesheet dengan ringkasan |
+
+Ketujuhnya diperbaiki. Dan gerbangnya diperbaiki dua kali: daftar rute S53 **13 → 21**, DAN sebuah
+uji sumber baru, `tests/Feature/Core/SpaStatRowSizeTest`, yang memindai setiap `.stat-row` di
+`views/` tanpa peduli layarnya bisa dicapai atau tidak — **44 baris ber-≥2 nilai, nol campur**,
+dengan lantai anti-uji-hampa dan dibuktikan merah.
+
+Itulah pelajaran UI-5 yang paket ini kutip di bagian sensus, terulang satu tingkat di atasnya:
+*memverifikasi yang bisa dicapai bukan memverifikasi yang ada.* Sebuah aturan yang ditulis ke
+CONVENTIONS §17 sebagai hukum, dengan kode yang melanggarnya di enam layar dan gerbang yang berkata
+hijau, akan dipercaya oleh paket berikutnya.
+
 ## Yang berubah
 
 | layar | sebelum | sesudah |

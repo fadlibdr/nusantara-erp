@@ -1243,11 +1243,27 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
      perataan UI-5 menghapus tepat kalimat yang memberi tahu bahwa angka di
      atasnya tidak boleh dipercaya.
 
-     `:has(> :nth-child(4))` menghitung ANAK, bukan pola kelas, supaya ubin
-     empat-anak bentuk apa pun ikut tertolong — bukan hanya yang kebetulan
-     memakai dua `.delta`. Sebaran hari ini, diukur di 15 rute: 13 ubin
-     dua-anak, 60 tiga-anak, 2 empat-anak. */
-  .stat-row > .stat:has(> :nth-child(4)) { grid-row: span 4; }
+     `:has(> .stat > :nth-child(4))` diuji pada WADAHnya, bukan pada ubinnya,
+     dan itu koreksi terhadap versi pertama perbaikan ini. Versi pertama menulis
+     `.stat-row > .stat:has(> :nth-child(4))`, sehingga SATU ubin meminta empat
+     trek sementara tetangganya meminta tiga. `.stat-row` tidak punya
+     `grid-auto-flow: dense`, jadi penempatan otomatisnya SPARSE: kursornya tidak
+     pernah mundur, dan begitu satu item merentang beda, baris berikutnya jatuh
+     ke sel mana pun yang kebetulan kosong. Terukur pada 1440 px di
+     #/d/projects/1 — lebar desktop biasa, tanpa mengubah ukuran apa pun: satu
+     sel kolom-2 kosong, dan ubin TERAKHIR dalam urutan DOM tergambar di KIRI
+     dua pendahulunya, 46 px lebih rendah. Itu justru janji yang UI-5 bangun
+     subgrid untuk menepatinya.
+
+     Mengujinya di wadah membuat SELURUH ubin dalam baris itu merentang empat,
+     jadi kisinya kembali ubin seragam di setiap jumlah kolom. Harganya satu
+     trek kosong di ubin bertiga anak — jauh lebih murah daripada lubang dan
+     ubin yang keluar urutan.
+
+     `:nth-child(4)` menghitung ANAK, bukan pola kelas, supaya ubin empat-anak
+     bentuk apa pun ikut tertolong. Sebaran diukur di 15 rute: 13 ubin dua-anak,
+     60 tiga-anak, 2 empat-anak. */
+  .stat-row:has(> .stat > :nth-child(4)) > .stat { grid-row: span 4; }
 }
 
 /* ---------------------------------------------------------- beranda modul */

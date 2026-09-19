@@ -218,10 +218,34 @@ async function profitLoss(host, controls) {
 }
 
 async function balanceSheet(host, controls) {
-  const asOf = state.params.as_of || fmt.toDateInput(new Date());
-  controls.append(dateInput('Per tanggal', asOf, (value) => { state.params.as_of = value; render(host); }));
+  /* Tanggalnya datang dari SERVER kalau pengguna belum memilih — aturan yang
+     sama dengan aging() di bawah, dan untuk alasan yang lebih keras di sini.
 
-  const report = await api.get('finance/reports/balance-sheet', { as_of: asOf });
+     Sampai koreksi ini layar ini memakai `fmt.toDateInput(new Date())`, yaitu
+     JAM PERAMBAN, dan selalu mengirimkannya; servernya menggemakan kembali
+     tanggal klien itu, dan sejak UI-6a kepala laporan MENCETAKNYA sebagai
+     parameter resmi di lembar yang dilampirkan ke working paper. Dua lembar
+     yang dibuat di sesi yang sama karena itu bisa membawa "Per tanggal" yang
+     berbeda: bukti paket ini sendiri merekamnya — `results-ui-6a.json` S50
+     mencatat Neraca "18 September 2026" sementara Umur Piutang dan Proyeksi Kas
+     di putaran yang SAMA mencatat "19 September 2026".
+
+     Itu persis cacat yang laporan UI-6a bilang dihindarinya ("tidak ada baris
+     stempel jam klien"), dan komentar arAging() menuntut kedua lembar ini
+     "mampu tanggal yang sama". Kosong kini berarti parameternya tidak ikut
+     sama sekali — perilaku bawaan server tidak berubah (`Carbon::today()`) —
+     dan kotaknya diisi dari `report.as_of`. */
+  const asOfInput = dateInput('Per tanggal', state.params.as_of || '', (value) => {
+    state.params.as_of = value;
+    render(host);
+  });
+  controls.append(asOfInput);
+
+  const report = await api.get('finance/reports/balance-sheet', {
+    as_of: state.params.as_of || undefined,
+  });
+
+  if (!state.params.as_of) asOfInput.value = fmt.toDateInput(report.as_of);
 
   controls.appendChild(csvButton(() => {
     const section = (label, group) => [

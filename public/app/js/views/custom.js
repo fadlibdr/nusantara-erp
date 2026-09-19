@@ -322,10 +322,21 @@ export async function renderPayrollRun(host, { id }) {
     badge(run.status_label || run.status, fmt.statusTone(run.status)),
   ));
 
+  /* Satu ukuran untuk satu baris (koreksi UI-6d, 19 Sep 2026). Sensus peramban
+     UI-6d hanya menyinggahi 13 rute dan MELEWATKAN baris ini; sensus STATIS
+     atas seluruh `views/` menemukan enam baris campur lagi. Aturannya ditulis
+     ke CONVENTIONS §17, jadi kode yang melanggarnya harus ikut diperbaiki —
+     bukan aturannya yang dilunakkan. Uang memakai bentuk ringkas pada ukuran
+     yang sama, angka penuhnya turun ke baris konteks. */
+  const uang = (label, value) => el('.stat', [
+    el('.label', { text: label }),
+    el('.value', { text: fmt.rupiahShort(value), title: fmt.rupiah(value) }),
+    el('.delta', { text: fmt.rupiah(value) }),
+  ]);
   host.appendChild(el('.stat-row', [
-    el('.stat', [el('.label', { text: 'Total bruto' }), el('.value.sm', { text: fmt.rupiah(run.total_gross) })]),
-    el('.stat', [el('.label', { text: 'Total potongan' }), el('.value.sm', { text: fmt.rupiah(run.total_deductions) })]),
-    el('.stat', [el('.label', { text: 'Total netto' }), el('.value.sm', { text: fmt.rupiah(run.total_net) })]),
+    uang('Total bruto', run.total_gross),
+    uang('Total potongan', run.total_deductions),
+    uang('Total netto', run.total_net),
     el('.stat', [el('.label', { text: 'Jumlah slip' }), el('.value', { text: String(payslips.length) })]),
   ]));
 

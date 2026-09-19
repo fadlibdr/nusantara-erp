@@ -537,7 +537,11 @@ function previewCard(result, onImport, onSavePreset) {
       el('.stat', [el('.label', { text: 'Saldo awal' }), el('.value.sm', { text: fmt.rupiah(s.opening_balance) })]),
       el('.stat', [el('.label', { text: 'Mutasi' }), el('.value.sm', { text: fmt.rupiah(s.movement) })]),
       el('.stat', [el('.label', { text: 'Saldo akhir' }), el('.value.sm', { text: fmt.rupiah(s.closing_balance) })]),
-      el('.stat', [el('.label', { text: 'Jumlah mutasi' }), el('.value', { text: String(s.line_count) })]),
+      /* 16 px, mengikuti tiga tetangganya: baris ini ada DI DALAM kartu, dan di
+         dalam kartu normanya 16 px (37 ubin lawan 3 di seluruh aplikasi, UI-5).
+         Ubin ini salah satu dari tiga pengecualian itu, dan tidak ada yang
+         membenarkannya — ia hanya membuat barisnya sendiri tidak sepakat. */
+      el('.stat', [el('.label', { text: 'Jumlah mutasi' }), el('.value.sm', { text: String(s.line_count) })]),
     ]),
     ...(result.blockers || []).map((text) => el('.alert.error', [icon('warn', 15), el('div', { text })])),
     ...(s.warnings || []).map((text) => el('.alert.warn', [icon('warn', 15), el('div', { text })])),
@@ -907,15 +911,17 @@ function renderReconciliation(host, report) {
     ? 'Cocok sepenuhnya'
     : (s.bridge_closes ? `Selisih dijelaskan — ${s.open_items} pos terbuka` : 'Ada selisih yang belum dijelaskan');
 
+    /* Satu ukuran untuk satu baris (koreksi UI-6d, 19 Sep 2026) — baris ini
+       dilewatkan sensus peramban UI-6d, yang hanya menyinggahi 13 rute. */
   host.appendChild(el('.stat-row', [
     el('.stat', [
       el('.label', { text: 'Saldo rekening koran' }),
-      el('.value.sm', { text: fmt.rupiah(b.statement_closing) }),
+      el('.value', { text: fmt.rupiahShort(b.statement_closing), title: fmt.rupiah(b.statement_closing) }),
       el('.delta', { text: `s/d ${fmt.date(report.as_of)}` }),
     ]),
     el('.stat', [
       el('.label', { text: 'Saldo buku besar' }),
-      el('.value.sm', { text: fmt.rupiah(b.gl_balance) }),
+      el('.value', { text: fmt.rupiahShort(b.gl_balance), title: fmt.rupiah(b.gl_balance) }),
       el('.delta', { text: `${report.bank_account.coa_code} ${report.bank_account.coa_name || ''}` }),
     ]),
     el('.stat', [
@@ -925,7 +931,9 @@ function renderReconciliation(host, report) {
     ]),
     el('.stat', [
       el('.label', { text: 'Selisih belum dijelaskan' }),
-      el(`.value.sm${b.residual ? '.tone-neg' : ''}`, { text: fmt.rupiah(b.residual) }),
+      el(`.value${b.residual ? '.tone-neg' : ''}`, {
+        text: fmt.rupiahShort(b.residual), title: fmt.rupiah(b.residual),
+      }),
       el('.delta', { text: b.residual ? 'periksa data' : 'nihil' }),
     ]),
   ]));
@@ -1051,7 +1059,7 @@ function renderInbox(host, data, reload) {
     el('.stat.inbox-checked', [
       el('.label', { text: 'Terakhir diperiksa' }),
       // data-iso = stempel mentah dari core_settings, supaya harness membandingkan ubin dengan stempelnya.
-      el('.value.sm', { 'data-iso': data.last_checked_at || '', text: data.last_checked_at ? fmt.dateTime(data.last_checked_at) : 'belum pernah' }),
+      el('.value', { 'data-iso': data.last_checked_at || '', text: data.last_checked_at ? fmt.dateTime(data.last_checked_at) : 'belum pernah' }),
       el('.delta', { text: 'stempel yang ditulis pemeriksaan, bukan jadwal' }),
     ]),
   ]));

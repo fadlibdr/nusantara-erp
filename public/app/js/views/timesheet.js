@@ -555,7 +555,7 @@ export async function renderTimesheetSaya(host) {
       ]),
       el('.stat', [
         el('.label', { text: 'Jam kerja' }),
-        el('.value.sm', { text: hoursText(summary.net_worked_minutes) ?? '—' }),
+        el('.value', { text: hoursText(summary.net_worked_minutes) ?? '—' }),
         el('.delta', {
           text: summary.net_worked_minutes === null
             ? 'belum ada yang terukur bulan ini'
@@ -566,7 +566,7 @@ export async function renderTimesheetSaya(host) {
       ]),
       el('.stat', [
         el('.label', { text: 'Lembur turunan' }),
-        el('.value.sm', { text: hoursDecimal(summary.overtime_hours) ?? '—' }),
+        el('.value', { text: hoursDecimal(summary.overtime_hours) ?? '—' }),
         el('.delta', { text: summary.permit_hours === null ? 'tanpa ILB disetujui' : `ILB ${hoursDecimal(summary.permit_hours)}` }),
       ]),
     ]));

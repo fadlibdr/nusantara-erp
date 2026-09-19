@@ -159,6 +159,38 @@ kehilangan seluruh kotaknya; yang tertutup tetangganya tidak. Hasilnya benar di 
 Dan yang ditemukan dalam sabotase itu tepat pasangan aslinya, rasio 1,0: `.delta tone-warn` *"Biaya
 aktual belum lengkap — CPI belum dapat dipercaya"* di atas `.delta muted` *"EV ÷ AC per 19 Sep 2026"*.
 
+## Koreksi terhadap paket ini (19 Sep 2026, tinjauan pra-gabung)
+
+Perbaikan di §1 — `.stat-row > .stat:has(> :nth-child(4)) { grid-row: span 4 }` — **menukar satu
+cacat dengan cacat lain**, dan gerbang yang paket ini bangun tidak bisa melihatnya.
+
+`.stat-row` tidak punya `grid-auto-flow: dense`, jadi penempatan otomatisnya SPARSE: kursornya tidak
+pernah mundur. Begitu SATU ubin meminta empat trek sementara tetangganya meminta tiga, baris
+berikutnya jatuh ke sel mana pun yang kebetulan kosong. Terukur pada pohon UI-6c, baris ubin EVM di
+`#/d/projects/1` (8 ubin, salah satunya berempat anak):
+
+| lebar | sebelum koreksi | sesudah |
+|---|---|---|
+| 1440 px | 3 garis `[4, 3, 1]` — satu lubang, satu ubin terdampar | 2 garis `[4, 4]` |
+| 1100 px | **7 garis** `[2,1,1,1,1,1,1]` | `[2,2,2,2]` |
+| 900 px | 4 garis `[3,2,1,2]` | `[3,3,2]` |
+| 768 px | **7 garis** `[2,1,1,1,1,1,1]` | `[2,2,2,2]` |
+
+Pada 1440 px — lebar desktop biasa, tanpa mengubah ukuran apa pun — ubin TERAKHIR dalam urutan DOM
+tergambar di KIRI dua pendahulunya dan 46 px lebih rendah. Itu justru janji yang UI-5 bangun subgrid
+untuk menepatinya, dipatahkan oleh perbaikan yang menyelamatkan janji lain.
+
+**S51 tidak bisa melihatnya** karena ia mengukur TABRAKAN (kotak yang bertindih) dan hanya di 1440
+dan 768 px. Lubang dan ubin yang bergeser satu trek bukan tabrakan. Buktinya sendiri merekam
+`"#/evm @768": {"tabrakan": []}` sementara dua ubin di sana tertukar kiri-kanan.
+
+Diperbaiki dengan memindahkan `:has()` ke WADAHnya —
+`.stat-row > .stat:has(> :nth-child(4))` menjadi
+`.stat-row:has(> .stat > :nth-child(4)) > .stat` — sehingga SELURUH ubin dalam baris yang memuat
+ubin empat-anak merentang empat trek dan kisinya kembali seragam. Harganya satu trek kosong pada
+ubin bertiga anak, yang di UI-6d saya tolak dengan alasan estetis ("menambah ruang kosong di lima
+ubin untuk merapikan satu") — alasan itu diambil **tanpa mengukur akibat dari tidak melakukannya**.
+
 ## Uji
 
 | gerbang | hasil |

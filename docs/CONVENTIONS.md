@@ -608,14 +608,25 @@ ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
 
 **Perkakas bersama** `views/widgets/kit.js`: `safe()` / `safeList()` (fetch bertanda `loadFailure`),
 `failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
+Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti membuat 18 menyimpang.
 
 **Satu baris ubin TINGKAT ATAS memakai satu ukuran angka (UI-6d).** Mencampur `.value` (22 px) dan
 `.value.sm` (16 px) dalam satu baris tidak terbaca sebagai hierarki — ia terbaca sebagai kelalaian.
-Di dalam KARTU aturannya berbeda dan sengaja dibiarkan: 16 px adalah peran tersendiri di sana (37
-ubin lawan 3 di seluruh aplikasi, diukur 18 Sep 2026). Sensus lengkap saat aturan ini ditulis: 13
-baris tingkat atas — 4 seragam 22 px, 7 seragam 16 px, 2 campur (keduanya diperbaiki). Yang BELUM
-diputuskan adalah ukuran mana antar-layar, karena baris 16 px memakai rupiah penuh dan menyatukannya
-mengubah apa yang angkanya katakan; itu pekerjaan UI-7. Harness **S53** menjaga aturan satu-baris.
+Di dalam KARTU normanya 16 px (37 ubin lawan 3, diukur 18 Sep 2026) — tetapi aturan satu-ukuran
+berlaku di sana juga; yang berbeda hanya ukuran mana yang wajar.
+
+**Sensus peramban UI-6d menemukan 13 baris dan itu TIDAK lengkap.** Ia menyinggahi 13 rute sementara
+`.stat-row` dibangun di puluhan berkas view, jadi ia melewatkan enam baris campur di layar yang butuh
+keadaan atau data yang tidak ada di basis data demo (`bankrecon.js` ×3, `custom.js` payroll,
+`rekappph21.js`, `timesheet.js`). Semuanya diperbaiki 19 Sep 2026 saat tinjauan pra-gabung; sensus
+STATIS atas seluruh `views/` kini membaca **44 baris ber-≥2 nilai, nol campur**.
+
+Dua gerbang, dan keduanya perlu: **S53** mengukur yang TERGAMBAR di 21 rute, dan
+`tests/Feature/Core/SpaStatRowSizeTest` memindai SUMBER-nya — karena aturan yang hanya dijaga oleh
+layar yang bisa dicapai harness akan terus melewatkan layar yang tidak bisa.
+
+Yang BELUM diputuskan adalah ukuran mana antar-layar: baris 16 px memakai rupiah penuh, jadi
+menyatukannya mengubah apa yang angkanya katakan. Itu pekerjaan UI-7.
 
 Uang yang tidak muat bukan alasan mengecilkan ubinnya: pakai `fmt.rupiahShort()` pada ukuran yang
 sama dan taruh angka penuhnya di baris konteks (dan di `title`) — idiom yang sudah ada di `evm.js`
@@ -625,8 +636,13 @@ sejak layar itu lahir.
 sebuah deret tombol mendatar, dan keduanya BUKAN hal yang sama: `.row-actions` membawa `gap: 6px`
 dan `flex-wrap: wrap`, yang di dalam sel tabel menaikkan tinggi baris **56 → 81 px** (diukur 18 Sep
 2026 di tiga layar daftar) karena tombolnya membungkus. Kepadatan baris adalah keputusan pemilik
-yang dibekukan, dan ia bisa naik seperti ini **tanpa satu pun token kepadatan disentuh** — jadi S21
-tidak melihatnya dan harness **S52** yang menjaganya.
+yang dibekukan, dan ia bisa naik seperti ini **tanpa satu pun token kepadatan disentuh**.
+
+S21 tetap melihat sebagian: ia mengasersi TINGGI BARIS TERGAMBAR (dalam 0,5 px dari 32 dan 48), dan
+baris yang ia ukur di `#/r/inventory/item-categories` adalah baris ber-TOMBOL. Yang tidak ia lihat:
+ketiga layar tempat pembungkusan itu terukur bukan rute yang ia kunjungi, dan pada kepadatan NORMAL
+— bawaannya — ia membandingkan terhadap baseline, bukan terhadap 38,5. Harness **S52** menutup
+selisih itu.
 
 **`.stat` adalah kosakata BERSAMA, dan ubinnya diratakan `subgrid` (UI-5/UI-6b).** `.stat-row > .stat`
 memakai `grid-template-rows: subgrid` supaya label yang membungkus melebarkan trek untuk seluruh
@@ -639,7 +655,6 @@ keluarga widget (diukur 18 Sep 2026 di 15 rute — 75 ubin, hanya 32 di antarany
 beranda). UI-5 memverifikasi keluarga dasbor, tempat setiap ubin bertiga anak, dan **mengirim
 tabrakan teks** pada dua ubin berempat anak di layar proyek. Harness **S51** kini menggerbanginya
 dalam bentuk umum: tidak boleh ada dua daun teks yang kotaknya bertindih.
-Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti membuat 18 menyimpang.
 
 **Ukuran**: `kecil` 1 kolom, `sedang` 2, `lebar` 4 (satu baris penuh) di kisi **empat** kolom; dua kolom
 di bawah 1180 px, satu kolom di bawah 760 px — titik potong yang sama dengan laci nav dan aturan
