@@ -1163,7 +1163,12 @@ export async function renderPayment(host, { id }) {
   const restored = new Set();
   const body = el('tbody');
   const accountBody = el('tbody');
-  const summary = el('div', { style: { padding: '11px 16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '18px', fontSize: '13px', fontWeight: '600' } });
+  /* `.card-foot` sudah ada dan menggambar persis bilah ini (UI-7): padding
+     12/16, garis atas, flex rata kanan. Versi sebaris di sini memakai 11 px —
+     sebuah angka yang tidak ada di skala mana pun. Yang tersisa sebaris hanya
+     jarak antar-pasangan angkanya, yang memang lebih lebar dari gap 8 px
+     bawaan bilah aksi. */
+  const summary = el('.card-foot.fs-body.strong', { style: { gap: '18px' } });
 
   function refresh() {
     const billsAllocated = rows.reduce((sum, row) => sum + (Number(row.input.value) || 0), 0);
@@ -2327,20 +2332,68 @@ export async function renderAssetUtilization(host) {
       return;
     }
 
+    /* Kolom yang DIKENAL diberi label dan jenis; yang tidak dikenal tetap
+       digambar dengan perilaku lama (UI-7).
+       ------------------------------------------------------------------
+       Layar ini mereflektikan `Object.keys(rows[0])` dan menebak kolom uang
+       dengan /(value|cost|amount|rate)/. Diukur 19 Sep 2026 pada muatan
+       sebenarnya: tebakan itu MELESET pada `internal_charge_suggestion`, yang
+       karena itu tergambar sebagai `505000000` — angka rupiah telanjang di
+       sebelah saudaranya `daily_rate_internal` yang benar tampil
+       "Rp 2.500.000". 505.000.000 = 202 hari x Rp 2.500.000; ia memang uang.
+       Ikut terbawa: keempat belas kepala kolom berbahasa Inggris hasil
+       title-case nama kunci di aplikasi berbahasa Indonesia, `status` mentah
+       ("active"), dan dua tanggal ISO mentah.
+
+       Petanya ADITIF, bukan pengganti: kunci yang tidak ia kenal jatuh ke
+       perilaku lama, sehingga kolom baru dari server tetap muncul alih-alih
+       menghilang diam-diam. Itu sifat yang membuat refleksi ini berharga sejak
+       awal, dan tidak dibuang. */
+    const KOLOM = {
+      deployment_id: { label: 'ID', jenis: 'teks' },
+      deployment_code: { label: 'Kode mobilisasi', jenis: 'kode' },
+      /* id mentah, BUKAN label lookup: dua kolom berikutnya sudah menggambar
+         kode dan namanya, jadi menjalankan labelFor() di sini menggambar aset
+         yang sama TIGA kali dalam satu baris. Terukur: itu saja 170 px dari
+         lebar tabel, dan tabelnya melewati tepi kertas. `project_id` tetap
+         lookup — ia tidak punya kolom kode/nama pendamping. */
+      asset_id: { label: 'ID aset', jenis: 'teks' },
+      asset_code: { label: 'Kode aset', jenis: 'kode' },
+      asset_name: { label: 'Nama aset', jenis: 'teks' },
+      ownership: { label: 'Kepemilikan', jenis: 'enum', enumName: 'assetOwnership' },
+      category: { label: 'Kategori', jenis: 'teks' },
+      project_id: { label: 'Proyek', jenis: 'lookup', sumber: 'projects' },
+      deployed_from: { label: 'Mobilisasi sejak', jenis: 'tanggal' },
+      returned_at: { label: 'Dikembalikan', jenis: 'tanggal' },
+      status: { label: 'Status', jenis: 'enum', enumName: 'deploymentStatus' },
+      days_deployed: { label: 'Hari', jenis: 'angka' },
+      daily_rate_internal: { label: 'Tarif harian internal', jenis: 'uang' },
+      internal_charge_suggestion: { label: 'Usulan beban internal', jenis: 'uang' },
+    };
     const keys = Object.keys(rows[0]);
-    const money = keys.filter((key) => /(value|cost|amount|rate)/.test(key));
+    const tebakUang = (key) => /(value|cost|amount|rate|charge|price|total)/.test(key);
+    const jenisDari = (key) => (KOLOM[key] ? KOLOM[key].jenis : (tebakUang(key) ? 'uang' : 'lain'));
+    const kanan = (key) => ['uang', 'angka'].includes(jenisDari(key));
 
     clear(body).appendChild(el('.card', el('.table-wrap', el('table.data', [
-      el('thead', el('tr', keys.map((key) => el(`th${money.includes(key) ? '.right' : ''}`, {
-        text: key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
+      el('thead', el('tr', keys.map((key) => el(`th${kanan(key) ? '.right' : ''}`, {
+        text: KOLOM[key]
+          ? KOLOM[key].label
+          : key.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
       })))),
       el('tbody', rows.map((row) => el('tr', keys.map((key) => {
-        if (money.includes(key)) return el('td.right.num', { text: fmt.rupiah(row[key]) });
-        if (key === 'project_id') return el('td', { text: labelFor('projects', row[key]) || `#${row[key]}` });
-        if (key === 'asset_id') return el('td', { text: labelFor('assets', row[key]) || `#${row[key]}` });
-        // P5 — utilisasi mencakup alat sewa; nilai enumnya diberi label.
-        if (key === 'ownership') return el('td', { text: enumLabel('assetOwnership', row[key]) || '—' });
-        return el('td', { text: row[key] === null || row[key] === undefined ? '—' : String(row[key]) });
+        const nilai = row[key];
+        const kosong = nilai === null || nilai === undefined || nilai === '';
+        switch (jenisDari(key)) {
+          case 'uang': return el('td.right.num', { text: fmt.rupiah(nilai) });
+          case 'angka': return el('td.right.num', { text: kosong ? '—' : String(nilai) });
+          case 'tanggal': return el('td.nowrap', { text: kosong ? '—' : fmt.date(nilai) });
+          case 'kode': return el('td.code', { text: kosong ? '—' : String(nilai) });
+          // P5 — utilisasi mencakup alat sewa; nilai enumnya diberi label.
+          case 'enum': return el('td', { text: enumLabel(KOLOM[key].enumName, nilai) || '—' });
+          case 'lookup': return el('td', { text: labelFor(KOLOM[key].sumber, nilai) || `#${nilai}` });
+          default: return el('td', { text: kosong ? '—' : String(nilai) });
+        }
       })))),
     ]))));
   } catch (error) {

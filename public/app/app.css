@@ -337,6 +337,33 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .grid-auto { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .stack > *, .row > *, .cluster > *, .grid-auto > * { min-width: 0; }
 
+/* Blok bergaris (UI-7). Satu ide visual — sebuah garis yang memisahkan blok
+   yang bertumpuk — yang sampai paket ini ditulis ulang setiap kali ia
+   dibutuhkan, dengan jarak yang berbeda setiap kali: `.info-group` 16/12,
+   `.form-section` 20/18, `.absensi-side` 10/10, dan di `periods.js` 11/11
+   SEBARIS, satu objek gaya per baris daftar (10 baris tergambar).
+   **11 px tidak ada di skala 4/8/12/16/20/24/32.** Ia juga bukan kekhasan
+   `periods.js`: berkas ini sendiri memakainya delapan kali sebagai padding
+   KOMPONEN (`.filters`, `.alert`, `.toast`, `.offline-ribbon`, `.fin-line
+   .total`, `.login-brand`, `.module-card`, `.palette-field`), sebagian
+   disalin persis dari prototipe. Yang dipindahkan paket ini hanya yang
+   SEBARIS dan BERULANG — pola bersama yang ditulis ulang per baris daftar.
+   Padding komponen di atas tetap: menggesernya menggeser tinggi baris yang
+   S21/S53 pakukan, dan itu keputusan kepadatan tersendiri, bukan sapuan.
+
+   Angkanya di sini --space-3 di kedua sisi garis, BUKAN 16/12 milik
+   `.info-group`, dan bedanya disengaja: `.info-group` memisahkan kelompok
+   BERNAMA (ia punya `.info-group-label` sendiri, yang butuh udara di atasnya),
+   sementara ini memisahkan baris SETARA di dalam satu daftar.
+
+   `.info-group` dan `.form-section` tetap dengan angkanya sendiri: keduanya
+   aturan bernama yang memisahkan hal LAIN (kelompok berlabel, bagian formulir),
+   bukan baris setara. `.absensi-side` (10/10) juga ditinggalkan dengan sengaja:
+   garisnya memisahkan blok PERTAMA dari kepala kartu juga, jadi konversinya
+   bukan penggantian setara, dan menukar 10 px dengan 12 px di satu layar
+   lapangan tidak membayar risikonya. */
+.divided > * + * { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+
 /* Nada angka — pengganti `color: v < 0 ? 'var(--danger)' : …` sebaris.
    Dipakai HANYA pada angka yang benar-benar merugikan; kalau setiap
    angka berwarna, tidak ada yang terbaca.
@@ -890,6 +917,33 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .card-head .spacer { flex: 1; }
 .card-body { padding: 16px; }
 .card-body.flush { padding: 0; }
+
+/* Ritme <p> di dalam badan kartu (UI-7).
+   Sampai paket ini jarak antar-paragraf di dalam kartu datang dari MARGIN
+   BAWAAN PERAMBAN — `1em`, yang pada teks 14 px berarti 14 px — dan bukan dari
+   skala mana pun. Dua akibatnya terukur 19 Sep 2026 di 143 rute:
+
+   * **26 badan kartu berakhir dengan 14 px ekstra di bawah anak terakhirnya**,
+     DI ATAS padding 16 px kartu itu sendiri: 30 px lawan 16 px pada kartu
+     tetangga yang kebetulan tidak berakhir dengan paragraf. Tidak seorang pun
+     memutuskan itu; ia sisa margin bawah UA yang tidak pernah ditutup.
+   * **`p.muted` berakhir pada DUA jarak berbeda** — 13 kali pada 0 px karena
+     seseorang menambal `style: { margin: 0 }` sebaris, dan 6 kali pada 14 px
+     karena orang berikutnya tidak. Kelas yang sama, kartu yang sama, dua jarak.
+
+   Dari 26 itu, 25 paragraf dan SATU `dl.kv` — dan `dl` masuk aturan di bawah
+   karena sebabnya sama persis: `.kv` menyetel `display`, `grid-template-columns`
+   dan `gap`, tetapi tidak pernah menyetel marginnya sendiri, jadi margin 1em
+   bawaan UA tetap berlaku pada komponen yang mengira ia sudah memiliki kotaknya.
+
+   Koreksi terhadap catatan UI-6b: ia mencatat "nol paragraf masih bermargin",
+   tetapi yang diukurnya hanya paragraf ANAK-TUNGGAL. Paragraf bersaudara —
+   yang justru mayoritas — tidak pernah masuk hitungan.
+
+   Jarak di dalam kartu karena itu --space-3, dan anak terakhir tidak pernah
+   menambah apa pun pada padding kartunya. */
+.card-body > p, .card-body > dl { margin: 0 0 var(--space-3); }
+.card-body > p:last-child, .card-body > dl:last-child { margin-bottom: 0; }
 .card-foot {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
   padding: 12px 16px;
@@ -1124,6 +1178,13 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
   font-size: 12.5px; color: var(--muted);
 }
 .pager .spacer { flex: 1; }
+/* Geometri pemilih "baris per halaman" (UI-7). Ia hidup SEBARIS di list.js
+   sampai paket ini, dengan alasan tertulis "ini geometri, bukan tipografi" —
+   dan gaya sebaris MENGALAHKAN media query, jadi lantai sasaran sentuh 36 px
+   di `@media (pointer: coarse)` tidak pernah berlaku padanya. Terukur 19 Sep
+   2026 pada 390 px: 70 pemilih di 70 layar daftar, semuanya 28 px, semuanya
+   tidak tersentuh oleh lantai yang seharusnya menaikkannya. */
+.pager select { width: auto; height: 28px; }
 
 /* ------------------------------------------------------ ikon sprite Lucide */
 /* ui.js svgIcon(): <svg class="lucide"><use href="vendor/lucide@<ver>/sprite.svg#…">.
@@ -1466,12 +1527,37 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
    ukuran untuk satu peran yang sama: angka utama sebuah ubin berukuran 22 px di
    beranda, 20 px di beranda modul, dan 20 px di .stat. Satu peran, satu ukuran.
 
-   `.value.sm` (16 px) SENGAJA dibiarkan di luar skala dan tanpa token: ia peran
-   yang BERBEDA — dua ubin berdampingan di dalam kartu widget dasbor, bukan satu
-   angka pahlawan — dan seluruh dasbor memakainya. Memberinya token berarti
-   menambah anak tangga untuk satu pemakai, dan pelajaran UI-2 tentang utilitas
-   ukuran huruf berlaku sama di sini: begitu ada nama untuk setiap ukuran,
-   skalanya berhenti menjadi skala. */
+   `.value.sm` (16 px) SENGAJA dibiarkan di luar skala dan tanpa token: memberinya
+   token berarti menambah anak tangga untuk satu pemakai, dan pelajaran UI-2
+   tentang utilitas ukuran huruf berlaku sama di sini — begitu ada nama untuk
+   setiap ukuran, skalanya berhenti menjadi skala.
+
+   KOREKSI (UI-7, keputusan 1 rencana kampanye). Kalimat yang berdiri di sini
+   sampai paket ini — "`.value.sm` adalah dua ubin berdampingan DI DALAM kartu
+   widget dasbor" — TIDAK BENAR, dan sensus 19 Sep 2026 di 143 rute
+   membantahnya: enam baris ubin TINGKAT ATAS memakainya, di luar kartu mana
+   pun — `#/reports` laba-rugi · arus kas · proyeksi kas, `#/periods`,
+   `#/harga-satuan`, dan `#/d/procurement/purchase-orders/1`.
+
+   Aturan yang BENAR-BENAR berlaku, dan yang karena itu ditulis di sini:
+   **ukuran mengikuti BENTUK angkanya, dan bentuk mengikuti pekerjaan layarnya.**
+   Tujuh baris 22 px membawa bentuk RINGKAS atau hitungan (`Rp 33,68 M`,
+   `55%`, `1/2`); enam baris 16 px membawa rupiah PENUH yang harus bisa
+   direkonsiliasi (`Rp 10.534.455.000`). Layar dokumen menuliskan angka yang
+   dicocokkan orang dengan kertas; layar pemindaian menuliskan besarannya.
+
+   Menyatukan ke 22 px DIUKUR, bukan ditebak: pada 1440 dan 1280 px keenam
+   baris itu muat tanpa membungkus (0 dari 21 ubin), tetapi pada 1024 px
+   4 dari 21 membungkus dan pada 390 px **12 dari 21** — rupiah penuh pecah
+   jadi dua baris di dalam ubin setinggi satu baris. Itu menukar satu
+   ketidakseragaman yang bisa dibaca dengan satu yang tidak bisa.
+
+   Dan ukurannya bukan satu-satunya yang berbeda: slot ini kadang berisi
+   KALIMAT ("Belum ada penilaian" di `#/csat`), karena `views/csat.js` memegang
+   aturan tertulis bahwa nol penilaian adalah kalimat, bukan angka. Slot ini
+   karena itu bukan "sebuah angka", melainkan "JAWABANNYA, dalam bentuk apa pun
+   jawaban itu datang" — dan memaksakan satu ukuran untuknya berarti memaksakan
+   satu bentuk. Keputusan: DUA ukuran tetap, aturannya yang ditulis. */
 .stat {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1956,6 +2042,17 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   /* Plafon scroll layar di .table-wrap memotong cetakan pada satu layar
      baris; kertas tidak menggulung, jadi seluruh baris harus mengalir. */
   .table-wrap { max-height: none; overflow: visible; }
+  /* Kepala kolom BOLEH membungkus di kertas (UI-7).
+     `table.data th` memakai `white-space: nowrap` — benar di layar, tempat
+     tabel lebar menggulung di dalam .table-wrap dan kepala yang ragged terbaca
+     buruk. Di KERTAS tidak ada yang menggulung: baris di atas baru saja
+     mencabut wrapper-nya, jadi kepala yang tidak boleh membungkus MEMAKSA
+     tabelnya melewati tepi lembar.
+     Terukur 19 Sep 2026 di #/asset-utilization, satu-satunya dari 143 rute yang
+     menggulung menyamping di kertas: tabelnya 1.474 px pada lembar 1.440 px,
+     dan lebarnya dikuasai KEPALA, bukan data — "USULAN BEBAN INTERNAL" 182 px
+     untuk memuat "Rp 505.000.000" yang hanya butuh ~120 px. */
+  table.data th { white-space: normal; }
   body { background: #fff; }
 }
 
@@ -2502,6 +2599,57 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
   /* Tombol baris 28 px (Ubah/Hapus/Cetak) adalah sasaran undian di ponsel. */
   .btn.sm { height: 36px; }
   .btn.sm.icon { width: 36px; }
+  /* …dan tombol BIASA ikut, karena tanpa baris ini varian "kecil" lebih BESAR
+     daripada varian normal justru di perangkat tempat ukuran sasaran paling
+     penting: `.btn` 34 px lawan `.btn.sm` 36 px. Terukur 19 Sep 2026 di 143
+     rute pada 390 px dengan pointer kasar: 565 sasaran setinggi 34 px, semuanya
+     `.btn` bawaan. Alasannya sama persis dengan kalimat di atas. */
+  .btn { height: 36px; }
+  .btn.icon { width: 36px; }
+  /* Medan isian ikut lantai yang sama. Sesudah tombol dinaikkan, sisa sasaran
+     di bawah 36 px pada 390 px turun 565 → 336, dan SELURUH sisanya adalah
+     <input>/<select>: kotak saring di bilah alat, yang di ponsel justru kontrol
+     yang paling sering ditekan dengan ibu jari. Satu lantai untuk semua kontrol
+     lebih mudah dipertahankan daripada dua. */
+  /* Jenis TIDAK didaftar satu per satu (koreksi UI-7). Versi pertama aturan ini
+     menyebut enam jenis, dan yang tidak disebut tetap 27 px: terukur `time`,
+     `tel`, dan setiap `<input>` yang ditulis TANPA atribut type — yang sah dan
+     berarti `text`. Sebuah daftar jenis adalah pagar yang bocor tiap kali
+     seseorang memakai jenis berikutnya. Yang dikecualikan sekarang justru yang
+     kotaknya BUKAN medan isian: kotak centang, radio, berkas, rentang. */
+  input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=hidden]),
+  select { height: 36px; }
+  /* `.pager select` (0,1,1) mengalahkan `select` (0,0,1) di atas, jadi ia butuh
+     barisnya sendiri — pelajaran yang sama dengan `.combo .combo-input`. */
+  .pager select { height: 36px; }
+  .check-row { height: 36px; }
+  /* Kontrol DI DALAM tabel: lantai 24 px, bukan 36 (UI-7).
+     Terukur 19 Sep 2026 di 390 px dengan pointer kasar, sesudah lantai tombol
+     dan medan isian di atas: yang tersisa di bawah 36 px hampir seluruhnya
+     kontrol tabel — 181 kotak centang 16x16 (81 di `.pick` pemilih baris,
+     100 di `.check-row` preferensi notifikasi) dan 230 tombol urut kepala
+     kolom 17 px. Keduanya di bawah 24 px, yang ambang WCAG 2.5.8 AA, bukan
+     selera.
+
+     24 dan bukan 36, dan itu diukur juga: pada 36 px tinggi baris kepala
+     42 → 62 px, pada 24 px ia 42 → 50 px. Baris ISI tidak bergeser sepersepuluh
+     piksel pun pada keduanya (133,8/153,8 dan 116/77,5/97 byte-identik), jadi
+     kepadatan yang pemilik bekukan tidak tersentuh — yang dibayar hanya kepala
+     tabel, di layar sentuh saja. Kotak centang baris juga bukan sasaran
+     tunggalnya: barisnya sendiri yang dibuka orang. */
+  .pick input[type=checkbox], .check-row input[type=checkbox] { width: 24px; height: 24px; }
+  table.data th .th-sort { min-height: 24px; }
+  /* Combobox butuh barisnya sendiri: `.combo .combo-input` (0,2,1) menang atas
+     selektor jenis di atas, jadi tanpa ini ia tertinggal di 34 px. Ia bukan
+     kontrol pinggiran — pemilih akun Buku Besar dan pemilih proyek adalah
+     combobox, dan terukur 90 dari 95 sasaran sisa di 390 px adalah kotak ini. */
+  /* KOREKSI atas angka 565 → 336 → 95 di tiga komentar di atas: ketiganya
+     diukur ketika sapuan masih melihat SEPERTIGA aplikasi (penjaga kesiapannya
+     lolos pada halaman yang belum tergambar). Arah dan sebab tiap aturan tetap
+     berlaku — 34 px lawan 36 px, medan isian, combobox — tetapi hitungannya
+     tidak. Angka atas halaman penuh: 545 sasaran < 36 px sebelum tiga aturan
+     berikutnya, 496 sesudahnya, dan 6 yang masih < 24 px. */
+  .combo .combo-input { height: 36px; }
   /* Kepadatan di layar sentuh (verifikasi P1-B 5 Sep 2026): tautan drawer profil
      rapat 27,5 px dan baris radio dialog Kepadatan 30 px berada di bawah sasaran
      jempol 36 px yang dipakai aturan ini. Lantai 36 px untuk tautan sidebar di

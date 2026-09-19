@@ -1414,13 +1414,16 @@ export async function renderList(host, { key, def }) {
     const choices = [...new Set([def.perPage || 20, 25, 50, 100, 200])].sort((a, b) => a - b);
     /* .fs-secondary, bukan `fontSize: '12.5px'` sebaris: 12,5 px adalah salah
        satu nilai di luar skala yang audit UI-1 daftarkan, dan ia ada di lapisan
-       GENERIK — satu di tiap layar daftar. Primitifnya sudah ada sejak UI-2;
-       geometrinya (lebar/tinggi kontrol) tetap sebaris karena ia memang
-       geometri, bukan tipografi. */
+       GENERIK — satu di tiap layar daftar.
+
+       KOREKSI UI-7: geometrinya dulu tetap sebaris di sini, dengan alasan "ia
+       memang geometri, bukan tipografi". Alasan itu melewatkan satu hal — gaya
+       sebaris mengalahkan MEDIA QUERY. Lantai sasaran sentuh 36 px di
+       `@media (pointer: coarse)` karena itu tidak pernah berlaku pada kontrol
+       ini, di 70 layar daftar sekaligus. Sekarang `.pager select` di app.css. */
     const perPageSelect = el('select.fs-secondary', {
       'aria-label': 'Baris per halaman',
       title: 'Baris per halaman',
-      style: { width: 'auto', height: '28px' },
     }, choices.map((size) => el('option', { value: String(size), text: `${size} / halaman` })));
     perPageSelect.value = String(ui.perPage);
     perPageSelect.addEventListener('change', () => {

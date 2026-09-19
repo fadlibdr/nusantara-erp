@@ -7,7 +7,7 @@
  * cetak, dan warnanya bisa diukur harness S20). Pemanggil menyediakan data yang sudah
  * dihitung server; di sini hanya geometri.
  *
- *   lineChart({ series, xLabels?, xFormat?, yFormat?, yMax?, yMin?, yStep?, width?, height?, ariaLabel, sourceNote?, legend? })
+ *   lineChart({ series, xLabels?, xFormat?, yFormat?, yMax?, yMin?, yStep?, yTicks?, width?, height?, ariaLabel, sourceNote?, legend? })
  *     series[]: { label, points, token?, dash?, dots?, area?, width? } — `width` = tebal garis px (bawaan 2, dijepit 1–4)
  *     series : [{ label, points: [{ x?, y, title?, r?, token? }], dash?|dashed?, area?, token?, dots? }]
  *              dash: pola putus-putus seri sebagai string SVG ('5 3' rencana, '2 4' baseline);
@@ -394,8 +394,21 @@ function niceStep(rough) {
 }
 
 /** Domain nilai: memuat nol kecuali min/max dipaksa; tepi dibulatkan ke langkah rapi
-    (atau ke `fixedStep` bila pemanggil menetapkannya — yStep). */
-function domain(values, min, max, tickCount = 4, fixedStep) {
+    (atau ke `fixedStep` bila pemanggil menetapkannya — yStep).
+
+    `fixedTicks` memaksa DAFTAR ticknya, bukan langkahnya, dan ada untuk satu
+    kasus yang tidak bisa dijawab dengan langkah (UI-7, keputusan 4): deret yang
+    BENAR-BENAR DATAR. Sumbu yang dihitung dari rentang nol harus mengarang
+    rentang supaya garisnya tidak menempel di tepi — dan rentang karangan itu
+    lalu DILABELI. Terukur di `#/harga-satuan` 19 Sep 2026: dua titik yang
+    keduanya Rp 62.000 digambar di atas sumbu ber-tick `Rp 61,23 rb · Rp 61,61
+    rb · Rp 62 rb · Rp 62,39 rb · Rp 62,78 rb` — pita ±1,3 % yang tidak ada di
+    datanya, dan yang sekilas terbaca sebagai harga yang bergerak.
+
+    Ruang di atas dan di bawah tetap perlu (garis datar yang menempel tepi plot
+    juga salah baca), jadi yang dicabut bukan pitanya melainkan LABELNYA: satu
+    tick, pada nilainya sendiri. */
+function domain(values, min, max, tickCount = 4, fixedStep, fixedTicks) {
   let dataLo = 0;
   let dataHi = 0;
   values.forEach((v) => { if (v < dataLo) dataLo = v; if (v > dataHi) dataHi = v; }); // bukan spread: 10 rb titik aman
@@ -419,6 +432,10 @@ function domain(values, min, max, tickCount = 4, fixedStep) {
      harganya sama (verifikasi P1-E). Bila salah satu tepi dihitung sendiri,
      jangkarnya tetap kelipatan langkah — di sanalah "langkah rapi" berarti
      "angka rapi". */
+  if (Array.isArray(fixedTicks) && fixedTicks.length) {
+    const dipaksa = fixedTicks.map((t) => finite(t)).filter((t) => t !== null && t >= lo && t <= hi);
+    if (dipaksa.length) return { lo, hi, ticks: dipaksa };
+  }
   const ticks = [];
   const first = bothForced ? lo : Math.ceil(lo / step - 1e-9) * step;
   for (let v = first; v <= hi + step * 1e-6; v += step) ticks.push(Math.abs(v) < step * 1e-9 ? 0 : +v.toPrecision(12));
@@ -490,7 +507,7 @@ function thin(centers, labelAt, width, plotW, minGap = null, gap = 6) {
 /* ------------------------------------------------------------- lineChart */
 
 export function lineChart({
-  series = [], xLabels, xFormat, yFormat, yMax, yMin, yStep, width = 720, height = 260,
+  series = [], xLabels, xFormat, yFormat, yMax, yMin, yStep, yTicks, width = 720, height = 260,
   ariaLabel = 'Grafik garis', sourceNote, legend = true,
 } = {}) {
   const fy = formatter(yFormat);
@@ -545,7 +562,7 @@ export function lineChart({
   const ys = rows.flatMap((s) => s.points.filter((p) => p.y !== null).map((p) => p.y));
   if (!ys.length) return placeholder('line', ariaLabel);
 
-  const { lo, hi, ticks } = domain(ys, yMin, yMax, 4, yStep);
+  const { lo, hi, ticks } = domain(ys, yMin, yMax, 4, yStep, yTicks);
   const labelX = (x) => (typeof xFormat === 'function' ? xFormat(x)
     : Array.isArray(xLabels) && Number.isInteger(x) && xLabels[x] !== undefined ? xLabels[x]
       : anyDate ? shortDate.format(new Date(x)) : numberFormat.format(x));

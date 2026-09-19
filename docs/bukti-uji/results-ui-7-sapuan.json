@@ -1,0 +1,68 @@
+{
+ "1440-terang": {
+  "rute": 143,
+  "belum_siap": [],
+  "elemen_terukur": 16107,
+  "tabrakan": 0,
+  "kontras_di_bawah_AA": 0,
+  "meluber": 0,
+  "gulir_x": [],
+  "sasaran_di_bawah_36": 1970,
+  "sasaran_di_bawah_24": 381
+ },
+ "390-terang": {
+  "rute": 143,
+  "belum_siap": [],
+  "elemen_terukur": 20294,
+  "tabrakan": 0,
+  "kontras_di_bawah_AA": 0,
+  "meluber": 0,
+  "gulir_x": [],
+  "sasaran_di_bawah_36": 496,
+  "sasaran_di_bawah_24": 6
+ },
+ "1440-gelap": {
+  "rute": 143,
+  "belum_siap": [],
+  "elemen_terukur": 17052,
+  "tabrakan": 0,
+  "kontras_di_bawah_AA": 0,
+  "meluber": 0,
+  "gulir_x": [],
+  "sasaran_di_bawah_36": 2100,
+  "sasaran_di_bawah_24": 478
+ },
+ "cetak-1440": {
+  "rute": 143,
+  "belum_siap": [],
+  "elemen_terukur": 20294,
+  "tabrakan": 0,
+  "kontras_di_bawah_AA": 0,
+  "meluber": 0,
+  "gulir_x": [],
+  "sasaran_di_bawah_36": 1223,
+  "sasaran_di_bawah_24": 419
+ },
+ "768-terang": {
+  "rute": 143,
+  "belum_siap": [],
+  "elemen_terukur": 17052,
+  "tabrakan": 0,
+  "kontras_di_bawah_AA": 0,
+  "meluber": 0,
+  "gulir_x": [],
+  "sasaran_di_bawah_36": 2100,
+  "sasaran_di_bawah_24": 478
+ },
+ "1024-terang": {
+  "rute": 143,
+  "belum_siap": [],
+  "elemen_terukur": 20294,
+  "tabrakan": 0,
+  "kontras_di_bawah_AA": 0,
+  "meluber": 0,
+  "gulir_x": [],
+  "sasaran_di_bawah_36": 2318,
+  "sasaran_di_bawah_24": 503
+ }
+}

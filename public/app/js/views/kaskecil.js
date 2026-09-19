@@ -512,12 +512,8 @@ async function renderKasbon(host, { id }) {
      satu transaksi di server: jurnal + biaya proyek + status. */
   const rows = [];
   const linesBody = el('tbody');
-  const summary = el('div.fs-body.strong', {
-    style: {
-      padding: '11px 16px', borderTop: '1px solid var(--border)', display: 'flex',
-      justifyContent: 'flex-end', gap: '18px',
-    },
-  });
+  // Sama seperti di custom.js: ini `.card-foot`, dan 11 px bukan angka skala (UI-7).
+  const summary = el('.card-foot.fs-body.strong', { style: { gap: '18px' } });
 
   const dateInput = el('input', { type: 'date', value: new Date().toISOString().slice(0, 10) });
 
