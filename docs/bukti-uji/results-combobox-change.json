@@ -1,0 +1,1586 @@
+{
+ "S43_primitif_ui2": {
+  "screen": {
+   "hash": "#/r/procurement/purchase-orders",
+   "h1": "Pesanan Pembelian (PO)",
+   "dock": false
+  },
+  "light": {
+   "stack": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "12px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(20, 24, 29)"
+   },
+   "stack_tight": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(20, 24, 29)"
+   },
+   "stack_loose": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "16px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(20, 24, 29)"
+   },
+   "row": {
+    "display": "flex",
+    "flexDirection": "row",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(20, 24, 29)"
+   },
+   "cluster": {
+    "display": "flex",
+    "flexDirection": "row",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(20, 24, 29)"
+   },
+   "grid_auto": {
+    "display": "grid",
+    "flexDirection": "row",
+    "gap": "16px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(20, 24, 29)"
+   },
+   "spacer": {
+    "display": "block",
+    "flexDirection": "row",
+    "gap": "normal",
+    "fontSize": "14px",
+    "flexGrow": "1",
+    "fontWeight": "400",
+    "color": "rgb(20, 24, 29)"
+   },
+   "strong": {
+    "display": "block",
+    "flexDirection": "row",
+    "gap": "normal",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "600",
+    "color": "rgb(20, 24, 29)"
+   },
+   "fs": {
+    "caption": "11px",
+    "secondary": "12px",
+    "body": "13px",
+    "section": "14px"
+   },
+   "fs_bukan_utilitas": {
+    "label": "14px",
+    "table": "14px",
+    "page": "14px",
+    "kpi": "14px"
+   },
+   "fs_warisan": "14px",
+   "tone_cascade": {
+    "neg_alone": "rgb(198, 40, 40)",
+    "neg_on_cell_sub": "rgb(198, 40, 40)",
+    "neg_on_muted": "rgb(198, 40, 40)",
+    "danger": "rgb(198, 40, 40)"
+   },
+   "mono_cascade": {
+    "mono_only": "12.88px",
+    "mono_secondary": "12px",
+    "mono_body": "13px"
+   },
+   "flat_shadow": {
+    ".card": "none",
+    ".module-head": null,
+    ".module-card": null,
+    ".module-kpi": null,
+    ".home-tile": null,
+    ".stat": null
+   },
+   "table": {
+    "th_border_color": "rgb(203, 210, 218)",
+    "border_strong": "rgb(203, 210, 218)",
+    "td_right_numeric": "tabular-nums"
+   },
+   "token": {
+    "dipakai": 87,
+    "kosong": [],
+    "beraksen": true
+   }
+  },
+  "dark": {
+   "stack": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "12px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(231, 235, 240)"
+   },
+   "stack_tight": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(231, 235, 240)"
+   },
+   "stack_loose": {
+    "display": "flex",
+    "flexDirection": "column",
+    "gap": "16px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(231, 235, 240)"
+   },
+   "row": {
+    "display": "flex",
+    "flexDirection": "row",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(231, 235, 240)"
+   },
+   "cluster": {
+    "display": "flex",
+    "flexDirection": "row",
+    "gap": "8px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(231, 235, 240)"
+   },
+   "grid_auto": {
+    "display": "grid",
+    "flexDirection": "row",
+    "gap": "16px",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "400",
+    "color": "rgb(231, 235, 240)"
+   },
+   "spacer": {
+    "display": "block",
+    "flexDirection": "row",
+    "gap": "normal",
+    "fontSize": "14px",
+    "flexGrow": "1",
+    "fontWeight": "400",
+    "color": "rgb(231, 235, 240)"
+   },
+   "strong": {
+    "display": "block",
+    "flexDirection": "row",
+    "gap": "normal",
+    "fontSize": "14px",
+    "flexGrow": "0",
+    "fontWeight": "600",
+    "color": "rgb(231, 235, 240)"
+   },
+   "fs": {
+    "caption": "11px",
+    "secondary": "12px",
+    "body": "13px",
+    "section": "14px"
+   },
+   "fs_bukan_utilitas": {
+    "label": "14px",
+    "table": "14px",
+    "page": "14px",
+    "kpi": "14px"
+   },
+   "fs_warisan": "14px",
+   "tone_cascade": {
+    "neg_alone": "rgb(248, 113, 113)",
+    "neg_on_cell_sub": "rgb(248, 113, 113)",
+    "neg_on_muted": "rgb(248, 113, 113)",
+    "danger": "rgb(248, 113, 113)"
+   },
+   "mono_cascade": {
+    "mono_only": "12.88px",
+    "mono_secondary": "12px",
+    "mono_body": "13px"
+   },
+   "flat_shadow": {
+    ".card": "none",
+    ".module-head": null,
+    ".module-card": null,
+    ".module-kpi": null,
+    ".home-tile": null,
+    ".stat": null
+   },
+   "table": {
+    "th_border_color": "rgb(56, 65, 79)",
+    "border_strong": "rgb(56, 65, 79)",
+    "td_right_numeric": "tabular-nums"
+   },
+   "token": {
+    "dipakai": 87,
+    "kosong": [],
+    "beraksen": true
+   }
+  },
+  "print": {
+   "token": {
+    "dipakai": 87,
+    "kosong": [],
+    "beraksen": true
+   }
+  },
+  "galat": [],
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 6419,
+  "_clicks": 0
+ },
+ "S44_chip_filter": {
+  "bersih": {
+   "ada": true,
+   "tersembunyi": true,
+   "chips": [],
+   "hapus_semua": false,
+   "baris": 2
+  },
+  "enum": {
+   "ada": true,
+   "tersembunyi": false,
+   "chips": [
+    {
+     "kunci": "Cari:",
+     "nilai": "PO",
+     "buang": true
+    },
+    {
+     "kunci": "Status:",
+     "nilai": "Draf",
+     "buang": true
+    }
+   ],
+   "hapus_semua": true,
+   "baris": 0
+  },
+  "lookup": {
+   "ada": true,
+   "tersembunyi": false,
+   "chips": [
+    {
+     "kunci": "Proyek:",
+     "nilai": "PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+     "buang": true
+    }
+   ],
+   "hapus_semua": true,
+   "baris": 1
+  },
+  "lookup_hilang": {
+   "ada": true,
+   "tersembunyi": false,
+   "chips": [
+    {
+     "kunci": "Proyek:",
+     "nilai": "#999999 (tidak ada di daftar)",
+     "buang": true
+    }
+   ],
+   "hapus_semua": true,
+   "baris": 0
+  },
+  "buang_satu": {
+   "ada": true,
+   "tersembunyi": false,
+   "chips": [
+    {
+     "kunci": "Status:",
+     "nilai": "Draf",
+     "buang": true
+    }
+   ],
+   "hapus_semua": true,
+   "baris": 0,
+   "url": "status=draft"
+  },
+  "hapus_semua": {
+   "ada": true,
+   "tersembunyi": true,
+   "chips": [],
+   "hapus_semua": false,
+   "baris": 2,
+   "url": "/r/procurement/purchase-orders"
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 17596,
+  "_clicks": 2
+ },
+ "S45_seleksi_massal": {
+  "tanpa_aksi": {
+   "ada_kolom": false,
+   "ada_bilah": false,
+   "bilah_tersembunyi": null,
+   "hitungan": null,
+   "tombol": [],
+   "baris": 3,
+   "kotak": 0,
+   "kotak_mati": 0,
+   "alasan_mati": null,
+   "tercentang": 0,
+   "baris_tersorot": 0,
+   "semua_tercentang": null,
+   "semua_separuh": null,
+   "semua_mati": null
+  },
+  "fixture": {
+   "draf": "PM/2026/IX/0002",
+   "diajukan": "PM/2026/IX/0003"
+  },
+  "dua_aksi_awal": {
+   "ada_kolom": true,
+   "ada_bilah": true,
+   "bilah_tersembunyi": true,
+   "hitungan": null,
+   "tombol": [
+    {
+     "label": "Batalkan pilihan",
+     "mati": false,
+     "title": "",
+     "warna": "rgb(20, 24, 29)",
+     "latar": "rgb(255, 255, 255)"
+    }
+   ],
+   "baris": 3,
+   "kotak": 3,
+   "kotak_mati": 1,
+   "alasan_mati": "PM/2026/VI/0001 tidak dalam keadaan yang tepat untuk aksi massal mana pun di layar ini.",
+   "tercentang": 0,
+   "baris_tersorot": 0,
+   "semua_tercentang": false,
+   "semua_separuh": false,
+   "semua_mati": false
+  },
+  "centang": [
+   "ok",
+   "ok"
+  ],
+  "dua_aksi_terpilih": {
+   "ada_kolom": true,
+   "ada_bilah": true,
+   "bilah_tersembunyi": false,
+   "hitungan": "2 baris terpilih",
+   "tombol": [
+    {
+     "label": "Ajukan (1)",
+     "mati": false,
+     "title": "1 dari 2 baris terpilih tidak dalam keadaan yang tepat untuk \"Ajukan\" dan akan dilewati.",
+     "warna": "rgb(255, 255, 255)",
+     "latar": "rgb(26, 86, 219)"
+    },
+    {
+     "label": "Kembalikan ke Draf (1)",
+     "mati": false,
+     "title": "1 dari 2 baris terpilih tidak dalam keadaan yang tepat untuk \"Kembalikan ke Draf\" dan akan dilewati.",
+     "warna": "rgb(255, 255, 255)",
+     "latar": "rgb(26, 86, 219)"
+    },
+    {
+     "label": "Batalkan pilihan",
+     "mati": false,
+     "title": "",
+     "warna": "rgb(20, 24, 29)",
+     "latar": "rgb(255, 255, 255)"
+    }
+   ],
+   "baris": 3,
+   "kotak": 3,
+   "kotak_mati": 1,
+   "alasan_mati": "PM/2026/VI/0001 tidak dalam keadaan yang tepat untuk aksi massal mana pun di layar ini.",
+   "tercentang": 2,
+   "baris_tersorot": 2,
+   "semua_tercentang": true,
+   "semua_separuh": false,
+   "semua_mati": false
+  },
+  "url_setelah_centang": "/r/servicedesk/field-reports",
+  "setelah_filter": {
+   "ada_kolom": true,
+   "ada_bilah": true,
+   "bilah_tersembunyi": true,
+   "hitungan": null,
+   "tombol": [
+    {
+     "label": "Batalkan pilihan",
+     "mati": false,
+     "title": "",
+     "warna": "rgb(20, 24, 29)",
+     "latar": "rgb(255, 255, 255)"
+    }
+   ],
+   "baris": 1,
+   "kotak": 1,
+   "kotak_mati": 0,
+   "alasan_mati": null,
+   "tercentang": 0,
+   "baris_tersorot": 0,
+   "semua_tercentang": false,
+   "semua_separuh": false,
+   "semua_mati": false
+  },
+  "jurnal": [
+   "JV/2026/09/0005",
+   "JV/2026/09/0006",
+   "JV/2026/09/0007"
+  ],
+  "jv_awal": {
+   "ada_kolom": true,
+   "ada_bilah": true,
+   "bilah_tersembunyi": true,
+   "hitungan": null,
+   "tombol": [
+    {
+     "label": "Batalkan pilihan",
+     "mati": false,
+     "title": "",
+     "warna": "rgb(20, 24, 29)",
+     "latar": "rgb(255, 255, 255)"
+    }
+   ],
+   "baris": 3,
+   "kotak": 3,
+   "kotak_mati": 0,
+   "alasan_mati": null,
+   "tercentang": 0,
+   "baris_tersorot": 0,
+   "semua_tercentang": false,
+   "semua_separuh": false,
+   "semua_mati": false
+  },
+  "jv_terpilih": {
+   "ada_kolom": true,
+   "ada_bilah": true,
+   "bilah_tersembunyi": false,
+   "hitungan": "3 baris terpilih",
+   "tombol": [
+    {
+     "label": "Posting Jurnal (3)",
+     "mati": false,
+     "title": "",
+     "warna": "rgb(255, 255, 255)",
+     "latar": "rgb(26, 86, 219)"
+    },
+    {
+     "label": "Batalkan pilihan",
+     "mati": false,
+     "title": "",
+     "warna": "rgb(20, 24, 29)",
+     "latar": "rgb(255, 255, 255)"
+    }
+   ],
+   "baris": 3,
+   "kotak": 3,
+   "kotak_mati": 0,
+   "alasan_mati": null,
+   "tercentang": 3,
+   "baris_tersorot": 3,
+   "semua_tercentang": true,
+   "semua_separuh": false,
+   "semua_mati": false
+  },
+  "dibuat_basi": {
+   "kode": "JV/2026/09/0006",
+   "status": 200
+  },
+  "dialog": "Posting Jurnal 3 jurnal | Posting jurnal ini ke buku besar? Jurnal terposting tidak dapat diubah. Tindakan ini berjalan satu per satu pada 3 dokumen: JV/2026/09/0007, JV/2026/09/0006, JV/2026/09/0005. | Batal | Posting Jurnal 3",
+  "toast": [
+   "2 dokumen: posting jurnal berhasil — JV/2026/09/0007, JV/2026/09/0005.",
+   "1 gagal — JV/2026/09/0006: Journal JV/2026/09/0006 is already posted."
+  ],
+  "keadaan_akhir": {
+   "JV/2026/09/0005": "posted",
+   "JV/2026/09/0006": "posted",
+   "JV/2026/09/0007": "posted"
+  },
+  "jv_akhir": {
+   "ada_kolom": false,
+   "ada_bilah": false,
+   "bilah_tersembunyi": null,
+   "hitungan": null,
+   "tombol": [],
+   "baris": 0,
+   "kotak": 0,
+   "kotak_mati": 0,
+   "alasan_mati": null,
+   "tercentang": 0,
+   "baris_tersorot": 0,
+   "semua_tercentang": null,
+   "semua_separuh": null,
+   "semua_mati": null
+  },
+  "galat": [],
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 24170,
+  "_clicks": 3
+ },
+ "S46_tampilan_tersimpan": {
+  "polos": {
+   "ada": true,
+   "tersembunyi": true,
+   "label": null,
+   "chips": [],
+   "simpan": [],
+   "saring": 0,
+   "baris": 2,
+   "url": ""
+  },
+  "tersaring": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [],
+   "simpan": [
+    "Simpan tampilan ini"
+   ],
+   "saring": 2,
+   "baris": 2,
+   "url": "q=PO&status=approved"
+  },
+  "tersimpan": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Menunggu saya",
+     "aktif": true,
+     "pressed": "true",
+     "latar": "rgb(232, 239, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [],
+   "saring": 2,
+   "baris": 2,
+   "url": "q=PO&status=approved"
+  },
+  "toast": [
+   "Tampilan \"Menunggu saya\" tersimpan."
+  ],
+  "server": [
+   {
+    "route": "r/procurement/purchase-orders",
+    "name": "Menunggu saya",
+    "query": "q=PO&status=approved"
+   }
+  ],
+  "beda": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Menunggu saya",
+     "aktif": false,
+     "pressed": "false",
+     "latar": "rgb(250, 251, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [
+    "Simpan tampilan ini"
+   ],
+   "saring": 1,
+   "baris": 0,
+   "url": "status=draft"
+  },
+  "diterapkan": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Menunggu saya",
+     "aktif": true,
+     "pressed": "true",
+     "latar": "rgb(232, 239, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [],
+   "saring": 2,
+   "baris": 2,
+   "url": "q=PO&status=approved"
+  },
+  "urutan_a": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [],
+   "simpan": [
+    "Simpan tampilan ini"
+   ],
+   "saring": 2,
+   "baris": 0,
+   "url": "status=draft&scope_type=construction"
+  },
+  "urutan_terbalik": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Urutan A",
+     "aktif": true,
+     "pressed": "true",
+     "latar": "rgb(232, 239, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [],
+   "saring": 2,
+   "baris": 0,
+   "url": "scope_type=construction&status=draft"
+  },
+  "setelah_hapus_saringan": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Menunggu saya",
+     "aktif": false,
+     "pressed": "false",
+     "latar": "rgb(250, 251, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [
+    "Simpan tampilan ini"
+   ],
+   "saring": 0,
+   "baris": 2,
+   "url": ""
+  },
+  "sebelum_semua": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Menunggu saya",
+     "aktif": true,
+     "pressed": "true",
+     "latar": "rgb(232, 239, 252)",
+     "buang": true
+    },
+    {
+     "nama": "Semua PO",
+     "aktif": false,
+     "pressed": "false",
+     "latar": "rgb(250, 251, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [],
+   "saring": 2,
+   "baris": 2,
+   "url": "q=PO&status=approved"
+  },
+  "semua": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Menunggu saya",
+     "aktif": false,
+     "pressed": "false",
+     "latar": "rgb(250, 251, 252)",
+     "buang": true
+    },
+    {
+     "nama": "Semua PO",
+     "aktif": true,
+     "pressed": "true",
+     "latar": "rgb(232, 239, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [],
+   "saring": 0,
+   "baris": 2,
+   "url": ""
+  },
+  "peramban_kedua": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Menunggu saya",
+     "aktif": false,
+     "pressed": "false",
+     "latar": "rgb(250, 251, 252)",
+     "buang": true
+    },
+    {
+     "nama": "Semua PO",
+     "aktif": true,
+     "pressed": "true",
+     "latar": "rgb(232, 239, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [],
+   "saring": 0,
+   "baris": 2,
+   "url": ""
+  },
+  "sebelum_hapus": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Menunggu saya",
+     "aktif": true,
+     "pressed": "true",
+     "latar": "rgb(232, 239, 252)",
+     "buang": true
+    },
+    {
+     "nama": "Semua PO",
+     "aktif": false,
+     "pressed": "false",
+     "latar": "rgb(250, 251, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [],
+   "saring": 2,
+   "baris": 2,
+   "url": "q=PO&status=approved"
+  },
+  "dialog_hapus": "Hapus tampilan tersimpan | Tampilan \"Menunggu saya\" akan dihapus dari akun Anda. Daftar yang sedang tampil tidak berubah. | Batal | Hapus tampilan",
+  "setelah_hapus": {
+   "ada": true,
+   "tersembunyi": false,
+   "label": "Tampilan:",
+   "chips": [
+    {
+     "nama": "Semua PO",
+     "aktif": false,
+     "pressed": "false",
+     "latar": "rgb(250, 251, 252)",
+     "buang": true
+    }
+   ],
+   "simpan": [
+    "Simpan tampilan ini"
+   ],
+   "saring": 2,
+   "baris": 2,
+   "url": "q=PO&status=approved"
+  },
+  "server_akhir": [
+   {
+    "route": "r/crm/quotations",
+    "name": "Urutan A",
+    "query": "status=draft&scope_type=construction"
+   },
+   {
+    "route": "r/procurement/purchase-orders",
+    "name": "Semua PO",
+    "query": null
+   }
+  ],
+  "console_errors": [],
+  "galat": [],
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 50904,
+  "_clicks": 11
+ },
+ "S47_formulir_halaman": {
+  "berbaris": {
+   "modal": false,
+   "halaman": true,
+   "hash": "#/f/procurement/purchase-orders",
+   "crumbs": [
+    "Pengadaan",
+    "Pesanan Pembelian (PO)",
+    "PO baru"
+   ],
+   "judul": "Tambah PO",
+   "tombol": [
+    "Batal",
+    "Simpan"
+   ],
+   "gulir_dalam": 0
+  },
+  "tanpa_baris": {
+   "modal": true,
+   "halaman": false,
+   "hash": "#/r/crm/customers",
+   "crumbs": [
+    "Penjualan",
+    "Pelanggan"
+   ],
+   "judul": "Pelanggan",
+   "tombol": [
+    "",
+    "Tambah Pelanggan"
+   ],
+   "gulir_dalam": 83
+  },
+  "bersih_pergi": {
+   "hash": "#/dashboard",
+   "dialog": 0
+  },
+  "kotor_ditanya": {
+   "dialog": 1,
+   "judul": "Tinggalkan formulir ini?"
+  },
+  "tetap": {
+   "hash": "#/f/procurement/purchase-orders",
+   "halaman": 1,
+   "isian": "UJI-UX isian yang belum tersimpan"
+  },
+  "tinggalkan": {
+   "hash": "#/dashboard",
+   "halaman": 0
+  },
+  "penjaga_dilepas": {
+   "hash": "#/tugas",
+   "dialog": 0
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 23543,
+  "_clicks": 3
+ },
+ "S48_papan_keyboard": {
+  "awal": {
+   "fokus": null,
+   "kolom": [
+    0,
+    1,
+    1,
+    0,
+    0,
+    0
+   ],
+   "kartu": 2,
+   "desc": "Seret kartu ke kolom berikutnya untuk menjalankan aksinya. Perpindahan memakai tombol yang sama dengan halaman dokumen — termasuk catatan, alasan wajib, dan aturan persetujuan. Dengan papan ketik: panah memindahkan fokus, Ctrl (atau ⌘) + panah kiri/kanan memindahkan kartunya, dan Enter atau Spasi membuka dokumennya."
+  },
+  "fokus_awal": {
+   "id": "2",
+   "kolom": "contacted"
+  },
+  "panah_fokus": {
+   "fokus": {
+    "id": "1",
+    "kolom": "qualified"
+   },
+   "kolom": [
+    0,
+    1,
+    1,
+    0,
+    0,
+    0
+   ],
+   "kartu": 2,
+   "desc": "Seret kartu ke kolom berikutnya untuk menjalankan aksinya. Perpindahan memakai tombol yang sama dengan halaman dokumen — termasuk catatan, alasan wajib, dan aturan persetujuan. Dengan papan ketik: panah memindahkan fokus, Ctrl (atau ⌘) + panah kiri/kanan memindahkan kartunya, dan Enter atau Spasi membuka dokumennya.",
+   "kolom_sama": true
+  },
+  "pindah": {
+   "sebelum": [
+    0,
+    1,
+    1,
+    0,
+    0,
+    0
+   ],
+   "sesudah": [
+    0,
+    0,
+    2,
+    0,
+    0,
+    0
+   ],
+   "berubah": true,
+   "fokus": {
+    "id": "2",
+    "kolom": "qualified"
+   },
+   "toast": "LEAD-0002 dipindahkan ke tahap Terkualifikasi."
+  },
+  "lagi": {
+   "fokus": {
+    "id": "2",
+    "kolom": "proposal"
+   },
+   "toast": "LEAD-0002 dipindahkan ke tahap Penawaran Dikirim."
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 11297,
+  "_clicks": 0
+ },
+ "S50_kepala_laporan_keuangan": {
+  "layar": {
+   "trial-balance": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Neraca Saldo",
+    "px": "14px",
+    "baris": [
+     "PERIODE = September 2026",
+     "KESEIMBANGAN = Debit = kredit",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "profit-loss": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Laba Rugi",
+    "px": "14px",
+    "baris": [
+     "PERIODE = 01 Jan 2026 – 25 Sep 2026",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "balance-sheet": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Neraca",
+    "px": "14px",
+    "baris": [
+     "PER TANGGAL = 25 September 2026",
+     "KESEIMBANGAN = Aset = kewajiban + ekuitas",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "cash-flow": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Laporan Arus Kas",
+    "px": "14px",
+    "baris": [
+     "PERIODE = 01 Jan 2026 – 25 Sep 2026",
+     "METODE = Langsung (PSAK 2)",
+     "REKONSILIASI = Saldo awal + arus = saldo akhir",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "cash-projection": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Proyeksi Kas",
+    "px": "14px",
+    "baris": [
+     "PER TANGGAL = 25 September 2026",
+     "HORIZON = 90 hari ke depan",
+     "PIUTANG LEWAT JATUH TEMPO = Tidak masuk saldo berjalan",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "ar-aging": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Umur Piutang Usaha",
+    "px": "14px",
+    "baris": [
+     "PER TANGGAL = 25 September 2026",
+     "BASIS UMUR = Sejak jatuh tempo",
+     "DOKUMEN TERBUKA = 0",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "ap-aging": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Umur Hutang Usaha",
+    "px": "14px",
+    "baris": [
+     "PER TANGGAL = 25 September 2026",
+     "BASIS UMUR = Sejak jatuh tempo",
+     "DOKUMEN TERBUKA = 0",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "project-profitability": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Profitabilitas Proyek",
+    "px": "14px",
+    "baris": [
+     "PROYEK = PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+     "ANGGARAN = RAP belum ada",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "buku-besar": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Buku Besar",
+    "px": "14px",
+    "baris": [
+     "AKUN = 1-1210 — Bank BCA Operasional",
+     "PERIODE = 01 Sep 2026 – 25 Sep 2026",
+     "SALDO NORMAL = Debit",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   }
+  },
+  "kertas": {
+   "trial-balance": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Neraca Saldo",
+    "px": "20px",
+    "baris": [
+     "PERIODE = September 2026",
+     "KESEIMBANGAN = Debit = kredit",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "profit-loss": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Laba Rugi",
+    "px": "20px",
+    "baris": [
+     "PERIODE = 01 Jan 2026 – 25 Sep 2026",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "balance-sheet": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Neraca",
+    "px": "20px",
+    "baris": [
+     "PER TANGGAL = 25 September 2026",
+     "KESEIMBANGAN = Aset = kewajiban + ekuitas",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "cash-flow": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Laporan Arus Kas",
+    "px": "20px",
+    "baris": [
+     "PERIODE = 01 Jan 2026 – 25 Sep 2026",
+     "METODE = Langsung (PSAK 2)",
+     "REKONSILIASI = Saldo awal + arus = saldo akhir",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "cash-projection": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Proyeksi Kas",
+    "px": "20px",
+    "baris": [
+     "PER TANGGAL = 25 September 2026",
+     "HORIZON = 90 hari ke depan",
+     "PIUTANG LEWAT JATUH TEMPO = Tidak masuk saldo berjalan",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "ar-aging": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Umur Piutang Usaha",
+    "px": "20px",
+    "baris": [
+     "PER TANGGAL = 25 September 2026",
+     "BASIS UMUR = Sejak jatuh tempo",
+     "DOKUMEN TERBUKA = 0",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "ap-aging": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Umur Hutang Usaha",
+    "px": "20px",
+    "baris": [
+     "PER TANGGAL = 25 September 2026",
+     "BASIS UMUR = Sejak jatuh tempo",
+     "DOKUMEN TERBUKA = 0",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "project-profitability": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Profitabilitas Proyek",
+    "px": "20px",
+    "baris": [
+     "PROYEK = PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+     "ANGGARAN = RAP belum ada",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   },
+   "buku-besar": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Buku Besar",
+    "px": "20px",
+    "baris": [
+     "AKUN = 1-1210 — Bank BCA Operasional",
+     "PERIODE = 01 Sep 2026 – 25 Sep 2026",
+     "SALDO NORMAL = Debit",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   }
+  },
+  "profitabilitas_sebelum_pilih": {
+   "ada": false
+  },
+  "umur_as_of": {
+   "kotak": 1,
+   "permintaan": [
+    "finance/reports/ar-aging",
+    "finance/reports/ar-aging?as_of=2026-06-30"
+   ],
+   "kepala": {
+    "ada": true,
+    "terlihat": true,
+    "judul": "Umur Piutang Usaha",
+    "px": "14px",
+    "baris": [
+     "PER TANGGAL = 30 Juni 2026",
+     "BASIS UMUR = Sejak jatuh tempo",
+     "DOKUMEN TERBUKA = 0",
+     "MATA UANG = IDR — rupiah penuh"
+    ]
+   }
+  },
+  "per_tanggal": {
+   "balance-sheet": "25 September 2026",
+   "cash-projection": "25 September 2026",
+   "ar-aging": "25 September 2026",
+   "ap-aging": "25 September 2026"
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 38764,
+  "_clicks": 0
+ },
+ "S51_ubin_proyek_dan_grafik": {
+  "#/d/projects/1": {
+   "tabrakan": [],
+   "ukuran": {
+    "22px": 7
+   }
+  },
+  "#/evm": {
+   "tabrakan": [],
+   "ukuran": {
+    "22px": 6
+   }
+  },
+  "#/harga-satuan": {
+   "tabrakan": [],
+   "ukuran": {
+    "16px": 4
+   },
+   "grafik": {
+    "svg": [
+     {
+      "w": 688,
+      "h": 248,
+      "luas": 170925,
+      "mark": 2,
+      "per_mark": 85463
+     }
+    ],
+    "nilai": [
+     "16px",
+     "16px",
+     "16px",
+     "16px"
+    ]
+   }
+  },
+  "#/dashboard": {
+   "tabrakan": [],
+   "ukuran": {}
+  },
+  "#/d/projects/1 @768": {
+   "tabrakan": []
+  },
+  "#/evm @768": {
+   "tabrakan": []
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 24625,
+  "_clicks": 0
+ },
+ "S52_lapisan_daftar_generik": {
+  "#/r/inventory/items": {
+   "bilah": {
+    "bilah": 8,
+    "membungkus": 0,
+    "gaya_sebaris": 0
+   },
+   "bool": {
+    "jumlah": 8,
+    "token": "rgb(23, 113, 74)",
+    "warna": [
+     "rgb(23, 113, 74)"
+    ],
+    "bobot": [
+     "700"
+    ]
+   }
+  },
+  "#/r/procurement/vendors": {
+   "bilah": {
+    "bilah": 7,
+    "membungkus": 0,
+    "gaya_sebaris": 0
+   },
+   "bool": {
+    "jumlah": 5,
+    "token": "rgb(23, 113, 74)",
+    "warna": [
+     "rgb(23, 113, 74)"
+    ],
+    "bobot": [
+     "700"
+    ]
+   }
+  },
+  "#/r/hr/employees": {
+   "bilah": {
+    "bilah": 8,
+    "membungkus": 0,
+    "gaya_sebaris": 0
+   },
+   "bool": {
+    "jumlah": 0,
+    "token": "rgb(23, 113, 74)",
+    "warna": [],
+    "bobot": []
+   }
+  },
+  "#/r/procurement/purchase-orders": {
+   "bilah": {
+    "bilah": 0,
+    "membungkus": 0,
+    "gaya_sebaris": 0
+   },
+   "bool": {
+    "jumlah": 0,
+    "token": "rgb(23, 113, 74)",
+    "warna": [],
+    "bobot": []
+   }
+  },
+  "#/stock": {
+   "ukuran": {
+    "22px": 2
+   }
+  },
+  "#/usulan-pesan-ulang": {
+   "ukuran": {}
+  },
+  "total_bilah": 23,
+  "total_bool": 13,
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 21692,
+  "_clicks": 0
+ },
+ "S53_satu_ukuran_per_baris_ubin": {
+  "#/evm": [
+   {
+    "ubin": 6,
+    "ukuran": {
+     "22px": 6
+    },
+    "label": [
+     "PROYEK TERUKUR",
+     "SPI PORTOFOLIO",
+     "CPI PORTOFOLIO",
+     "NILAI RENCANA (Σ PV)",
+     "NILAI DIPEROLEH (Σ EV)",
+     "BIAYA AKTUAL (Σ AC)"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/tax-exports": [
+   {
+    "ubin": 4,
+    "ukuran": {
+     "22px": 4
+    },
+    "label": [
+     "SIAP DIEKSPOR",
+     "TOTAL DPP",
+     "PPN KELUARAN",
+     "TERTAHAN"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/sla-breaches": [
+   {
+    "ubin": 2,
+    "ukuran": {
+     "22px": 2
+    },
+    "label": [
+     "TIKET LEWAT SLA",
+     "TERLAMA"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/csat": [
+   {
+    "ubin": 4,
+    "ukuran": {
+     "22px": 4
+    },
+    "label": [
+     "RATA-RATA KEPUASAN",
+     "TIKET SELESAI",
+     "TINGKAT JAWABAN",
+     "PUAS (4–5)"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/d/projects/1": [
+   {
+    "ubin": 7,
+    "ukuran": {
+     "22px": 7
+    },
+    "label": [
+     "NILAI KONTRAK",
+     "PROGRES AKTUAL",
+     "TENAGA KERJA HARI INI",
+     "MILESTONE TERLAMBAT",
+     "PO TERBUKA",
+     "RETENSI DITAHAN",
+     "ANGGARAN TERPAKAI"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/stock": [
+   {
+    "ubin": 2,
+    "ukuran": {
+     "22px": 2
+    },
+    "label": [
+     "NILAI PERSEDIAAN",
+     "BARIS SALDO"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/usulan-pesan-ulang": [],
+  "#/periods": [
+   {
+    "ubin": 3,
+    "ukuran": {
+     "16px": 3
+    },
+    "label": [
+     "PERIODE DITUTUP",
+     "BERIKUTNYA DALAM ANTRE",
+     "PENUTUPAN TERAKHIR"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/harga-satuan": [
+   {
+    "ubin": 4,
+    "ukuran": {
+     "16px": 4
+    },
+    "label": [
+     "HARGA TERAKHIR",
+     "TERENDAH — TERTINGGI",
+     "RATA-RATA TERTIMBANG",
+     "CACHE ITEM MASTER"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/reports?tab=profit-loss": [
+   {
+    "ubin": 3,
+    "ukuran": {
+     "16px": 3
+    },
+    "label": [
+     "PENDAPATAN",
+     "LABA KOTOR",
+     "LABA BERSIH"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/reports?tab=cash-flow": [
+   {
+    "ubin": 3,
+    "ukuran": {
+     "16px": 3
+    },
+    "label": [
+     "SALDO AWAL KAS",
+     "PERUBAHAN NETO",
+     "SALDO AKHIR KAS"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/reports?tab=cash-projection": [
+   {
+    "ubin": 3,
+    "ukuran": {
+     "16px": 3
+    },
+    "label": [
+     "SALDO KAS HARI INI",
+     "TITIK TERENDAH",
+     "SALDO AKHIR (90 HARI)"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/d/procurement/purchase-orders/1": [
+   {
+    "ubin": 5,
+    "ukuran": {
+     "16px": 5
+    },
+    "label": [
+     "SUBTOTAL",
+     "DISKON",
+     "DPP",
+     "PPN",
+     "TOTAL"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/bank-recon": [],
+  "#/rekap-pph21": [
+   {
+    "ubin": 4,
+    "ukuran": {
+     "22px": 4
+    },
+    "label": [
+     "PEGAWAI",
+     "TOTAL BRUTO",
+     "TOTAL PPH 21",
+     "PEGAWAI TANPA IDENTITA"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/timesheet": [],
+  "#/absensi": [],
+  "#/d/hr/payroll-runs/1": [
+   {
+    "ubin": 4,
+    "ukuran": {
+     "22px": 4
+    },
+    "label": [
+     "TOTAL BRUTO",
+     "TOTAL POTONGAN",
+     "TOTAL NETTO",
+     "JUMLAH SLIP"
+    ],
+    "meluber": []
+   }
+  ],
+  "#/buku-besar": [],
+  "#/kas-kecil": [],
+  "#/tugas": [],
+  "baris_diperiksa": 14,
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 63713,
+  "_clicks": 0
+ },
+ "S54_combobox_satu_peristiwa_satu_muatan": {
+  "opsi_terbuka": 1,
+  "A_enter": {
+   "galat": [],
+   "konsol": [],
+   "permintaan": [
+    "finance/reports/general-ledger?account_id=5&from=2026-09-01&to=2026-09-25&page=1&per_page=100"
+   ],
+   "kepala": "Buku Besar AKUN 1-1210 — Bank BCA Operasional PERIODE 01 Sep 2026 – 25 Sep 2026 SALDO NORM",
+   "nilai": "1-1210 — Bank BCA Operasional",
+   "kotak": 1
+  },
+  "label_utuh": "1-1400 — Persediaan Material",
+  "B_kabur_label_penuh": {
+   "galat": [],
+   "konsol": [],
+   "permintaan": [
+    "finance/reports/general-ledger?account_id=11&from=2026-09-01&to=2026-09-25&page=1&per_page=100"
+   ],
+   "kepala": "Buku Besar AKUN 1-1400 — Persediaan Material PERIODE 01 Sep 2026 – 25 Sep 2026 SALDO NORMA"
+  },
+  "C_kabur_tanpa_cocok": {
+   "galat": [],
+   "konsol": [],
+   "permintaan": [],
+   "nilai": "1-1400 — Persediaan Material",
+   "kotak": 1
+  },
+  "opsi_saringan": 12,
+  "D_saringan_daftar": {
+   "galat": [],
+   "konsol": [],
+   "permintaan": [
+    "crm/leads?owner_user_id=4&per_page=20&page=1"
+   ],
+   "chip": [
+    "Pemilik prospek: site-manager@nusantara.test — Agus Prasetyo"
+   ],
+   "kotak": 1
+  },
+  "failed_checks": [],
+  "ok": true,
+  "_ms": 24542,
+  "_clicks": 6
+ }
+}

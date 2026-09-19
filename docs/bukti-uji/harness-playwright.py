@@ -1837,6 +1837,190 @@ def s53(pg):
     out["ok"] = not checks
     return out
 
+@scenario("S54_combobox_satu_peristiwa_satu_muatan")
+def s54(pg):
+    """Memilih di combobox: SATU peristiwa, SATU muatan, nol galat konsol.
+
+    Cacat yang digerbangi (diukur 19 Sep 2026, Chromium 151): sebuah <input>
+    memancarkan `change` MILIKNYA SENDIRI ketika kotak yang sudah diketik
+    kehilangan fokus — dan Chromium juga memancarkannya ketika kotak berfokus itu
+    DICABUT dari dokumen. Pemanggil yang menggambar ulang layarnya sendiri dari
+    `change` (bukubesar reload → render → clear(host); list.js apply → load →
+    renderAll → clear(tableHost)) mencabut input itu DI DALAM penangannya
+    sendiri, peramban memancarkan change-nya di tengah pencabutan, penangan itu
+    masuk kembali dan mengosongkan wadah yang sama untuk kedua kalinya, lalu
+    removeChild terluar melempar NotFoundError atas simpul yang sudah dibuang
+    panggilan-dalam itu sendiri — satu penolakan janji tak tertangani per
+    pemilihan. Terukur di #/buku-besar DAN di #/r/crm/leads; setiap layar daftar
+    memakai jalur list.js yang sama.
+
+    Dua hal digerbangi, dan keduanya perlu:
+
+      * NOL galat — itulah cacatnya. Tapi "nol galat" saja bisa dipenuhi dengan
+        membuat clear() memaafkan anak yang sudah tercabut, dan itu hanya
+        menutup mulut balapannya.
+      * SATU permintaan per pemilihan, NOL untuk kabur yang tidak mengubah apa
+        pun. Sebelum perbaikan: change bawaan tiba SEBELUM blur, jadi ia membawa
+        nilai yang dipegang kotak sebelum settle() memutuskan apa pun — mengetik
+        label penuh lalu kabur memuat laporan akun LAMA dulu (2 permintaan),
+        dan mengetik teks yang tidak cocok dengan apa pun lalu kabur tetap
+        memuat ulang untuk nilai yang tidak berpindah (1 permintaan).
+
+    Yang TIDAK digerbangi: fokus sesudah memilih. `choose()` memanggil
+    input.focus() atas input yang render berikutnya sudah cabut, jadi fokus
+    papan ketik jatuh ke <body> — cacat lama yang berdiri sendiri, dicatat untuk
+    pemilik, bukan diperbaiki diam-diam di sini.
+    """
+    galat, konsol, permintaan = [], [], []
+    pg.on("pageerror", lambda e: galat.append(str(e).split("\n")[0][:200]))
+    pg.on("console", lambda m: konsol.append(m.text[:200]) if m.type == "error" else None)
+    pg.on("request", lambda r: permintaan.append(r.url.split("/api/")[-1]) if "/api/" in r.url else None)
+
+    def mulai():
+        """Jendela pengukuran satu aksi: apa pun sebelum ini bukan urusannya."""
+        galat.clear(); konsol.clear(); permintaan.clear()
+
+    def hitung(fragmen):
+        return [p for p in permintaan if fragmen in p]
+
+    def klik(sel):
+        """Klik yang dihitung, atas kecocokan PERTAMA.
+
+        Bukan click(pg, sel): mode ketat Playwright melempar begitu selektornya
+        cocok dua kali — dan layar yang tercabik justru PUNYA dua kotak. Melempar
+        di sana menukar daftar syarat yang terbaca dengan sebuah pesan locator,
+        jadi skenarionya mengukur terus dan membiarkan syaratnya yang bicara."""
+        CLICKS[0] += 1
+        pg.locator(sel).first.click()
+
+    login(pg, "admin@nusantara.test")
+    out, checks = {}, []
+
+    # ---------------------------------------------------------------- A: Enter
+    pg.goto(BASE + "#/buku-besar"); pg.wait_for_timeout(2600)
+    assert_screen(pg, "#/buku-besar", "Buku Besar")
+    kotak = pg.locator("input.combo-input[aria-label='Akun']")
+    # JATUH, bukan SKIPPED: kontrol yang tidak ditemukan adalah tepat keadaan yang
+    # gerbang ini ada untuk menangkap, dan dekorator tidak menjatuhkan SKIPPED —
+    # ia akan mencetak sebaris tenang dan keluar 0.
+    if not kotak.count():
+        return {"failed_checks": ["buku besar tanpa combobox akun 'Akun' — kontrol yang diuji tidak ada"],
+                "ok": False}
+    klik("input.combo-input[aria-label='Akun']")
+    kotak.first.type("1-1210", delay=40); pg.wait_for_timeout(900)
+    pilihan = pg.locator(".combo-pop .combo-opt")
+    # Anti-gerbang-hampa: daftar kosong berarti Enter tidak memilih apa-apa, dan
+    # SELURUH skenario ini lolos tanpa satu pun pemilihan pernah terjadi.
+    out["opsi_terbuka"] = pilihan.count()
+    if not pilihan.count():
+        checks.append("popup akun kosong sesudah mengetik 1-1210 — tidak ada yang bisa dipilih")
+    mulai()
+    pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter"); pg.wait_for_timeout(3000)
+    out["A_enter"] = {
+        "galat": list(galat), "konsol": list(konsol),
+        "permintaan": hitung("general-ledger"),
+        "kepala": pg.evaluate("() => { const h=document.querySelector('.report-head'); return h ? h.innerText.replace(/\\s+/g,' ').slice(0,90) : null }"),
+        "nilai": kotak.first.input_value() if kotak.count() else None,
+        # Berapa BANYAK kontrol yang tertinggal. Menelan galatnya — membungkus
+        # removeChild dengan try/catch — memang menutup konsol, tapi gambar
+        # terluar mati di tengah jalan sementara gambar-dalam memasang miliknya
+        # sendiri: terukur DUA bilah saringan akun di satu layar (19 Sep 2026).
+        "kotak": kotak.count(),
+    }
+
+    # ------------------------------------------- B: label penuh, lalu kabur
+    klik("input.combo-input[aria-label='Akun']")
+    kotak.first.fill(""); kotak.first.type("1-1400", delay=40); pg.wait_for_timeout(900)
+    label = pg.locator(".combo-pop .combo-opt").first.inner_text().strip() if pg.locator(".combo-pop .combo-opt").count() else None
+    out["label_utuh"] = label
+    if not label:
+        checks.append("popup akun kosong sesudah mengetik 1-1400 — kasus label-penuh tidak terukur")
+    else:
+        kotak.first.fill("")
+        # Diketik, bukan fill(): hanya ketikan sungguhan yang menandai kotak
+        # "diubah pengguna", dan hanya kotak bertanda itu yang memancarkan
+        # change bawaan — persis peristiwa yang digerbangi di sini.
+        kotak.first.type(label, delay=10); pg.wait_for_timeout(500)
+        mulai()
+        klik(".page-head h1"); pg.wait_for_timeout(3000)   # kabur ke luar kotak
+        out["B_kabur_label_penuh"] = {
+            "galat": list(galat), "konsol": list(konsol),
+            "permintaan": hitung("general-ledger"),
+            "kepala": pg.evaluate("() => { const h=document.querySelector('.report-head'); return h ? h.innerText.replace(/\\s+/g,' ').slice(0,90) : null }"),
+        }
+
+    # --------------------------------- C: teks yang tidak cocok, lalu kabur
+    kotak = pg.locator("input.combo-input[aria-label='Akun']")
+    klik("input.combo-input[aria-label='Akun']")
+    kotak.first.fill(""); kotak.first.type("zzz", delay=40); pg.wait_for_timeout(700)
+    mulai()
+    klik(".page-head h1"); pg.wait_for_timeout(2600)
+    out["C_kabur_tanpa_cocok"] = {
+        "galat": list(galat), "konsol": list(konsol),
+        "permintaan": hitung("general-ledger"),
+        "nilai": pg.locator("input.combo-input[aria-label='Akun']").first.input_value(),
+        "kotak": pg.locator("input.combo-input[aria-label='Akun']").count(),
+    }
+
+    # ----------------------------------------- D: saringan lookup di daftar
+    pg.goto(BASE + "#/r/crm/leads"); pg.wait_for_timeout(2800)
+    assert_screen(pg, "#/r/crm/leads")
+    saringan = pg.locator("input.combo-input[aria-label='Pemilik prospek']")
+    if not saringan.count():
+        checks.append("daftar prospek tanpa saringan lookup 'Pemilik prospek' — jalur list.js tidak terukur")
+    else:
+        klik("input.combo-input[aria-label='Pemilik prospek']")
+        saringan.first.type("a", delay=40); pg.wait_for_timeout(900)
+        out["opsi_saringan"] = pg.locator(".combo-pop .combo-opt").count()
+        if not out["opsi_saringan"]:
+            checks.append("popup saringan pemilik prospek kosong — tidak ada yang bisa dipilih")
+        mulai()
+        pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter"); pg.wait_for_timeout(3000)
+        out["D_saringan_daftar"] = {
+            "galat": list(galat), "konsol": list(konsol),
+            "permintaan": hitung("crm/leads?"),
+            "chip": pg.evaluate("() => [...document.querySelectorAll('.chips.active-filters .chip')].map(c=>c.innerText.replace(/\\s+/g,' ').trim())"),
+            "kotak": pg.locator("input.combo-input[aria-label='Pemilik prospek']").count(),
+        }
+    pg.screenshot(path=f"{OUT}/s54-combobox-pilih.png")
+
+    # ------------------------------------------------------------- syarat
+    for nama, bagian in [(k, v) for k, v in out.items() if isinstance(v, dict)]:
+        if bagian.get("galat"):
+            checks.append(f"{nama}: galat halaman {bagian['galat'][:2]}")
+        if bagian.get("konsol"):
+            checks.append(f"{nama}: galat konsol {bagian['konsol'][:2]}")
+
+    for nama, diharap in [("A_enter", 1), ("B_kabur_label_penuh", 1), ("C_kabur_tanpa_cocok", 0), ("D_saringan_daftar", 1)]:
+        bagian = out.get(nama)
+        if bagian is None:
+            continue
+        n = len(bagian["permintaan"])
+        if n != diharap:
+            checks.append(f"{nama}: {n} permintaan, diharapkan {diharap} — {bagian['permintaan'][:3]}")
+
+    # Layarnya benar-benar dimuat ulang, bukan diam: tanpa syarat ini "nol galat"
+    # bisa berarti "tidak ada yang pernah terjadi".
+    if out.get("A_enter") and "1-1210" not in (out["A_enter"]["kepala"] or ""):
+        checks.append(f"A_enter: kepala laporan tidak menyebut akun terpilih — {out['A_enter']['kepala']!r}")
+    if out.get("B_kabur_label_penuh") and "1-1400" not in (out["B_kabur_label_penuh"]["kepala"] or ""):
+        checks.append(f"B_kabur_label_penuh: kepala laporan tidak berpindah ke akun yang diketik — {out['B_kabur_label_penuh']['kepala']!r}")
+    if out.get("C_kabur_tanpa_cocok") and "1-1400" not in (out["C_kabur_tanpa_cocok"]["nilai"] or ""):
+        checks.append(f"C_kabur_tanpa_cocok: kotak tidak kembali ke nilai yang dipegang — {out['C_kabur_tanpa_cocok']['nilai']!r}")
+    if out.get("D_saringan_daftar") and not out["D_saringan_daftar"]["chip"]:
+        checks.append("D_saringan_daftar: tidak ada chip saringan aktif — pemilihannya tidak sampai ke daftar")
+
+    # SATU kontrol, bukan dua. Gambar yang mati di tengah meninggalkan bilahnya
+    # terpasang sementara gambar berikutnya memasang bilahnya sendiri, dan layar
+    # yang sudah tenang konsolnya tetap memakai dua kotak yang tidak sepakat.
+    for nama, bagian in [(k, v) for k, v in out.items() if isinstance(v, dict) and "kotak" in v]:
+        if bagian["kotak"] != 1:
+            checks.append(f"{nama}: {bagian['kotak']} kotak combobox di layar, seharusnya 1 — gambar yang mati di tengah")
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 @scenario("S9_account_menu")
 def s9(pg):
     # T2.7 — halaman masuk dulu: baris "Lupa kata sandi?" datang dari server
@@ -14210,7 +14394,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

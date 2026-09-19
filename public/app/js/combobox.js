@@ -697,6 +697,37 @@ export function combobox({
 
   /* ---------------------------------------------------------------- events */
 
+  /*
+   * The browser's OWN change event, stopped here and never seen by anyone else.
+   *
+   * <input> fires `change` by itself whenever a user-edited box loses focus —
+   * and, in Chromium, that pending event is ALSO fired when the focused box is
+   * removed from the document. That second case is the one that bites: a caller
+   * whose change handler redraws its own screen (bukubesar's reload, list.js's
+   * load) tears down this very input INSIDE the handler, the browser fires its
+   * change while the removal is still running, the handler re-enters and clears
+   * the same container a second time, and the outer removeChild then throws
+   * NotFoundError on a node its own re-entrant call already took out — an
+   * unhandled rejection on every single pick. Not one screen either: measured
+   * on Buku Besar and on r/crm/leads, and every list screen shares it through
+   * list.js's renderAll, which is 80 resources in schema.js declaring a lookup
+   * filter. It is registered FIRST, before commit() can emit and before any
+   * caller attaches, because a listener on the target only outranks the ones
+   * declared after it.
+   *
+   * The ordinary blur case is worth as much: the native event arrives BEFORE
+   * blur, so it carried the value the box held before settle() decided
+   * anything. Every caller that trusted it reloaded a screen for a value that
+   * had not moved — and once settle() did commit, reloaded it again.
+   *
+   * isTrusted is the whole test. The event this control means to send is made
+   * by commit() with dispatchEvent, which is untrusted by construction, so it
+   * passes; nothing the browser makes on its own does.
+   */
+  input.addEventListener('change', (event) => {
+    if (event.isTrusted) event.stopImmediatePropagation();
+  });
+
   input.addEventListener('click', () => {
     if (isOpen()) return;
     // Clicking opens but never toggles shut: with the text select-all'd, a
