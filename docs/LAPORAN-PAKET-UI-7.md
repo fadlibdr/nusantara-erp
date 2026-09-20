@@ -187,6 +187,22 @@ struktural, bukan kosmetik: bentuk apa pun yang server kirim besok tidak akan bi
 
 Sesudahnya, keenam putaran atas 177 rute dalam: **tabrakan 16 → 0, gulir-X kertas 8 → 0.**
 
+**Dan aturan label itu harus diperbaiki sekali lagi, SESUDAH deploy.** Versi pertamanya memilih
+"properti string pertama yang bukan kunci id" — dan JSON mengirim uang sebagai STRING. Di erp1,
+lencana Retensi `#/d/finance/ar-invoices/4` tergambar **`727500000.00`**: bilangan bulat telanjang
+di layar yang setiap angka lainnya menulis `Rp 727.500.000`. Itu cacat yang PERSIS sama dengan yang
+§3 perbaiki di `#/asset-utilization`, dibuat ulang oleh perbaikan §3a sendiri, dua paragraf di atas.
+Tanggal ISO adalah anggota ketiga keluarga yang sama (`2026-07-31`, bukan `31 Jul 2026`).
+
+Urutannya sekarang: teks yang MENJELASKAN (dan bukan angka yang kebetulan dikirim sebagai string;
+tanggal diformat `fmt.date`), lalu UANG lewat `MONEY_KEY` + `fmt.rupiah`, lalu `#<id>`, lalu jumlah
+medan. Terukur sesudahnya: `PPKB/2026/VII/0001` · `Kebersihan bekisting dan tulangan` ·
+`Dokumen Pemilihan` · `31 Jul 2026` · `Rp 727.500.000` — dan tetap 16 → 0 tabrakan.
+
+Pelajarannya pahit dan patut ditulis: **saya memperbaiki cacat refleksi dengan refleksi yang punya
+cacat yang sama.** Yang menangkapnya bukan gerbang mana pun melainkan membuka satu layar produksi
+dan MEMBACA apa yang tergambar.
+
 ## 4. Kepala tabel boleh membungkus di kertas
 
 Tabelnya 1.474 px di lembar 1.440 px, dan lebarnya dikuasai **KEPALA**, bukan data: "USULAN BEBAN

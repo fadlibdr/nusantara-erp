@@ -482,10 +482,30 @@ function titleize(key) {
  */
 function ringkasEntri(entry) {
   const utuh = JSON.stringify(entry);
+  const pasangan = Object.entries(entry).filter(([key]) => !/(^|_)id$/.test(key));
+  const angka = (val) => typeof val === 'number'
+    || (typeof val === 'string' && /^-?\d+(\.\d+)?$/.test(val.trim()));
+
+  /* Teks yang MENJELASKAN lebih dulu — tetapi bukan angka yang kebetulan
+     dikirim sebagai string. Versi pertama aturan ini memilih "properti string
+     pertama yang bukan kunci id", dan JSON mengirim uang sebagai string:
+     lencana retensi di #/d/finance/ar-invoices/4 tergambar `727500000.00`
+     di produksi — bilangan bulat telanjang di layar yang setiap angka lainnya
+     menulis `Rp 727.500.000`. Itu cacat yang PERSIS sama dengan yang paket ini
+     perbaiki di #/asset-utilization, dibuat ulang oleh perbaikannya sendiri. */
   let label = null;
-  for (const [key, val] of Object.entries(entry)) {
-    if (/(^|_)id$/.test(key)) continue;
-    if (typeof val === 'string' && val.trim() !== '') { label = val.trim(); break; }
+  for (const [key, val] of pasangan) {
+    if (typeof val !== 'string' || val.trim() === '' || angka(val)) continue;
+    /* Tanggal ISO diformat seperti tanggal di tempat lain — `31 Jul 2026`,
+       bukan `2026-07-31`. Anggota ketiga keluarga cacat yang sama dengan uang
+       di atas dan dengan yang §3 laporan ini perbaiki di #/asset-utilization. */
+    label = DATE_KEY.test(key) ? fmt.date(val.trim()) : val.trim();
+    break;
+  }
+  /* …lalu UANG, diformat seperti uang di tempat lain mana pun di aplikasi ini. */
+  if (label === null) {
+    const uang = pasangan.find(([key, val]) => MONEY_KEY.test(key) && angka(val) && Number(val) !== 0);
+    if (uang) label = fmt.rupiah(Number(uang[1]));
   }
   if (label === null && entry.id !== undefined) label = `#${entry.id}`;
   if (label === null) label = `${Object.keys(entry).length} medan`;
