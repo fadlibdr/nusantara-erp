@@ -1208,6 +1208,14 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 .badge.blue { background: var(--info-soft); color: var(--info); }
 .badge.primary { background: var(--primary-soft); color: var(--primary); }
 
+/* Lencana yang digambar `autoValue()` dari larik objek (detail.js). Dua hal
+   dikunci di sini, bukan di JS: jaraknya (dulu tiga properti gaya SEBARIS per
+   medan) dan LEBAR MAKSIMUMNYA. Yang kedua itu penjaga struktural — apa pun
+   bentuk baru yang server kirim besok, sebuah lencana tidak akan pernah lagi
+   melebar 3.396 px dan menimpa baris di bawahnya. */
+.auto-badges { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.auto-badges .badge { max-width: 30ch; overflow: hidden; }
+
 /* ------------------------------------------------------------ empty/err */
 .empty {
   padding: 46px 20px;
@@ -1534,10 +1542,18 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 
    KOREKSI (UI-7, keputusan 1 rencana kampanye). Kalimat yang berdiri di sini
    sampai paket ini — "`.value.sm` adalah dua ubin berdampingan DI DALAM kartu
-   widget dasbor" — TIDAK BENAR, dan sensus 19 Sep 2026 di 143 rute
-   membantahnya: enam baris ubin TINGKAT ATAS memakainya, di luar kartu mana
-   pun — `#/reports` laba-rugi · arus kas · proyeksi kas, `#/periods`,
-   `#/harga-satuan`, dan `#/d/procurement/purchase-orders/1`.
+   widget dasbor" — TIDAK BENAR. Sensus 20 Sep 2026 atas 325 rute (143 rute
+   daftar/literal + 177 rute dokumen, formulir, papan dan beranda modul):
+   **39 baris ubin tingkat atas, 31 di antaranya seragam 16 px dan 8 seragam
+   22 px, NOL yang campur.** Tujuh belas dari yang 16 px adalah layar DOKUMEN,
+   dan itu bukan kebetulan: `summaryStrip()` di views/detail.js:553 menggambar
+   bilah ini untuk setiap sumber daya yang menyatakan `detail.summary` —
+   empat belas sumber daya, jadi setiap dokumen mereka membawanya.
+
+   Sensus SEBELUMNYA hanya menyapu 143 rute dan menemukan enam baris; ia
+   mengutip `#/d/procurement/purchase-orders/1` sebagai bukti sementara tidak
+   satu pun rute `#/d/` ada di katalognya. Bukti itu benar; sumbernya bukan
+   sensus itu.
 
    Aturan yang BENAR-BENAR berlaku, dan yang karena itu ditulis di sini:
    **ukuran mengikuti BENTUK angkanya, dan bentuk mengikuti pekerjaan layarnya.**
@@ -1546,11 +1562,18 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
    direkonsiliasi (`Rp 10.534.455.000`). Layar dokumen menuliskan angka yang
    dicocokkan orang dengan kertas; layar pemindaian menuliskan besarannya.
 
-   Menyatukan ke 22 px DIUKUR, bukan ditebak: pada 1440 dan 1280 px keenam
-   baris itu muat tanpa membungkus (0 dari 21 ubin), tetapi pada 1024 px
-   4 dari 21 membungkus dan pada 390 px **12 dari 21** — rupiah penuh pecah
-   jadi dua baris di dalam ubin setinggi satu baris. Itu menukar satu
-   ketidakseragaman yang bisa dibaca dengan satu yang tidak bisa.
+   Menyatukan ke 22 px DIUKUR, bukan ditebak — dan diukur ULANG atas ke-31
+   baris itu (122 ubin) sesudah sensus lama ternyata melewatkan layar dokumen.
+   Ubin yang isinya pecah jadi dua baris bila dipaksa 22 px:
+
+       1440 px  31 dari 122      1024 px  38 dari 122
+       1280 px  16 dari 122       390 px  47 dari 122
+
+   Angka LAMA berbunyi "0 dari 21 pada 1440 dan 1280" dan dipakai untuk menolak
+   objeksi bahwa 22 px memaksa bentuk ringkas. Objeksi itu ternyata BERDIRI:
+   pada lebar meja paling lapang pun seperempat ubinnya membungkus. (1280 lebih
+   baik daripada 1440 karena kisinya memberi lebih sedikit kolom yang lebih
+   lebar — kontra-intuitif, dan itulah gunanya mengukur.)
 
    Dan ukurannya bukan satu-satunya yang berbeda: slot ini kadang berisi
    KALIMAT ("Belum ada penilaian" di `#/csat`), karena `views/csat.js` memegang
@@ -2053,6 +2076,15 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      dan lebarnya dikuasai KEPALA, bukan data — "USULAN BEBAN INTERNAL" 182 px
      untuk memuat "Rp 505.000.000" yang hanya butuh ~120 px. */
   table.data th { white-space: normal; }
+  /* …tetapi ANGKANYA tidak ikut membungkus (koreksi tinjauan pra-gabung).
+     Membiarkan kepala membungkus membuat kolom menyusut ke lebar DATANYA, dan
+     sel angka tidak nowrap (`table.data td.right` hanya menyetel tabular-nums),
+     jadi rupiahnya sendiri yang patah dua baris. Terukur di #/sewa-vs-beli
+     dengan emulate_media('print') 1440×1000: kolom HARGA PEROLEHAN 144 → 134 px
+     dan "Rp 850.000.000,00" jadi dua baris; sel kanan yang membungkus di tabel
+     itu 1 → 5. Rute itu membayar ongkos aturan tanpa mendapat apa pun — ia
+     tidak pernah meluber. Kepala tetap boleh membungkus; angkanya tidak. */
+  table.data td.right, table.data td.num, table.data tfoot td { white-space: nowrap; }
   body { background: #fff; }
 }
 
@@ -2637,8 +2669,53 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
      kepadatan yang pemilik bekukan tidak tersentuh — yang dibayar hanya kepala
      tabel, di layar sentuh saja. Kotak centang baris juga bukan sasaran
      tunggalnya: barisnya sendiri yang dibuka orang. */
-  .pick input[type=checkbox], .check-row input[type=checkbox] { width: 24px; height: 24px; }
+  /* KOREKSI (tinjauan pra-gabung, 19 Sep 2026). Versi pertama menulis
+     `.pick input[type=checkbox]`, dan `.pick` mencocokkan `td.pick` SEKALIGUS
+     `th.pick` — `table.data th.pick, table.data td.pick` (baris 1134) adalah
+     selektor sel BADAN. list.js:1313 menaruh tepat satu kotak centang seperti
+     itu di SETIAP baris badan pada daftar yang punya aksi massal, jadi aturan
+     ini menumbuhkan baris yang kepadatannya DIBEKUKAN pemilik:
+
+        padat      32   → 39,5 px      (+23 %)
+        normal     43,5 → 51,5 px
+        lega       48   → 51,5 px
+
+     Terukur di konteks sentuh 1024×768 pada fikstur yang meniru DOM list.js,
+     dan baris TANPA kotak centang tidak bergerak — itulah sebabnya sapuan
+     tidak melihatnya. Klaim komentar lama ("baris ISI byte-identik") diukur
+     pada baris 390 px yang SUDAH membungkus ke banyak baris, jadi lantai 24 px
+     tidak pernah mengikat di sana.
+
+     Lantainya karena itu hanya untuk KEPALA. Alasan komentar lama sendiri yang
+     menanggungnya di badan: sasaran yang dibuka orang adalah BARISNYA, bukan
+     kotak centangnya — dan kotak centang badan kembali memakai ukuran bawaan
+     peramban, yaitu persis pengecualian "user agent default" WCAG 2.5.8 yang
+     §10 laporan ini sudah pakai untuk lebar meja. */
+  th.pick input[type=checkbox], .check-row input[type=checkbox] { width: 24px; height: 24px; }
   table.data th .th-sort { min-height: 24px; }
+
+  /* …dan lantai 36 px di atas dikembalikan DI DALAM tabel, secara eksplisit.
+     Dua alasan, keduanya terukur:
+
+     1. `table.data td` memakai `height: var(--row-h)`, jadi baris yang isi
+        tertingginya sebuah kontrol DIUKUR OLEH kontrol itu. Menaikkan kontrol
+        34 → 36 px menaikkan barisnya 2 px — lagi-lagi kepadatan beku, tanpa
+        satu pun token kepadatan disentuh.
+     2. `table.lines input, table.lines select` (baris 1631) menyetel KEDUANYA
+        31 px, tetapi lantai di atas hanya mengenai setengahnya:
+        `input:not(…):not(…):not(…):not(…):not(…)` berspesifisitas (0,5,1) dan
+        MENANG atas `table.lines input` (0,1,1), sementara `select` telanjang
+        (0,0,1) KALAH terhadap `table.lines select`. Satu daftar selektor, dua
+        hasil berbeda: medan isian melompat ke 36 px sementara `<select>` di
+        baris yang SAMA tinggal 31 px — persis perataan yang angka 31 itu ada
+        untuk menjaganya, di tujuh penyunting baris dokumen.
+
+     Setiap `:not()` menaikkan spesifisitas seperti sebuah kelas. Itu yang
+     membuat pagar ini bocor ke satu arah dan tidak ke arah lain. */
+  table.data td input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]),
+  table.data td select { height: 34px; }
+  table.lines input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]),
+  table.lines select { height: 31px; }
   /* Combobox butuh barisnya sendiri: `.combo .combo-input` (0,2,1) menang atas
      selektor jenis di atas, jadi tanpa ini ia tertinggal di 34 px. Ia bukan
      kontrol pinggiran — pemilih akun Buku Besar dan pemilih proyek adalah

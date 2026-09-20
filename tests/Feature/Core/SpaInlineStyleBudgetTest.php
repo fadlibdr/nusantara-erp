@@ -28,7 +28,7 @@ class SpaInlineStyleBudgetTest extends TestCase
      * pernah dinaikkan — kalau sebuah paket butuh gaya sebaris baru, yang
      * kurang adalah kelasnya, bukan plafonnya.
      */
-    private const CEILING = 536;
+    private const CEILING = 535;
 
     /** Berkas yang sudah disapu bersih dan harus tetap nol. */
     private const SWEPT = ['cashflow.js'];

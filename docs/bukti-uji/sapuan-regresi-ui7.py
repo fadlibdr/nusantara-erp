@@ -39,8 +39,18 @@ ALL = ["#/" + r for r in ROUTES["literal"]] + ["#/r/" + r for r in ROUTES["resou
 # transparan — `getComputedStyle().backgroundColor` sebuah <span> hampir selalu
 # rgba(0,0,0,0), jadi membandingkan terhadapnya akan melaporkan kontras palsu.
 PROBE = r"""() => {
+  // `checkVisibility()` IKUT, dan ia yang menutup kelas positif-palsu terakhir:
+  // isi sebuah <details> yang TERTUTUP punya `content-visibility: hidden` pada
+  // ::details-content — tidak digambar, tidak bisa di-hit-test — tetapi TETAP
+  // punya kotak tata letak, jadi `getClientRects()` mengembalikan geometri
+  // sungguhan. Terukur 20 Sep 2026: dua "tabrakan" terakhir di layar dokumen
+  // adalah teks bantuan di dalam `.action-note` yang tertutup, jatuh di atas
+  // judul "Riwayat Persetujuan" — di piksel, tidak di layar. `display: none`
+  // dan `visibility: hidden` saja tidak melihatnya.
   const vis = (e) => { const cs = getComputedStyle(e);
-    return cs.display !== 'none' && cs.visibility !== 'hidden' && e.getClientRects().length > 0; };
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    if (e.getClientRects().length === 0) return false;
+    return typeof e.checkVisibility === 'function' ? e.checkVisibility() : true; };
 
   const clipOf = (e) => { const b = [];
     for (let p = e.parentElement; p; p = p.parentElement) { const cs = getComputedStyle(p);
@@ -121,7 +131,19 @@ PROBE = r"""() => {
                txt: (e.innerText || e.getAttribute('aria-label') || '').trim().slice(0, 20) }; })
     .filter(e => e.h < 36 && e.h > 0);
 
+  // Layar yang permintaannya GAGAL menggambar `errorState()` — sebuah
+  // `.alert.error` dengan tombol "Coba lagi" — dan halaman seperti itu punya
+  // nol tabrakan, nol kegagalan kontras dan nol luberan. Ia bukan halaman yang
+  // LULUS, ia halaman yang tidak punya isi untuk gagal. Terukur 20 Sep 2026:
+  // lima rute (#/sewa-vs-beli, #/po-outstanding, #/siap-tagih, #/sla-breaches,
+  // #/retensi) tercatat tepat 16 elemen dan "bersih" di satu putaran sementara
+  // putaran lain mengukur 125/93/67/50/23 — server `php -S` berulir tunggal
+  // kewalahan oleh tiga peramban, dan aplikasinya menampilkan galat dengan
+  // jujur. Yang tidak jujur adalah sapuannya.
   return {
+    galat_layar: [...document.querySelectorAll('.main .alert.error')]
+      .map(e => (e.innerText || '').trim().slice(0, 70)),
+    ada_main: !!document.querySelector('.main'),
     n: document.querySelectorAll('.main *').length,
     gulirX: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     lebar_doc: document.documentElement.scrollWidth,
@@ -181,15 +203,54 @@ def login_state(pw, base):
     ctx.close(); br.close()
     return state
 
+INFLIGHT = """
+(() => { window.__inflight = 0;
+  const f = window.fetch;
+  window.fetch = function (...a) { window.__inflight++;
+    return f.apply(this, a).finally(() => { window.__inflight--; }); };
+  const open = XMLHttpRequest.prototype.open, send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function (...a) { window.__inflight++;
+    this.addEventListener('loadend', () => { window.__inflight--; });
+    return send.apply(this, a); };
+  void open;
+})();
+"""
+
 def run_pass(pw, state, label, width, height, scheme, media, touch, routes):
     mine = routes[SHARD::SHARDS]
     br = pw.chromium.launch()
     results = {}
     ctx = br.new_context(viewport={"width": width, "height": height}, storage_state=state,
                          color_scheme=scheme, has_touch=touch, is_mobile=touch)
+    # Hitung permintaan yang MASIH TERBANG. Penjaga "jumlah elemen berhenti
+    # berubah" saja TIDAK cukup: layar ini menggambar KERANGKA lebih dulu, dan
+    # kerangka itu diam sempurna selama fetch-nya berjalan. Terukur 19 Sep 2026
+    # pada sapuan enam putaran yang sudah "hijau": `#/r/finance/accounts`
+    # tercatat 1.758 elemen di satu putaran dan 45 di putaran lain, `#/settings`
+    # 1.541 lawan 27 — 51 dari 143 rute berbeda, sebagian 40 kali lipat. Yang
+    # 45 itu kerangka yang tenang, dan sapuan melaporkannya "siap".
+    ctx.add_init_script(INFLIGHT)
     pg = ctx.new_page()
+    # Respons GAGAL per rute. `.alert.error` saja tidak cukup untuk memisahkan
+    # "server tidak menjawab" dari "aplikasi punya sesuatu yang jujur untuk
+    # dikatakan": `#/bank-recon` menggambar alert yang sama untuk kalimat
+    # "Belum ada rekening koran … yang diimpor", yang BENAR pada basis data ini.
+    # Yang membedakannya bukan DOM melainkan lalu lintasnya — 5xx atau permintaan
+    # yang tidak sampai. Tanpa pemisahan ini penjaga galat layar menolak berjalan
+    # atas kondisi data yang sah, dan penjaga yang selalu merah dihapus orang
+    # berikutnya persis seperti gerbang yang tidak pernah merah.
+    # 429 dan 408 IKUT, dan itu bukan kehati-hatian melainkan pengalaman: batas
+    # laju API 120 permintaan/menit per kredensial (config/erp.php) dilampaui
+    # oleh sapuan ini sendiri pada layar DOKUMEN, yang menembak beberapa endpoint
+    # per halaman. Sebelas rute karena itu tercatat 12 elemen dan "bersih" —
+    # halaman yang isinya sebuah alert "Batas laju API terlampaui". Penjaga yang
+    # hanya menonton 5xx tidak melihatnya sama sekali.
+    http_gagal = []
+    pg.on("response", lambda r: http_gagal.append(f"{r.status} {r.url[-60:]}")
+          if r.status >= 500 or r.status in (408, 429) else None)
+    pg.on("requestfailed", lambda r: http_gagal.append(f"GAGAL {r.url[-60:]}"))
     if media == "print": pg.emulate_media(media="print")
-    for r in mine:
+    def ukur(r):
         try:
             # Tandai isi LAMA sebelum pindah. Tanpa penanda ini penjaga di bawah
             # ("`.main` berisi") benar SEKETIKA — karena DOM rute SEBELUMNYA
@@ -222,27 +283,83 @@ def run_pass(pw, state, label, width, height, scheme, media, touch, routes):
             siap = False
             for _ in range(40):
                 if pg.evaluate("() => !document.querySelector('[data-basi]') "
-                               "&& document.querySelectorAll('.main *').length > 8"):
+                               "&& !!document.querySelector('.main') "
+                               "&& document.querySelectorAll('.main *').length > 8 "
+                               "&& !document.querySelector('.main .skeleton') "
+                               "&& (window.__inflight || 0) === 0"):
                     siap = True; break
                 pg.wait_for_timeout(500)
             # …dan TENANG, bukan hanya tergambar: layar ini menggambar
             # kerangkanya lebih dulu lalu memuat datanya. Tunggu jumlah elemen
-            # berhenti berubah tiga pemeriksaan berturut-turut.
+            # berhenti berubah LIMA pemeriksaan berturut-turut, dan hitung
+            # permintaan yang masih terbang sebagai "belum tenang" — kerangka
+            # yang menunggu fetch diam sempurna, dan lima pemeriksaan atas
+            # angka yang diam tetap lulus tanpa penghitung itu.
             tenang = False; last = -1; sama = 0
-            for _ in range(40):
-                n = pg.evaluate("() => document.querySelectorAll('.main *').length")
+            for _ in range(60):
+                n = pg.evaluate("() => document.querySelectorAll('.main *').length "
+                                "+ 100000 * ((window.__inflight || 0) + "
+                                "(document.querySelector('.main .skeleton') ? 1 : 0))")
                 sama = sama + 1 if n == last else 0
                 last = n
-                if sama >= 3: tenang = True; break
+                if sama >= 5 and n < 100000: tenang = True; break
                 pg.wait_for_timeout(400)
             siap = siap and tenang
             out = pg.evaluate(PROBE)
             out["siap"] = siap
-            results[r] = out
+            out["http_gagal"] = list(http_gagal)
+            return out
         except Exception as ex:
-            results[r] = {"ERROR": str(ex)[:120]}
+            return {"ERROR": str(ex)[:120]}
+
+    for r in mine:
+        # Sampai TIGA kali, dan hanya untuk kegagalan INSTRUMEN/SERVER: cangkang
+        # hilang, kehabisan waktu kesiapan, 5xx, atau lemparan. **BUKAN** untuk
+        # `.alert.error`: aplikasi ini memakai alert yang sama untuk kalimat yang
+        # JUJUR dan benar — "Saldo GL Bank BCA Operasional negatif", "Belum ada
+        # rekening koran yang diimpor". Versi pertama mengulang atas keduanya
+        # dan MERUSAK pengukurannya sendiri: percobaan 1 mengukur `#/dashboard`
+        # dengan benar (420 elemen, siap), lalu percobaan 2 dijalankan — dan
+        # `goto` ke hash yang SAMA tidak menggambar ulang apa pun, jadi `.main`
+        # tetap berisi penanda basi dan hasil 1-elemen itulah yang tersimpan.
+        # Enam putaran melaporkan `#/dashboard` "belum siap" karena itu.
+        #
+        # Dua penjaga lahir dari situ: percobaan ulang memaksa MUAT PENUH lewat
+        # about:blank, dan hasil TERBAIK yang disimpan, tidak pernah yang terakhir.
+        terbaik = None
+        for percobaan in range(3):
+            if percobaan: pg.goto("about:blank")
+            http_gagal.clear()
+            out = ukur(r)
+            baik = (not out.get("ERROR") and out.get("ada_main") and out.get("siap")
+                    and not out.get("http_gagal"))
+            if terbaik is None or out.get("n", 0) > terbaik.get("n", 0):
+                terbaik = out
+            if baik:
+                terbaik = out
+                break
+            if percobaan < 2: pg.wait_for_timeout(2000 + 3000 * percobaan)
+        terbaik["percobaan"] = percobaan + 1
+        results[r] = terbaik
     ctx.close(); br.close()
     pathlib.Path(f"{OUT}/sweep-{label}-{SHARD}.json").write_text(json.dumps(results, indent=1))
+    # Cangkang yang tidak pernah terpasang tidak punya `.main` sama sekali, dan
+    # probe lalu melaporkan n=0 dengan NOL temuan di setiap dimensi — sapuan
+    # yang paling bersih adalah sapuan yang tidak melihat apa pun. Terjadi
+    # 19 Sep 2026: putaran 390 melaporkan 143 rute bersih, ketiga-tiganya
+    # dengan `.main` yang tidak ada. Ini FATAL, bukan catatan kaki.
+    tanpa_main = [r for r, v in results.items() if not v.get("ERROR") and not v.get("ada_main")]
+    gagal_layar = [r for r, v in results.items() if v.get("galat_layar")]
+    gagal_http = [r for r, v in results.items() if v.get("http_gagal")]
+    if gagal_http:
+        print(f"  FATAL {label}/{SHARD}: {len(gagal_http)} rute masih menjawab 5xx/gagal sesudah tiga "
+              f"percobaan — {gagal_http[:4]}; halaman tanpa isi tidak punya apa pun untuk gagal, "
+              "jadi putaran ini akan terbaca bersih tanpa alasan")
+        sys.exit(4)
+    if len(tanpa_main) > max(2, len(results) // 10):
+        print(f"  FATAL {label}/{SHARD}: {len(tanpa_main)} dari {len(results)} rute tanpa `.main` — "
+              f"cangkang tidak pernah terpasang; putaran ini TIDAK mengukur apa pun")
+        sys.exit(3)
     kosong = [r for r, v in results.items() if not v.get("ERROR") and v.get("n", 0) < 20]
     err = [r for r, v in results.items() if v.get("ERROR")]
     tab = sum(len(v.get("tabrakan", [])) for v in results.values())
@@ -251,6 +368,7 @@ def run_pass(pw, state, label, width, height, scheme, media, touch, routes):
     sas = sum(len(v.get("sasaran", [])) for v in results.values())
     gul = [r for r, v in results.items() if v.get("gulirX")]
     print(f"  {label:<16} rute={len(results):<4} galat={len(err):<3} kosong={len(kosong):<3} "
+          f"pesan_galat={len(gagal_layar):<3} "
           f"tabrakan={tab:<4} kontras={kon:<5} meluber={mel:<4} sasaran<36={sas:<4} gulirX={len(gul)}")
     return results
 
@@ -268,13 +386,19 @@ with sync_playwright() as pw:
     print(f"  masuk sekali, keadaan sesi dipakai ulang · {len(ALL)} rute")
     # Penjaga sesi: satu halaman uji harus benar-benar MASUK. Tanpa ini sapuan
     # yang seluruhnya tertolak otentikasi melaporkan "nol temuan".
-    br = pw.chromium.launch()
-    ctx = br.new_context(viewport={"width": 1440, "height": 900}, storage_state=state)
-    pg = ctx.new_page()
-    pg.goto(BASE + "/app/#/dashboard", wait_until="networkidle"); pg.wait_for_timeout(3000)
-    n = pg.evaluate("() => document.querySelectorAll('.main *').length")
-    masuk = pg.evaluate("() => !document.querySelector('input[type=password]')")
-    ctx.close(); br.close()
+    # Tiga percobaan, bukan satu: penjaga ini pernah menjatuhkan seluruh
+    # putaran 768 px karena satu dasbor lambat di bawah tiga peramban serentak,
+    # dan putaran itu lalu TIDAK ADA di ringkasan sementara lima lainnya hadir.
+    n = 0; masuk = False
+    for percobaan in range(3):
+        br = pw.chromium.launch()
+        ctx = br.new_context(viewport={"width": 1440, "height": 900}, storage_state=state)
+        pg = ctx.new_page()
+        pg.goto(BASE + "/app/#/dashboard", wait_until="networkidle"); pg.wait_for_timeout(3000 + 3000 * percobaan)
+        n = pg.evaluate("() => document.querySelectorAll('.main *').length")
+        masuk = pg.evaluate("() => !document.querySelector('input[type=password]')")
+        ctx.close(); br.close()
+        if masuk and n >= 20: break
     if not masuk or n < 20:
         print(f"  SESI TIDAK BERLAKU (dashboard n={n}, masuk={masuk}) — hapus {STATE_FILE} dan ulangi")
         sys.exit(2)

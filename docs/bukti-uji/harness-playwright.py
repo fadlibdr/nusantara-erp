@@ -2858,11 +2858,14 @@ def chart_tokens(pg, tag):
     #     berikutnya, dan bersamanya seluruh skenario ini.
     ck = []
     total_mark = 0
-    jml_grafik = 0
+    jml_grafik = None
     for tema in ("light", "dark"):
         data = out.get(tema) or {}
         grafik = data.get("charts") or {}
-        jml_grafik = max(jml_grafik, len(grafik))
+        # MIN, bukan max (koreksi tinjauan pra-gabung): dengan max, satu tema yang
+        # mengukur NOL grafik ditutupi oleh tema lain, dan separuh skenario ini
+        # diam-diam berhenti menguji apa pun.
+        jml_grafik = len(grafik) if jml_grafik is None else min(jml_grafik, len(grafik))
         for nama, c in grafik.items():
             marks = c.get("marks")
             judul = c.get("mark_titles")
@@ -2893,7 +2896,30 @@ def chart_tokens(pg, tag):
     # Anti-gerbang-hampa. Kalau fikstur #s20 gagal tergambar, seluruh perulangan
     # di atas berjalan nol kali dan vonisnya hijau tanpa subjek. Angka hari ini:
     # 41 fikstur per tema, 1.906 mark tergabung.
-    if jml_grafik < 30:
+    # Lantai 30-dari-41 terlalu longgar, dan itu terukur (koreksi tinjauan
+    # pra-gabung): pembangun fikstur MENELAN pengecualian per-fikstur ke
+    # `render.errors`, jadi kalau `ganttChart` rusak atau berganti nama, keenam
+    # fikstur gantt lenyap — tersisa 35 fikstur (≥ 30, LOLOS) dan 1.688 mark
+    # (≥ 100, LOLOS). Gerbang yang seharusnya memegang kontrak charts.js lalu
+    # tidak menguji gantt sama sekali. Yang menutupnya: keluarga per keluarga,
+    # dan galat pembangun DIBACA.
+    KELUARGA = {"line": 10, "donut": 6, "bar": 5, "gantt": 4, "spark": 2}
+    for tema in ("light", "dark"):
+        nama_grafik = list((out.get(tema) or {}).get("charts") or {})
+        for keluarga, lantai in KELUARGA.items():
+            punya = [n for n in nama_grafik if n == keluarga or n.startswith(keluarga + "_")]
+            if len(punya) < lantai:
+                ck.append(f"{tema}: hanya {len(punya)} fikstur keluarga '{keluarga}' terukur "
+                          f"(diharapkan ≥ {lantai}) — keluarga itu lenyap dari fikstur, "
+                          "dan sisa gerbang ini tidak mengujinya sama sekali")
+
+    galat_bangun = ((out.get("render") or {}).get("errors")) or []
+    if galat_bangun:
+        ck.append(f"pembangun fikstur melempar untuk {len(galat_bangun)} fikstur: {galat_bangun[:4]} "
+                  "— fikstur yang gagal dibangun TIDAK muncul di sensus, jadi tanpa baris ini "
+                  "ia hilang tanpa suara")
+
+    if jml_grafik is None or jml_grafik < 30:
         ck.append(f"hanya {jml_grafik} fikstur grafik terukur (diharapkan ≥ 30) — #s20 tidak tergambar, "
                   "jadi uji mark/<title> di atas tidak menguji apa pun")
     if total_mark < 100:

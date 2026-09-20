@@ -397,7 +397,11 @@ dinaikkan sekali lalu dihapus oleh `js/prefs.js`.
 ### 13a. Jarak DI DALAM kartu, dan skala yang benar-benar berlaku (UI-7)
 
 Kepadatan di atas mengatur BARIS TABEL. Yang mengatur jarak di dalam sebuah kartu ada tiga
-kalimat, dan ketiganya lahir dari sensus 143 rute pada 19 Sep 2026 — bukan dari selera:
+kalimat, dan ketiganya lahir dari sensus 143 rute daftar/literal pada 19 Sep 2026 — bukan dari
+selera. (Sensus itu TIDAK mencakup layar dokumen, formulir halaman, papan atau beranda modul;
+katalog rute DALAM baru lahir 20 Sep 2026, dan ketiga aturan di bawah belum diukur ulang
+terhadapnya. Sapuan atas 177 rute itu tidak menemukan tabrakan, luberan atau kegagalan kontras
+sesudah UI-7 §3a ditutup, tetapi "tidak ada cacat" bukan "sudah disensus".)
 
 1. **Ritmenya `--space-3`, dan tidak ada anak yang menambah pada padding kartunya.**
    `.card-body > p` dan `.card-body > dl` memakai `margin: 0 0 var(--space-3)`, anak terakhir `0`
@@ -2010,20 +2014,33 @@ untuk seluruh kontrol** — `.btn`, `.btn.sm`, `.btn.icon`, medan isian, `<selec
 `.combo .combo-input` — jadi angka 34/28 di atas hanya berlaku di perangkat bertetikus. Sebelum
 lantai itu, `.btn.sm` (36 px) justru LEBIH BESAR daripada `.btn` (34 px) di layar sentuh: varian
 "kecil" lebih besar daripada varian normal, tepat di perangkat tempat ukuran sasaran paling penting.
-Terukur 19 Sep 2026 di 143 rute pada 390 px dengan pointer kasar — dan angka pertamanya harus
-DIKOREKSI: "568 → 4" diukur ketika sapuan hanya melihat sepertiga aplikasi (penjaga kesiapannya
-lolos pada halaman yang belum tergambar). Dengan halaman penuh, sisanya **545**, hampir seluruhnya
-tiga kelas yang lantai di atas memang tidak sentuh: `select` "baris per halaman" 28 px (yang
-tingginya ditulis SEBARIS di `list.js` — gaya sebaris mengalahkan media query, jadi lantai ini
-tidak pernah berlaku padanya, di 70 layar daftar), kotak centang `.pick`/`.check-row` 16 px, dan
-tombol urut kepala kolom `.th-sort` 17 px. Sesudah ketiganya ditutup — plus lantai yang tidak lagi
-mendaftar JENIS input satu per satu, yang melewatkan `time`, `tel` dan `<input>` tanpa atribut —
-sisanya **496 di bawah 36 px tetapi hanya 6 di bawah 24 px**, ambang WCAG 2.5.8.
+Terukur 20 Sep 2026 di **325 rute** pada 390 px dengan pointer kasar — 143 rute daftar/literal
+plus 177 rute dokumen, formulir halaman, papan dan beranda modul. **Semua angka sebelumnya di
+paragraf ini DICABUT** ("568 → 4", lalu "545 → 496, 411 → 6"): ketiganya diukur oleh instrumen
+sapuan yang kemudian terbukti salah dua belas kali, sembilan di antaranya ke arah HIJAU — antara
+lain menggabungkan berkas putaran sebelumnya, menerima kerangka yang menunggu fetch sebagai
+"tenang", dan menghitung halaman yang gagal boot sebagai bersih. Rinciannya di
+`docs/LAPORAN-PAKET-UI-7.md` §2.
+
+Yang berdiri, diukur ulang dari nol dan direproduksi **dua kali berturut-turut byte-identik**:
+**952 sasaran di bawah 36 px, 175 di bawah 24 px**, dan yang 175 terurai habis — 168 kotak centang
+berukuran BAWAAN peramban (pengecualian "user agent default" 2.5.8; sasaran yang dibuka orang
+adalah BARISNYA), 2 tautan sebaris (dikecualikan eksplisit), 2 `input[type=file]` (menyetel
+tingginya memotong tombol bawaan peramban), dan **3 entri agenda `#/kalender` pada 20 px** — satu-
+satunya yang aplikasi gambar sendiri tanpa naungan pengecualian, ditahan karena menaikkannya
+mengubah kisi bulan pada 390 px.
+
+Tiga kelas yang lantai lama tidak sentuh dan kini tertutup: `select` "baris per halaman" 28 px
+(tingginya ditulis SEBARIS di `list.js` — **gaya sebaris mengalahkan media query**, jadi lantai
+ini tidak pernah berlaku padanya, di 70 layar daftar), kotak centang `.check-row`/`th.pick`
+16 → 24 px, dan tombol urut kepala kolom `.th-sort` 17 → 24 px.
 
 **Kontrol di dalam TABEL memakai lantai 24 px, bukan 36**, dan angkanya diukur: pada 36 px tinggi
 baris kepala 42 → 62 px, pada 24 px ia 42 → 50 px, sementara baris ISI byte-identik pada keduanya.
-Keenam sisa di bawah 24 px: dua `input[type=file]` 22 px (kontrol natif), tiga entri agenda
-`#/kalender` 20 px, dan satu tautan sebaris dalam kalimat (dikecualikan WCAG 2.5.8).
+**Lantai kotak centang itu hanya untuk `th.pick`, bukan `.pick`** — `.pick` juga mencocokkan
+`td.pick`, yang `list.js` taruh di SETIAP baris badan daftar beraksi massal, dan menaikkannya
+menumbuhkan baris yang kepadatannya dibekukan pemilik: padat 32 → 39,5 px, lega 48 → 51,5 px.
+Kotak centang BADAN karena itu tetap berukuran bawaan peramban.
 `.btn.lg` menyetel `width: 100%`, jadi tingginya disetel lewat satu helper — bukan ditaburkan
 per tombol dan terlupa pada tombol berikutnya.
 

@@ -472,6 +472,28 @@ function titleize(key) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+/**
+ * Label pendek untuk satu entri objek di dalam larik, plus JSON utuhnya di `title`.
+ *
+ * Aturannya sengaja REFLEKTIF, bukan kamus per sumber daya: layar ini memang
+ * menggambar apa pun yang API jawab, dan kamus akan diam-diam menyembunyikan
+ * bentuk yang belum sempat dimasukkan. Urutannya: properti string pertama yang
+ * bukan kunci id dan tidak kosong, lalu `#<id>`, lalu jumlah propertinya.
+ */
+function ringkasEntri(entry) {
+  const utuh = JSON.stringify(entry);
+  let label = null;
+  for (const [key, val] of Object.entries(entry)) {
+    if (/(^|_)id$/.test(key)) continue;
+    if (typeof val === 'string' && val.trim() !== '') { label = val.trim(); break; }
+  }
+  if (label === null && entry.id !== undefined) label = `#${entry.id}`;
+  if (label === null) label = `${Object.keys(entry).length} medan`;
+  const node = badge(label.length > 40 ? `${label.slice(0, 39)}…` : label, 'primary');
+  node.title = utuh;
+  return node;
+}
+
 /** Best-effort rendering of a raw record field when the schema doesn't name it. */
 function autoValue(record, key) {
   const value = record[key];
@@ -488,8 +510,25 @@ function autoValue(record, key) {
   }
 
   if (Array.isArray(value)) {
-    return el('span', { style: { display: 'inline-flex', gap: '4px', flexWrap: 'wrap' } },
-      value.map((entry) => badge(typeof entry === 'object' ? JSON.stringify(entry) : String(entry), 'primary')));
+    /*
+     * Larik OBJEK dulu digambar sebagai `JSON.stringify(entry)` di dalam sebuah
+     * lencana — satu lencana per entri, selebar apa pun isinya. Terukur 20 Sep
+     * 2026 pada sapuan rute DALAM (yang sampai paket ini tidak pernah ada:
+     * katalog sapuan hanya memuat rute daftar dan literal, jadi tidak satu pun
+     * `#/d/…` pernah dibuka oleh gerbang mana pun): `#/d/procurement/work-orders/1`
+     * menggambar lencana selebar 3.396 px di viewport 1.440 px, dan enam layar
+     * dokumen menumpuk teksnya ke baris di bawahnya — 16 tabrakan.
+     *
+     * Yang tergambar sekarang adalah SATU medan yang bisa dibaca orang, dipilih
+     * dengan aturan yang sama reflektifnya dengan layar ini sendiri: properti
+     * string pertama yang bukan kunci id. JSON utuhnya pindah ke `title`, jadi
+     * tidak ada yang hilang — pola "potong, simpan di title" yang sudah dipakai
+     * sel tabel sejak UI-2. Lencana untuk larik primitif tidak berubah.
+     */
+    return el('span.auto-badges',
+      value.map((entry) => (entry && typeof entry === 'object'
+        ? ringkasEntri(entry)
+        : badge(String(entry), 'primary'))));
   }
   if (typeof value === 'object') {
     return el('div', Object.entries(value).map(([name, amount]) =>

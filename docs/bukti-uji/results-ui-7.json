@@ -30,7 +30,7 @@
    "h1": "Akses kontrol pintu farmasi sering gagal membaca kartu",
    "badge": "Ditugaskan → blue"
   },
-  "_ms": 13181,
+  "_ms": 13657,
   "_clicks": 3
  },
  "S8_styles": {
@@ -73,7 +73,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 4138,
+  "_ms": 4277,
   "_clicks": 0
  },
  "S14_search_screens": {
@@ -159,11 +159,11 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 4429,
+  "_ms": 4637,
   "_clicks": 0
  },
  "S18_onboarding_dock_desktop": {
-  "dock_ms_after_login": 16,
+  "dock_ms_after_login": 13,
   "status_before": null,
   "step1": {
    "mode": "desktop",
@@ -216,7 +216,7 @@
     "onboarding-docked"
    ],
    "hash": "#/dashboard",
-   "h1": "Selamat sore, Andi"
+   "h1": "Selamat pagi, Andi"
   },
   "underneath_before": {
    "visible": true,
@@ -244,7 +244,7 @@
      "w": 254,
      "h": 1781,
      "x": -2,
-     "y": -2
+     "y": 54
     }
    ],
    "ring_covers_nav": true
@@ -301,14 +301,14 @@
      "w": 211,
      "h": 42,
      "x": 5,
-     "y": 472
+     "y": 528
     },
     {
      "label": "Mulai dari sini",
      "w": 156,
      "h": 44,
      "x": 867,
-     "y": 15
+     "y": 71
     }
    ],
    "hash_changed": true,
@@ -330,14 +330,14 @@
      "w": 211,
      "h": 42,
      "x": 5,
-     "y": 504
+     "y": 560
     },
     {
      "label": "Mulai dari sini",
      "w": 218,
      "h": 44,
      "x": 805,
-     "y": 15
+     "y": 71
     }
    ]
   },
@@ -376,11 +376,11 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 12220,
+  "_ms": 12187,
   "_clicks": 8
  },
  "S19_onboarding_sheet_mobile": {
-  "sheet_ms_after_login": 9,
+  "sheet_ms_after_login": 21,
   "sheet": {
    "height": 490,
    "height_pct": 58.1,
@@ -527,7 +527,7 @@
    "main_padding_bottom": "50px"
   },
   "pageerrors": [],
-  "_ms": 10087,
+  "_ms": 10300,
   "_clicks": 6
  },
  "S20_chart_tokens": {
@@ -6456,7 +6456,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 3840,
+  "_ms": 10109,
   "_clicks": 0
  },
  "S20_chart_tokens_mobile": {
@@ -12385,7 +12385,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 3102,
+  "_ms": 3994,
   "_clicks": 0
  },
  "S21_module_accents_breadcrumb": {
@@ -13786,9 +13786,9 @@
    "console_errors_from_stub": {
     "count": 4,
     "first": [
-     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8099/app/js/views/k3.js:129:43)\n    at async rende",
-     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8099/app/js/views/retensi.js:48:41)",
-     "View failed TypeError: Cannot read properties of undefined (reading 'payroll_posted')\n    at postedBanner (http://127.0.0.1:8099/app/js/views/timesheet.js:135:1"
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8096/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8096/app/js/views/retensi.js:48:41)",
+     "View failed TypeError: Cannot read properties of undefined (reading 'payroll_posted')\n    at postedBanner (http://127.0.0.1:8096/app/js/views/timesheet.js:135:1"
     ]
    },
    "never_empty": true,
@@ -14422,7 +14422,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 95404,
+  "_ms": 97193,
   "_clicks": 11
  },
  "S21_module_accents_breadcrumb_mobile": {
@@ -15811,9 +15811,9 @@
    "console_errors_from_stub": {
     "count": 4,
     "first": [
-     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8099/app/js/views/k3.js:129:43)\n    at async rende",
-     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8099/app/js/views/retensi.js:48:41)",
-     "View failed TypeError: Cannot read properties of undefined (reading 'payroll_posted')\n    at postedBanner (http://127.0.0.1:8099/app/js/views/timesheet.js:135:1"
+     "View failed TypeError: Cannot read properties of undefined (reading 'man_days')\n    at load (http://127.0.0.1:8096/app/js/views/k3.js:129:43)\n    at async rende",
+     "View failed TypeError: Cannot read properties of undefined (reading 'length')\n    at renderRetensi (http://127.0.0.1:8096/app/js/views/retensi.js:48:41)",
+     "View failed TypeError: Cannot read properties of undefined (reading 'payroll_posted')\n    at postedBanner (http://127.0.0.1:8096/app/js/views/timesheet.js:135:1"
     ]
    },
    "never_empty": true,
@@ -16491,7 +16491,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 96595,
+  "_ms": 99407,
   "_clicks": 11
  },
  "S22_launcher_truth": {
@@ -16981,7 +16981,19 @@
       "h": 39
      },
      {
-      "href": "#/d/finance/payments/1",
+      "href": "#/d/subcontract/subcontracts/2",
+      "h": 39
+     },
+     {
+      "href": "#/d/subcontract/progress-claims/2",
+      "h": 39
+     },
+     {
+      "href": "#/d/subcontract/labor-contracts/1",
+      "h": 39
+     },
+     {
+      "href": "#/d/subcontract/labor-claims/1",
       "h": 39
      }
     ],
@@ -18117,7 +18129,7 @@
     "Failed to load resource: the server responded with a status of 403 (Forbidden)"
    ]
   },
-  "_ms": 30636,
+  "_ms": 32756,
   "_clicks": 1
  },
  "S22_launcher_truth_mobile": {
@@ -18482,7 +18494,19 @@
       "h": 55.5
      },
      {
-      "href": "#/d/finance/payments/1",
+      "href": "#/d/subcontract/subcontracts/2",
+      "h": 55.5
+     },
+     {
+      "href": "#/d/subcontract/progress-claims/2",
+      "h": 55.5
+     },
+     {
+      "href": "#/d/subcontract/labor-contracts/1",
+      "h": 55.5
+     },
+     {
+      "href": "#/d/subcontract/labor-claims/1",
       "h": 55.5
      }
     ],
@@ -19602,7 +19626,7 @@
     "Failed to load resource: the server responded with a status of 403 (Forbidden)"
    ]
   },
-  "_ms": 33128,
+  "_ms": 35174,
   "_clicks": 2
  },
  "S23_dashboard_per_role": {
@@ -19972,7 +19996,7 @@
    "progres_card_says_mine": true
   },
   "ok": true,
-  "_ms": 87846,
+  "_ms": 87977,
   "_clicks": 0
  },
  "S23_setup_drawer": {
@@ -20112,7 +20136,7 @@
   },
   "resized_survived": true,
   "ok": true,
-  "_ms": 17399,
+  "_ms": 17802,
   "_clicks": 8
  },
  "S23_honest_failure": {
@@ -20143,7 +20167,7 @@
   ],
   "other_cards_lost": [],
   "ok": true,
-  "_ms": 10573,
+  "_ms": 10628,
   "_clicks": 0
  },
  "S23_dashboard_mobile": {
@@ -20180,7 +20204,7 @@
    "min_px": 44
   },
   "ok": true,
-  "_ms": 5554,
+  "_ms": 6112,
   "_clicks": 0
  },
  "S26_gantt": {
@@ -20190,7 +20214,7 @@
   },
   "planted_task": {
    "state": "ditanam",
-   "id": 87,
+   "id": 89,
    "code": "B.5",
    "planned_end": null
   },
@@ -20213,7 +20237,7 @@
    "baseline_status": 200,
    "baseline_code": "BSL/2026/VIII/0001",
    "frozen_rows": 11,
-   "as_of": "2026-09-19",
+   "as_of": "2026-09-20",
    "as_of_source": "server"
   },
   "label_width": 300,
@@ -20448,7 +20472,7 @@
    "open_ended": [
     "B.5"
    ],
-   "today_x": 567.9,
+   "today_x": 569.07,
    "today_inside": true
   },
   "week": {
@@ -21162,7 +21186,7 @@
     "10 Mei"
    ],
    "groups": [],
-   "today_x": 567.9,
+   "today_x": 569.07,
    "today_label": "Hari ini",
    "marks": 23,
    "marks_with_title": 23,
@@ -21190,13 +21214,13 @@
      "clientWidth": 1112
     },
     "today": {
-     "left": 990.7,
-     "right": 990.7,
+     "left": 992.1,
+     "right": 992.1,
      "width": 0
     },
     "today_label": {
-     "left": 995.6,
-     "right": 1041.6,
+     "left": 997.1,
+     "right": 1043.1,
      "width": 46
     },
     "svg_note": {
@@ -21892,7 +21916,7 @@
     "2026",
     "2027"
    ],
-   "today_x": 567.9,
+   "today_x": 569.07,
    "today_label": "Hari ini",
    "marks": 23,
    "marks_with_title": 23,
@@ -21920,13 +21944,13 @@
      "clientWidth": 1112
     },
     "today": {
-     "left": 990.7,
-     "right": 990.7,
+     "left": 992.1,
+     "right": 992.1,
      "width": 0
     },
     "today_label": {
-     "left": 995.6,
-     "right": 1041.6,
+     "left": 997.1,
+     "right": 1043.1,
      "width": 46
     },
     "svg_note": {
@@ -22053,8 +22077,8 @@
    "baseline_offset_px": [
     10
    ],
-   "today_x_measured": 567.9,
-   "today_x_expected": 567.9,
+   "today_x_measured": 569.07,
+   "today_x_expected": 569.07,
    "row_geometry_mismatch": [],
    "planted_deviation": {
     "code": "B.2",
@@ -22118,7 +22142,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 8297,
+  "_ms": 8925,
   "_clicks": 2
  },
  "S26_gantt_mobile": {
@@ -22128,7 +22152,7 @@
   },
   "planted_task": {
    "state": "ditanam",
-   "id": 88,
+   "id": 90,
    "code": "B.5",
    "planned_end": null
   },
@@ -22151,7 +22175,7 @@
    "baseline_status": 200,
    "baseline_code": "BSL/2026/VIII/0001",
    "frozen_rows": 11,
-   "as_of": "2026-09-19",
+   "as_of": "2026-09-20",
    "as_of_source": "server"
   },
   "label_width": 180,
@@ -22386,7 +22410,7 @@
    "open_ended": [
     "B.5"
    ],
-   "today_x": 501.48,
+   "today_x": 502.88,
    "today_inside": true
   },
   "week": {
@@ -23102,7 +23126,7 @@
     "03 Mei"
    ],
    "groups": [],
-   "today_x": 501.48,
+   "today_x": 502.88,
    "today_label": "Hari ini",
    "marks": 23,
    "marks_with_title": 23,
@@ -23125,23 +23149,23 @@
      "left": 31,
      "right": 359,
      "width": 328,
-     "scrollLeft": 237,
+     "scrollLeft": 238,
      "scrollWidth": 720,
      "clientWidth": 328
     },
     "today": {
-     "left": 195.2,
-     "right": 195.2,
+     "left": 195.3,
+     "right": 195.3,
      "width": 0
     },
     "today_label": {
-     "left": 198.4,
-     "right": 228.1,
+     "left": 198.5,
+     "right": 228.3,
      "width": 29.8
     },
     "svg_note": {
-     "left": -199.6,
-     "right": 283.5,
+     "left": -200.6,
+     "right": 282.5,
      "width": 483.1
     },
     "dom_note": {
@@ -23832,7 +23856,7 @@
     "2026",
     "2027"
    ],
-   "today_x": 501.48,
+   "today_x": 502.88,
    "today_label": "Hari ini",
    "marks": 23,
    "marks_with_title": 23,
@@ -23855,23 +23879,23 @@
      "left": 31,
      "right": 359,
      "width": 328,
-     "scrollLeft": 237,
+     "scrollLeft": 238,
      "scrollWidth": 720,
      "clientWidth": 328
     },
     "today": {
-     "left": 195.2,
-     "right": 195.2,
+     "left": 195.3,
+     "right": 195.3,
      "width": 0
     },
     "today_label": {
-     "left": 198.4,
-     "right": 228.1,
+     "left": 198.5,
+     "right": 228.3,
      "width": 29.8
     },
     "svg_note": {
-     "left": -199.6,
-     "right": 276.2,
+     "left": -200.6,
+     "right": 275.2,
      "width": 475.8
     },
     "dom_note": {
@@ -23993,8 +24017,8 @@
    "baseline_offset_px": [
     10
    ],
-   "today_x_measured": 501.48,
-   "today_x_expected": 501.48,
+   "today_x_measured": 502.88,
+   "today_x_expected": 502.88,
    "row_geometry_mismatch": [],
    "planted_deviation": {
     "code": "B.2",
@@ -24058,14 +24082,14 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 8389,
+  "_ms": 9519,
   "_clicks": 2
  },
  "S27_pwa": {
   "tag": "-p1i",
   "worker": {
-   "scope": "http://127.0.0.1:8099/app/",
-   "script": "http://127.0.0.1:8099/app/sw.js",
+   "scope": "http://127.0.0.1:8096/app/",
+   "script": "http://127.0.0.1:8096/app/sw.js",
    "state": "activated",
    "controlled": true,
    "cache_names": [
@@ -24078,7 +24102,7 @@
   "online_shell_fetch": {
    "status": 200,
    "delivery": "",
-   "transfer": 163000
+   "transfer": 167759
   },
   "online_shell_via_worker": true,
   "ribbon_online": {
@@ -24182,7 +24206,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 35452,
+  "_ms": 35356,
   "_clicks": 1
  },
  "S43_primitif_ui2": {
@@ -24433,7 +24457,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 6341,
+  "_ms": 6443,
   "_clicks": 0
  },
  "S44_chip_filter": {
@@ -24512,7 +24536,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 16814,
+  "_ms": 17120,
   "_clicks": 2
  },
  "S45_seleksi_massal": {
@@ -24720,7 +24744,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 23416,
+  "_ms": 23600,
   "_clicks": 3
  },
  "S46_tampilan_tersimpan": {
@@ -24999,7 +25023,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 50744,
+  "_ms": 50536,
   "_clicks": 11
  },
  "S47_formulir_halaman": {
@@ -25057,7 +25081,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 23423,
+  "_ms": 23757,
   "_clicks": 3
  },
  "S48_papan_keyboard": {
@@ -25128,7 +25152,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 11367,
+  "_ms": 11283,
   "_clicks": 0
  },
  "S49_kepala_dokumen": {
@@ -25165,7 +25189,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7281,
+  "_ms": 7620,
   "_clicks": 0
  },
  "S50_kepala_laporan_keuangan": {
@@ -25187,7 +25211,7 @@
     "judul": "Laba Rugi",
     "px": "14px",
     "baris": [
-     "PERIODE = 01 Jan 2026 – 19 Sep 2026",
+     "PERIODE = 01 Jan 2026 – 20 Sep 2026",
      "MATA UANG = IDR — rupiah penuh"
     ]
    },
@@ -25197,7 +25221,7 @@
     "judul": "Neraca",
     "px": "14px",
     "baris": [
-     "PER TANGGAL = 19 September 2026",
+     "PER TANGGAL = 20 September 2026",
      "KESEIMBANGAN = Aset = kewajiban + ekuitas",
      "MATA UANG = IDR — rupiah penuh"
     ]
@@ -25208,7 +25232,7 @@
     "judul": "Laporan Arus Kas",
     "px": "14px",
     "baris": [
-     "PERIODE = 01 Jan 2026 – 19 Sep 2026",
+     "PERIODE = 01 Jan 2026 – 20 Sep 2026",
      "METODE = Langsung (PSAK 2)",
      "REKONSILIASI = Saldo awal + arus = saldo akhir",
      "MATA UANG = IDR — rupiah penuh"
@@ -25220,7 +25244,7 @@
     "judul": "Proyeksi Kas",
     "px": "14px",
     "baris": [
-     "PER TANGGAL = 19 September 2026",
+     "PER TANGGAL = 20 September 2026",
      "HORIZON = 90 hari ke depan",
      "PIUTANG LEWAT JATUH TEMPO = Tidak masuk saldo berjalan",
      "MATA UANG = IDR — rupiah penuh"
@@ -25232,7 +25256,7 @@
     "judul": "Umur Piutang Usaha",
     "px": "14px",
     "baris": [
-     "PER TANGGAL = 19 September 2026",
+     "PER TANGGAL = 20 September 2026",
      "BASIS UMUR = Sejak jatuh tempo",
      "DOKUMEN TERBUKA = 2",
      "MATA UANG = IDR — rupiah penuh"
@@ -25244,7 +25268,7 @@
     "judul": "Umur Hutang Usaha",
     "px": "14px",
     "baris": [
-     "PER TANGGAL = 19 September 2026",
+     "PER TANGGAL = 20 September 2026",
      "BASIS UMUR = Sejak jatuh tempo",
      "DOKUMEN TERBUKA = 0",
      "MATA UANG = IDR — rupiah penuh"
@@ -25268,7 +25292,7 @@
     "px": "14px",
     "baris": [
      "AKUN = 1-1210 — Bank BCA Operasional",
-     "PERIODE = 01 Sep 2026 – 19 Sep 2026",
+     "PERIODE = 01 Sep 2026 – 20 Sep 2026",
      "SALDO NORMAL = Debit",
      "MATA UANG = IDR — rupiah penuh"
     ]
@@ -25292,7 +25316,7 @@
     "judul": "Laba Rugi",
     "px": "20px",
     "baris": [
-     "PERIODE = 01 Jan 2026 – 19 Sep 2026",
+     "PERIODE = 01 Jan 2026 – 20 Sep 2026",
      "MATA UANG = IDR — rupiah penuh"
     ]
    },
@@ -25302,7 +25326,7 @@
     "judul": "Neraca",
     "px": "20px",
     "baris": [
-     "PER TANGGAL = 19 September 2026",
+     "PER TANGGAL = 20 September 2026",
      "KESEIMBANGAN = Aset = kewajiban + ekuitas",
      "MATA UANG = IDR — rupiah penuh"
     ]
@@ -25313,7 +25337,7 @@
     "judul": "Laporan Arus Kas",
     "px": "20px",
     "baris": [
-     "PERIODE = 01 Jan 2026 – 19 Sep 2026",
+     "PERIODE = 01 Jan 2026 – 20 Sep 2026",
      "METODE = Langsung (PSAK 2)",
      "REKONSILIASI = Saldo awal + arus = saldo akhir",
      "MATA UANG = IDR — rupiah penuh"
@@ -25325,7 +25349,7 @@
     "judul": "Proyeksi Kas",
     "px": "20px",
     "baris": [
-     "PER TANGGAL = 19 September 2026",
+     "PER TANGGAL = 20 September 2026",
      "HORIZON = 90 hari ke depan",
      "PIUTANG LEWAT JATUH TEMPO = Tidak masuk saldo berjalan",
      "MATA UANG = IDR — rupiah penuh"
@@ -25337,7 +25361,7 @@
     "judul": "Umur Piutang Usaha",
     "px": "20px",
     "baris": [
-     "PER TANGGAL = 19 September 2026",
+     "PER TANGGAL = 20 September 2026",
      "BASIS UMUR = Sejak jatuh tempo",
      "DOKUMEN TERBUKA = 2",
      "MATA UANG = IDR — rupiah penuh"
@@ -25349,7 +25373,7 @@
     "judul": "Umur Hutang Usaha",
     "px": "20px",
     "baris": [
-     "PER TANGGAL = 19 September 2026",
+     "PER TANGGAL = 20 September 2026",
      "BASIS UMUR = Sejak jatuh tempo",
      "DOKUMEN TERBUKA = 0",
      "MATA UANG = IDR — rupiah penuh"
@@ -25373,7 +25397,7 @@
     "px": "20px",
     "baris": [
      "AKUN = 1-1210 — Bank BCA Operasional",
-     "PERIODE = 01 Sep 2026 – 19 Sep 2026",
+     "PERIODE = 01 Sep 2026 – 20 Sep 2026",
      "SALDO NORMAL = Debit",
      "MATA UANG = IDR — rupiah penuh"
     ]
@@ -25402,14 +25426,14 @@
    }
   },
   "per_tanggal": {
-   "balance-sheet": "19 September 2026",
-   "cash-projection": "19 September 2026",
-   "ar-aging": "19 September 2026",
-   "ap-aging": "19 September 2026"
+   "balance-sheet": "20 September 2026",
+   "cash-projection": "20 September 2026",
+   "ar-aging": "20 September 2026",
+   "ap-aging": "20 September 2026"
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 38176,
+  "_ms": 38411,
   "_clicks": 0
  },
  "S51_ubin_proyek_dan_grafik": {
@@ -25460,7 +25484,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 23970,
+  "_ms": 24051,
   "_clicks": 0
  },
  "S52_lapisan_daftar_generik": {
@@ -25538,7 +25562,7 @@
   "total_bool": 14,
   "failed_checks": [],
   "ok": true,
-  "_ms": 21275,
+  "_ms": 21971,
   "_clicks": 0
  },
  "S53_satu_ukuran_per_baris_ubin": {
@@ -25773,7 +25797,7 @@
   "baris_diperiksa": 15,
   "failed_checks": [],
   "ok": true,
-  "_ms": 63280,
+  "_ms": 63447,
   "_clicks": 0
  }
 }
