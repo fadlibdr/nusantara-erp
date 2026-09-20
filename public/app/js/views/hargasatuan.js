@@ -70,6 +70,7 @@ function trendChart(series) {
   const prices = points.map((point) => point.price);
   const lo = Math.min(...prices);
   const hi = Math.max(...prices);
+  const datar = hi === lo;
   const room = (hi - lo) || Math.max(hi * 0.05, 1);
   const yLo = Math.max(0, lo - room * 0.25);
   const yHi = hi + room * 0.25;
@@ -113,6 +114,19 @@ function trendChart(series) {
        161 sumbu tanpa label lantai maupun langit-langit. Item demo lolos hanya
        karena kedua harganya sama. */
     yStep: (yHi - yLo) / 4,
+    /* Deret DATAR mendapat SATU tick, pada harganya sendiri (UI-7, keputusan 4
+       rencana kampanye). Ruang 25 % di atas tetap ada supaya garisnya tidak
+       menempel di tepi plot — yang dicabut hanya LABEL rentang yang tidak ada
+       di datanya. Sampai paket ini dua titik yang keduanya Rp 62.000 digambar
+       di atas `Rp 61,23 rb · Rp 61,61 rb · Rp 62 rb · Rp 62,39 rb ·
+       Rp 62,78 rb`: sumbu yang mengarang pita ±1,3 % dan melabelinya, pada
+       layar yang justru dibuat untuk membaca pergerakan harga. Sekarang satu
+       garis kisi berlabel `Rp 62 rb`, dan garis harganya duduk tepat di atasnya
+       — "satu harga, tidak berubah" terbaca tanpa menghitung.
+       Sumbu tidak-dari-nol itu sendiri tetap disengaja dan tertulis untuk
+       pengguna (PANDUAN-PENGGUNA §4.6); yang diperbaiki di sini hanya kasus
+       rentang NOL. */
+    yTicks: datar ? [hi] : undefined,
     yFormat: (value) => fmt.rupiahShort(value),
     ariaLabel: 'Tren harga satuan',
     // Satu seri: legenda svg akan menuliskan "Harga satuan" saja dan tidak

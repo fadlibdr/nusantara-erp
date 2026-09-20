@@ -426,6 +426,12 @@ reading, in another shape. There is no `print` action anywhere in the permission
   `createElementNS` returning to `project.js` / `evm.js` / `hargasatuan.js`. Legends are drawn
   inside the SVG, so no `.legend` block sits beside a chart except the price trend, whose
   distinction (PO vs GRN) is per POINT rather than per series. CONVENTIONS §11.
+  **On PAPER, table headers may wrap** (UI-7): `table.data th` is `white-space: nowrap`, which is
+  right on screen — a wide table scrolls inside `.table-wrap` and ragged headers read badly — and
+  wrong on paper, where the print block has just removed that wrapper. Unwrappable headers then
+  push the table off the sheet. Measured across all 143 routes under `emulate_media('print')`,
+  exactly one overflowed: `#/asset-utilization` at 1474px on a 1440px page, and the width was in
+  the HEADERS, not the data ("USULAN BEBAN INTERNAL" 182px to hold "Rp 505.000.000").
   **A chart's rendered SIZE is the screen's decision, not the chart's** (UI-6b): `.chart` forces
   `width: 100%`, so a 720×260 viewBox in a 1112 px card draws at 1112×402. `#/harga-satuan` was
   spending 446,520 px² on two data points of equal value — 223,260 px² per point, nine times looser
@@ -475,6 +481,39 @@ reading, in another shape. There is no `print` action anywhere in the permission
 - **Empty states**: always `ui.emptyState()` with the right `kind` — a failed source is
   `error`, never `inbox`/`done`; a filtered-out list offers "Hapus filter".
 - **Money and dates**: always through `format.js` (`Rp 1.234.567`, `26 Jul 2026`).
+- **The KPI tile's value is the ANSWER, not "a number" (UI-7)**: `.stat .value` is 22px and
+  `.value.sm` is 16px, and which one a screen uses follows the FORM of what it prints, not
+  taste. Measured across 143 routes: the seven top-level rows at 22px carry short-form money
+  or counts (`Rp 33,68 M`, `55%`, `1/2`); the six at 16px carry full rupiah a person
+  reconciles against paper (`Rp 10.534.455.000`). Unifying to 22px fits at 1440/1280 (0 of 21
+  tiles wrap) but wraps 4 of 21 at 1024 and **12 of 21 at 390** — a full rupiah broken across
+  two lines inside a one-line tile. The slot also legitimately holds a SENTENCE: `csat.js`
+  holds a written rule that zero ratings is a sentence ("Belum ada penilaian"), never `0,0`
+  and never a bare `—`. One size would force one form, so both sizes stay. Inside a card the
+  16px tile is a different role again (37 tiles against 3) and UI-5 keeps it deliberately;
+  `S53` gates the only thing that is always a defect — **two sizes inside ONE row**.
+- **Vertical rhythm inside a card is `--space-3`, and nothing adds to the card's padding
+  (UI-7)**: `.card-body > p` and `.card-body > dl` now carry `margin: 0 0 var(--space-3)` with the
+  last child at `0` (25 of the 26 cases are paragraphs; the one `dl.kv` has the same cause —
+  `.kv` sets `display`/`grid-template-columns`/`gap` but never its own margin). Until this package that gap came from the browser's own `1em`, so **26 card bodies
+  ended 14px lower than the card's 16px padding** — 30px against a neighbour's 16px — and
+  `p.muted` ended at two different distances (0px in 13 cards where someone had patched
+  `style: { margin: 0 }`, 14px in 6 where the next person had not). A correction to the UI-6b
+  note that said "zero paragraphs still carry a margin": it measured only ONLY-CHILD
+  paragraphs, and siblings are the majority.
+- **A rule between stacked peer rows is `.divided` (UI-7)**: `.divided > * + *` draws the line
+  with `--space-3` on both sides. The same idea had been rewritten each time it was needed,
+  with a different spacing each time — `.info-group` 16/12, `.form-section` 20/18,
+  `.absensi-side` 10/10, and in `periods.js` **11/11 inline, one style object per list row**.
+  11px is in no scale; `app.css` itself still uses it as component padding in eight places
+  (`.filters`, `.alert`, `.toast`, …), and those stay — moving them moves row heights that
+  S21/S53 pin, which is a density decision, not a sweep.
+- **An axis never labels a range the data does not have (UI-7)**: when a series is genuinely
+  flat, `lineChart({ yTicks: [value] })` draws ONE gridline at the value. `#/harga-satuan` drew
+  two points both worth Rp 62.000 over ticks `Rp 61,23 rb · Rp 61,61 rb · Rp 62 rb ·
+  Rp 62,39 rb · Rp 62,78 rb` — a ±1,3% band invented by the padding that keeps a flat line off
+  the plot edge, then labelled. The padding stays; the labels go. The non-zero-based axis
+  itself remains deliberate and is written for users in `PANDUAN-PENGGUNA` §4.6.
 - **Errors**: `api.js` normalises `{ message, errors }` into an `ApiError`; forms map
   `errors` back onto their fields, everything else raises a toast. A view that throws
   renders an error panel rather than a blank page.

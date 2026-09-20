@@ -570,7 +570,7 @@ export async function renderSettings(host) {
     style: {
       position: 'sticky', bottom: '0', zIndex: '5', marginTop: '16px',
       display: 'flex', alignItems: 'center', gap: '10px',
-      padding: '11px 14px', flexWrap: 'wrap',
+      padding: '12px 16px', flexWrap: 'wrap',
     },
   }, [status, el('span', { style: { flex: '1' } }), revert, save]);
 

@@ -1,0 +1,313 @@
+{
+ "_catatan": "Sapuan regresi UI-7, diukur 20 Sep 2026 dengan docs/bukti-uji/sapuan-regresi-ui7.py. DUA himpunan rute: 'permukaan' (48 rute berjalur-literal + 95 layar daftar) dan 'dalam' (14 beranda modul + 69 dokumen + 91 formulir halaman + 3 papan). Himpunan kedua tidak pernah ada sebelum tinjauan pra-gabung, dan di situlah 16 tabrakan teks dan 8 luberan kertas ditemukan. Ringkasan SEBELUM ini melaporkan enam putaran dengan hanya tiga nilai `elemen_terukur` berbeda; sebabnya penggabung yang membaca berkas pecahan putaran SEBELUMNYA. Angka di bawah direproduksi dua kali berturut-turut, byte-identik.",
+ "_server": "php -S berulir tunggal, API_RATE_LIMIT dinaikkan — sapuan ini sendiri melampaui batas 120/menit pada layar dokumen",
+ "permukaan": {
+  "1440-terang": {
+   "rute": 143,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [
+    "#/bank-recon",
+    "#/dashboard"
+   ],
+   "elemen_terukur": 20322,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 2318,
+   "sasaran_di_bawah_24": 503
+  },
+  "1024-terang": {
+   "rute": 143,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [
+    "#/bank-recon",
+    "#/dashboard"
+   ],
+   "elemen_terukur": 20322,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 2318,
+   "sasaran_di_bawah_24": 503
+  },
+  "768-terang": {
+   "rute": 143,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [
+    "#/bank-recon",
+    "#/dashboard"
+   ],
+   "elemen_terukur": 20322,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 2318,
+   "sasaran_di_bawah_24": 503
+  },
+  "390-terang": {
+   "rute": 143,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [
+    "#/bank-recon",
+    "#/dashboard"
+   ],
+   "elemen_terukur": 20322,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 513,
+   "sasaran_di_bawah_24": 60
+  },
+  "1440-gelap": {
+   "rute": 143,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [
+    "#/bank-recon",
+    "#/dashboard"
+   ],
+   "elemen_terukur": 20322,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 2318,
+   "sasaran_di_bawah_24": 503
+  },
+  "cetak-1440": {
+   "rute": 143,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [
+    "#/bank-recon",
+    "#/dashboard"
+   ],
+   "elemen_terukur": 20322,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 1223,
+   "sasaran_di_bawah_24": 419
+  }
+ },
+ "dalam": {
+  "1440-terang": {
+   "rute": 177,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [],
+   "elemen_terukur": 18229,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 1570,
+   "sasaran_di_bawah_24": 133
+  },
+  "1024-terang": {
+   "rute": 177,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [],
+   "elemen_terukur": 18229,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 1570,
+   "sasaran_di_bawah_24": 133
+  },
+  "768-terang": {
+   "rute": 177,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [],
+   "elemen_terukur": 18229,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 1570,
+   "sasaran_di_bawah_24": 133
+  },
+  "390-terang": {
+   "rute": 177,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [],
+   "elemen_terukur": 18229,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 439,
+   "sasaran_di_bawah_24": 115
+  },
+  "1440-gelap": {
+   "rute": 177,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [],
+   "elemen_terukur": 18229,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 1570,
+   "sasaran_di_bawah_24": 133
+  },
+  "cetak-1440": {
+   "rute": 177,
+   "belum_siap": [],
+   "galat_instrumen": [],
+   "pesan_galat_aplikasi": [],
+   "elemen_terukur": 18229,
+   "tabrakan": 0,
+   "kontras_di_bawah_AA": 0,
+   "meluber": 0,
+   "gulir_x": [],
+   "sasaran_di_bawah_36": 1163,
+   "sasaran_di_bawah_24": 133
+  }
+ },
+ "sasaran_390_sentuh_per_kelas": {
+  "<button type=button> cls=th-sort induk=—": {
+   "jumlah": 224,
+   "tinggi": [
+    24
+   ]
+  },
+  "<button type=button> cls=star induk=module-cell": {
+   "jumlah": 143,
+   "tinggi": [
+    27
+   ]
+  },
+  "<input type=checkbox> cls=— induk=check-row": {
+   "jumlah": 128,
+   "tinggi": [
+    24
+   ]
+  },
+  "<input type=checkbox> cls=— induk=row fs-body": {
+   "jumlah": 94,
+   "tinggi": [
+    16
+   ]
+  },
+  "<input type=checkbox> cls=— induk=pick": {
+   "jumlah": 81,
+   "tinggi": [
+    16,
+    24
+   ]
+  },
+  "<input type=text> cls=— induk=—": {
+   "jumlah": 68,
+   "tinggi": [
+    31
+   ]
+  },
+  "<button type=button> cls=th-sort induk=right": {
+   "jumlah": 60,
+   "tinggi": [
+    24
+   ]
+  },
+  "<input type=number> cls=— induk=—": {
+   "jumlah": 38,
+   "tinggi": [
+    31
+   ]
+  },
+  "<input type=text> cls=— induk=input-affix prefix": {
+   "jumlah": 33,
+   "tinggi": [
+    31,
+    34
+   ]
+  },
+  "<input type=text> cls=combo-input induk=combo compact": {
+   "jumlah": 26,
+   "tinggi": [
+    31
+   ]
+  },
+  "<input type=checkbox> cls=— induk=—": {
+   "jumlah": 20,
+   "tinggi": [
+    16
+   ]
+  },
+  "<button type=button> cls=th-sort induk=center": {
+   "jumlah": 12,
+   "tinggi": [
+    24
+   ]
+  },
+  "<select> cls=— induk=—": {
+   "jumlah": 7,
+   "tinggi": [
+    31
+   ]
+  },
+  "<input type=date> cls=— induk=—": {
+   "jumlah": 4,
+   "tinggi": [
+    31
+   ]
+  },
+  "<button> cls=fs-secondary induk=cluster": {
+   "jumlah": 3,
+   "tinggi": [
+    26
+   ]
+  },
+  "<button> cls=fs-secondary induk=—": {
+   "jumlah": 3,
+   "tinggi": [
+    20
+   ]
+  },
+  "<input type=file> cls=— induk=card-body": {
+   "jumlah": 2,
+   "tinggi": [
+    22
+   ]
+  },
+  "<a> cls=— induk=—": {
+   "jumlah": 2,
+   "tinggi": [
+    14,
+    15
+   ]
+  },
+  "<input type=number> cls=— induk=input-affix suffix": {
+   "jumlah": 2,
+   "tinggi": [
+    31
+   ]
+  },
+  "<select> cls=— induk=field": {
+   "jumlah": 1,
+   "tinggi": [
+    34
+   ]
+  },
+  "<button type=button> cls=chip-x induk=chip": {
+   "jumlah": 1,
+   "tinggi": [
+    28
+   ]
+  }
+ }
+}

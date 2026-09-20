@@ -623,6 +623,135 @@ def s8(pg):
     pg.evaluate("() => { document.documentElement.dataset.theme = 'dark'; }"); pg.wait_for_timeout(150)
     out["dark"] = pg.evaluate(S8_MEASURE)
     pg.evaluate("() => { delete document.documentElement.dataset.theme; }")
+
+    # ------------------------------------------------------------------ vonis
+    # Sampai hari ini S8 hanya MENCATAT: ia menghitung rasio kontras dengan teliti
+    # lalu mengembalikannya tanpa kunci "ok", dan sebuah skenario tanpa "ok" tidak
+    # pernah bisa merah. Yang digerbangi di bawah hanya yang bisa dibela dari
+    # app.css sendiri; sisanya tetap catatan (lihat akhir blok).
+    #
+    # rgb_to_hex() dan teman-temannya didefinisikan JAUH di bawah dalam berkas ini.
+    # Itu bukan kekeliruan: skenario baru dipanggil di blok sync_playwright paling
+    # akhir, ketika modulnya sudah termuat penuh. Jangan "perbaiki" dengan menyalin.
+    checks = []
+
+    def angka(x):
+        # cr() di peramban mengembalikan NaN bila tokennya bukan hex 6 digit
+        # (parseInt('rg', 16) → NaN), dan `NaN < 4.5` adalah False — di JS maupun
+        # di Python. Sebuah gerbang ambang yang menerima NaN adalah gerbang yang
+        # lolos justru pada palet yang paling rusak, jadi bukan-angka dijatuhkan
+        # lebih dulu alih-alih dibandingkan.
+        return (isinstance(x, (int, float)) and not isinstance(x, bool)
+                and x == x and abs(x) != float("inf"))
+
+    # AA teks normal = 4,5:1. Angka ini bukan selera dan bukan pilihan saya: app.css
+    # baris 15 dan 22 mencatat DUA regresi yang benar-benar terjadi pada pasangan
+    # yang persis ini — `--muted: #6b7684` = 4,26:1 di atas --bg pada teks 11 px, dan
+    # `--success: #1b7f4d` = 4,42:1 di atas --success-soft pada lencana 11,5 px.
+    # Keduanya sudah diperbaiki; blok ini yang menahan supaya tidak kembali diam-diam.
+    # Teks yang memakainya memang teks kecil (kepala tabel 11 px, .badge.green
+    # 11,5 px), jadi pengecualian "teks besar" 3:1 tidak berlaku di sini.
+    AA = 4.5
+    PASANGAN = [
+        ("--muted di atas --bg", "contrast_muted_on_bg"),
+        ("--muted di atas --surface-2 (latar kepala tabel)", "contrast_muted_on_surface2"),
+        ("--success di atas --success-soft (lencana .badge.green)", "contrast_success_badge"),
+    ]
+    for label, tema in (("terang", out), ("gelap", out["dark"])):
+        for nama, kunci in PASANGAN:
+            r = tema.get(kunci)
+            if not angka(r):
+                checks.append(f"tema {label}: rasio {nama} tidak terukur sebagai angka ({r!r}) "
+                              f"— tokennya bukan hex 6 digit, dan seluruh aritmetika kontras di sini mensyaratkan bentuk itu")
+            elif r < AA:
+                checks.append(f"tema {label}: {nama} hanya {r}:1, di bawah AA {AA}:1 untuk teks normal")
+
+    # Rasio di atas mengukur TOKEN. Kalau `table.data th` berhenti memakai var(--muted)
+    # dan menulis warnanya sendiri, keenam rasio itu tetap hijau sementara yang
+    # tergambar di layar sudah lain: gerbang yang mengukur sesuatu yang tidak dipakai
+    # lagi. Warna TERHITUNG kepala tabel karena itu diikat ke tokennya — dan dibawa ke
+    # bentuk yang sama lebih dulu (pelajaran --border-strong di S43: '#5e6874' tidak
+    # akan pernah sama dengan 'rgb(94, 104, 116)', dan membandingkannya apa adanya
+    # adalah gerbang yang selalu lolos).
+    for label, tema in (("terang", out), ("gelap", out["dark"])):
+        th_hex = rgb_to_hex(tema.get("th_color"))
+        token = (tema.get("muted_token") or "").strip().lower()
+        if not th_hex or not re.fullmatch(r"#[0-9a-f]{6}", token):
+            checks.append(f"tema {label}: kepala tabel {tema.get('th_color')!r} / token --muted "
+                          f"{tema.get('muted_token')!r} tidak terbaca sebagai warna hex 6 digit")
+        elif th_hex != token:
+            checks.append(f"tema {label}: kepala tabel tergambar {th_hex} sementara --muted = {token} "
+                          f"— `table.data th` tidak lagi memakai var(--muted), jadi rasio di atas mengukur token yang sudah tidak dipakai")
+
+    # ANTI-GERBANG-HAMPA, paruh gelap. Paletnya hidup dalam lima salinan dan S8
+    # mengukur DUA di antaranya lewat data-theme. Kalau blok :root[data-theme="dark"]
+    # hilang atau namanya berubah, dataset.theme tetap terpasang tetapi setiap token
+    # jatuh kembali ke nilai terang: paruh gelap skenario ini lalu mengulang angka
+    # terang, dan enam uji kontras di atas diam-diam menjadi tiga.
+    if out.get("theme") != "light" or out["dark"].get("theme") != "dark":
+        checks.append(f"data-theme tidak terpasang saat pengukuran: terang={out.get('theme')!r}, "
+                      f"gelap={out['dark'].get('theme')!r}")
+    sama = [n for n in ("bg", "surface2", "muted_token")
+            if (out.get(n) or "").strip().lower() == (out["dark"].get(n) or "").strip().lower()]
+    if sama:
+        checks.append("tema gelap menjawab SAMA dengan terang untuk "
+                      + ", ".join(f"{n}={out.get(n)}" for n in sama)
+                      + ' — blok :root[data-theme="dark"] tidak berlaku, jadi paruh gelap skenario ini tidak menguji apa pun')
+
+    # Tema mengganti WARNA, bukan geometri dan bukan isi halaman. Kalau salah satu dari
+    # keempat angka ini berubah antara terang dan gelap, ada aturan tata letak yang
+    # menumpang pada selektor tema — dan yang diuji di satu tema bukan lagi yang
+    # tergambar di tema lain. Nilainya TIDAK dipaku di sini, hanya kesamaannya.
+    for n in ("th_font", "smallest_font_px", "btn_sm_height", "page_head_buttons"):
+        if out.get(n) != out["dark"].get(n):
+            checks.append(f"{n} berubah ketika tema berganti: terang {out.get(n)!r} vs gelap "
+                          f"{out['dark'].get(n)!r} — tema hanya mengganti warna")
+
+    # ANTI-GERBANG-HAMPA, kepala halaman. Dua daftar KOSONG juga "sama": kalau selektor
+    # `.page-head .actions button` berhenti mencocokkan apa pun (markup pindah ke <a>,
+    # aksinya pindah tempat), perbandingan di atas lolos tanpa subjek. Daftar PO admin
+    # membawa dua tombol; ISI-nya sengaja tidak digerbangi, hanya keberadaannya.
+    if not out.get("page_head_buttons"):
+        checks.append("0 tombol terukur di .page-head .actions — probe kepala halaman tidak sampai "
+                      "ke subjeknya (daftar PO admin membawa 2: 'Muat ulang' dan 'Tambah PO')")
+
+    # Lantai huruf: --fs-caption 11 px, "lantai huruf aplikasi" (app.css baris 53).
+    # Kepala tabel duduk TEPAT di lantai itu dan memakai --muted, jadi menurunkannya
+    # membatalkan pembenaran ambang 4,5:1 di atas sekaligus. Yang digerbangi LANTAI-nya,
+    # bukan angka 11 persis: menaikkannya keputusan rancangan yang boleh lewat.
+    th_px = float(re.sub(r"[^0-9.]", "", out.get("th_font") or "") or 0)
+    if th_px < 11:
+        checks.append(f"kepala tabel {out.get('th_font')!r} — di bawah lantai huruf 11 px (--fs-caption)")
+
+    # Huruf terkecil di halaman. Terukur 10 px sejak UI-4 dan itu DISENGAJA: dua keycap
+    # mono ditulis 10 px (.header .btn.global-search .gs-kbd dan .palette-foot kbd) —
+    # tuts papan ketik, bukan prosa. Lantai umum sudah pernah bergeser 11 → 10 tanpa
+    # disuarakan (results-ui-1.json mencatat 11), jadi yang digerbangi adalah "tidak
+    # lebih kecil dari yang sudah ada": di bawah 10 px tidak ada pembelaannya di app.css.
+    # Menaikkannya kembali ke 11 adalah keputusan UI-7, bukan keputusan diam di sini.
+    kecil = out.get("smallest_font_px")
+    if not angka(kecil) or kecil <= 0:
+        checks.append(f"huruf terkecil tidak terukur ({kecil!r}) — sensus font-size tidak menjangkau satu elemen pun")
+    elif kecil < 10:
+        checks.append(f"ada teks {kecil} px di halaman, di bawah 10 px — lantai huruf aplikasi 11 px "
+                      "(--fs-caption) dan satu-satunya pengecualian yang tertulis adalah keycap mono 10 px")
+
+    # Integritas pengukuran. assert_screen sudah menjatuhkan layar yang SALAH, tetapi
+    # panel panduan bisa terbuka DI ATAS layar yang benar — hash dan h1 tetap cocok
+    # sementara panel memasang sorotan dan lapisannya sendiri, dan "huruf terkecil"
+    # lalu milik panel, bukan milik halaman PO.
+    if out["screen"].get("dock"):
+        checks.append("panel onboarding terbuka saat pengukuran — angka di atas bukan angka layar PO murni")
+
+    # TIDAK digerbangi, dan sengaja:
+    #   * btn_sm_height. Di layar ini .btn.sm PERTAMA dalam urutan DOM adalah
+    #     'Batalkan pilihan' di dalam .selbar[hidden] (views/list.js:378), jadi 0 berarti
+    #     "bilah seleksi tersembunyi", bukan "sasaran sentuh 0 px". Angka 28 pun sah
+    #     begitu ada .btn.sm lain yang lebih awal. Yang dipegang hanya kesamaannya antar-tema.
+    #   * isi page_head_buttons. Label tombol milik kampanye salinan.
+    #   * angka 11 px / 10 px / 5,23:1 sebagai NILAI. Yang dipegang lantai dan ambang.
+    out["failed_checks"] = checks
+    out["ok"] = not checks
     return out
 
 UI2_MEASURE = """() => {
@@ -2709,6 +2838,95 @@ def chart_tokens(pg, tag):
     out["pageerrors"] = errors
     out["console_errors"] = {"count": len(console_errors), "first": console_errors[:3]}
     out["viewport"] = pg.viewport_size
+
+    # ------------------------------------------------------------------ vonis
+    # S20 dan S20m mengukur dengan sangat teliti lalu mengembalikan semuanya
+    # TANPA kunci "ok" — dan dekorator harness hanya menandai merah pada
+    # `ok: false` di puncak. Jadi sampai sekarang batasan keras yang rencana
+    # kampanye sebut "dipaku S20" tidak pernah bisa menjatuhkan apa pun.
+    #
+    # Yang digerbangi di sini SEMPIT dengan sengaja, dan batasnya diukur:
+    #
+    #   * `.mark` ↔ `<title>` dan token --chart-* adalah STRUKTURAL. Subjeknya
+    #     41 fikstur grafik yang ditulis skenario ini sendiri (#s20), bukan data
+    #     demo, jadi angkanya tidak bergeser bersama isi basis data. Itulah yang
+    #     membuatnya aman digerbangi.
+    #   * console_errors dan pageerrors TIDAK digerbangi. Kedua pendengar
+    #     dipasang SEBELUM login(), jadi keduanya menangkap apa pun yang terjadi
+    #     di sepanjang jalan — termasuk galat yang bukan milik grafik. Sebuah
+    #     gerbang yang merah karena sumber tak berhubungan akan dihapus orang
+    #     berikutnya, dan bersamanya seluruh skenario ini.
+    ck = []
+    total_mark = 0
+    jml_grafik = None
+    for tema in ("light", "dark"):
+        data = out.get(tema) or {}
+        grafik = data.get("charts") or {}
+        # MIN, bukan max (koreksi tinjauan pra-gabung): dengan max, satu tema yang
+        # mengukur NOL grafik ditutupi oleh tema lain, dan separuh skenario ini
+        # diam-diam berhenti menguji apa pun.
+        jml_grafik = len(grafik) if jml_grafik is None else min(jml_grafik, len(grafik))
+        for nama, c in grafik.items():
+            marks = c.get("marks")
+            judul = c.get("mark_titles")
+            liar = c.get("stray_titles")
+            if not isinstance(marks, int) or not isinstance(judul, int) or not isinstance(liar, int):
+                ck.append(f"{tema}/{nama}: marks/mark_titles/stray_titles tidak terukur sebagai angka "
+                          f"({marks!r}/{judul!r}/{liar!r})")
+                continue
+            total_mark += marks
+            # Batasan keras: tiap .mark tepat SATU <title>. Tanpa judul, mark itu
+            # tidak punya nama aksesibel dan tooltipnya hilang.
+            if judul != marks:
+                ck.append(f"{tema}/{nama}: {marks} mark tetapi {judul} <title> di dalam mark "
+                          "— tiap mark harus punya tepat satu")
+            # …dan tidak ada <title> DI LUAR mark: sebuah <title> yang menggantung
+            # di <svg> membuat pembaca layar menamai seluruh grafik dengan nama
+            # satu titik data.
+            if liar:
+                ck.append(f"{tema}/{nama}: {liar} <title> di luar .mark")
+        # Trap #5 rencana kampanye: `var()` yang tidak terdefinisi TIDAK melempar,
+        # ia jatuh ke nilai AWAL properti — `fill` jatuh ke hitam dan menggambar
+        # balok pekat melintang gantt. Token yang kosong karena itu cacat diam.
+        for nama, nilai in (data.get("tokens") or {}).items():
+            if not (nilai or "").strip():
+                ck.append(f"{tema}: token {nama} kosong — var() yang tidak resolve jatuh ke nilai "
+                          "AWAL properti tanpa satu pun galat")
+
+    # Anti-gerbang-hampa. Kalau fikstur #s20 gagal tergambar, seluruh perulangan
+    # di atas berjalan nol kali dan vonisnya hijau tanpa subjek. Angka hari ini:
+    # 41 fikstur per tema, 1.906 mark tergabung.
+    # Lantai 30-dari-41 terlalu longgar, dan itu terukur (koreksi tinjauan
+    # pra-gabung): pembangun fikstur MENELAN pengecualian per-fikstur ke
+    # `render.errors`, jadi kalau `ganttChart` rusak atau berganti nama, keenam
+    # fikstur gantt lenyap — tersisa 35 fikstur (≥ 30, LOLOS) dan 1.688 mark
+    # (≥ 100, LOLOS). Gerbang yang seharusnya memegang kontrak charts.js lalu
+    # tidak menguji gantt sama sekali. Yang menutupnya: keluarga per keluarga,
+    # dan galat pembangun DIBACA.
+    KELUARGA = {"line": 10, "donut": 6, "bar": 5, "gantt": 4, "spark": 2}
+    for tema in ("light", "dark"):
+        nama_grafik = list((out.get(tema) or {}).get("charts") or {})
+        for keluarga, lantai in KELUARGA.items():
+            punya = [n for n in nama_grafik if n == keluarga or n.startswith(keluarga + "_")]
+            if len(punya) < lantai:
+                ck.append(f"{tema}: hanya {len(punya)} fikstur keluarga '{keluarga}' terukur "
+                          f"(diharapkan ≥ {lantai}) — keluarga itu lenyap dari fikstur, "
+                          "dan sisa gerbang ini tidak mengujinya sama sekali")
+
+    galat_bangun = ((out.get("render") or {}).get("errors")) or []
+    if galat_bangun:
+        ck.append(f"pembangun fikstur melempar untuk {len(galat_bangun)} fikstur: {galat_bangun[:4]} "
+                  "— fikstur yang gagal dibangun TIDAK muncul di sensus, jadi tanpa baris ini "
+                  "ia hilang tanpa suara")
+
+    if jml_grafik is None or jml_grafik < 30:
+        ck.append(f"hanya {jml_grafik} fikstur grafik terukur (diharapkan ≥ 30) — #s20 tidak tergambar, "
+                  "jadi uji mark/<title> di atas tidak menguji apa pun")
+    if total_mark < 100:
+        ck.append(f"hanya {total_mark} mark tergabung di kedua tema (diharapkan ≥ 100) — fiksturnya kosong")
+
+    out["failed_checks"] = ck
+    out["ok"] = not ck
     return out
 
 @scenario("S20_chart_tokens")

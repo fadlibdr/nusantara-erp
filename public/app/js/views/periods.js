@@ -359,26 +359,21 @@ function checklistCard(data, reload) {
       badge(`${summary.blockers} penghalang`, summary.blockers ? 'red' : 'green'),
       badge(`${summary.warnings} peringatan`, summary.warnings ? 'amber' : ''),
     ]),
-    el('.card-body', data.items.map((item, index) => checklistItem(item, index))),
+    el('.card-body.divided', data.items.map((item) => checklistItem(item))),
     actionFoot(data, reload),
   ]);
 }
 
-function checklistItem(item, index) {
+function checklistItem(item) {
   const mark = markFor(item);
   const [severityLabel, severityTone] = SEVERITY_BADGE[item.severity] || ['', ''];
   const sources = item.status === 'fail' ? (item.sources || []) : [];
 
-  return el('div', {
-    style: {
-      display: 'flex',
-      gap: '10px',
-      alignItems: 'flex-start',
-      padding: index ? '11px 0 0' : '0',
-      marginTop: index ? '11px' : '0',
-      borderTop: index ? '1px solid var(--border)' : '',
-    },
-  }, [
+  /* Garis pemisah antar-baris datang dari `.card-body.divided` (UI-7), bukan
+     dari enam properti sebaris per baris yang bergantung pada `index`.
+     Jaraknya 11 px, yang tidak ada di skala mana pun; sekarang --space-3.
+     Jarak MENDATAR ikut turun dari 10 px sebaris ke --space-2 milik `.row`. */
+  return el('.row.top', [
     el('span', { class: mark.tone, style: { flex: '0 0 18px', marginTop: '1px' } },
       mark.name ? icon(mark.name, 16) : el('span', { text: '—' })),
     el('div', { style: { flex: '1', minWidth: '0' } }, [
