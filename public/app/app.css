@@ -2085,6 +2085,17 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      itu 1 → 5. Rute itu membayar ongkos aturan tanpa mendapat apa pun — ia
      tidak pernah meluber. Kepala tetap boleh membungkus; angkanya tidak. */
   table.data td.right, table.data td.num, table.data tfoot td { white-space: nowrap; }
+  /* Lantai sasaran sentuh tidak berlaku di KERTAS — tidak ada yang menekan
+     lembar cetak. Tanpa baris ini tiap kepala tabel tumbuh 7,5 px di setiap
+     halaman, dibayar untuk sesuatu yang tidak bisa dipakai di sana.
+
+     `button.th-sort`, bukan `.th-sort`: aturan dasarnya ditulis SESUDAH blok
+     ini di berkas (baris ~2760) pada spesifisitas yang SAMA, jadi versi
+     pertama override ini kalah urutan dan kertas tetap 24 px — jebakan #2
+     daftar kampanye ini sendiri, "aturan dasar yang ditulis sesudah media
+     query-nya menang". Menambah satu selektor tipe (0,2,3 lawan 0,2,2)
+     menutupnya tanpa bergantung pada posisi. */
+  table.data th button.th-sort { min-height: 0; min-width: 0; }
   body { background: #fff; }
 }
 
@@ -2692,7 +2703,8 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
      peramban, yaitu persis pengecualian "user agent default" WCAG 2.5.8 yang
      §10 laporan ini sudah pakai untuk lebar meja. */
   th.pick input[type=checkbox], .check-row input[type=checkbox] { width: 24px; height: 24px; }
-  table.data th .th-sort { min-height: 24px; }
+  /* `.th-sort` TIDAK lagi di sini: sejak lantai meja di bawah ia 24 px pada
+     setiap jenis pointer, jadi aturan coarse-nya akan mengulang dirinya. */
 
   /* …dan lantai 36 px di atas dikembalikan DI DALAM tabel, secara eksplisit.
      Dua alasan, keduanya terukur:
@@ -2761,6 +2773,27 @@ table.data th .th-sort {
   font: inherit; color: inherit;
   text-transform: inherit; letter-spacing: inherit;
   cursor: pointer;
+  /* Lantai sasaran WCAG 2.5.8 (24 × 24), di SETIAP jenis pointer — bukan hanya
+     sentuh. UI-7 mengukur 306 tombol urut setinggi 17 px di lebar meja dan
+     mencatatnya sebagai celah AA terbuka: kotak centang 16 px ternaungi
+     pengecualian "user agent default", tombol ini digambar aplikasi sendiri
+     dan tidak ternaungi apa pun. Ditutup atas keputusan pemilik 20 Sep 2026.
+
+     Yang dibayar hanya baris KEPALA, dan hanya di layar: terukur 20 Sep 2026 di
+     1440 px pointer halus, 23 → 30,5 px (padat) dan 35 → 42,5 px (normal/lega).
+     Baris ISI dan kaki tidak bergerak sepersepuluh piksel pun — mereka tidak
+     memuat `.th-sort`, dan metrik yang pemilik bekukan ada di sana, bukan di
+     kepala. Layar tanpa kolom terurut tidak bergerak sama sekali
+     (#/r/finance/accounts tetap 23/35), yang merupakan penjaga bacaannya
+     sendiri: kalau ia ikut naik, yang diukur bukan tombol ini.
+
+     `min-width` ikut karena 2.5.8 menuntut 24 × 24, bukan tinggi saja: satu
+     tombol dari 306 lebih sempit dari itu — kolom "F×A" di
+     #/r/projects/risk-register, 23 px. Tanpa baris ini lantai tingginya akan
+     menutup 305 dan meninggalkan satu, yang persis jenis "hampir" yang
+     membuat sebuah angka tidak bisa dipakai. */
+  min-height: 24px; min-width: 24px;
+  justify-content: inherit;
 }
 table.data th .th-sort:hover { color: var(--text); }
 table.data th .th-sort:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
