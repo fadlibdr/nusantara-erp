@@ -309,5 +309,41 @@
     28
    ]
   }
+ },
+ "th_sort_lantai_meja": {
+  "_catatan": "Lantai `.th-sort` 24 x 24 di SETIAP jenis pointer (keputusan pemilik 20 Sep 2026, laporan §10). Kriteria di sini 24 x 24 — tinggi ATAU lebar — bukan tinggi saja, karena WCAG 2.5.8 menuntut keduanya dan satu tombol dari 306 hanya 23 px lebar. Kertas sengaja dikecualikan: tidak ada yang menekan lembar cetak.",
+  "1440-terang": {
+   "sasaran_di_bawah_24_sebelum": 637,
+   "sesudah": 331,
+   "th_sort_di_bawah_24_sebelum": 306,
+   "sesudah_th_sort": 0
+  },
+  "cetak-1440": {
+   "sasaran_di_bawah_24_sebelum": 553,
+   "sesudah": 553,
+   "th_sort_di_bawah_24_sebelum": 304,
+   "sesudah_th_sort": 304
+  },
+  "390-terang": {
+   "sasaran_di_bawah_24_sebelum": 177,
+   "sesudah": 176,
+   "th_sort_di_bawah_24_sebelum": 1,
+   "sesudah_th_sort": 0
+  },
+  "sisa_meja_per_kelas": {
+   "<input type=checkbox> cls=—": 323,
+   "<button> cls=fs-secondary": 3,
+   "<input type=file> cls=—": 2,
+   "<a> cls=—": 2,
+   "<button type=button> cls=chip-x": 1
+  },
+  "tinggi_baris_kepala_1440_pointer_halus": {
+   "padat": "23 -> 30,5",
+   "normal": "35 -> 42,5",
+   "lega": "35 -> 42,5",
+   "baris_isi": "tidak bergerak",
+   "baris_kaki": "tidak bergerak",
+   "layar_tanpa_kolom_terurut": "23 / 35 -> 23 / 35 (penjaga bacaan)"
+  }
  }
 }

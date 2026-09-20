@@ -30,7 +30,7 @@
    "h1": "Akses kontrol pintu farmasi sering gagal membaca kartu",
    "badge": "Ditugaskan → blue"
   },
-  "_ms": 13657,
+  "_ms": 13415,
   "_clicks": 3
  },
  "S8_styles": {
@@ -73,7 +73,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 4277,
+  "_ms": 4070,
   "_clicks": 0
  },
  "S14_search_screens": {
@@ -159,11 +159,11 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 4637,
+  "_ms": 4535,
   "_clicks": 0
  },
  "S18_onboarding_dock_desktop": {
-  "dock_ms_after_login": 13,
+  "dock_ms_after_login": 7,
   "status_before": null,
   "step1": {
    "mode": "desktop",
@@ -244,7 +244,7 @@
      "w": 254,
      "h": 1781,
      "x": -2,
-     "y": 54
+     "y": -2
     }
    ],
    "ring_covers_nav": true
@@ -301,14 +301,14 @@
      "w": 211,
      "h": 42,
      "x": 5,
-     "y": 528
+     "y": 472
     },
     {
      "label": "Mulai dari sini",
      "w": 156,
      "h": 44,
      "x": 867,
-     "y": 71
+     "y": 15
     }
    ],
    "hash_changed": true,
@@ -330,14 +330,14 @@
      "w": 211,
      "h": 42,
      "x": 5,
-     "y": 560
+     "y": 504
     },
     {
      "label": "Mulai dari sini",
      "w": 218,
      "h": 44,
      "x": 805,
-     "y": 71
+     "y": 15
     }
    ]
   },
@@ -376,11 +376,11 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 12187,
+  "_ms": 12009,
   "_clicks": 8
  },
  "S19_onboarding_sheet_mobile": {
-  "sheet_ms_after_login": 21,
+  "sheet_ms_after_login": 6,
   "sheet": {
    "height": 490,
    "height_pct": 58.1,
@@ -527,7 +527,7 @@
    "main_padding_bottom": "50px"
   },
   "pageerrors": [],
-  "_ms": 10300,
+  "_ms": 9932,
   "_clicks": 6
  },
  "S20_chart_tokens": {
@@ -6456,7 +6456,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 10109,
+  "_ms": 3955,
   "_clicks": 0
  },
  "S20_chart_tokens_mobile": {
@@ -12385,7 +12385,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 3994,
+  "_ms": 3180,
   "_clicks": 0
  },
  "S21_module_accents_breadcrumb": {
@@ -13816,7 +13816,7 @@
      46.5,
      47
     ],
-    "th": 35,
+    "th": 42.5,
     "nav_link": 31.5,
     "tfoot": [],
     "btn_sm": 28,
@@ -13831,7 +13831,7 @@
     "by_kind": {},
     "min_by_kind": {},
     "all": [],
-    "th": 42,
+    "th": 42.5,
     "nav_link": 31.5,
     "tfoot": [
      41
@@ -13912,7 +13912,7 @@
     "all": [
      32
     ],
-    "th": 23,
+    "th": 30.5,
     "nav_link": 27.5,
     "tfoot": [],
     "btn_sm": 24,
@@ -13927,7 +13927,7 @@
     "by_kind": {},
     "min_by_kind": {},
     "all": [],
-    "th": 30,
+    "th": 30.5,
     "nav_link": 27.5,
     "tfoot": [
      32
@@ -14003,7 +14003,7 @@
     "all": [
      48
     ],
-    "th": 35,
+    "th": 42.5,
     "nav_link": 35.5,
     "tfoot": [],
     "btn_sm": 28,
@@ -14018,7 +14018,7 @@
     "by_kind": {},
     "min_by_kind": {},
     "all": [],
-    "th": 42,
+    "th": 42.5,
     "nav_link": 35.5,
     "tfoot": [
      48
@@ -14096,7 +14096,7 @@
      46.5,
      47
     ],
-    "th": 35,
+    "th": 42.5,
     "nav_link": 31.5,
     "tfoot": [],
     "btn_sm": 28,
@@ -14111,7 +14111,7 @@
     "by_kind": {},
     "min_by_kind": {},
     "all": [],
-    "th": 42,
+    "th": 42.5,
     "nav_link": 31.5,
     "tfoot": [
      41
@@ -14422,7 +14422,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 97193,
+  "_ms": 97572,
   "_clicks": 11
  },
  "S21_module_accents_breadcrumb_mobile": {
@@ -16491,7 +16491,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 99407,
+  "_ms": 96288,
   "_clicks": 11
  },
  "S22_launcher_truth": {
@@ -16985,15 +16985,15 @@
       "h": 39
      },
      {
-      "href": "#/d/subcontract/progress-claims/2",
-      "h": 39
-     },
-     {
       "href": "#/d/subcontract/labor-contracts/1",
       "h": 39
      },
      {
-      "href": "#/d/subcontract/labor-claims/1",
+      "href": "#/d/subcontract/handovers/1",
+      "h": 39
+     },
+     {
+      "href": "#/d/servicedesk/preventive-schedules/1",
       "h": 39
      }
     ],
@@ -18129,7 +18129,7 @@
     "Failed to load resource: the server responded with a status of 403 (Forbidden)"
    ]
   },
-  "_ms": 32756,
+  "_ms": 30064,
   "_clicks": 1
  },
  "S22_launcher_truth_mobile": {
@@ -18498,15 +18498,15 @@
       "h": 55.5
      },
      {
-      "href": "#/d/subcontract/progress-claims/2",
-      "h": 55.5
-     },
-     {
       "href": "#/d/subcontract/labor-contracts/1",
       "h": 55.5
      },
      {
-      "href": "#/d/subcontract/labor-claims/1",
+      "href": "#/d/subcontract/handovers/1",
+      "h": 55.5
+     },
+     {
+      "href": "#/d/servicedesk/preventive-schedules/1",
       "h": 55.5
      }
     ],
@@ -19626,7 +19626,7 @@
     "Failed to load resource: the server responded with a status of 403 (Forbidden)"
    ]
   },
-  "_ms": 35174,
+  "_ms": 33315,
   "_clicks": 2
  },
  "S23_dashboard_per_role": {
@@ -19996,7 +19996,7 @@
    "progres_card_says_mine": true
   },
   "ok": true,
-  "_ms": 87977,
+  "_ms": 87560,
   "_clicks": 0
  },
  "S23_setup_drawer": {
@@ -20136,7 +20136,7 @@
   },
   "resized_survived": true,
   "ok": true,
-  "_ms": 17802,
+  "_ms": 17160,
   "_clicks": 8
  },
  "S23_honest_failure": {
@@ -20167,7 +20167,7 @@
   ],
   "other_cards_lost": [],
   "ok": true,
-  "_ms": 10628,
+  "_ms": 10702,
   "_clicks": 0
  },
  "S23_dashboard_mobile": {
@@ -20204,7 +20204,7 @@
    "min_px": 44
   },
   "ok": true,
-  "_ms": 6112,
+  "_ms": 5681,
   "_clicks": 0
  },
  "S26_gantt": {
@@ -22142,7 +22142,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 8925,
+  "_ms": 8371,
   "_clicks": 2
  },
  "S26_gantt_mobile": {
@@ -24082,7 +24082,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 9519,
+  "_ms": 8022,
   "_clicks": 2
  },
  "S27_pwa": {
@@ -24102,7 +24102,7 @@
   "online_shell_fetch": {
    "status": 200,
    "delivery": "",
-   "transfer": 167759
+   "transfer": 169901
   },
   "online_shell_via_worker": true,
   "ribbon_online": {
@@ -24206,7 +24206,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 35356,
+  "_ms": 35415,
   "_clicks": 1
  },
  "S43_primitif_ui2": {
@@ -24457,7 +24457,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 6443,
+  "_ms": 6645,
   "_clicks": 0
  },
  "S44_chip_filter": {
@@ -24536,7 +24536,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 17120,
+  "_ms": 16771,
   "_clicks": 2
  },
  "S45_seleksi_massal": {
@@ -24744,7 +24744,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 23600,
+  "_ms": 22833,
   "_clicks": 3
  },
  "S46_tampilan_tersimpan": {
@@ -25023,7 +25023,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 50536,
+  "_ms": 50499,
   "_clicks": 11
  },
  "S47_formulir_halaman": {
@@ -25081,7 +25081,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 23757,
+  "_ms": 23653,
   "_clicks": 3
  },
  "S48_papan_keyboard": {
@@ -25152,7 +25152,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 11283,
+  "_ms": 11142,
   "_clicks": 0
  },
  "S49_kepala_dokumen": {
@@ -25189,7 +25189,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7620,
+  "_ms": 7267,
   "_clicks": 0
  },
  "S50_kepala_laporan_keuangan": {
@@ -25433,7 +25433,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 38411,
+  "_ms": 38224,
   "_clicks": 0
  },
  "S51_ubin_proyek_dan_grafik": {
@@ -25484,7 +25484,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 24051,
+  "_ms": 24046,
   "_clicks": 0
  },
  "S52_lapisan_daftar_generik": {
@@ -25562,7 +25562,7 @@
   "total_bool": 14,
   "failed_checks": [],
   "ok": true,
-  "_ms": 21971,
+  "_ms": 21299,
   "_clicks": 0
  },
  "S53_satu_ukuran_per_baris_ubin": {
@@ -25797,7 +25797,7 @@
   "baris_diperiksa": 15,
   "failed_checks": [],
   "ok": true,
-  "_ms": 63447,
+  "_ms": 63162,
   "_clicks": 0
  }
 }

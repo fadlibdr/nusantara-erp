@@ -256,7 +256,7 @@ Dua di antaranya bisa direkonsiliasi dengan angka lama, dan itu memperkuat kedua
 
 | kelas | jumlah | tinggi | keadaan |
 |---|---|---|---|
-| `.th-sort` tombol urut kepala kolom | 296 | 24 | dinaikkan ke ambang WCAG |
+| `.th-sort` tombol urut kepala kolom | 296 | 24 | dinaikkan ke ambang WCAG — sejak §10 di **setiap** pointer, bukan hanya sentuh |
 | kotak centang `.check-row` | 128 | 24 | dinaikkan |
 | kotak centang `th.pick` (kepala) | 27 | 24 | dinaikkan |
 | `button.star` favorit di beranda modul | 143 | 27 | di atas 24, di bawah 36 |
@@ -428,7 +428,7 @@ tertulis untuk pengguna (`PANDUAN-PENGGUNA` §4.6); yang diperbaiki hanya kasus 
 * **Laporan Bebas** (`custom.js`, 2.429 baris) — terbuka sejak UI-6a; ia pembangun laporan generik
   dan prototipenya menuntut `.builder` + `.pick-list` yang belum ada. Paket ini hanya menyentuh
   bilah ringkasannya.
-* **Kamus `LABELS` untuk kunci API yang belum punya entri** — lihat §10(b). §3a menutup JSON
+* **Kamus `LABELS` untuk kunci API yang belum punya entri** — lihat §11. §3a menutup JSON
   mentahnya; nama medannya tetap auto-Inggris di layar dokumen, dan melengkapinya adalah pekerjaan
   per sumber daya lintas 69 layar, bukan ekor sebuah sapuan regresi.
 * **Menambahkan katalog rute DALAM ke himpunan gerbang rilis** — sapuan ini sekarang membukanya
@@ -453,6 +453,9 @@ tertulis untuk pengguna (`PANDUAN-PENGGUNA` §4.6); yang diperbaiki hanya kasus 
 | `tests/Feature/Core` SQLite | **1.421 lulus**, 11 dilewati, 11.630 asersi, 0 gagal |
 | `tests/Unit` SQLite | **630 lulus**, 2.201 asersi, 0 gagal |
 | `Core` di **MySQL 8** | **1.449 lulus**, 9 dilewati, 11.788 asersi, 0 gagal |
+| Lantai `.th-sort` 24 × 24 di lebar meja (§10) | sasaran < 24 px **637 → 331**; `.th-sort` tersisa **0**; kertas **553 → 553** |
+| Kepadatan sesudah lantai meja | baris ISI dan KAKI byte-identik di tiga kepadatan; hanya KEPALA 23 → 30,5 / 35 → 42,5 px |
+| S21 · S21m · S43 · S52 sesudah lantai meja | keempatnya **ok**, keluar 0 |
 | Gaya sebaris `views/` | objek **536 → 535** (plafon `SpaInlineStyleBudgetTest` diturunkan) |
 | `SHELL_VERSION` | **33 → 34** |
 
@@ -471,28 +474,63 @@ dengan `API_RATE_LIMIT` dinaikkan. Sapuan atas layar dokumen menembak beberapa e
 halaman dan melampaui batas 120/menit milik aplikasi sendiri (§2 #11). Yang dinaikkan hanya
 pembatas laju; tidak ada yang berubah pada apa yang digambar.
 
-## 10. Dua hal yang sapuan ini munculkan dan paket ini TIDAK tutup
+## 10. `.th-sort` ditutup di lebar MEJA juga (keputusan pemilik, 20 Sep 2026)
 
-**(a) `.th-sort` 17 px di lebar MEJA.** Lantai 24 px untuk kontrol tabel (§5) hanya berlaku di
-`pointer: coarse`. Di lebar meja angkanya, atas 325 rute: **636 sasaran di bawah 24 px pada 1440
-terang** (identik pada gelap, 1024 dan 768 — geometri ini tidak bergantung lebar) dan **552 di
-kertas**. Ia terurai habis menjadi:
+Paket ini mula-mula menyerahkan butir ini sebagai keputusan kepadatan: lantai 24 px untuk kontrol
+tabel hanya berlaku di `pointer: coarse`, dan di lebar meja **306 tombol urut kepala kolom tetap
+17 px** — kotak centang 16 px ternaungi pengecualian "user agent default" WCAG 2.5.8, tombol ini
+digambar aplikasi sendiri dan tidak ternaungi apa pun. Pemilik memutuskan menutupnya.
 
-| kelas | meja | kertas | naungan WCAG 2.5.8 |
-|---|---|---|---|
-| kotak centang 16 px | 322 | 240 | **ada** — ukuran bawaan peramban, aplikasi tidak menyetelnya |
-| `.th-sort` 17 px | 306 | 304 | **tidak ada** — digambar aplikasi sendiri |
-| `.fs-secondary` `#/kalender` 20 px | 3 | 3 | tidak ada |
-| `input[type=file]` 22 px | 2 | 2 | kontrol natif |
-| `.chip-x` 18 px | 1 | 1 | tidak ada |
-| tautan sebaris | 2 | 2 | **ada** — dikecualikan eksplisit |
+Lantainya pindah dari blok `pointer: coarse` ke aturan dasar `.th-sort`, jadi ia berlaku di setiap
+jenis pointer. Dua hal yang tidak boleh dilewatkan, keduanya terukur:
 
-`.th-sort` adalah celah AA di lebar meja, dan menutupnya berarti menaikkan tinggi baris KEPALA di
-95 layar daftar sekaligus — keputusan kepadatan, jenis yang pemilik pegang, bukan sapuan regresi.
-Di layar SENTUH ia sudah 24 px. Dicatat dengan angkanya, tidak diam-diam diperbaiki di paket
-terakhir. (`.chip-x` 18 px bergabung ke daftar ini; ia tidak pernah disebut sebelumnya.)
+* **`min-width` ikut, bukan hanya `min-height`.** 2.5.8 menuntut 24 × 24, dan satu dari 306 tombol
+  lebih sempit dari itu — kolom `F×A` di `#/r/projects/risk-register`, 23 px. Lantai tinggi saja
+  akan menutup 305 dan meninggalkan satu: persis jenis "hampir" yang membuat sebuah angka tidak
+  bisa dipakai.
+* **KERTAS dikecualikan.** Tidak ada yang menekan lembar cetak, dan tanpa pengecualian ini tiap
+  kepala tabel tumbuh 7,5 px di setiap halaman. Pengecualiannya sempat TIDAK BEKERJA: ditulis
+  `table.data th .th-sort` di blok `@media print`, ia berspesifisitas sama dengan aturan dasarnya
+  yang ditulis ~960 baris LEBIH BAWAH di berkas — jebakan #2 daftar kampanye ini sendiri, dan
+  kertas tetap 24 px. `button.th-sort` (0,2,3 lawan 0,2,2) menutupnya tanpa bergantung pada urutan.
 
-**(b) Kunci API tanpa entri `LABELS`.** §3a menutup JSON mentahnya, tetapi nama medannya tetap
-auto-Inggris — "Billings", "Results", "Equipment Logs", "Documents". `titleize()` sudah menulis
-`console.warn` untuk setiap kunci semacam itu; melengkapi kamusnya adalah pekerjaan per sumber
-daya di seluruh 69 layar dokumen, dan itu paket tersendiri, bukan ekor sapuan regresi.
+Yang dibayar, diukur di 1440 px pointer halus, tiga kepadatan:
+
+| | sebelum | sesudah |
+|---|---|---|
+| tinggi baris KEPALA, padat | 23 px | **30,5 px** |
+| tinggi baris KEPALA, normal & lega | 35 px | **42,5 px** |
+| tinggi baris ISI, ketiga kepadatan | — | **tidak bergerak sepersepuluh piksel** |
+| tinggi baris KAKI | — | **tidak bergerak** |
+| layar tanpa kolom terurut (`#/r/finance/accounts`) | 23 / 35 px | **23 / 35 px** |
+
+Baris terakhir itu penjaga bacaannya sendiri: kalau layar TANPA tombol urut ikut naik, yang diukur
+bukan tombol ini.
+
+Hasil sapuan, kedua himpunan, kriteria 24 × 24 (tinggi ATAU lebar):
+
+| putaran | sasaran < 24 px sebelum | sesudah |
+|---|---|---|
+| **1440 meja** | 637 | **331** |
+| cetak 1440 | 553 | **553** (sengaja tidak berubah) |
+| 390 sentuh | 177 | **176** (tombol `F×A` yang 23 px) |
+
+`.th-sort` yang tersisa di bawah ambang: **nol**, di ketiganya. Jumlah sasaran di bawah 36 px tidak
+bergerak (3.888 / 2.386 / 952) dan memang tidak seharusnya — tombolnya naik 17 → 24 px, yang masih
+di bawah 36.
+
+**Yang MASIH terbuka sesudah ini**, dan tetap dicatat dengan angkanya alih-alih diselesaikan
+diam-diam: dari 331 sisa di meja, **323 adalah kotak centang berukuran bawaan peramban** dan 2
+tautan sebaris — semuanya ternaungi pengecualian 2.5.8 — dan 2 `input[type=file]` yang natif.
+Tinggal **empat kontrol yang aplikasi gambar sendiri tanpa naungan**: tiga entri agenda
+`#/kalender` pada 20 px (menaikkannya mengubah kisi bulan di 390 px) dan satu `.chip-x` pada 18 px
+(menaikkannya menumbuhkan bilah chip filter ~6 px di setiap layar daftar bersaring). Keduanya
+perubahan geometri pada komponen LAIN, jadi keduanya keputusan tersendiri — bukan ekor dari
+keputusan ini.
+
+## 11. Kunci API tanpa entri `LABELS`
+
+§3a menutup JSON mentahnya, tetapi nama medannya tetap auto-Inggris — "Billings", "Results",
+"Equipment Logs", "Documents". `titleize()` sudah menulis `console.warn` untuk setiap kunci
+semacam itu; melengkapi kamusnya adalah pekerjaan per sumber daya di seluruh 69 layar dokumen,
+dan itu paket tersendiri, bukan ekor sapuan regresi.

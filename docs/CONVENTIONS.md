@@ -2037,6 +2037,25 @@ ini tidak pernah berlaku padanya, di 70 layar daftar), kotak centang `.check-row
 
 **Kontrol di dalam TABEL memakai lantai 24 px, bukan 36**, dan angkanya diukur: pada 36 px tinggi
 baris kepala 42 → 62 px, pada 24 px ia 42 → 50 px, sementara baris ISI byte-identik pada keduanya.
+
+**Dan sejak 20 Sep 2026 lantai `.th-sort` 24 × 24 berlaku di SETIAP jenis pointer, bukan hanya
+sentuh** (keputusan pemilik). Ia ditulis di aturan dasar `.th-sort`, bukan di blok
+`pointer: coarse`. Tiga hal yang membuatnya benar, semuanya terukur:
+
+* `min-width` ikut `min-height` — 2.5.8 menuntut 24 × 24, dan satu dari 306 tombol (`F×A` di
+  `#/r/projects/risk-register`) hanya 23 px lebar.
+* **KERTAS dikecualikan** lewat `table.data th button.th-sort { min-height: 0; min-width: 0 }` di
+  blok `@media print`. Selektornya memakai satu tipe ekstra dengan sengaja: versi `.th-sort` polos
+  berspesifisitas SAMA dengan aturan dasar yang ditulis ~960 baris lebih bawah, jadi ia kalah
+  urutan dan kertas tetap 24 px. Lihat jebakan "aturan dasar sesudah media query" di §17.
+* Yang dibayar hanya baris KEPALA: 23 → 30,5 px (padat) dan 35 → 42,5 px (normal/lega) di 1440 px
+  pointer halus. Baris ISI dan KAKI tidak bergerak — mereka tidak memuat `.th-sort` — dan layar
+  tanpa kolom terurut tidak bergerak sama sekali. Sasaran di bawah 24 px di meja: **637 → 331**,
+  `.th-sort` tersisa **nol**; di kertas 553 → 553.
+
+Empat kontrol yang aplikasi gambar sendiri MASIH di bawah ambang di meja, dan ketiganya keputusan
+tersendiri karena menyentuh komponen lain: tiga entri agenda `#/kalender` 20 px (kisi bulan 390 px)
+dan satu `.chip-x` 18 px (bilah chip filter tumbuh ~6 px). Sisanya ternaungi pengecualian.
 **Lantai kotak centang itu hanya untuk `th.pick`, bukan `.pick`** — `.pick` juga mencocokkan
 `td.pick`, yang `list.js` taruh di SETIAP baris badan daftar beraksi massal, dan menaikkannya
 menumbuhkan baris yang kepadatannya dibekukan pemilik: padat 32 → 39,5 px, lega 48 → 51,5 px.
