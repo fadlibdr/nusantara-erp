@@ -474,7 +474,7 @@ dengan `API_RATE_LIMIT` dinaikkan. Sapuan atas layar dokumen menembak beberapa e
 halaman dan melampaui batas 120/menit milik aplikasi sendiri (§2 #11). Yang dinaikkan hanya
 pembatas laju; tidak ada yang berubah pada apa yang digambar.
 
-## 10. `.th-sort` ditutup di lebar MEJA juga (keputusan pemilik, 20 Sep 2026)
+## 10. `.th-sort` dan `.chip-x` ditutup di lebar MEJA juga (keputusan pemilik, 20 Sep 2026)
 
 Paket ini mula-mula menyerahkan butir ini sebagai keputusan kepadatan: lantai 24 px untuk kontrol
 tabel hanya berlaku di `pointer: coarse`, dan di lebar meja **306 tombol urut kepala kolom tetap
@@ -509,24 +509,51 @@ bukan tombol ini.
 
 Hasil sapuan, kedua himpunan, kriteria 24 × 24 (tinggi ATAU lebar):
 
-| putaran | sasaran < 24 px sebelum | sesudah |
-|---|---|---|
-| **1440 meja** | 637 | **331** |
-| cetak 1440 | 553 | **553** (sengaja tidak berubah) |
-| 390 sentuh | 177 | **176** (tombol `F×A` yang 23 px) |
+| putaran | sebelum | sesudah `.th-sort` | sesudah `.chip-x` |
+|---|---|---|---|
+| **1440 meja** | 637 | 331 | **330** |
+| cetak 1440 | 553 | 553 (sengaja) | **552** |
+| 390 sentuh | 177 | 176 (tombol `F×A` 23 px) | **176** (sentuh sudah 30 × 28) |
 
-`.th-sort` yang tersisa di bawah ambang: **nol**, di ketiganya. Jumlah sasaran di bawah 36 px tidak
+Sisa 330 di meja terurai habis: **323 kotak centang** berukuran bawaan peramban · **3** entri agenda
+`#/kalender` · **2** `input[type=file]` · **2** tautan sebaris. 323 + 3 + 2 + 2 = 330.
+
+`.th-sort` dan `.chip-x` yang tersisa di bawah ambang: **nol**, di ketiganya. Jumlah sasaran di bawah 36 px tidak
 bergerak (3.888 / 2.386 / 952) dan memang tidak seharusnya — tombolnya naik 17 → 24 px, yang masih
 di bawah 36.
 
-**Yang MASIH terbuka sesudah ini**, dan tetap dicatat dengan angkanya alih-alih diselesaikan
-diam-diam: dari 331 sisa di meja, **323 adalah kotak centang berukuran bawaan peramban** dan 2
-tautan sebaris — semuanya ternaungi pengecualian 2.5.8 — dan 2 `input[type=file]` yang natif.
-Tinggal **empat kontrol yang aplikasi gambar sendiri tanpa naungan**: tiga entri agenda
-`#/kalender` pada 20 px (menaikkannya mengubah kisi bulan di 390 px) dan satu `.chip-x` pada 18 px
-(menaikkannya menumbuhkan bilah chip filter ~6 px di setiap layar daftar bersaring). Keduanya
-perubahan geometri pada komponen LAIN, jadi keduanya keputusan tersendiri — bukan ekor dari
-keputusan ini.
+### `.chip-x` ditutup juga — dan tanpa satu piksel pun bergerak
+
+Tombol-silang chip filter adalah 18 × 18 px, dan menaikkannya begitu saja menumbuhkan bilah chip
+6 px di setiap layar daftar bersaring. Ia ditutup tanpa membayar itu: **sasaran 24 × 24, lingkaran
+yang tergambar tetap 18 px.**
+
+| | sebelum | sesudah |
+|---|---|---|
+| kotak sasaran `.chip-x` | 18 × 18 | **24 × 24** |
+| tinggi chip · lebar chip | 26 · 139 px | **26 · 139 px** |
+| tinggi bilah chip | 40 px | **40 px** |
+| chip di layar sentuh | 36 px, tombol 30 × 28 | **tidak berubah** |
+| potret piksel chip & chip-ter-hover lawan `main` | — | **0 dari 3.614 piksel berbeda** |
+
+Tiga baris yang membelinya, dan dua di antaranya jebakan yang ketahuan hanya karena diukur:
+
+* `padding: 3px` + `box-sizing: border-box` menaikkan kotak sasaran tanpa menyentuh isinya.
+* `background-clip: content-box` menahan latar hover di dalam 18 px itu — **dan versi pertama
+  aturan hover membatalkannya**: `.chip-x:hover { background: … }` memakai bentuk PENDEK, yang
+  menyetel ulang `background-clip` ke `border-box`. `getComputedStyle` dalam keadaan diam tetap
+  berkata `content-box`; yang menangkapnya adalah probe potret yang mengukur SESUDAH hover.
+  Sekarang `background-color`.
+* `margin: -3px` mengembalikan sumbangannya ke tata letak menjadi 18 px di **kedua** sumbu.
+  Versi pertama hanya mengurus sumbu blok, dan potret piksel menangkap sisanya: tingginya memang
+  tetap 26 px, tetapi chipnya melebar **139 → 145 px**. Sasaran 24 px itu kini menjangkau 3 px ke
+  dalam padding dan gap chip — yang justru diinginkan.
+
+**Yang MASIH terbuka**, dicatat dengan angkanya alih-alih diselesaikan diam-diam: dari sisa di
+meja, kotak centang berukuran bawaan peramban dan tautan sebaris ternaungi pengecualian 2.5.8, dan
+`input[type=file]` adalah kontrol natif. Tinggal **tiga entri agenda `#/kalender` pada 20 px** yang
+aplikasi gambar sendiri tanpa naungan — menaikkannya mengubah kisi bulan di 390 px, jadi ia
+keputusan kepadatan kalender, bukan ekor dari keputusan ini.
 
 ## 11. Kunci API tanpa entri `LABELS`
 
