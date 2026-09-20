@@ -2368,17 +2368,49 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 }
 .chip > b { font-weight: var(--fw-semi); color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-key { flex: none; }
+/* Tombol-silang chip: SASARAN 24 × 24 (WCAG 2.5.8), LINGKARAN tetap 18 px.
+   Ditutup 20 Sep 2026 atas keputusan pemilik, bersama `.th-sort` — ia satu dari
+   dua kontrol terakhir yang aplikasi gambar sendiri di bawah ambang di lebar
+   meja, dan kotak centang di sekitarnya cuma lolos lewat pengecualian "user
+   agent default".
+
+   Tiga baris yang membuatnya TIDAK mengubah satu piksel pun yang terlihat:
+
+   * `padding: 3px` + `box-sizing: border-box` menaikkan kotak sasaran ke 24 px
+     tanpa menyentuh isinya;
+   * `background-clip: content-box` menahan latar hover di dalam 18 px itu, jadi
+     lingkaran yang tergambar persis sebesar sebelumnya — tanpa ini hover
+     menjadi lingkaran 24 px yang menyentuh tepi chip;
+   * `margin: -3px` mengembalikan sumbangannya ke tata letak menjadi 18 px LAGI,
+     di KEDUA sumbu. Versi pertama hanya mengurus sumbu blok (padding chip
+     dinolkan lewat `:has()`), dan potret piksel menangkapnya: tingginya memang
+     tetap 26 px, tetapi chipnya melebar 139 → 145 px. Sasaran 24 px itu kini
+     menjangkau 3 px ke dalam padding dan gap chip — yang justru yang
+     diinginkan: ruang kosong di sekitarnya ikut bisa ditekan.
+
+   Terukur sesudahnya: potret chip dan chip-ter-hover IDENTIK PIKSEL dengan
+   main (139 × 26), tombol 18 → 24 px. */
 .chip-x {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; padding: 0;
+  width: 24px; height: 24px; padding: 3px; margin: -3px;
   border: 0; border-radius: 50%;
-  background: transparent; color: var(--muted); cursor: pointer;
+  background: transparent; background-clip: content-box;
+  color: var(--muted); cursor: pointer;
 }
-.chip-x:hover { background: var(--surface-3); color: var(--text); }
+/* `background-COLOR`, bukan `background`: bentuk pendeknya MENYETEL ULANG
+   `background-clip` ke nilai awalnya (border-box), jadi versi pertama aturan
+   ini membatalkan `content-box` di atas tepat pada keadaan yang paling
+   terlihat — lingkaran hover tergambar 24 px dan menyentuh tepi chip,
+   sementara `getComputedStyle` di keadaan diam tetap berkata content-box.
+   Ketahuan karena probe potretnya mengukur SESUDAH hover. */
+.chip-x:hover { background-color: var(--surface-3); color: var(--text); }
 @media (pointer: coarse) {
   /* Sasaran sentuh: lantai yang sama dengan bintang sidebar. */
   .chip { padding-right: 2px; }
-  .chip-x { width: 30px; height: 28px; }
+  /* Sentuh punya geometrinya sendiri (30 × 28, lebih besar dari lantai 24 px),
+     jadi kompensasi `margin: -3px` di atas juga harus dicabut — tanpa `margin: 0`
+     chip sentuh menyusut 36 → 30 px dan bilahnya ikut. */
+  .chip-x { width: 30px; height: 28px; padding: 0; margin: 0; }
 }
 
 /* Tampilan tersimpan (UI-4c). Baris chip KEDUA, di atas chip saringan: yang

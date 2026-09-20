@@ -30,7 +30,7 @@
    "h1": "Akses kontrol pintu farmasi sering gagal membaca kartu",
    "badge": "Ditugaskan → blue"
   },
-  "_ms": 13415,
+  "_ms": 14943,
   "_clicks": 3
  },
  "S8_styles": {
@@ -73,7 +73,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 4070,
+  "_ms": 4351,
   "_clicks": 0
  },
  "S14_search_screens": {
@@ -159,11 +159,11 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 4535,
+  "_ms": 4611,
   "_clicks": 0
  },
  "S18_onboarding_dock_desktop": {
-  "dock_ms_after_login": 7,
+  "dock_ms_after_login": 8,
   "status_before": null,
   "step1": {
    "mode": "desktop",
@@ -244,7 +244,7 @@
      "w": 254,
      "h": 1781,
      "x": -2,
-     "y": -2
+     "y": 54
     }
    ],
    "ring_covers_nav": true
@@ -301,14 +301,14 @@
      "w": 211,
      "h": 42,
      "x": 5,
-     "y": 472
+     "y": 528
     },
     {
      "label": "Mulai dari sini",
      "w": 156,
      "h": 44,
      "x": 867,
-     "y": 15
+     "y": 71
     }
    ],
    "hash_changed": true,
@@ -330,14 +330,14 @@
      "w": 211,
      "h": 42,
      "x": 5,
-     "y": 504
+     "y": 560
     },
     {
      "label": "Mulai dari sini",
      "w": 218,
      "h": 44,
      "x": 805,
-     "y": 15
+     "y": 71
     }
    ]
   },
@@ -376,11 +376,11 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 12009,
+  "_ms": 13576,
   "_clicks": 8
  },
  "S19_onboarding_sheet_mobile": {
-  "sheet_ms_after_login": 6,
+  "sheet_ms_after_login": 8,
   "sheet": {
    "height": 490,
    "height_pct": 58.1,
@@ -527,7 +527,7 @@
    "main_padding_bottom": "50px"
   },
   "pageerrors": [],
-  "_ms": 9932,
+  "_ms": 10220,
   "_clicks": 6
  },
  "S20_chart_tokens": {
@@ -6456,7 +6456,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 3955,
+  "_ms": 10346,
   "_clicks": 0
  },
  "S20_chart_tokens_mobile": {
@@ -12385,7 +12385,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 3180,
+  "_ms": 3873,
   "_clicks": 0
  },
  "S21_module_accents_breadcrumb": {
@@ -14422,7 +14422,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 97572,
+  "_ms": 101661,
   "_clicks": 11
  },
  "S21_module_accents_breadcrumb_mobile": {
@@ -16491,7 +16491,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 96288,
+  "_ms": 99177,
   "_clicks": 11
  },
  "S22_launcher_truth": {
@@ -18129,7 +18129,7 @@
     "Failed to load resource: the server responded with a status of 403 (Forbidden)"
    ]
   },
-  "_ms": 30064,
+  "_ms": 30613,
   "_clicks": 1
  },
  "S22_launcher_truth_mobile": {
@@ -19626,7 +19626,7 @@
     "Failed to load resource: the server responded with a status of 403 (Forbidden)"
    ]
   },
-  "_ms": 33315,
+  "_ms": 33561,
   "_clicks": 2
  },
  "S23_dashboard_per_role": {
@@ -19996,7 +19996,7 @@
    "progres_card_says_mine": true
   },
   "ok": true,
-  "_ms": 87560,
+  "_ms": 88293,
   "_clicks": 0
  },
  "S23_setup_drawer": {
@@ -20136,7 +20136,7 @@
   },
   "resized_survived": true,
   "ok": true,
-  "_ms": 17160,
+  "_ms": 18361,
   "_clicks": 8
  },
  "S23_honest_failure": {
@@ -20167,7 +20167,7 @@
   ],
   "other_cards_lost": [],
   "ok": true,
-  "_ms": 10702,
+  "_ms": 11479,
   "_clicks": 0
  },
  "S23_dashboard_mobile": {
@@ -20204,7 +20204,7 @@
    "min_px": 44
   },
   "ok": true,
-  "_ms": 5681,
+  "_ms": 5608,
   "_clicks": 0
  },
  "S26_gantt": {
@@ -22142,7 +22142,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 8371,
+  "_ms": 9306,
   "_clicks": 2
  },
  "S26_gantt_mobile": {
@@ -24082,7 +24082,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 8022,
+  "_ms": 8247,
   "_clicks": 2
  },
  "S27_pwa": {
@@ -24102,7 +24102,7 @@
   "online_shell_fetch": {
    "status": 200,
    "delivery": "",
-   "transfer": 169901
+   "transfer": 171946
   },
   "online_shell_via_worker": true,
   "ribbon_online": {
@@ -24206,7 +24206,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 35415,
+  "_ms": 36170,
   "_clicks": 1
  },
  "S43_primitif_ui2": {
@@ -24457,7 +24457,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 6645,
+  "_ms": 6496,
   "_clicks": 0
  },
  "S44_chip_filter": {
@@ -24536,7 +24536,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 16771,
+  "_ms": 17626,
   "_clicks": 2
  },
  "S45_seleksi_massal": {
@@ -24744,7 +24744,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 22833,
+  "_ms": 24537,
   "_clicks": 3
  },
  "S46_tampilan_tersimpan": {
@@ -25023,7 +25023,7 @@
   "galat": [],
   "failed_checks": [],
   "ok": true,
-  "_ms": 50499,
+  "_ms": 51272,
   "_clicks": 11
  },
  "S47_formulir_halaman": {
@@ -25081,7 +25081,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 23653,
+  "_ms": 23570,
   "_clicks": 3
  },
  "S48_papan_keyboard": {
@@ -25152,7 +25152,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 11142,
+  "_ms": 11298,
   "_clicks": 0
  },
  "S49_kepala_dokumen": {
@@ -25189,7 +25189,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 7267,
+  "_ms": 7958,
   "_clicks": 0
  },
  "S50_kepala_laporan_keuangan": {
@@ -25433,7 +25433,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 38224,
+  "_ms": 39173,
   "_clicks": 0
  },
  "S51_ubin_proyek_dan_grafik": {
@@ -25484,7 +25484,7 @@
   },
   "failed_checks": [],
   "ok": true,
-  "_ms": 24046,
+  "_ms": 23990,
   "_clicks": 0
  },
  "S52_lapisan_daftar_generik": {
@@ -25562,7 +25562,7 @@
   "total_bool": 14,
   "failed_checks": [],
   "ok": true,
-  "_ms": 21299,
+  "_ms": 21618,
   "_clicks": 0
  },
  "S53_satu_ukuran_per_baris_ubin": {
@@ -25797,7 +25797,7 @@
   "baris_diperiksa": 15,
   "failed_checks": [],
   "ok": true,
-  "_ms": 63162,
+  "_ms": 64170,
   "_clicks": 0
  }
 }

@@ -2053,9 +2053,17 @@ sentuh** (keputusan pemilik). Ia ditulis di aturan dasar `.th-sort`, bukan di bl
   tanpa kolom terurut tidak bergerak sama sekali. Sasaran di bawah 24 px di meja: **637 → 331**,
   `.th-sort` tersisa **nol**; di kertas 553 → 553.
 
-Empat kontrol yang aplikasi gambar sendiri MASIH di bawah ambang di meja, dan ketiganya keputusan
-tersendiri karena menyentuh komponen lain: tiga entri agenda `#/kalender` 20 px (kisi bulan 390 px)
-dan satu `.chip-x` 18 px (bilah chip filter tumbuh ~6 px). Sisanya ternaungi pengecualian.
+**`.chip-x` ditutup pada hari yang sama, dan tanpa satu piksel pun bergerak.** Sasaran 24 × 24,
+lingkaran yang tergambar tetap 18 px: `padding: 3px` menaikkan kotaknya, `background-clip:
+content-box` menahan latar hover di dalam 18 px itu, dan `margin: -3px` mengembalikan sumbangannya
+ke tata letak menjadi 18 px di KEDUA sumbu. Potret piksel chip dan chip-ter-hover terhadap `main`:
+**0 dari 3.614 piksel berbeda**, 139 × 26 px. Dua jebakan yang hanya ketahuan dengan mengukur:
+bentuk PENDEK `background:` di aturan `:hover` menyetel ulang `background-clip` (pakai
+`background-color`), dan kompensasi satu sumbu saja membiarkan chipnya melebar 139 → 145 px.
+
+**Satu kontrol** yang aplikasi gambar sendiri masih di bawah ambang di meja: tiga entri agenda
+`#/kalender` 20 px — menaikkannya mengubah kisi bulan di 390 px, jadi keputusan kepadatan kalender.
+Sisanya ternaungi pengecualian "user agent default" dan "tautan sebaris".
 **Lantai kotak centang itu hanya untuk `th.pick`, bukan `.pick`** — `.pick` juga mencocokkan
 `td.pick`, yang `list.js` taruh di SETIAP baris badan daftar beraksi massal, dan menaikkannya
 menumbuhkan baris yang kepadatannya dibekukan pemilik: padat 32 → 39,5 px, lega 48 → 51,5 px.
