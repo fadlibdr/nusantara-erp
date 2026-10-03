@@ -89,10 +89,78 @@ class ListViewWiringTest extends ErpTestCase
             'Aturan cetak panah urut tidak lagi berada di dalam blok @media print — panah kolom diam ikut tercetak sebagai kontrol mati.');
     }
 
+    /* ------------------------------------------------------------ E1.4 */
+
+    /** Bilah alat dibangun sekali; renderAll hanya menyegarkannya, dan kotak Cari yang sedang diketik tidak ditimpa. */
+    public function test_the_toolbar_is_built_once_and_only_refreshed(): void
+    {
+        $list = $this->spa('views/list.js');
+        $render = $this->functionBody($list, 'function renderAll() {');
+        $this->assertNotNull($render, 'renderAll() hilang dari list.js.');
+        $this->assertStringNotContainsString('clear(tableHost)', $render,
+            'renderAll membuang bilahnya lagi: kotak Cari yang sedang diketik dicabut di setiap muatan.');
+        $this->assertStringContainsString('syncToolbar();', $render);
+        $this->assertStringContainsString('clear(listBody);', $render);
+        $this->assertStringNotContainsString('function filterBar(', $list);
+
+        // Dipasang SEKALI, di luar renderAll.
+        $this->assertStringContainsString('tableHost.append(toolbar, viewRow, chipRow, listBody);', $list);
+        $this->assertStringNotContainsString('tableHost.append(toolbar', $render);
+
+        $sync = $this->functionBody($list, 'function syncToolbar() {');
+        $this->assertNotNull($sync);
+        $this->assertStringContainsString('if (document.activeElement !== searchInput) searchInput.value = ui.q;', $sync);
+
+        // Jeda Cari yang tertunda dibatalkan oleh setiap jalan "berhenti menyaring".
+        foreach (['function resetFilters() {', 'function applyView(view) {'] as $signature) {
+            $body = $this->functionBody($list, $signature);
+            $this->assertNotNull($body, "{$signature} hilang.");
+            $this->assertStringContainsString('cancelSearch();', $body, "{$signature} tidak membatalkan ketikan Cari yang masih menunggu jedanya.");
+        }
+    }
+
+    /** Kontrol saringan di popover Filter: tetap di bawah `.filters`, hidup selagi tertutup, Escape kedua miliknya. */
+    public function test_the_filter_controls_live_in_a_popover_that_respects_the_combobox(): void
+    {
+        $list = $this->spa('views/list.js');
+        $this->assertStringContainsString("const filterGrid = el('.filters.filter-grid');", $list);
+
+        $paint = $this->functionBody($list, 'function paintFilters() {');
+        $this->assertNotNull($paint);
+        // Dibangun ulang hanya bila keadaan saringannya berpindah, dengan popup combobox lama ditutup lebih dulu.
+        $this->assertStringContainsString('if (next === builtFilters) return;', $paint);
+        $this->assertLessThan(strpos($paint, 'clear(filterGrid);'), strpos($paint, 'filterCombos.forEach((combo) => combo.closePopup());'));
+        $this->assertStringContainsString('filterGrid.appendChild(field(filter.label, buildFilter(filter)));', $paint);
+
+        $popover = $this->functionBody($list, 'function listPopover({ wrap, toggle, panel, onClose }) {');
+        $this->assertNotNull($popover, 'listPopover() hilang dari list.js.');
+        // Fase gelembung: combobox menelan Escape pertamanya sendiri.
+        $this->assertStringContainsString("document.addEventListener('keydown', onKey);", $popover);
+        $this->assertDoesNotMatchRegularExpression("/addEventListener\('keydown', onKey, (true|\{)/", $popover,
+            'Escape popover didengar di fase tangkap: Escape pertama membuang popover bersama daftar combobox-nya.');
+        $this->assertStringContainsString('if (modalDepth() > 0) return;', $popover);
+        // Daftar combobox menempel di <body>: memilih darinya bukan "klik di luar".
+        $this->assertStringContainsString("target.closest('.combo-pop')", $popover);
+        $this->assertStringContainsString("document.addEventListener('pointerdown', onOutside, true);", $popover);
+
+        $this->assertStringNotContainsString('combo.node.style.width', $list, 'Lebar combobox sebaris kembali — kisi popover yang memegangnya.');
+
+        $css = $this->css();
+        $this->assertStringContainsString('.filter-pop[hidden] { display: none; }', $css);
+        $this->assertStringContainsString('.filter-count[hidden] { display: none; }', $css);
+        $this->assertStringContainsString('.list-toolbar .btn[hidden], .filter-wrap[hidden] { display: none; }', $css);
+        // Satu literal 11 px untuk dua bilah, bukan salinan kedua (CONVENTIONS §13a).
+        $this->assertStringContainsString(".filters, .list-toolbar {\n  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;\n  padding: 11px 12px;", $css);
+        // Kertas: bilah alat adalah kontrol.
+        $this->assertStringContainsString('.list-toolbar { display: none !important; }', $css);
+        // Teks kotak Cari mulai sesudah ikonnya — aturan umum input[type=text] tidak lagi menang.
+        $this->assertStringContainsString('.search input[type=text] { width: 100%; padding-left: 32px; }', $css);
+    }
+
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(48, (int) $version[1],
+        $this->assertGreaterThanOrEqual(49, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 

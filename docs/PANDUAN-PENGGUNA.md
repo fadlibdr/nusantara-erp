@@ -654,10 +654,16 @@ Susunannya dari atas ke bawah:
    menjelaskan layar itu (hari ini pada Pesanan Pembelian). Di kanan atas: tombol aksi
    tingkat halaman (bila ada), ikon **Muat ulang**, dan **`Tambah <nama dokumen>`** — yang
    terakhir hanya muncul bila Anda memegang izin membuat.
-2. **Bilah saring**: kotak **Cari** (bekerja 320 milidetik setelah Anda berhenti
-   mengetik), saringan khusus layar itu, sepasang **Dari tanggal** / **Sampai tanggal**
-   (hanya pada layar yang punya kolom tanggal dokumen — tidak semua punya), tombol
-   **`Reset`** (muncul hanya bila ada saringan aktif), dan **`Ekspor CSV`**.
+2. **Bilah alat**: kotak **Cari** (bekerja 320 milidetik setelah Anda berhenti
+   mengetik; Anda boleh terus mengetik selama daftarnya dimuat ulang), tombol
+   **`Filter`**, tombol **`Reset`** (muncul hanya bila ada saringan aktif), dan di ujung
+   kanan **`Ekspor CSV`**. **`Filter`** membuka panel kecil berisi saringan khusus layar
+   itu — mis. Status, Vendor, Proyek — dan sepasang **Dari tanggal** / **Sampai tanggal**
+   (hanya pada layar yang punya kolom tanggal dokumen — tidak semua punya). Angka di
+   tombol **`Filter`** menyebut berapa saringan di panel itu yang sedang aktif; kotak Cari
+   tidak ikut dihitung. Panelnya tetap terbuka selama Anda memilih, dan tertutup dengan
+   **Esc** (bila daftar pilihan Vendor/Proyek sedang terbuka, Esc pertama menutup daftar
+   itu dulu), dengan klik di luar panel, atau dengan menekan **`Filter`** lagi.
 3. **Tabel**. Kolom uang mendapat baris kaki berlabel **"Total halaman ini"**.
 4. **Pager**: `Menampilkan 1–20 dari 137 data`, pemilih jumlah baris (20 bawaan, lalu
    25/50/100/200), nomor halaman, dan panah maju-mundur.

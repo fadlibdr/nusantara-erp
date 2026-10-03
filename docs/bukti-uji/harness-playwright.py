@@ -1834,6 +1834,32 @@ S54_SORT_PRINT = """() => {
 }"""
 
 
+S54_FILTER_STATE = """() => {
+  const pop = document.querySelector('.filter-pop');
+  const toggle = document.querySelector('.list-toolbar .filter-toggle');
+  const pill = document.querySelector('.filter-count');
+  const search = document.querySelector('.list-toolbar input[aria-label="Cari"]');
+  const icon = document.querySelector('.list-toolbar .search svg');
+  const controls = [...document.querySelectorAll('.filter-pop .filters select, .filter-pop .filters input')];
+  const active = document.activeElement;
+  return {
+    open: !!pop && !pop.hidden,
+    expanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+    controls: controls.map((n) => n.getAttribute('aria-label')),
+    visible: controls.filter((n) => n.checkVisibility()).map((n) => n.getAttribute('aria-label')),
+    // Angkanya saja: .sr-only " saringan aktif" ikut di innerText.
+    pill: pill && !pill.hidden ? (pill.firstChild ? pill.firstChild.textContent.trim() : '') : null,
+    active: active ? active.getAttribute('aria-label') : null,
+    active_class: active ? [...active.classList].filter((c) => c !== 'btn').join(' ') : null,
+    combo_open: !!document.querySelector('.combo-pop'),
+    hash: location.hash,
+    toolbar_h: +document.querySelector('.list-toolbar').getBoundingClientRect().height.toFixed(1),
+    search_pad: search ? parseFloat(getComputedStyle(search).paddingLeft) : null,
+    search_icon_right: search && icon ? Math.round(icon.getBoundingClientRect().right - search.getBoundingClientRect().left) : null,
+  };
+}"""
+
+
 @scenario("S54_bilah_daftar")
 def s54(pg):
     """UX-E1: bilah daftar generik — balapan muat (E1.2) dan blok-blok tugas berikutnya."""
@@ -1850,6 +1876,7 @@ def s54(pg):
     pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
     pg.wait_for_timeout(800)
     out["balapan"] = {"patch": pg.evaluate(S54_DELAY_DRAFT)}
+    buka_saringan(pg)  # UX-E1.4: kontrol Status duduk di popover Filter
     status_select = ".filters select[aria-label='Status']"
     pg.select_option(status_select, "draft")
     pg.wait_for_timeout(120)
@@ -1933,6 +1960,118 @@ def s54(pg):
             if printed["overflow_x"] > 1:
                 checks.append(f"urut: cetak — halaman meluber {printed['overflow_x']} px ke samping")
     out["urut"]["langkah"] = steps
+
+    # ------------------------------------------------------------ saringan (E1.4)
+    # Bilah alat dibangun SEKALI: popover Filter memegang kontrol saringan (tetap di DOM selagi
+    # tertutup), kotak Cari tidak kehilangan kursor saat daftarnya dimuat ulang, dan Escape
+    # pertama milik daftar combobox, bukan popover-nya.
+    sar = {}
+    pg.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    sar["tertutup"] = pg.evaluate(S54_FILTER_STATE)
+    t = sar["tertutup"]
+    if t["expanded"] != "false" or t["open"]:
+        checks.append(f"saringan: popover terbuka tanpa diminta ({t['expanded']!r}, open={t['open']})")
+    if "Status" not in t["controls"]:
+        checks.append(f"saringan: select Status tidak ada di DOM selagi popover tertutup ({t['controls']!r}) — chip kehilangan sumber labelnya")
+    if t["search_pad"] is None or t["search_pad"] < t["search_icon_right"] + 4:
+        checks.append(f"saringan: teks kotak Cari mulai pada {t['search_pad']} px, ikon kaca pembesar berakhir pada {t['search_icon_right']} px")
+    sar["tinggi_bilah_1440"] = t["toolbar_h"]
+
+    click(pg, ".list-toolbar .filter-toggle")
+    pg.wait_for_selector(".filter-pop:not([hidden])", timeout=5000)
+    sar["dibuka"] = pg.evaluate(S54_FILTER_STATE)
+    d = sar["dibuka"]
+    want = ["Status", "Vendor", "Proyek", "Dari tanggal", "Sampai tanggal"]
+    if [c for c in want if c not in d["visible"]]:
+        checks.append(f"saringan: popover terbuka tanpa {[c for c in want if c not in d['visible']]!r} (terlihat {d['visible']!r})")
+    if d["active"] != "Status":
+        checks.append(f"saringan: membuka popover tidak memfokus kontrol pertamanya (fokus {d['active']!r})")
+
+    pg.select_option(".filters select[aria-label='Status']", "approved")
+    pg.wait_for_timeout(1500)
+    sar["status"] = pg.evaluate(S54_FILTER_STATE)
+    st = sar["status"]
+    if not st["open"] or st["active"] != "Status" or st["pill"] != "1":
+        checks.append(f"saringan: sesudah Status — terbuka={st['open']}, fokus={st['active']!r}, lencana={st['pill']!r} (harus terbuka, Status, '1')")
+
+    click(pg, ".filter-pop .combo input[aria-label='Vendor']")
+    pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000)
+    # Indeks, bukan teks: baris vendor terdiri dari beberapa span (kode · bintang — nama).
+    pick = pg.evaluate("""() => { const opts = [...document.querySelectorAll('.combo-pop .combo-opt')];
+      const i = opts.findIndex((o) => o.innerText.trim() !== '—');
+      return i < 0 ? null : { index: i, text: opts[i].innerText.replace(/\\s+/g, ' ').trim() }; }""")
+    sar["vendor_dipilih"] = pick
+    if not pick:
+        checks.append("saringan: daftar Vendor tidak punya satu pun vendor untuk dipilih")
+    else:
+        pg.click(f".combo-pop .combo-opt >> nth={pick['index']}")
+        pg.wait_for_timeout(1600)
+        sar["vendor"] = pg.evaluate(S54_FILTER_STATE)
+        v = sar["vendor"]
+        if not v["open"] or v["pill"] != "2" or "vendor_id=" not in v["hash"]:
+            checks.append(f"saringan: sesudah Vendor — terbuka={v['open']}, lencana={v['pill']!r}, hash={v['hash']!r} (harus terbuka, '2', vendor_id)")
+        if v["active"] != "Vendor":
+            checks.append(f"saringan: fokus lepas dari Vendor sesudah memilih ({v['active']!r})")
+
+    # Escape pertama menutup daftar combobox SAJA; yang kedua menutup popover dan kembali ke tombolnya.
+    click(pg, ".filter-pop .combo input[aria-label='Proyek']")
+    pg.wait_for_selector(".combo-pop", timeout=8000)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(300)
+    sar["escape_1"] = pg.evaluate(S54_FILTER_STATE)
+    if sar["escape_1"]["combo_open"] or not sar["escape_1"]["open"]:
+        checks.append(f"saringan: Escape pertama — daftar combobox terbuka={sar['escape_1']['combo_open']}, popover terbuka={sar['escape_1']['open']} (harus: daftar tertutup, popover tetap)")
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(300)
+    sar["escape_2"] = pg.evaluate(S54_FILTER_STATE)
+    if sar["escape_2"]["open"] or sar["escape_2"]["active_class"] != "filter-toggle":
+        checks.append(f"saringan: Escape kedua — popover terbuka={sar['escape_2']['open']}, fokus={sar['escape_2']['active_class']!r} (harus tertutup, tombol Filter)")
+
+    # Klik di luar menutupnya.
+    click(pg, ".list-toolbar .filter-toggle")
+    pg.wait_for_selector(".filter-pop:not([hidden])", timeout=5000)
+    pg.mouse.click(700, 110)  # bidang judul halaman, jauh dari bilah dan panel
+    pg.wait_for_timeout(300)
+    sar["klik_luar"] = pg.evaluate(S54_FILTER_STATE)
+    if sar["klik_luar"]["open"]:
+        checks.append("saringan: klik di luar tidak menutup popover")
+
+    # Kotak Cari: mengetik melewati muatan ulang (jeda 320 ms) tanpa kehilangan kursor.
+    click(pg, ".list-toolbar input[aria-label='Cari']")
+    pg.keyboard.type("PO", delay=150)
+    pg.wait_for_timeout(1000)
+    sar["cari"] = pg.evaluate("() => ({ active: document.activeElement.getAttribute('aria-label'), value: document.activeElement.value, hash: location.hash })")
+    if sar["cari"]["active"] != "Cari" or sar["cari"]["value"] != "PO":
+        checks.append(f"saringan: kotak Cari kehilangan kursor/isi sesudah muatan ulang ({sar['cari']!r})")
+    if "q=PO" not in sar["cari"]["hash"]:
+        checks.append(f"saringan: ketikan tidak pernah memuat ulang daftarnya (hash {sar['cari']['hash']!r})")
+    pg.screenshot(path=f"{OUT}/s54-saringan.png")
+
+    # 390 px: panelnya di dalam layar dan halamannya tidak bergeser ke samping.
+    ctx390 = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        p390 = ctx390.new_page()
+        p390.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(p390, "admin@nusantara.test")
+        p390.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+        p390.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        p390.wait_for_timeout(900)
+        sar["tinggi_bilah_390"] = p390.evaluate(S54_FILTER_STATE)["toolbar_h"]
+        p390.click(".list-toolbar .filter-toggle")
+        p390.wait_for_selector(".filter-pop:not([hidden])", timeout=5000)
+        p390.wait_for_timeout(300)
+        sar["ponsel"] = p390.evaluate("""() => { const r = document.querySelector('.filter-pop').getBoundingClientRect();
+          return { left: Math.round(r.left), right: Math.round(r.right), vw: document.documentElement.clientWidth,
+                   overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth }; }""")
+        m = sar["ponsel"]
+        if m["left"] < 0 or m["right"] > m["vw"] or m["overflow_x"] > 0:
+            checks.append(f"saringan: 390 px — panel {m['left']}..{m['right']} dalam layar {m['vw']}, luber {m['overflow_x']} px")
+        p390.screenshot(path=f"{OUT}/s54-saringan-390.png")
+    finally:
+        ctx390.close()
+    out["saringan"] = sar
 
     out["console_errors"] = errors
     if errors:
@@ -14174,6 +14313,24 @@ VIEWS = """() => {
 }"""
 
 
+def buka_saringan(pg):
+    """UX-E1.4: saringan khusus layar duduk di popover Filter — select_option butuh kontrol TERLIHAT.
+
+    Diklik hanya bila popover-nya tertutup (tombolnya membalik: klik kedua menutup)."""
+    toggle = ".list-toolbar .filter-toggle"
+    pg.wait_for_selector(toggle, timeout=10000)
+    if pg.get_attribute(toggle, "aria-expanded") == "false":
+        click(pg, toggle)
+    pg.wait_for_selector(".filter-pop:not([hidden])", timeout=5000)
+
+
+def tutup_saringan(pg):
+    """Escape menutup popover Filter (pendengar document fase gelembung) — baris tampilan dan
+    chip berada DI BAWAH panel yang terbuka, jadi klik ke sana harus menunggu ini."""
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".filter-pop", state="hidden", timeout=5000)
+
+
 @scenario("S46_tampilan_tersimpan")
 def s46(browser):
     """UI-4c: keadaan layar daftar yang diberi nama — dan yang benar-benar mengikuti ORANGNYA.
@@ -14282,18 +14439,25 @@ def s46(browser):
         #    `ui.filters[key] = value` menyisipkan kunci sesuai urutan klik.
         PENAWARAN = "#/r/crm/quotations"
         pg.goto(BASE + PENAWARAN); pg.wait_for_timeout(2600)
+        buka_saringan(pg)  # UX-E1.4: kontrolnya di popover Filter
         pilihan = pg.evaluate("""() => ({
           status: [...document.querySelectorAll('.filters select[aria-label="Status"] option')].map((o) => o.value).filter(Boolean),
           lingkup: [...document.querySelectorAll('.filters select[aria-label="Lingkup"] option')].map((o) => o.value).filter(Boolean),
         })""")
         if not pilihan["status"] or not pilihan["lingkup"]:
-            out["SKIPPED"] = f"layar penawaran tidak punya dua filter select: {pilihan}"
+            # Sejak UX-E1.4 popover-nya DIBUKA dengan sengaja sebelum dibaca, jadi dua select
+            # yang tidak ada adalah galat, bukan fixture yang hilang (runner tidak menghitung SKIPPED).
+            galat.append(f"layar penawaran tidak punya dua filter select di popover Filter: {pilihan}")
+            out["galat"] = galat
+            out["failed_checks"] = galat
+            out["ok"] = False
             return out
         st, lk = pilihan["status"][0], pilihan["lingkup"][0]
 
         pg.select_option('.filters select[aria-label="Status"]', st); pg.wait_for_timeout(1700)
         pg.select_option('.filters select[aria-label="Lingkup"]', lk); pg.wait_for_timeout(1900)
         out["urutan_a"] = pg.evaluate(VIEWS)
+        tutup_saringan(pg)  # baris tampilan berada di bawah panel yang terbuka
 
         click(pg, ".chips.views button.btn"); pg.wait_for_timeout(700)
         pg.fill(".modal input[type=text]", "Urutan A")
@@ -14301,9 +14465,11 @@ def s46(browser):
 
         # Saringan yang SAMA, diisi TERBALIK: Lingkup dulu, baru Status.
         click(pg, ".chips.active-filters button.btn"); pg.wait_for_timeout(1900)   # Hapus semua
+        buka_saringan(pg)
         pg.select_option('.filters select[aria-label="Lingkup"]', lk); pg.wait_for_timeout(1700)
         pg.select_option('.filters select[aria-label="Status"]', st); pg.wait_for_timeout(1900)
         out["urutan_terbalik"] = pg.evaluate(VIEWS)
+        tutup_saringan(pg)
 
         if out["urutan_terbalik"]["url"] == out["urutan_a"]["url"]:
             galat.append(f"kedua urutan menghasilkan query yang sama ({out['urutan_a']['url']!r}) — "

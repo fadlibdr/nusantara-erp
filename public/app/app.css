@@ -1020,7 +1020,11 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .cell-yes { color: var(--success); font-weight: var(--fw-bold); }
 
 /* --------------------------------------------------------------- filters */
-.filters {
+/* `.list-toolbar` (UX-E1.4) — bilah alat layar daftar — DIKELOMPOKKAN di sini,
+   bukan disalin: 11 px adalah literal di luar skala yang CONVENTIONS §13a
+   biarkan pada padding komponen, dan salinan kedua akan melahirkannya lagi.
+   23 layar lain memakai `.filters` apa adanya; deklarasinya tidak berubah. */
+.filters, .list-toolbar {
   display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
   padding: 11px 12px;
   border-bottom: 1px solid var(--border);
@@ -1032,8 +1036,55 @@ table.data tr.emphasis td { background: var(--surface-2); }
   position: relative;
   flex: 1 1 230px; min-width: 180px; max-width: 340px;
 }
-.search input { width: 100%; padding-left: 32px; }
+/* `[type=text]`, bukan `input` telanjang (UX-E1.4): aturan umum
+   `input[type=text]` di bawah berspesifisitas SAMA (0,1,1) dan ditulis
+   sesudahnya, jadi `padding: 0 10px`-nya menang sejak komit pertama — teks dan
+   placeholder kotak Cari mulai pada 10 px, DI ATAS ikon kaca pembesar (10–24 px).
+   Terukur di daftar PO, Barang (custom.js) dan Cacat (defect.js). */
+.search input[type=text] { width: 100%; padding-left: 32px; }
 .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: .45; pointer-events: none; }
+
+/* Bilah alat daftar (views/list.js, UX-E1.4): Cari · Filter · Reset · Ekspor CSV,
+   dibangun sekali per layar. Popover Filter berlabuh pada bilahnya, bukan pada
+   tombolnya, supaya tepi kirinya sejajar kotak Cari di setiap lebar. */
+.list-toolbar { position: relative; }
+/* `.btn` dan `.filter-wrap` menulis `display` sendiri, yang MENGALAHKAN
+   `[hidden] { display: none }` milik peramban — tanpa dua aturan ini Reset dan
+   tombol Filter tetap tampil saat disembunyikan. */
+.list-toolbar .btn[hidden], .filter-wrap[hidden] { display: none; }
+.filter-wrap { display: inline-flex; }
+.filter-pop {
+  position: absolute; top: calc(100% + 4px); left: 12px; z-index: 25;
+  width: min(560px, calc(100vw - 32px));
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.filter-pop[hidden] { display: none; }
+/* Kontrolnya tetap di bawah `.filters` (nama yang dibaca harness dan chip), jadi
+   tampilan bilah `.filters` dinetralkan di sini dan diganti kisi dua kolom. */
+.filter-pop .filters {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3);
+  padding: 0; border: 0; background: none; border-radius: 0;
+}
+.filter-pop input.filter-w, .filter-pop select.filter-w, .filter-pop .combo { width: 100%; min-width: 0; max-width: none; }
+/* Jumlah saringan aktif di tombol Filter: angka saja; pembaca layar mendengar
+   "2 saringan aktif" lewat .sr-only di dalamnya. Hilang pada nol. */
+.filter-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--primary); color: var(--primary-fg);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.filter-count[hidden] { display: none; }
+@media (max-width: 760px) {
+  .filter-pop { left: 12px; right: 12px; width: auto; }
+  .filter-pop .filters { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* --------------------------------------------------------------- inputs */
 input[type=text], input[type=password], input[type=email], input[type=number],
@@ -2103,6 +2154,9 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
   .nav, .brand, .header, .page-head .actions, .filters, .pager,
   .toasts, .overlay, .tabs { display: none !important; }
+  /* UX-E1.4: bilah alat daftar menggantikan `.filters` di layar daftar — Cari,
+     Filter, Reset, dan Ekspor CSV adalah kontrol, sama seperti bilah lamanya. */
+  .list-toolbar { display: none !important; }
   /* UX-C.3: tombol keputusan dan ringkasan galat adalah kontrol, bukan isi dokumen. */
   .action-panel-actions, .error-summary, .overflow-menu { display: none !important; }
   /* Seleksi adalah keadaan LAYAR: bilahnya dan kolom centangnya tidak punya

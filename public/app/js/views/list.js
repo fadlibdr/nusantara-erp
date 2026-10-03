@@ -1,7 +1,7 @@
 /* Generic list screen: search, filters, table, pagination, row actions. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader } from '../ui.js';
+import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader, field, modalDepth } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -91,7 +91,7 @@ function seedFromUrl(key, def, ui) {
    * filternya terkirim, dan queryParams() menimpa setiap perubahan berikutnya
    * dengan nilai usang itu. Maka pasangan ini diarahkan ke tempat yang dibaca
    * input penampilnya; format kirim ke API identik dua-duanya. Pada resource
-   * yang sudah diadopsi, migrasi filterBar tetap memindahkannya ke
+   * yang sudah diadopsi, migrasi paintFilters tetap memindahkannya ke
    * ui.dateFrom/ui.dateTo begitu meta.date_column tiba.
    */
   const legacyDates = declared.has('date_from') || declared.has('date_to');
@@ -174,9 +174,10 @@ export async function renderList(host, { key, def }) {
    * Yang dicegahnya jujur lebih kecil daripada yang dijanjikan versi lama:
    * BUKAN "mengecat di atas layar baru". renderAll dan renderRows hanya menulis
    * ke dalam tableHost, dan tableHost yatim tidak terlihat siapa pun. Yang
-   * dicegahnya adalah KERJANYA — merakit bilah filter lengkap dengan
-   * combobox-nya, lalu seluruh tabel, untuk layar yang sudah ditinggalkan,
-   * setiap kali sebuah endpoint lambat mendarat terlambat.
+   * dicegahnya adalah KERJANYA — menyegarkan bilah alat (dan membangun ulang
+   * kontrol saringannya bila keadaannya berpindah), lalu merakit seluruh tabel,
+   * untuk layar yang sudah ditinggalkan, setiap kali sebuah endpoint lambat
+   * mendarat terlambat.
    *
    * Efek yang benar-benar keluar dari tableHost ada dua, dan keduanya di luar
    * jangkauan penjaga ini: syncUrl() menulis ke bilah alamat — ia sudah punya
@@ -219,11 +220,11 @@ export async function renderList(host, { key, def }) {
    */
   let loadSeq = 0;
 
-  /* Combobox filter milik bilah yang sedang terpasang. Popup-nya menempel di
-     <body> (position: fixed), jadi clear(tableHost) pada renderAll TIDAK ikut
-     mencabutnya: filter yang popup-nya terbuka saat muatan pertama tiba
-     meninggalkan daftar yatim melayang di atas tabel sampai klik berikutnya.
-     renderAll menutupnya eksplisit sebelum menukar bilah. */
+  /* Combobox filter milik kontrol saringan yang sedang terpasang. Popup-nya
+     menempel di <body> (position: fixed), jadi membuang kontrolnya TIDAK ikut
+     mencabut popup itu: daftar yatim akan melayang di atas tabel sampai klik
+     berikutnya. paintFilters() menutupnya eksplisit sebelum membangun ulang
+     kontrol, dan menutup popover Filter menutupnya juga (UX-E1.4). */
   let filterCombos = [];
 
   /*
@@ -364,6 +365,9 @@ export async function renderList(host, { key, def }) {
   }
 
   function resetFilters() {
+    // Ketikan yang masih menunggu jedanya akan memasang q-nya lagi 320 ms
+    // sesudah "berhenti menyaring" — dibatalkan di sini (UX-E1.4).
+    cancelSearch();
     ui.q = '';
     ui.filters = {};
     ui.dateFrom = '';
@@ -543,7 +547,11 @@ export async function renderList(host, { key, def }) {
    * memperbaikinya: disusun di desktop kantor, tidak ada di tablet lapangan.
    */
   const viewRoute = `r/${key}`;
-  let viewRow = null;
+  /* Tampilan tersimpan DI ATAS chip saringan, urutan yang sama dengan
+     prototipe: yang pertama dibaca adalah "saya sedang melihat tampilan mana",
+     baru "apa yang sedang mempersempitnya". Dibangun SEKALI (UX-E1.4) dan
+     dilukis ulang oleh paintViews(); dipasang di tableHost di akhir renderList. */
+  const viewRow = el('.chips.views', { hidden: true });
 
   /*
    * Dua query dianggap SAMA bila pasangannya sama — urutannya tidak dihitung,
@@ -582,6 +590,7 @@ export async function renderList(host, { key, def }) {
    * fungsi, bukan satu.
    */
   function applyView(view) {
+    cancelSearch(); // alasan yang sama dengan resetFilters()
     // replacePath, alasan yang sama dengan syncUrl di atas.
     replacePath(`r/${key}${view.query ? `?${view.query}` : ''}`);
     ui.q = '';
@@ -642,7 +651,6 @@ export async function renderList(host, { key, def }) {
   }
 
   function paintViews() {
-    if (!viewRow) return;
     clear(viewRow);
 
     const views = prefs.savedViews(viewRoute);
@@ -720,15 +728,17 @@ export async function renderList(host, { key, def }) {
    * buruk daripada tidak ada chip sama sekali.
    */
   let activeFilters = [];
-  let chipRow = null;
+  /* `.chips.active-filters`, bukan `.chips` telanjang: sejak UI-4c ADA DUA
+     baris chip di layar ini, dan `querySelector('.chips')` memulangkan yang
+     pertama — baris tampilan. Dibangun sekali, seperti viewRow. */
+  const chipRow = el('.chips.active-filters', { hidden: true });
 
   function paintChips() {
-    if (!chipRow) return;
     clear(chipRow);
 
     const chips = [];
     if (ui.q) {
-      chips.push({ label: 'Cari', text: ui.q, clear: () => { ui.q = ''; ui.page = 1; load(); } });
+      chips.push({ label: 'Cari', text: ui.q, clear: () => { cancelSearch(); ui.q = ''; ui.page = 1; load(); } });
     }
     for (const one of activeFilters) {
       const text = one.text();
@@ -763,38 +773,222 @@ export async function renderList(host, { key, def }) {
     chipRow.appendChild(button('Hapus semua', { size: 'sm', variant: 'ghost', onClick: resetFilters }));
   }
 
-  function filterBar() {
-    filterCombos = [];
-    activeFilters = [];
-    const bar = el('.filters');
-    const meta = (payload && payload.meta) || {};
+  /*
+   * ============================ BILAH ALAT (UX-E1.4) ==========================
+   *
+   * Cari · Filter · Reset · Ekspor CSV — DIBANGUN SEKALI per gambar layar.
+   *
+   * Sampai paket ini renderAll() membuang dan membangun ulang seluruh bilah di
+   * setiap muatan, termasuk kotak Cari yang sedang diketik: jeda 320 ms memicu
+   * load(), load() memanggil renderAll() seketika, dan <input> yang memegang
+   * kursor dicabut dari halaman — orang yang mengetik "PO 12" pelan kehilangan
+   * kursornya sesudah "PO". Sekarang renderAll hanya MENYEGARKAN bilah ini
+   * (syncToolbar), dan kontrol saringan hanya dibangun ulang bila keadaan
+   * saringannya berubah (paintFilters).
+   *
+   * Saringan khusus layar duduk di popover "Filter". Kontrolnya TETAP di DOM
+   * selagi popover tertutup, dan itu syarat, bukan kebetulan: chip membaca label
+   * nilainya dari kontrol hidup (paintChips), dan pembaca lain (S30r) mencari
+   * `.filters select` tanpa membuka apa pun. Membangunnya malas akan
+   * mengosongkan chip pada muatan pertama.
+   */
+  let searchTimer = null;
+  function cancelSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+  }
 
-    const searchInput = el('input', {
-      type: 'text',
-      placeholder: `Cari ${def.label.toLowerCase()}…`,
-      value: ui.q,
-      'aria-label': 'Cari',
-    });
-    let timer;
-    searchInput.addEventListener('input', () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        ui.q = searchInput.value.trim();
-        ui.page = 1;
-        load();
-      }, 320);
-    });
-    bar.appendChild(el('.search', [icon('search', 14), searchInput]));
+  const searchInput = el('input', {
+    type: 'text',
+    placeholder: `Cari ${def.label.toLowerCase()}…`,
+    value: ui.q,
+    'aria-label': 'Cari',
+  });
+  searchInput.addEventListener('input', () => {
+    cancelSearch();
+    searchTimer = setTimeout(() => {
+      searchTimer = null;
+      ui.q = searchInput.value.trim();
+      ui.page = 1;
+      load();
+    }, 320);
+  });
+
+  /*
+   * Popover milik layar ini — Filter hari ini; Atur kolom (UX-E1.12) memakainya
+   * ulang. BUKAN menuButton(): isinya kontrol formulir, bukan menuitem, dan ia
+   * harus tetap HIDUP selagi tertutup (lihat catatan bilah alat di atas),
+   * sedangkan menuButton membangun popup-nya saat dibuka dan membuangnya saat
+   * ditutup. Aturan tutupnya mengikuti menuButton supaya dua popup di satu
+   * layar tidak berperilaku beda:
+   *
+   *  - Escape: pendengar document fase GELEMBUNG (bubble), tanpa capture.
+   *    Combobox menelan Escape pertamanya dengan stopPropagation()
+   *    (combobox.js), jadi Escape pertama menutup daftar pilihannya saja dan
+   *    Escape kedua menutup popover ini lalu mengembalikan fokus ke tombolnya.
+   *    Capture akan membalik urutan itu. Escape milik dialog yang terbuka
+   *    (modalDepth, atau sasaran di dalam .overlay) bukan urusannya.
+   *  - pointerdown di luar: fase tangkap, KECUALI di dalam .combo-pop — daftar
+   *    combobox menempel di <body>, jadi secara DOM ia "di luar"; tanpa
+   *    pengecualian ini memilih vendor menutup popover di tengah pilihan.
+   *  - fokus yang keluar (Tab melewati kontrol terakhir) dan pergantian rute.
+   */
+  function listPopover({ wrap, toggle, panel, onClose }) {
+    let open = false;
+
+    const controls = () => [...panel.querySelectorAll('input, select, textarea, button')]
+      .filter((node) => !node.disabled && node.getClientRects().length > 0);
+
+    function onKey(event) {
+      if (event.key !== 'Escape' && event.key !== 'Esc') return;
+      if (modalDepth() > 0) return;
+      if (event.target instanceof Element && event.target.closest('.overlay')) return;
+      event.preventDefault();
+      close({ refocus: true });
+    }
+
+    function onOutside(event) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (wrap.contains(target) || target.closest('.combo-pop')) return;
+      close();
+    }
+
+    function onFocusOut(event) {
+      const next = event.relatedTarget;
+      /* null = fokus tidak pindah ke elemen yang bisa disebut: kontrol yang sedang
+         dibangun ulang paintFilters(), atau jendela yang kehilangan fokus. Itu
+         bukan alasan menutup. */
+      if (!(next instanceof Element)) return;
+      if (wrap.contains(next) || next.closest('.combo-pop')) return;
+      close();
+    }
+
+    function onRoute() {
+      close();
+    }
+
+    function show() {
+      if (open) return;
+      open = true;
+      panel.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      document.addEventListener('keydown', onKey);
+      document.addEventListener('pointerdown', onOutside, true);
+      wrap.addEventListener('focusout', onFocusOut);
+      window.addEventListener('hashchange', onRoute);
+      const first = controls()[0];
+      if (first) first.focus({ preventScroll: true });
+    }
+
+    function close({ refocus = false } = {}) {
+      if (!open) return;
+      const held = panel.contains(document.activeElement);
+      open = false;
+      panel.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onOutside, true);
+      wrap.removeEventListener('focusout', onFocusOut);
+      window.removeEventListener('hashchange', onRoute);
+      if (onClose) onClose();
+      if (refocus || held) toggle.focus({ preventScroll: true });
+    }
+
+    toggle.addEventListener('click', () => (open ? close() : show()));
+    return { show, close, isOpen: () => open };
+  }
+
+  // Kontrol saringan dibangun di bawah `.filters` — nama kelas yang sama yang
+  // dibaca harness dan 23 layar lain; `.filter-grid` menatanya di dalam popover.
+  const filterGrid = el('.filters.filter-grid');
+  const filterCount = el('span.filter-count', { hidden: true });
+  const filterPop = el('.filter-pop', {
+    id: `saring-${key.replace(/[^a-z0-9]+/gi, '-')}`,
+    role: 'dialog',
+    'aria-label': `Saring ${def.label.toLowerCase()}`,
+    hidden: true,
+  }, filterGrid);
+  const filterToggle = button('Filter', { iconName: 'filter' });
+  filterToggle.classList.add('filter-toggle');
+  filterToggle.appendChild(filterCount);
+  filterToggle.setAttribute('aria-haspopup', 'dialog');
+  filterToggle.setAttribute('aria-expanded', 'false');
+  filterToggle.setAttribute('aria-controls', filterPop.id);
+  const filterWrap = el('span.filter-wrap', [filterToggle, filterPop]);
+  const filterPanel = listPopover({
+    wrap: filterWrap,
+    toggle: filterToggle,
+    panel: filterPop,
+    onClose: () => filterCombos.forEach((combo) => combo.closePopup()),
+  });
+
+  // Tetap ada sampai UX-E1.5 menggantinya dengan "Hapus semua" di baris chip.
+  const resetButton = button('Reset', { size: 'sm', variant: 'ghost', onClick: () => resetFilters() });
+  resetButton.hidden = true;
+
+  /* Ekspor memakai endpoint dan parameter yang sama dengan daftar itu sendiri,
+     jadi hak aksesnya identik dengan melihatnya. Tombolnya sekarang hidup lebih
+     lama dari satu muatan: selama ekspor berjalan withBusy() memegangnya dan
+     menulis disabled=false saat selesai, jadi syncCsv() menahan diri selama itu
+     lalu menulis keadaan yang sebenarnya sesudahnya. */
+  let exporting = false;
+  const csvButton = button('Ekspor CSV', {
+    size: 'sm',
+    variant: 'ghost',
+    iconName: 'download',
+    onClick: async () => {
+      exporting = true;
+      try {
+        await exportCsv(csvButton);
+      } finally {
+        exporting = false;
+        syncCsv();
+      }
+    },
+  });
+
+  function syncCsv() {
+    if (exporting) return;
+    const hasRows = Boolean(payload && (payload.data || []).length);
+    csvButton.disabled = !hasRows;
+    csvButton.title = hasRows ? 'Unduh daftar ini (semua halaman) sebagai CSV' : 'Tidak ada data untuk diekspor';
+  }
+
+  const toolbar = el('.list-toolbar', [
+    el('.search', [icon('search', 14), searchInput]),
+    filterWrap,
+    resetButton,
+    el('span.spacer'),
+    csvButton,
+  ]);
+  const listBody = el('.list-body');
+
+  /* Keadaan saringan sebagai satu kunci: nilai yang terisi (urutannya diabaikan
+     — urutan mengisi bukan keadaan), pasangan tanggal, dan apakah server sudah
+     mengumumkan kolom tanggalnya. q sengaja tidak ikut: kotak Cari bukan
+     kontrol di popover, dan mengetik tidak boleh membangun ulang apa pun. */
+  let builtFilters = null;
+  function filtersKey(dateColumn) {
+    const set = Object.entries(ui.filters)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([name, value]) => `${name}=${value}`)
+      .sort();
+    return JSON.stringify([set, ui.dateFrom, ui.dateTo, Boolean(dateColumn)]);
+  }
+
+  function paintFilters() {
+    const meta = (payload && payload.meta) || {};
 
     /*
      * Pasangan tanggal muncul ketika server mengumumkan kolom tanggal dokumennya
-     * (meta.date_column) — baru setelah respons pertama; satu render telat pada
-     * muat dingin diterima, filterBar memang dibangun ulang tiap renderAll.
-     * Dua resource lama mendeklarasikan date_from/date_to sebagai filter skema;
-     * begitu meta.date_column ada, pasangan skema itu DITEKAN supaya tidak dobel
-     * — schema.js read-only, jadi penekanan di sinilah mekanismenya; format
-     * kirim ke API identik dua-duanya. Nilai yang terlanjur tersimpan di
-     * ui.filters dipindahkan agar tidak hilang dan tidak terkirim ganda.
+     * (meta.date_column) — baru setelah respons pertama; satu pembangunan ulang
+     * telat pada muat dingin diterima. Dua resource lama mendeklarasikan
+     * date_from/date_to sebagai filter skema; begitu meta.date_column ada,
+     * pasangan skema itu DITEKAN supaya tidak dobel — schema.js read-only, jadi
+     * penekanan di sinilah mekanismenya; format kirim ke API identik dua-duanya.
+     * Nilai yang terlanjur tersimpan di ui.filters dipindahkan agar tidak hilang
+     * dan tidak terkirim ganda.
      */
     const dateColumn = meta.date_column || null;
     if (dateColumn) {
@@ -808,39 +1002,64 @@ export async function renderList(host, { key, def }) {
       }
     }
 
+    const next = filtersKey(dateColumn);
+    if (next === builtFilters) return;
+    builtFilters = next;
+
+    /* Kontrol yang sedang difokus ikut dibangun ulang di bawah: ingat namanya dan
+       kembalikan fokus ke kembarannya — memilih Status tidak boleh melempar
+       kursor keluar dari popover. */
+    const active = document.activeElement;
+    const focusedLabel = active && filterGrid.contains(active) ? active.getAttribute('aria-label') : null;
+
+    filterCombos.forEach((combo) => combo.closePopup());
+    filterCombos = [];
+    activeFilters = [];
+    clear(filterGrid);
+
+    // field(): label terlihat di atas tiap kontrol. Kontrolnya sudah membawa
+    // aria-label sendiri, jadi field() tidak menambahkan aria-labelledby.
     for (const filter of def.filters || []) {
       if (dateColumn && (filter.key === 'date_from' || filter.key === 'date_to')) continue;
-      bar.appendChild(buildFilter(filter));
+      filterGrid.appendChild(field(filter.label, buildFilter(filter)));
     }
 
     if (dateColumn) {
-      bar.appendChild(dateFilterInput('Dari tanggal', ui.dateFrom, (value) => {
+      filterGrid.appendChild(field('Dari tanggal', dateFilterInput('Dari tanggal', ui.dateFrom, (value) => {
         ui.dateFrom = value;
         ui.page = 1;
         load();
-      }));
-      bar.appendChild(dateFilterInput('Sampai tanggal', ui.dateTo, (value) => {
+      })));
+      filterGrid.appendChild(field('Sampai tanggal', dateFilterInput('Sampai tanggal', ui.dateTo, (value) => {
         ui.dateTo = value;
         ui.page = 1;
         load();
-      }));
+      })));
     }
 
-    if (isFiltered()) {
-      bar.appendChild(button('Reset', { size: 'sm', variant: 'ghost', onClick: resetFilters }));
+    // Layar tanpa satu pun saringan tidak menawarkan tombol yang membuka panel kosong.
+    filterWrap.hidden = filterGrid.childElementCount === 0;
+    if (filterWrap.hidden) filterPanel.close();
+
+    if (focusedLabel) {
+      const twin = [...filterGrid.querySelectorAll('[aria-label]')]
+        .find((node) => node.getAttribute('aria-label') === focusedLabel);
+      if (twin) twin.focus({ preventScroll: true });
     }
+  }
 
-    // Ekspor memakai endpoint dan parameter yang sama dengan daftar itu sendiri,
-    // jadi hak aksesnya identik dengan melihatnya.
-    const hasRows = Boolean(payload && (payload.data || []).length);
-    bar.appendChild(button('Ekspor CSV', {
-      size: 'sm', variant: 'ghost', iconName: 'download',
-      disabled: !hasRows,
-      title: hasRows ? 'Unduh daftar ini (semua halaman) sebagai CSV' : 'Tidak ada data untuk diekspor',
-      onClick: (event) => exportCsv(event.currentTarget),
-    }));
-
-    return bar;
+  function syncToolbar() {
+    // Kotak yang sedang diketik tidak ditimpa: nilainya milik jari orangnya, dan
+    // ui.q baru menyusul 320 ms kemudian.
+    if (document.activeElement !== searchInput) searchInput.value = ui.q;
+    paintFilters();
+    // Lencana Filter menghitung saringan di DALAM popover — q tidak, ia punya kotaknya sendiri.
+    const set = Object.values(ui.filters).filter((value) => value !== undefined && value !== null && value !== '').length
+      + (ui.dateFrom ? 1 : 0) + (ui.dateTo ? 1 : 0);
+    filterCount.hidden = set === 0;
+    filterCount.replaceChildren(String(set), el('span.sr-only', { text: ' saringan aktif' }));
+    resetButton.hidden = !isFiltered();
+    syncCsv();
   }
 
   function dateFilterInput(label, value, apply) {
@@ -883,8 +1102,8 @@ export async function renderList(host, { key, def }) {
         /*
          * Parameter DIBEKUKAN saat tombol diklik: penelusuran memakan beberapa
          * permintaan dan bilah filter tetap hidup selama itu (withBusy hanya
-         * menonaktifkan tombolnya sendiri, dan load() dari filter yang diubah
-         * membangun ulang bilah). Membaca queryParams() per halaman menjahit
+         * menonaktifkan tombolnya sendiri, dan saringan yang diubah selama itu
+         * langsung memuat ulang daftarnya). Membaca queryParams() per halaman menjahit
          * dua query berbeda ke satu berkas tanpa peringatan; potret ini
          * menjamin berkasnya utuh milik daftar SAAT ekspor dimulai.
          */
@@ -1073,12 +1292,8 @@ export async function renderList(host, { key, def }) {
     // pemanggilan ulang pasca-'failed' tidak lagi tertangkap preload().
     if (state.status !== 'ok') loadSource(filter.lookup).then(sync, sync);
 
-    /* Lebar dipatok sejajar rentang select.filter-w (min 138 / max 230):
-       .combo mengisi 100% induknya, jadi sebagai item flex telanjang di
-       .filters lebarnya ikut lebar intrinsik <input> — berubah-ubah antar
-       browser/font. Kelas filter-w tidak bisa dipakai ulang: selektornya
-       terkualifikasi elemen (input./select.) dan tidak mengenai .combo-field. */
-    combo.node.style.width = '190px';
+    // Lebarnya milik kisi popover (.filter-pop .combo di app.css, UX-E1.4) —
+    // dulu 190px sebaris, untuk bilah flex yang tidak ada lagi.
     combo.input.setAttribute('aria-label', filter.label);
     combo.input.title = filter.label;
 
@@ -1497,41 +1712,28 @@ export async function renderList(host, { key, def }) {
   }
 
   function renderAll() {
-    // Sebelum bilah lama dibuang — lihat catatan filterCombos di atas.
-    filterCombos.forEach((combo) => combo.closePopup());
-    clear(tableHost);
-    tableHost.appendChild(filterBar());
-
-    /* Tampilan tersimpan DI ATAS chip saringan, urutan yang sama dengan
-       prototipe: yang pertama dibaca adalah "saya sedang melihat tampilan
-       mana", baru "apa yang sedang mempersempitnya". */
-    viewRow = el('.chips.views', { hidden: true });
-    tableHost.appendChild(viewRow);
+    /* Bilah alat, baris tampilan, dan baris chip HIDUP lebih lama dari satu
+       muatan (UX-E1.4): renderAll menyegarkan isinya, bukan membangunnya, jadi
+       kotak Cari yang sedang diketik dan popover Filter yang terbuka selamat
+       melewati setiap muatan. Yang dibangun ulang tiap kali hanya badan daftar. */
+    syncToolbar();
     paintViews();
-
-    // Chip digambar SESUDAH bilahnya, karena buildFilter yang mengisi
-    // activeFilters saat bilah itu dibangun.
-    /* `.chips.active-filters`, bukan `.chips` telanjang: sejak UI-4c ADA DUA
-       baris chip di layar ini, dan `querySelector('.chips')` memulangkan yang
-       pertama — baris tampilan. Nol pemakai `.active-filters` diperiksa lebih
-       dulu di seluruh public/app, aturan yang sama dengan primitif UI-2. */
-    chipRow = el('.chips.active-filters', { hidden: true });
-    tableHost.appendChild(chipRow);
+    // Chip SESUDAH syncToolbar: paintFilters yang mengisi activeFilters saat ia
+    // membangun ulang kontrolnya.
     paintChips();
 
-    const body = el('.list-body');
-    tableHost.appendChild(body);
-
+    clear(listBody);
     if (loading) {
-      body.appendChild(skeletonTable(6, Math.min(def.columns.length, 6)));
+      listBody.appendChild(skeletonTable(6, Math.min(def.columns.length, 6)));
       return;
     }
     if (error) {
-      body.appendChild(el('.card-body', errorState(error, () => load())));
+      listBody.appendChild(el('.card-body', errorState(error, () => load())));
       return;
     }
     renderRows();
   }
 
+  tableHost.append(toolbar, viewRow, chipRow, listBody);
   await load();
 }
