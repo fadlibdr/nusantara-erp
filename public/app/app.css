@@ -3584,3 +3584,10 @@ button.linkish:hover b { text-decoration: underline; }
     background: rgba(12, 17, 23, .45);
   }
 }
+
+/* ================================================ palet UX-D.7 */
+/* Baris berjenis: ikon modul dokumen / ikon aksi di depan kode. align-self center karena
+   baris memakai align-items: baseline, dan sebuah svg tidak punya garis dasar teks. */
+.search-hit .search-kind { flex: none; align-self: center; margin-right: calc(var(--space-2) - var(--space-4)); color: var(--muted); }
+.search-hit.action .cell-main { font-weight: var(--fw-medium); }
+.search-hit.action .search-kind { color: var(--primary); }

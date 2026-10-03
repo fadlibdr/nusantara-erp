@@ -6,13 +6,19 @@
 
 import { api, session } from './api.js';
 import { el, clear, modal, closeModal, modalDepth, toast, svgIcon } from './ui.js';
-import { visibleNav } from './schema.js';
+import { NAV, visibleNav, RESOURCES, MODULES, ANY_APPROVE } from './schema.js';
+import { creatable, startCreate } from './create.js';
+import { inboxSummary } from './inbox.js';
+import { navigate } from './router.js';
 
 const MIN_LENGTH = 2;
 const DEBOUNCE_MS = 220;
 
 /* Layar per pencarian. Di atas ini jawabannya adalah sidebar. */
 const SCREEN_MAX = 8;
+
+/* Aksi per pencarian (UX-D.7). */
+const ACTION_MAX = 5;
 
 /**
  * Guards against an out-of-order response overwriting a newer one.
@@ -69,6 +75,51 @@ export function screenHits(term, limit = SCREEN_MAX) {
 }
 
 /*
+ * Sumber "Aksi" (UX-D.7, handoff README Fase D). Sampai paket ini palet sengaja tidak
+ * punya grup tindakan: kedua sumbernya pencarian, dan tidak ada yang bisa menghasilkan
+ * perintah (FRONTEND § palet). Sejak Buat ▾ ada sumbernya (js/create.js): formulir
+ * buat-baru yang daftarnya boleh dibuka DAN tombol Tambah-nya tergambar bagi pembaca
+ * ini — sumber yang SAMA dengan bilah atas, jadi dua pintu tidak menawarkan daftar
+ * berbeda — ditambah "Setujui yang menunggu" bagi pemegang hak approve (gerbang yang
+ * sama dengan tautan Persetujuan, ANY_APPROVE; tidak ada izin baru).
+ *
+ * Pencocokannya per KATA: setiap kata yang diketik harus menjadi awal salah satu kata
+ * labelnya, jadi "buat po" menemukan "Buat Pesanan Pembelian (PO)" dan kode dokumen
+ * lengkap tidak pernah cocok — Enter atas "PO/2026/IX/0004" tetap membuka dokumennya.
+ */
+function wordsOf(text) {
+  return String(text).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+function matchesEveryWord(label, term) {
+  const words = wordsOf(label);
+  const wanted = wordsOf(term);
+  return wanted.length > 0 && wanted.every((one) => words.some((word) => word.startsWith(one)));
+}
+
+export function actionHits(term, limit = ACTION_MAX) {
+  const hits = [];
+  if (session.can(ANY_APPROVE)) {
+    const label = 'Setujui yang menunggu';
+    if (matchesEveryWord(`${label} persetujuan`, term)) {
+      const summary = inboxSummary();
+      hits.push({
+        code: label, title: summary ? `${summary.total}${summary.failed.length ? '+' : ''} menunggu` : 'Persetujuan',
+        action: true, iconName: 'inbox', run: () => navigate('tugas'),
+      });
+    }
+  }
+  for (const entry of creatable()) {
+    if (hits.length >= limit) break;
+    const label = `Buat ${entry.def.label}`;
+    if (!matchesEveryWord(`${label} ${entry.def.labelOne || ''} baru tambah`, term)) continue;
+    const group = NAV.find((one) => one.prefix === entry.def.module);
+    hits.push({ code: label, title: group ? group.label : '', action: true, iconName: 'plus', run: () => startCreate(entry) });
+  }
+  return hits.slice(0, limit);
+}
+
+/*
  * Menandai bagian yang cocok (UI-3b).
  *
  * Dipakai untuk kedua sumber dengan aturan yang sama — SUBSTRING, tidak
@@ -110,8 +161,16 @@ function resultRow(hit, onPick, term) {
    * pembeda. Sebagian grup dokumen server menjawab title kosong; barisnya
    * cukup tidak punya kolom kanan, tanpa tempat kosong yang dipesan.
    */
-  const node = el(`button.search-hit${hit.screen ? '.screen' : ''}`, { type: 'button' }, [
-    el(`span.cell-main${hit.screen ? '' : '.mono'}`, marked(hit.code || `#${hit.id}`, term)),
+  /* Baris BERJENIS (UX-D.7): ikon modul dokumen (dari kunci resource grupnya — data
+     yang server SUDAH kirim), kode mono, dan di kolom kanan judulnya bila ada,
+     kalau tidak jenis dokumennya. Pihak, nilai, pengaju dan status yang diminta
+     handoff TIDAK dikirim core/search, dan baris ini tidak mengarangnya
+     (PROGRESS-UIUX OQ-6). */
+  const typeIcon = hit.iconName ? svgIcon(hit.iconName, { size: 14 }) : null;
+  if (typeIcon) typeIcon.classList.add('search-kind');
+  const node = el(`button.search-hit${hit.screen ? '.screen' : ''}${hit.action ? '.action' : ''}`, { type: 'button' }, [
+    typeIcon,
+    el(`span.cell-main${hit.screen || hit.action ? '' : '.mono'}`, marked(hit.code || `#${hit.id}`, term)),
     hit.title ? el('span.search-where', { text: hit.title }) : null,
   ]);
 
@@ -128,15 +187,16 @@ function groupNode(group, onPick, term) {
 
 /* Layar di atas dokumen, dan sudah tergambar selagi server masih mencari:
    hasilnya ada di memori, dan orang yang mengetik "opname" mencari layar. */
-function render(body, payload, onPick, screens = [], term = '') {
+function render(body, payload, onPick, screens = [], term = '', actions = []) {
   clear(body);
 
   if (payload === null) {
-    body.appendChild(el('p.muted', { text: `Ketik minimal ${MIN_LENGTH} huruf — kode dokumen, nama, atau layar.` }));
+    body.appendChild(el('p.muted', { text: `Ketik minimal ${MIN_LENGTH} huruf — kode dokumen, nama, layar, atau "buat …".` }));
     return;
   }
 
   if (screens.length) body.appendChild(groupNode({ label: 'Layar', results: screens }, onPick, term));
+  if (actions.length) body.appendChild(groupNode({ label: 'Aksi', results: actions }, onPick, term));
 
   if (payload === 'loading') {
     body.appendChild(el('p.muted', { text: 'Mencari dokumen…' }));
@@ -148,12 +208,27 @@ function render(body, payload, onPick, screens = [], term = '') {
     return;
   }
 
-  if (!payload.groups.length && !screens.length) {
+  if (!payload.groups.length && !screens.length && !actions.length) {
     body.appendChild(el('p.muted', { text: `Tidak ada hasil untuk "${payload.term}".` }));
     return;
   }
 
-  for (const group of payload.groups) body.appendChild(groupNode(group, onPick, term));
+  for (const group of payload.groups) body.appendChild(groupNode(typedGroup(group), onPick, term));
+}
+
+/* Dokumen server diberi jenis dari kunci resource grupnya (schema.js): ikon modul,
+   dan jenisnya sebagai kolom kanan bila server tidak mengirim judul. */
+function typedGroup(group) {
+  const def = RESOURCES[group.resource] || null;
+  const module = def ? MODULES[def.module] : null;
+  return {
+    ...group,
+    results: (group.results || []).map((hit) => ({
+      ...hit,
+      iconName: module ? module.icon : null,
+      title: hit.title || (def ? def.labelOne || def.label : group.label),
+    })),
+  };
 }
 
 export function openSearch() {
@@ -169,6 +244,9 @@ export function openSearch() {
 
   const pick = (hit) => {
     closeModal();
+    // Aksi menjalankan dirinya SESUDAH palet tertutup: formulir dialog yang dibukanya
+    // tidak boleh bertumpuk di atas palet (lihat penolakan Ctrl+K di bawah).
+    if (hit.action) { hit.run(); return; }
     window.location.hash = hit.link;
   };
 
@@ -182,13 +260,14 @@ export function openSearch() {
 
     const mine = ++sequence;
     const screens = screenHits(term);
-    renderAndReset(body, 'loading', pick, screens, term);
+    const actions = actionHits(term);
+    renderAndReset(body, 'loading', pick, screens, term, actions);
 
     try {
       const payload = await api.get('core/search', { q: term });
-      if (mine === sequence) renderAndReset(body, payload, pick, screens, term);
+      if (mine === sequence) renderAndReset(body, payload, pick, screens, term, actions);
     } catch {
-      if (mine === sequence) renderAndReset(body, 'failed', pick, screens, term);
+      if (mine === sequence) renderAndReset(body, 'failed', pick, screens, term, actions);
     }
   };
 

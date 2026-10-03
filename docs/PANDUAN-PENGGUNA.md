@@ -496,7 +496,7 @@ menyisakan **satu** pesan, dan tombolnya selalu memasang versi terbaru.
 ### 1.5 Pencarian
 
 1. Tekan **Ctrl+K** (atau **Cmd+K** di Mac), atau klik **`Cari`** di bilah atas.
-2. Ketik **minimal 2 huruf** — kode dokumen, nama, atau nomor.
+2. Ketik **minimal 2 huruf** — kode dokumen, nama, nomor, nama layar, atau "buat …".
 3. Tekan **Enter** untuk membuka hasil pertama, atau klik hasil yang Anda mau.
 
 Yang dicari hanyalah **kode dokumen** dan **satu kolom nama/judul** per jenis dokumen,
@@ -510,6 +510,15 @@ pengeluaran, transfer, BAST, laporan harian, cuti, absensi.
 
 Kelompok yang izinnya tidak Anda pegang **tidak ikut dicari sama sekali**, jadi
 "tidak ada hasil" dan "ada tetapi bukan hak Anda" terlihat sama.
+
+Di atas dokumen ada dua kelompok yang dijawab tanpa menunggu server: **Layar** (menu yang
+namanya cocok) dan **Aksi** — **"Buat …"** untuk setiap formulir yang juga ada di tombol
+**`Buat`** bilah atas, dan **"Setujui yang menunggu"** (dengan jumlahnya) bila Anda memegang
+hak menyetujui. Setiap kata yang Anda ketik harus menjadi awal salah satu kata namanya:
+`buat po` menemukan *Buat Pesanan Pembelian (PO)*. Kode dokumen lengkap tidak pernah cocok
+dengan sebuah aksi, jadi Enter atas `PO/2026/II/0001` tetap membuka dokumennya. Setiap baris
+dokumen membawa ikon modulnya; di kolom kanan tertulis judulnya, atau jenis dokumennya bila
+jenis itu tidak punya kolom judul.
 
 **Ctrl+K ditolak selama ada jendela dialog terbuka**, dengan pesan
 *"Tutup dulu jendela yang terbuka — hasil pencarian akan pindah halaman."* Itu

@@ -217,6 +217,33 @@ class ShellWiringTest extends ErpTestCase
         $this->assertStringContainsString("groupNode.querySelector('button').title = group.label;", $app, 'Ikon grup di rel tanpa tooltip.');
     }
 
+    /* --------------------------------------------------------------- (h) */
+
+    /** Palet berjenis + grup Aksi (UX-D.7): sumber yang sama dengan Buat ▾, tanpa data karangan. */
+    public function test_the_palette_offers_actions_from_the_create_source_and_types_hits_from_data_it_has(): void
+    {
+        $search = $this->spa('search.js');
+        $actions = $this->functionBody($search, 'export function actionHits(');
+        $this->assertNotNull($actions, 'actionHits() hilang dari search.js.');
+        $this->assertStringContainsString('for (const entry of creatable()) {', $actions,
+            'Grup Aksi tidak lagi membaca sumber Buat ▾: dua pintu yang bisa menawarkan daftar berbeda.');
+        $this->assertStringContainsString('if (session.can(ANY_APPROVE)) {', $actions,
+            '"Setujui yang menunggu" tidak lagi bergerbang predikat yang sama dengan tautan Persetujuan.');
+        $this->assertStringContainsString("run: () => navigate('tugas')", $actions);
+
+        // Aksi dijalankan SESUDAH palet tertutup — formulir dialog tidak bertumpuk di atasnya.
+        $this->assertMatchesRegularExpression('/closeModal\(\);\s*\/\/[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*if \(hit\.action\) \{ hit\.run\(\); return; \}/', $search);
+
+        // Baris dokumen diberi jenis dari kunci resource yang server kirim — bukan dari bidang yang tidak ada.
+        $typed = $this->functionBody($search, 'function typedGroup(group) {');
+        $this->assertNotNull($typed);
+        $this->assertStringContainsString('const def = RESOURCES[group.resource] || null;', $typed);
+        foreach (['party', 'amount', 'status', 'submitter'] as $field) {
+            $this->assertStringNotContainsString("hit.{$field}", $search,
+                "search.js membaca hit.{$field}, yang tidak dikirim core/search: baris itu akan selalu kosong (atau dikarang).");
+        }
+    }
+
     /** Separuh penolakan. */
     public function test_the_readers_can_still_say_no(): void
     {
