@@ -667,8 +667,10 @@ saringan.** Ubah ke 100 baris per halaman dan angkanya berubah. Satu-satunya tot
 jujur atas seluruh saringan adalah berkas CSV.
 
 **Mengurutkan.** Judul kolom bisa diklik hanya bila server mengizinkan kolom itu
-diurutkan. Klik berputar: **naik ▲ → turun ▼ → kembali ke urutan bawaan**. Mengubah
-urutan mengembalikan Anda ke halaman 1.
+diurutkan; judul seperti itu membawa panah kecil atas-bawah yang redup. Klik berputar:
+**naik (panah ke atas) → turun (panah ke bawah) → kembali ke urutan bawaan**. Mengubah
+urutan mengembalikan Anda ke halaman 1. Saat dicetak, hanya panah kolom yang sedang
+mengurutkan yang ikut tercetak.
 
 **Membuka baris.** Klik baris untuk membuka halaman dokumennya. Beberapa layar memang
 tidak punya halaman dokumen (mis. Bagan Akun, Progres Mingguan, Rekap Absensi); di sana

@@ -56,10 +56,43 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertStringContainsString("tidak tersedia — daftar memakai urutan bawaan.", $catch);
     }
 
+    /* ------------------------------------------------------------ E1.3 */
+
+    /** Panah urut di SETIAP kolom yang bisa diurutkan, dari sprite, dengan nama literal; kertas hanya mencetak yang aktif. */
+    public function test_every_sortable_header_carries_a_sprite_arrow(): void
+    {
+        $list = $this->spa('views/list.js');
+        $cell = $this->functionBody($list, 'function headerCell(column, sortable) {');
+        $this->assertNotNull($cell, 'headerCell() hilang dari list.js.');
+
+        // Tiga nama literal — LauncherWiringTest hanya bisa memeriksa nama yang tertulis di sumber.
+        $this->assertStringContainsString(
+            "!active ? icon('arrow-up-down', 12) : ui.dir === 'desc' ? icon('arrow-down', 12) : icon('arrow-up', 12)",
+            $cell,
+        );
+        $this->assertStringNotContainsString('▲', $list, 'Penanda teks lama kembali.');
+        $this->assertStringNotContainsString('▼', $list, 'Penanda teks lama kembali.');
+
+        // Hanya kolom yang server izinkan yang menjadi tombol (dan membawa panah); siklus dan halaman 1 tetap.
+        $this->assertStringContainsString('if (!sortable.includes(column.key)) {', $cell);
+        $this->assertLessThan(strpos($cell, "el('button.th-sort'"), strpos($cell, 'if (!sortable.includes(column.key)) {'));
+        $this->assertStringContainsString("el('button.th-sort', { type: 'button', title: 'Urutkan' }", $cell);
+        $this->assertStringContainsString("th.setAttribute('aria-sort', ui.dir === 'desc' ? 'descending' : 'ascending');", $cell);
+        $this->assertStringContainsString('ui.page = 1;', $cell);
+
+        $css = $this->css();
+        $this->assertStringContainsString('table.data th .th-sort .lucide { flex: none; }', $css);
+        $this->assertStringContainsString('table.data th:not([aria-sort]) button.th-sort .lucide { display: none; }', $css);
+        $print = strrpos(substr($css, 0, (int) strpos($css, 'table.data th:not([aria-sort]) button.th-sort .lucide')), '@media print {');
+        $between = substr($css, (int) $print, (int) strpos($css, 'table.data th:not([aria-sort]) button.th-sort .lucide') - (int) $print);
+        $this->assertSame(substr_count($between, '{') - 1, substr_count($between, '}'),
+            'Aturan cetak panah urut tidak lagi berada di dalam blok @media print — panah kolom diam ikut tercetak sebagai kontrol mati.');
+    }
+
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(47, (int) $version[1],
+        $this->assertGreaterThanOrEqual(48, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 

@@ -1805,6 +1805,35 @@ S54_LIST_STATE = """async () => {
 }"""
 
 
+S54_SORT_HEAD = """() => {
+  const icons = (th) => [...th.querySelectorAll('svg use')].map((u) => (u.getAttribute('href') || '').split('#lucide-')[1] || '?');
+  const ths = [...document.querySelectorAll('#view table.data thead th')];
+  const sortable = ths.filter((th) => th.querySelector('button.th-sort')).map((th) => ({
+    label: th.querySelector('button.th-sort').innerText.trim(), aria_sort: th.getAttribute('aria-sort'), icons: icons(th),
+  }));
+  const plain = ths.filter((th) => !th.querySelector('button.th-sort')).map((th) => ({
+    label: th.innerText.trim(), svg: th.querySelectorAll('svg').length,
+  }));
+  const row = document.querySelector('#view table.data thead tr');
+  const withArrows = +row.getBoundingClientRect().height.toFixed(2);
+  const style = document.createElement('style');
+  style.textContent = 'table.data th .th-sort .lucide { display: none !important; }';
+  document.head.appendChild(style);
+  const without = +row.getBoundingClientRect().height.toFixed(2);
+  style.remove();
+  return { sortable, plain, glyph: /[\u25B2\u25BC]/.test(document.querySelector('#view table.data thead').textContent),
+           height_with: withArrows, height_without: without };
+}"""
+
+S54_SORT_PRINT = """() => {
+  const shown = (svg) => getComputedStyle(svg).display !== 'none';
+  const active = [...document.querySelectorAll('#view table.data thead th[aria-sort] .th-sort .lucide')].filter(shown).length;
+  const idle = [...document.querySelectorAll('#view table.data thead th:not([aria-sort]) .th-sort .lucide')].filter(shown).length;
+  return { active_shown: active, idle_shown: idle,
+           overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+}"""
+
+
 @scenario("S54_bilah_daftar")
 def s54(pg):
     """UX-E1: bilah daftar generik — balapan muat (E1.2) dan blok-blok tugas berikutnya."""
@@ -1844,6 +1873,66 @@ def s54(pg):
         checks.append(f"balapan: tampil {state['shown']} baris (kosong={state['empty']}) padahal server punya "
                       f"{state['server_approved']} PO disetujui — jawaban usang menimpa daftar")
     pg.screenshot(path=f"{OUT}/s54-balapan.png")
+
+    # ------------------------------------------------------------ urut (E1.3)
+    # Setiap kolom yang server izinkan diurutkan membawa panah sprite (atas-bawah bila diam,
+    # atas/bawah bila aktif); kolom lain tanpa svg. Tinggi baris kepala diukur DENGAN dan TANPA
+    # panah di halaman yang sama — panah 12 px tidak boleh menambah tinggi. Cetak: hanya panah
+    # kolom aktif yang tergambar.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?page=1")  # kunci dikenal → keadaan daftar di-reset
+    pg.wait_for_selector("#view table.data thead th", timeout=20000)
+    pg.wait_for_timeout(600)
+    out["urut"] = {"diam": pg.evaluate(S54_SORT_HEAD)}
+    diam = out["urut"]["diam"]
+    if not diam["sortable"]:
+        checks.append("urut: subjek hilang — tidak ada th dengan button.th-sort di daftar PO")
+    bad = [c for c in diam["sortable"] if c["icons"] != ["arrow-up-down"]]
+    if bad:
+        checks.append(f"urut: kolom diam tanpa tepat satu panah atas-bawah: {bad!r}")
+    plain_svg = [c for c in diam["plain"] if c["svg"]]
+    if plain_svg:
+        checks.append(f"urut: kolom yang tidak bisa diurutkan memuat svg: {plain_svg!r}")
+    if diam["glyph"]:
+        checks.append("urut: kepala tabel masih memuat penanda teks segitiga")
+    if diam["height_without"] is None or abs(diam["height_with"] - diam["height_without"]) > 0.5:
+        checks.append(f"urut: panah mengubah tinggi baris kepala {diam['height_without']} → {diam['height_with']} px")
+
+    kode = "#view table.data thead th button.th-sort:has-text('Kode')"
+    steps = []
+    for want_sort, want_icon in (("ascending", "arrow-up"), ("descending", "arrow-down"), (None, None)):
+        pg.click(kode)
+        if want_sort:
+            pg.wait_for_selector(f"#view table.data thead th[aria-sort={want_sort}]", timeout=10000)
+        else:
+            pg.wait_for_function("() => !document.querySelector('#view table.data thead th[aria-sort]')", timeout=10000)
+        pg.wait_for_timeout(400)
+        head = pg.evaluate(S54_SORT_HEAD)
+        kode_cell = next((c for c in head["sortable"] if c["label"] == "KODE" or c["label"] == "Kode"), None)
+        steps.append({"want": want_sort, "kode": kode_cell, "hash": pg.evaluate("location.hash")})
+        if not kode_cell:
+            checks.append(f"urut: kolom Kode hilang sesudah klik ({want_sort})")
+            continue
+        if kode_cell["aria_sort"] != want_sort:
+            checks.append(f"urut: Kode aria-sort {kode_cell['aria_sort']!r}, diharapkan {want_sort!r}")
+        expect = [want_icon] if want_icon else ["arrow-up-down"]
+        if kode_cell["icons"] != expect:
+            checks.append(f"urut: panah Kode {kode_cell['icons']!r}, diharapkan {expect!r} ({want_sort})")
+        others = [c for c in head["sortable"] if c is not kode_cell and c["icons"] != ["arrow-up-down"]]
+        if others:
+            checks.append(f"urut: kolom lain kehilangan panah atas-bawahnya ({want_sort}): {others!r}")
+        if want_sort == "descending":
+            # Cetak: panah aktif tergambar, panah diam disembunyikan, tidak ada yang meluber ke samping.
+            pg.emulate_media(media="print")
+            printed = pg.evaluate(S54_SORT_PRINT)
+            pg.emulate_media(media="screen")
+            out["urut"]["cetak"] = printed
+            if printed["active_shown"] != 1:
+                checks.append(f"urut: cetak — panah kolom aktif tergambar {printed['active_shown']} (harus 1)")
+            if printed["idle_shown"]:
+                checks.append(f"urut: cetak — {printed['idle_shown']} panah kolom diam ikut tercetak")
+            if printed["overflow_x"] > 1:
+                checks.append(f"urut: cetak — halaman meluber {printed['overflow_x']} px ke samping")
+    out["urut"]["langkah"] = steps
 
     out["console_errors"] = errors
     if errors:

@@ -1388,6 +1388,14 @@ export async function renderList(host, { key, def }) {
    * asc → desc → kembali ke urutan default. Kolom turunan (customer.name dsb.)
    * memang tidak pernah muncul di meta.sortable dan tetap diam — benar; seam
    * `column.sortKey` di schema.js dicatat untuk hari itu, tidak dibangun.
+   *
+   * Penanda (UX-E1.3): SETIAP kolom yang bisa diurutkan membawa panah —
+   * atas-bawah redup bila belum aktif, atas/bawah bila aktif — supaya
+   * "bisa diklik" terlihat sebelum diklik; dulu hanya kolom aktif yang
+   * bertanda segitiga teks dan kolom lain tampak sama dengan judul biasa. Kolom yang
+   * TIDAK bisa diurutkan tetap teks polos tanpa panah, jadi panah itu sendiri
+   * adalah janji server. Nama ikon ditulis literal (bukan dihitung) karena
+   * LauncherWiringTest hanya bisa memeriksa nama yang tertulis.
    */
   function headerCell(column, sortable) {
     // hide-narrow ikut di th: td yang hilang tanpa judulnya membuat seluruh
@@ -1407,8 +1415,8 @@ export async function renderList(host, { key, def }) {
 
     const control = el('button.th-sort', { type: 'button', title: 'Urutkan' }, [
       column.label,
-      // Satu penanda saja, pada kolom yang sedang aktif.
-      active ? el('span', { text: ui.dir === 'desc' ? '▼' : '▲', 'aria-hidden': 'true' }) : null,
+      // Ikon sprite aria-hidden: arah urutnya sudah diumumkan aria-sort di th.
+      !active ? icon('arrow-up-down', 12) : ui.dir === 'desc' ? icon('arrow-down', 12) : icon('arrow-up', 12),
     ]);
     control.addEventListener('click', () => {
       if (ui.sort !== column.key) {

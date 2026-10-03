@@ -2149,6 +2149,10 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      query-nya menang". Menambah satu selektor tipe (0,2,3 lawan 0,2,2)
      menutupnya tanpa bergantung pada posisi. */
   table.data th button.th-sort { min-height: 0; min-width: 0; }
+  /* Panah kolom yang TIDAK aktif adalah kontrol, bukan data — kertas tidak
+     bisa diklik. Panah kolom aktif tetap tercetak: ia mencatat urutan lembar
+     itu (UX-E1.3). */
+  table.data th:not([aria-sort]) button.th-sort .lucide { display: none; }
   body { background: #fff; }
 }
 
@@ -2850,8 +2854,9 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
 /* Judul kolom yang bisa diurutkan adalah <button> asli DI DALAM th-nya —
    fokus keyboard dan Enter/Space datang gratis dari elemennya sendiri.
    Tipografinya mewarisi th (11px, uppercase, muted) supaya kolom yang bisa
-   dan tidak bisa diurutkan tampak satu keluarga; hanya kursor dan penanda
-   ▲/▼ yang membedakan. */
+   dan tidak bisa diurutkan tampak satu keluarga; yang membedakan hanya kursor
+   dan panah sprite 12 px (UX-E1.3) — atas-bawah di setiap kolom yang bisa
+   diurutkan, atas atau bawah di kolom yang aktif. */
 table.data th .th-sort {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 0; border: 0; background: none;
@@ -2885,6 +2890,10 @@ table.data th .th-sort:focus-visible { outline: 2px solid var(--primary); outlin
 
 /* Kolom yang sedang aktif diurutkan sedikit lebih gelap dari saudaranya. */
 table.data th[aria-sort] .th-sort { color: var(--text); }
+/* Panahnya currentColor tanpa opacity: --muted pada kolom diam, --text pada
+   yang aktif lewat aturan di atas — kontrasnya selalu sama dengan labelnya.
+   flex: none supaya label yang membungkus dua baris tidak memipihkan ikonnya. */
+table.data th .th-sort .lucide { flex: none; }
 
 /* --------------------------------------- tabel baris: galat per sel (422) */
 
