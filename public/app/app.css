@@ -1081,6 +1081,8 @@ table.data tr.emphasis td { background: var(--surface-2); }
   font-variant-numeric: tabular-nums; line-height: 1;
 }
 .filter-count[hidden] { display: none; }
+/* "N PO · tersaring" (UX-E1.6) — angka dari meta.total, abu-abu, tidak pernah dipatah. */
+.list-count { color: var(--muted); font-size: var(--fs-secondary); white-space: nowrap; }
 @media (max-width: 760px) {
   .filter-pop { left: 12px; right: 12px; width: auto; }
   .filter-pop .filters { grid-template-columns: minmax(0, 1fr); }
@@ -2158,10 +2160,12 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      sama seperti bilah `.filters` lamanya. Chip saringan aktif di dalamnya
      (UX-E1.5) TETAP tercetak — di kertas ia pernyataan "lembar ini tersaring
      oleh apa" — tanpa tombol × dan "Hapus semua"-nya. */
-  .list-toolbar > :not(.chips) { display: none !important; }
+  .list-toolbar > :not(.chips):not(.list-count) { display: none !important; }
   .chips .chip-x, .chips .btn { display: none !important; }
-  /* Daftar yang tidak tersaring tidak mencetak bilah kosong selebar halaman. */
-  .list-toolbar:not(:has(> .chips:not([hidden]))) { display: none !important; }
+  /* Jumlah barisnya (UX-E1.6) juga tercetak: pager disembunyikan di kertas,
+     jadi "12 PO · tersaring" satu-satunya pernyataan total di lembar itu.
+     Bilah tanpa chip DAN tanpa angka tidak dicetak sebagai bilah kosong. */
+  .list-toolbar:not(:has(> .chips:not([hidden]))):not(:has(> .list-count:not(:empty))) { display: none !important; }
   /* UX-C.3: tombol keputusan dan ringkasan galat adalah kontrol, bukan isi dokumen. */
   .action-panel-actions, .error-summary, .overflow-menu { display: none !important; }
   /* Seleksi adalah keadaan LAYAR: bilahnya dan kolom centangnya tidak punya

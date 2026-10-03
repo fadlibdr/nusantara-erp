@@ -1879,12 +1879,28 @@ S54_CHIP_STATE = """() => {
 S54_CHIP_PRINT = """() => {
   const shown = (n) => !!n && getComputedStyle(n).display !== 'none';
   const bar = document.querySelector('.list-toolbar');
-  const controls = bar ? [...bar.children].filter((n) => !n.matches('.chips') && shown(n)).map((n) => n.className) : [];
+  // .list-count (UX-E1.6) adalah PERNYATAAN total lembar itu, bukan kontrol — dicatat terpisah.
+  const controls = bar ? [...bar.children].filter((n) => !n.matches('.chips, .list-count') && shown(n)).map((n) => n.className) : [];
   const row = bar && bar.querySelector('.chips.active-filters');
+  const count = bar && bar.querySelector('.list-count');
   return {
     toolbar_shown: shown(bar),
     chips_shown: row && shown(row) ? [...row.querySelectorAll('.chip')].filter(shown).length : 0,
+    count_text: count && shown(count) ? count.textContent : null,
     controls_shown: controls.concat(row ? [...row.querySelectorAll('.chip-x, .btn')].filter(shown).map((n) => n.className) : []),
+  };
+}"""
+
+
+S54_COUNT = """async (params) => {
+  const { api } = await import('/app/js/api.js');
+  const truth = await api.list('procurement/purchase-orders', { ...params, per_page: 1, page: 1 });
+  const node = document.querySelector('.list-toolbar .list-count');
+  return {
+    text: node ? node.textContent : null,
+    truth: truth && truth.meta && typeof truth.meta.total === 'number' ? truth.meta.total : null,
+    last: node ? node === node.parentElement.lastElementChild : null,
+    empty: !!document.querySelector('#view .list-body .empty'),
   };
 }"""
 
@@ -2148,9 +2164,57 @@ def s54(pg):
     pg.emulate_media(media="print")
     kep["cetak_polos"] = pg.evaluate(S54_CHIP_PRINT)
     pg.emulate_media(media="screen")
-    if kep["cetak_polos"]["toolbar_shown"]:
+    # Sejak UX-E1.6 bilah daftar polos tercetak HANYA bila membawa angka jumlahnya — yang dilarang
+    # adalah bilah KOSONG di kertas, dan kontrol apa pun.
+    cp = kep["cetak_polos"]
+    if cp["toolbar_shown"] and not cp["count_text"]:
         checks.append("keping: cetak daftar polos — bilah alat kosong ikut tercetak")
+    if cp["controls_shown"] or cp["chips_shown"]:
+        checks.append(f"keping: cetak daftar polos — kontrol/chip tercetak: {cp!r}")
     out["keping"] = kep
+
+    # ------------------------------------------------------------ jumlah (E1.6)
+    # "N PO" dari meta.total server (dibandingkan dengan jawaban API untuk query yang sama),
+    # "· tersaring" hanya saat tersaring, KOSONG selama memuat — bukan "0 PO".
+    def idn(n):
+        return f"{n:,}".replace(",", ".")
+    jml = {}
+    pg.evaluate(S54_DELAY_DRAFT)  # status=draft ditunda 1,5 s (dipasang di blok balapan; idempoten)
+    pg.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    jml["polos"] = pg.evaluate(S54_COUNT, {})
+    j = jml["polos"]
+    if not isinstance(j["truth"], int) or j["text"] != f"{idn(j['truth'])} PO":
+        checks.append(f"jumlah: daftar polos menulis {j['text']!r}, server berkata {j['truth']!r} PO")
+    if not j["last"]:
+        checks.append("jumlah: angka bukan anak terakhir bilah alat")
+
+    pg.goto(BASE + "#/r/procurement/purchase-orders?status=draft")
+    pg.wait_for_timeout(500)
+    jml["memuat"] = pg.evaluate("() => ({ text: document.querySelector('.list-toolbar .list-count').textContent, skeleton: !!document.querySelector('#view .list-body .skel, #view .list-body .skeleton, #view .list-body table.skel') })")
+    if jml["memuat"]["text"] != "":
+        checks.append(f"jumlah: selama memuat angkanya {jml['memuat']['text']!r} — harus kosong, bukan klaim")
+    pg.wait_for_timeout(2200)
+    jml["draf"] = pg.evaluate(S54_COUNT, {"status": "draft"})
+    j = jml["draf"]
+    if not isinstance(j["truth"], int) or j["text"] != f"{idn(j['truth'])} PO · tersaring":
+        checks.append(f"jumlah: ?status=draft menulis {j['text']!r}, server berkata {j['truth']!r} — harus '<n> PO · tersaring'")
+
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq")
+    pg.wait_for_selector("#view .empty", timeout=20000)
+    pg.wait_for_timeout(700)
+    jml["cari_kosong"] = pg.evaluate(S54_COUNT, {"q": "zzzzqq"})
+    j = jml["cari_kosong"]
+    if j["text"] != "0 PO · tersaring" or not j["empty"] or j["truth"] != 0:
+        checks.append(f"jumlah: ?q=zzzzqq menulis {j['text']!r} (keadaan kosong={j['empty']}, server {j['truth']!r}) — harus '0 PO · tersaring'")
+
+    pg.emulate_media(media="print")
+    jml["cetak"] = pg.evaluate("() => { const n = document.querySelector('.list-toolbar .list-count'); return { shown: getComputedStyle(n).display !== 'none' && getComputedStyle(n.parentElement).display !== 'none', text: n.textContent }; }")
+    pg.emulate_media(media="screen")
+    if not jml["cetak"]["shown"]:
+        checks.append("jumlah: angka tidak tercetak — pager disembunyikan di kertas, jadi lembarnya tidak menyebut totalnya")
+    out["jumlah"] = jml
 
     out["console_errors"] = errors
     if errors:

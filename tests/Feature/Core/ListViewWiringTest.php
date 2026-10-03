@@ -151,9 +151,9 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertStringContainsString('.list-toolbar .btn[hidden], .filter-wrap[hidden] { display: none; }', $css);
         // Satu literal 11 px untuk dua bilah, bukan salinan kedua (CONVENTIONS §13a).
         $this->assertStringContainsString(".filters, .list-toolbar {\n  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;\n  padding: 11px 12px;", $css);
-        // Kertas: kontrol bilah alat tidak tercetak. (UX-E1.5: chip saringan di dalamnya tercetak, jadi
-        // yang disembunyikan adalah anak-anak bilah selain baris chip.)
-        $this->assertStringContainsString('.list-toolbar > :not(.chips) { display: none !important; }', $css);
+        // Kertas: kontrol bilah alat tidak tercetak. (UX-E1.5: chip saringan di dalamnya tercetak; UX-E1.6:
+        // jumlah barisnya juga — yang disembunyikan adalah anak-anak bilah selain keduanya.)
+        $this->assertStringContainsString('.list-toolbar > :not(.chips):not(.list-count) { display: none !important; }', $css);
         // Teks kotak Cari mulai sesudah ikonnya — aturan umum input[type=text] tidak lagi menang.
         $this->assertStringContainsString('.search input[type=text] { width: 100%; padding-left: 32px; }', $css);
     }
@@ -181,16 +181,42 @@ class ListViewWiringTest extends ErpTestCase
 
         $css = $this->css();
         $this->assertStringContainsString('.list-toolbar .chips { padding: 0; min-width: 0; }', $css);
-        // Kertas: chip tercetak sebagai keterangan, kontrolnya tidak.
-        $this->assertStringContainsString('.list-toolbar > :not(.chips) { display: none !important; }', $css);
+        // Kertas: chip tercetak sebagai keterangan, kontrolnya tidak. (UX-E1.6 menambah jumlah baris ke
+        // yang tercetak, dan bilah tanpa chip DAN tanpa angka tetap tidak dicetak.)
+        $this->assertStringContainsString('.list-toolbar > :not(.chips):not(.list-count) { display: none !important; }', $css);
         $this->assertStringContainsString('.chips .chip-x, .chips .btn { display: none !important; }', $css);
-        $this->assertStringContainsString('.list-toolbar:not(:has(> .chips:not([hidden]))) { display: none !important; }', $css);
+        $this->assertStringContainsString('.list-toolbar:not(:has(> .chips:not([hidden]))):not(:has(> .list-count:not(:empty))) { display: none !important; }', $css);
+    }
+
+    /* ------------------------------------------------------------ E1.6 */
+
+    /** "N <label> · tersaring" dari meta.total saja — tidak pernah dari baris halaman, tidak pernah 0 bawaan. */
+    public function test_the_count_reads_the_server_total_only(): void
+    {
+        $list = $this->spa('views/list.js');
+        $count = $this->functionBody($list, 'function countText() {');
+        $this->assertNotNull($count, 'countText() hilang dari list.js.');
+        $this->assertStringContainsString("if (typeof meta.total !== 'number') return '';", $count);
+        $this->assertStringContainsString("if (loading || error || !payload) return '';", $count);
+        $this->assertMatchesRegularExpression("/if \\(isFiltered\\(\\)\\) return `\\$\\{text\\} · tersaring`;/", $count,
+            "' · tersaring' harus berada di cabang isFiltered().");
+        $this->assertStringNotContainsString('rows.length', $count, 'Jumlah dibaca dari baris HALAMAN ini, bukan dari total server.');
+        $this->assertStringNotContainsString('?? 0', $count, 'Jumlah yang tidak diketahui menjadi 0.');
+        $this->assertStringNotContainsString('|| 0', $count, 'Jumlah yang tidak diketahui menjadi 0.');
+
+        // Anak terakhir bilah alat, live region sopan, disegarkan oleh syncToolbar().
+        $this->assertStringContainsString("const listCount = el('span.list-count', { 'aria-live': 'polite' });", $list);
+        $this->assertMatchesRegularExpression("/csvButton,\\n\\s*listCount,\\n\\s*\\]\\);/", $list);
+        $sync = $this->functionBody($list, 'function syncToolbar() {');
+        $this->assertStringContainsString('const count = countText();', (string) $sync);
+
+        $this->assertStringContainsString('.list-count { color: var(--muted); font-size: var(--fs-secondary); white-space: nowrap; }', $this->css());
     }
 
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(50, (int) $version[1],
+        $this->assertGreaterThanOrEqual(51, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 

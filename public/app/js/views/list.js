@@ -955,12 +955,34 @@ export async function renderList(host, { key, def }) {
     csvButton.title = hasRows ? 'Unduh daftar ini (semua halaman) sebagai CSV' : 'Tidak ada data untuk diekspor';
   }
 
+  /*
+   * Jumlah baris (UX-E1.6, README E1 "N <label> · tersaring"): anak TERAKHIR
+   * bilah, sesudah Ekspor CSV, supaya mengosongkannya saat memuat tidak
+   * menggeser kontrol lain. aria-live polite: pembaca layar mendengar hasil
+   * saringan tanpa harus mencarinya.
+   */
+  const listCount = el('span.list-count', { 'aria-live': 'polite' });
+
+  /* Angkanya HANYA meta.total dari server — jumlah seluruh hasil saringan,
+     bukan baris halaman ini. Selama memuat, sesudah galat, atau bila server
+     tidak mengirim total: kosong. Bukan "0": "0 PO" adalah klaim bahwa tidak
+     ada PO, dan layar yang belum tahu tidak boleh mengklaimnya. */
+  function countText() {
+    if (loading || error || !payload) return '';
+    const meta = payload.meta || {};
+    if (typeof meta.total !== 'number') return '';
+    const text = `${meta.total.toLocaleString('id-ID')} ${def.labelOne}`;
+    if (isFiltered()) return `${text} · tersaring`;
+    return text;
+  }
+
   const toolbar = el('.list-toolbar', [
     el('.search', [icon('search', 14), searchInput]),
     filterWrap,
     chipRow,
     el('span.spacer'),
     csvButton,
+    listCount,
   ]);
   const listBody = el('.list-body');
 
@@ -1059,6 +1081,9 @@ export async function renderList(host, { key, def }) {
     filterCount.hidden = set === 0;
     filterCount.replaceChildren(String(set), el('span.sr-only', { text: ' saringan aktif' }));
     syncCsv();
+    const count = countText();
+    // Ditulis hanya bila berubah: live region yang ditulis ulang dengan teks sama tetap bisa diumumkan.
+    if (listCount.textContent !== count) listCount.textContent = count;
   }
 
   function dateFilterInput(label, value, apply) {

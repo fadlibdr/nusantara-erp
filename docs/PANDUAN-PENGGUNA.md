@@ -661,7 +661,13 @@ Susunannya dari atas ke bawah:
    *Disaring: Status: Disetujui ×* — dan × pada chip membuang saringan itu saja.
    **`Hapus semua`** di ujung chip membuang semuanya sekaligus, termasuk isi kotak Cari,
    tetapi mempertahankan urutan kolom yang Anda pilih. Saat dicetak, chip-chip ini ikut
-   tercetak (tanpa × dan tanpa tombolnya) sebagai keterangan saringan lembar itu. **`Filter`** membuka panel kecil berisi saringan khusus layar
+   tercetak (tanpa × dan tanpa tombolnya) sebagai keterangan saringan lembar itu.
+   Paling kanan tertulis **jumlah datanya**, mis. *12 PO*, atau *3 PO · tersaring* bila
+   ada saringan atau kata pencarian yang aktif. Angka itu jumlah SELURUH hasil di server
+   (semua halaman), bukan baris yang sedang tampil; selama daftar dimuat, atau bila
+   pemuatannya gagal, tempat itu kosong — bukan 0. Angka ini juga ikut tercetak. Pada
+   lima layar yang mengabaikan kotak Cari (lihat di bawah), kata pencarian tetap menandai
+   daftarnya *tersaring* walaupun isinya tidak berubah. **`Filter`** membuka panel kecil berisi saringan khusus layar
    itu — mis. Status, Vendor, Proyek — dan sepasang **Dari tanggal** / **Sampai tanggal**
    (hanya pada layar yang punya kolom tanggal dokumen — tidak semua punya). Angka di
    tombol **`Filter`** menyebut berapa saringan di panel itu yang sedang aktif; kotak Cari
