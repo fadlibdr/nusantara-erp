@@ -1766,6 +1766,93 @@ def s52(pg):
     out["ok"] = not checks
     return out
 
+# ------------------------------------------------------------ S54 (UX-E1)
+# Bilah daftar generik sesudah redesain UX-E1, satu blok per tugas paket. Setiap blok menulis
+# keadaan yang DIUKUR ke `out[<blok>]` dan alasannya ke `checks` — tidak ada blok yang boleh
+# lolos tanpa subjek: fixture yang gagal adalah galat, bukan SKIPPED.
+
+S54_DELAY_DRAFT = """() => {
+  // Tunda SETIAP permintaan daftar PO bersaringan status=draft 1,5 detik di halaman ini saja.
+  // Bukan pg.route + time.sleep: penangan rute sinkron memblokir pengirim Playwright.
+  if (window.__s54Delay) return 'sudah';
+  const original = window.fetch.bind(window);
+  window.__s54Delay = true;
+  window.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input.url;
+    if (/purchase-orders\\?/.test(url) && /status=draft/.test(url)) {
+      return new Promise((resolve) => setTimeout(resolve, 1500)).then(() => original(input, init));
+    }
+    return original(input, init);
+  };
+  return 'dipasang';
+}"""
+
+S54_LIST_STATE = """async () => {
+  // Kebenaran dari server untuk saringan TERAKHIR, lewat modul api.js milik halaman ini (instans
+  // modul yang sama, jadi token yang sama). Permintaan ini status=approved — tidak ditunda.
+  const { api } = await import('/app/js/api.js');
+  const truth = await api.list('procurement/purchase-orders', { status: 'approved', per_page: 100, page: 1 });
+  const rows = truth.data || [];
+  return {
+    hash: location.hash,
+    chips: [...document.querySelectorAll('.chips.active-filters .chip')].map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
+    badges: [...document.querySelectorAll('#view table.data tbody .badge[data-status]')].map((b) => b.dataset.status),
+    shown: document.querySelectorAll('#view table.data tbody tr').length,
+    empty: !!document.querySelector('#view .list-body .empty'),
+    select: (document.querySelector('.filters select[aria-label="Status"]') || {}).value ?? null,
+    server_approved: rows.length,
+  };
+}"""
+
+
+@scenario("S54_bilah_daftar")
+def s54(pg):
+    """UX-E1: bilah daftar generik — balapan muat (E1.2) dan blok-blok tugas berikutnya."""
+    out, checks, errors = {}, [], []
+    pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+
+    # ------------------------------------------------------------ balapan (E1.2)
+    # Jawaban usang tidak boleh melukis: pilih Draf (jawabannya ditunda 1,5 s), lalu segera
+    # Disetujui. Tanpa nomor urut muat, jawaban Draf tiba belakangan dan menimpa daftar
+    # Disetujui sementara chip, kontrol, dan bilah alamat menyebut Disetujui.
+    pg.goto(BASE + "#/r/procurement/purchase-orders")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(800)
+    out["balapan"] = {"patch": pg.evaluate(S54_DELAY_DRAFT)}
+    status_select = ".filters select[aria-label='Status']"
+    pg.select_option(status_select, "draft")
+    pg.wait_for_timeout(120)
+    pg.select_option(status_select, "approved")
+    pg.wait_for_timeout(2600)
+    state = pg.evaluate(S54_LIST_STATE)
+    out["balapan"].update(state)
+    if "status=approved" not in state["hash"] or "status=draft" in state["hash"]:
+        checks.append(f"balapan: hash {state['hash']!r} bukan keadaan terakhir (status=approved)")
+    if not any("Disetujui" in c for c in state["chips"]):
+        checks.append(f"balapan: chip Status tidak menyebut Disetujui ({state['chips']!r})")
+    wrong = [b for b in state["badges"] if b != "approved"]
+    if wrong:
+        checks.append(f"balapan: daftar melukis jawaban usang — lencana {wrong!r} di bawah saringan Disetujui")
+    # Seed punya PO disetujui dan tidak punya draf: jawaban Draf yang usang melukis daftar KOSONG
+    # dengan rapi. Karena itu yang diuji adalah isi, bukan bentuk: bila server punya PO disetujui,
+    # daftar harus menampilkan baris (lencana non-approved sudah ditangkap di atas).
+    if state["server_approved"] == 0:
+        checks.append("balapan: subjek hilang — server tidak punya PO disetujui, balapan tidak teruji")
+    elif state["shown"] == 0 or state["empty"]:
+        checks.append(f"balapan: tampil {state['shown']} baris (kosong={state['empty']}) padahal server punya "
+                      f"{state['server_approved']} PO disetujui — jawaban usang menimpa daftar")
+    pg.screenshot(path=f"{OUT}/s54-balapan.png")
+
+    out["console_errors"] = errors
+    if errors:
+        checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
 @scenario("S53_satu_ukuran_per_baris_ubin")
 def s53(pg):
     """UI-6d: satu baris ubin tingkat atas memakai SATU ukuran angka.
@@ -14248,7 +14335,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

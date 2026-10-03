@@ -205,6 +205,20 @@ export async function renderList(host, { key, def }) {
   let loading = true;
   let error = null;
 
+  /*
+   * Urutan muat (UX-E1.2): hanya jawaban permintaan TERBARU yang boleh melukis.
+   *
+   * load() tidak pernah membatalkan permintaan sebelumnya, jadi jawaban yang
+   * tiba TERLAMBAT menang — dan itu sudah terjadi sebelum paket ini: kotak Cari
+   * yang diketik pelan memicu dua permintaan, dan bila yang pertama lebih
+   * lambat, daftar yang tergambar milik kata yang sudah dihapus sementara kotak,
+   * chip, dan bilah alamat menyebut kata yang baru. Tab status (UX-E1.8)
+   * memperbesarnya: panah kanan tiga kali = tiga muatan dalam sedetik.
+   * Nomor urut ini membuat jawaban usang dibuang diam-diam; permintaan yang
+   * lebih baru memiliki layarnya, termasuk keadaan "memuat"-nya.
+   */
+  let loadSeq = 0;
+
   /* Combobox filter milik bilah yang sedang terpasang. Popup-nya menempel di
      <body> (position: fixed), jadi clear(tableHost) pada renderAll TIDAK ikut
      mencabutnya: filter yang popup-nya terbuka saat muatan pertama tiba
@@ -287,6 +301,7 @@ export async function renderList(host, { key, def }) {
   }
 
   async function load() {
+    const seq = ++loadSeq;
     loading = true;
     error = null;
     /* Seleksi mati di setiap muatan — halaman lain, filter lain, muat ulang.
@@ -297,13 +312,18 @@ export async function renderList(host, { key, def }) {
     picked.clear();
     syncBulk();
     renderAll();
+    let answer = null;
+    let failure = null;
     try {
-      payload = await api.list(def.api, {
+      answer = await api.list(def.api, {
         ...queryParams(),
         per_page: ui.perPage,
         page: ui.page,
       });
     } catch (caught) {
+      // Permintaan yang lebih baru sudah berjalan: penolakan ini milik keadaan
+      // yang sudah ditinggalkan, termasuk pemulihan sort di bawah.
+      if (seq !== loadSeq) return;
       /*
        * Sort yang ditolak server (422 dengan errors.sort) hanya bisa datang
        * dari seed URL usang/rakitan — header hanya menawarkan kunci
@@ -326,9 +346,11 @@ export async function renderList(host, { key, def }) {
         ui.page = 1;
         return load();
       }
-      error = caught;
-      payload = null;
+      failure = caught;
     }
+    if (seq !== loadSeq) return;
+    payload = failure ? null : answer;
+    error = failure;
     loading = false;
     syncUrl();
     if (stillOnScreen()) renderAll();

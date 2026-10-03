@@ -39,10 +39,27 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertMatchesRegularExpression("/lookupSource: 'purchaseOrders',\\n    description: '[^']+',\\n/", $schema);
     }
 
+    /* ------------------------------------------------------------ E1.2 */
+
+    /** Hanya jawaban permintaan terbaru yang melukis; pemulihan sort tetap ada dan ikut bernomor. */
+    public function test_only_the_newest_list_response_paints(): void
+    {
+        $load = $this->functionBody($this->spa('views/list.js'), 'async function load() {');
+        $this->assertNotNull($load, 'load() hilang dari list.js.');
+        $this->assertStringContainsString('const seq = ++loadSeq;', $load);
+        $this->assertGreaterThanOrEqual(2, substr_count($load, 'if (seq !== loadSeq) return;'),
+            'Jawaban usang bisa melukis lagi: kotak Cari dan tab status menampilkan daftar milik keadaan yang sudah ditinggalkan.');
+        // Penjaga di cabang catch berdiri SEBELUM pemulihan sort 422, dan pemulihannya tetap memanggil load() lagi.
+        $catch = substr($load, (int) strpos($load, 'catch (caught)'));
+        $this->assertLessThan(strpos($catch, 'caught.status === 422'), strpos($catch, 'if (seq !== loadSeq) return;'));
+        $this->assertStringContainsString('return load();', $catch);
+        $this->assertStringContainsString("tidak tersedia — daftar memakai urutan bawaan.", $catch);
+    }
+
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(46, (int) $version[1],
+        $this->assertGreaterThanOrEqual(47, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
