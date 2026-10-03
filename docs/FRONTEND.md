@@ -321,6 +321,20 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **The shell (UX-D)**: the landing is `#/home` at every width (ERRATA D-2). NAV rows with `pinned: true`
+  (Beranda, Persetujuan; Pekerjaan Saya when UX-F2 adds it) are drawn as fixed rows above Favorit and as
+  the first slots of the ≤ 760 px bottom bar — still owned by their NAV group, still filtered by
+  `visibleNav()`, so the shell writes no permission. `icon` names their glyph; `count: 'inbox'` asks for
+  the approval badge. Groups with more than 10 routes show 8 plus "Semua layar <modul> →"; the rest stay
+  in the DOM (`.beyond-cap`) so the filter, the module-home comparison and the active route still reach
+  them. **`js/inbox.js` is the only `core/inbox` caller**: badge, dashboard widget, the Persetujuan screen
+  and the next-document offer share one request, the cache is keyed by user id, nothing is asked without
+  ANY_APPROVE, and `meta.failed` renders as "N+" with tugas.js's sentence, never a bare number.
+  **`js/create.js`** gathers the lists' own "Tambah …" buttons for Buat ▾ and the palette's Aksi group:
+  `canCreateResource()` is the one predicate `list.js` and the shell share. The rail (64 px) is per device
+  (`localStorage nusantara_erp_nav_rail`), always on at 761–1023 px; in it a module icon opens
+  `#/m/<prefix>` and the full menu opens over the page through the same `ui.drawer()` the phone uses.
+  `ShellWiringTest` pins all of the above.
 - **One icon system (UI-3c)**: `icon(name, size)` now delegates to `svgIcon(name, {size})`, so every icon in
   the SPA comes from the vendored Lucide sprite. The two functions' signatures do **not** match — one takes a
   number, the other an object — so a mechanical `icon(` → `svgIcon(` rename is valid JavaScript that silently

@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Tujuh layar baseline redesain UI/UX, terang dan gelap, 390 dan 1440 px (UX-0.3, UX-C, UX-D).
+
+Pakai (server lokal di atas salinan DB yang sudah di-seed):
+  python3 ux-shots.py <db.sqlite> <direktori-keluaran> [base-url] [satu-layar]
+
+Berkas keluaran <nama>-<tema>-<lebar>.jpg; nama layar sama sejak UX-0 (termasuk "2-tugas-saya", kini
+layar Persetujuan) supaya pasangan sebelum/sesudah tetap sejajar per nama berkas.
+
+KOREKSI UX-D (3 Okt 2026): salinan UX-0 dari skrip ini memakai #/m/procurement untuk "beranda modul
+Pengadaan". Awalan modulnya prc, jadi kedua set tangkapan sebelumnya (ux-baseline, ux-c) memotret halaman
+"Modul procurement tidak dikenal" — tanpa satu pun page error, dan karena itu tidak tertangkap. Rute di
+bawah sudah #/m/prc; layar 6 ketiga set dipotret ulang dari kode masing-masing paket."""
+from playwright.sync_api import sync_playwright
+DB=sys.argv[1]; OUT=sys.argv[2]; BASE=sys.argv[3] if len(sys.argv)>3 else "http://127.0.0.1:8000/app/"; ONLY=sys.argv[4] if len(sys.argv)>4 else None
+SCREENS=[ # name, role, hash (None = whatever the app lands on after login)
+ ("1-landing","admin@nusantara.test",None),
+ ("2-tugas-saya","direktur@nusantara.test","#/tugas"),
+ ("3-po-daftar","procurement@nusantara.test","#/r/procurement/purchase-orders"),
+ ("4-po-form","procurement@nusantara.test","#/f/procurement/purchase-orders"),
+ ("5-po-detail","procurement@nusantara.test","#/d/procurement/purchase-orders/1"),
+ ("6-pengadaan-modul","procurement@nusantara.test","#/m/prc"),
+ ("7-lapangan","site-manager@nusantara.test","#/lapangan"),
+]
+SCREENS=[x for x in SCREENS if not ONLY or x[0]==ONLY]
+VIEWS={"390":dict(viewport={"width":390,"height":844},is_mobile=True,has_touch=True,device_scale_factor=1),
+       "1440":dict(viewport={"width":1440,"height":900})}
+con=sqlite3.connect(DB)
+for _,e,_h in SCREENS:
+    con.execute("UPDATE users SET onboarding_status='skipped', onboarding_seen_at=datetime('now') WHERE email=? AND onboarding_status IS NULL",(e,))
+con.commit(); con.close()
+def login(pg,email):
+    pg.goto(BASE); pg.wait_for_selector("input[type=email]",timeout=15000)
+    pg.fill("input[type=email]",email); pg.fill("input[type=password]","password")
+    for _ in range(6):
+        with pg.expect_response(lambda r:"iam/auth/login" in r.url,timeout=15000) as i: pg.click("button[type=submit]")
+        r=i.value
+        if r.status!=429: break
+        w=int(r.headers.get("retry-after","20")); print("429 wait",w,flush=True); time.sleep(w+1)
+    pg.wait_for_selector("nav.nav, .launcher, #view",timeout=20000); pg.wait_for_timeout(1500)
+with sync_playwright() as p:
+    b=p.chromium.launch()
+    for vname,opts in VIEWS.items():
+        for email in sorted({e for _,e,_h in SCREENS}):
+            ctx=b.new_context(**opts); pg=ctx.new_page(); errs=[]
+            pg.on("pageerror",lambda e:errs.append(str(e)[:160]))
+            login(pg,email)
+            for name,e,h in SCREENS:
+                if e!=email: continue
+                if h: pg.goto(BASE+h); pg.wait_for_timeout(2600)
+                landed=pg.evaluate("location.hash")
+                for theme in ("light","dark"):
+                    pg.evaluate("(t)=>{document.documentElement.dataset.theme=t}",theme); pg.wait_for_timeout(350)
+                    f=f"{OUT}/{name}-{theme}-{vname}.jpg"
+                    pg.screenshot(path=f,type="jpeg",quality=82)
+                print(vname,name,"landed",landed,"errs",errs[-2:],flush=True)
+            ctx.close()
+    b.close()
