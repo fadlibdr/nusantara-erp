@@ -81,7 +81,8 @@ class ApprovalInboxGateTest extends ErpTestCase
             'ANY_APPROVE harus mencerminkan penyaring ApprovalQueue::pending: "<awalan>.approve" yang '
                 .'DIPEGANG atau yang DIPINJAM sebuah delegasi (grants()), tanpa .approve-director.',
         );
-        $this->assertStringContainsString("{ label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }", $schema);
+        // "Tugas Saya" sampai UX-D.2; `pinned`/`icon`/`count` adalah data baris tetap (ERRATA E-4), izinnya tetap satu.
+        $this->assertStringContainsString("{ label: 'Persetujuan', route: 'tugas', perm: ANY_APPROVE, pinned: true, icon: 'inbox', count: 'inbox' }", $schema);
 
         /*
          * P1-D memindahkan gerbangnya, dan menjadikannya SATU.

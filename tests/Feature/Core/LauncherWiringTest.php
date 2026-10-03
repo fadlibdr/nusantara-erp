@@ -48,7 +48,8 @@ class LauncherWiringTest extends ErpTestCase
          * beranda modul Ringkasan menggambar kartu yang kembali ke launcher
          * yang baru saja ditinggalkan pemakainya.
          */
-        $this->assertStringContainsString("{ label: 'Beranda', route: 'home', chrome: true }", $this->file('app/js/schema.js'));
+        // `pinned`/`icon` sejak UX-D.2 (baris tetap, ERRATA E-4); `chrome: true` tetap dipaku.
+        $this->assertStringContainsString("{ label: 'Beranda', route: 'home', chrome: true, pinned: true, icon: 'home' }", $this->file('app/js/schema.js'));
         $this->assertStringContainsString('item.route && !item.chrome', $this->file('app/js/views/home.js'),
             'Ubin launcher menghitung baris kroma sebagai layar; "n layar" tidak lagi sama dengan jumlah kartu di beranda modulnya.');
         $this->assertStringContainsString('filter((item) => !item.chrome)', $this->file('app/js/views/module.js'),

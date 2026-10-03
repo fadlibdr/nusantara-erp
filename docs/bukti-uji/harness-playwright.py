@@ -91,6 +91,14 @@ def nav_click(page, href):
     opened = False
     if page.locator(group).count() and page.locator(group).first.get_attribute("data-open") == "false":
         click(page, f"{group} > button"); page.wait_for_timeout(150); opened = True
+    link = page.locator(f"nav.nav a[href='{href}']").first
+    if link.count() and not link.is_visible():
+        # UX-D.2 plafon tautan (ERRATA E-4): baris ke-9 dst. sebuah grup panjang tidak tergambar; jalan
+        # orangnya adalah "Semua layar <modul> →" lalu kartu layarnya di beranda modul — dua klik yang
+        # DIHITUNG, sama seperti klik membuka grup di atas. Baris tetap (.nav-pinned) tidak pernah lewat sini.
+        click(page, f"{group} a.nav-more-link"); page.wait_for_selector(".module-card", timeout=15000); page.wait_for_timeout(300)
+        click(page, f".module-card[href='{href}']")
+        return opened
     click(page, f"nav.nav a[href='{href}']")
     return opened
 
@@ -157,7 +165,7 @@ NOTE_PANEL = """() => { const d=document.querySelector('.page-head .actions deta
 
 # --------------------------------------------------------------- scenarios
 
-# Kartu "Menunggu persetujuan Anda" + tautan Tugas Saya + izin `.approve` yang dipegang, dibaca dari
+# Kartu "Menunggu persetujuan Anda" + tautan Persetujuan (#/tugas) + izin `.approve` yang dipegang, dibaca dari
 # sesi peramban sendiri (localStorage nusantara_erp_user) — bukan lewat token_for(): iam/auth/login
 # dibatasi 10 kali per menit per IP, dan S10 + S1 + S2 + S3 + S4 sudah memakai 9 di menit pertama;
 # masuk ke-11 (masuk ulang S4, tanpa ulang otomatis) akan kena 429.
@@ -195,14 +203,20 @@ def s1(pg):
             server[t] = n
     login(pg, "direktur@nusantara.test")
     pg.wait_for_timeout(1500)
+    # UX-D.1 (ERRATA D-2): landing adalah #/home di setiap lebar. Permintaan LANDING dihitung dulu
+    # (metrik ERRATA §4 "API calls on opening the landing page"), lalu dasbor dibuka sendiri dan
+    # permintaannya dihitung terpisah — kartu "Menunggu persetujuan Anda" ada di dasbor, bukan di Beranda.
+    landing_calls = after_login(reqs); landing_hash = pg.evaluate("() => location.hash")
+    reqs.clear(); pg.goto(BASE + "#/dashboard"); pg.wait_for_selector(".card", timeout=15000); pg.wait_for_timeout(1500)
     card = pg.evaluate("""() => { const c=[...document.querySelectorAll('.card')].find(c=>/Menunggu persetujuan/.test(c.innerText));
         return { title: c.querySelector('h2').innerText, rows: [...c.querySelectorAll('tbody tr')].map(r => r.innerText.split('\\n')[0]),
                  width: c.getBoundingClientRect().width, height: c.getBoundingClientRect().height,
                  seeAll: !!c.querySelector('.card-foot'), rowHeights: [...c.querySelectorAll('tbody tr')].map(r=>Math.round(r.getBoundingClientRect().height)) }; }""")
     out = {"direktur_approve_perms": sorted(p for p in perms if p.endswith(".approve")),
            "server_submitted_visible_to_direktur": server, "dashboard_card": card}
-    calls = after_login(reqs)
-    out["direktur"] = {**pg.evaluate(CARD_AND_LINK), "dashboard_api_calls": len(calls), "dashboard_api_sample": calls[:24]}
+    calls = list(reqs)
+    out["direktur"] = {**pg.evaluate(CARD_AND_LINK), "landing": landing_hash, "landing_api_calls": len(landing_calls), "landing_api_sample": landing_calls[:24],
+                       "dashboard_api_calls": len(calls), "dashboard_api_sample": calls[:24]}
     # T2.11 — peran tanpa satu pun izin `.approve`: GET core/inbox menyaring per `<awalan>.approve`
     # (ApprovalQueue::pending), jadi kotaknya SELALU kosong. Diukur 2 Sep 2026 (S5 › cards): kartu
     # tergambar untuk 11/11 peran demo, 8 di antaranya tidak menyetujui apa pun. warehouse dipilih
@@ -211,8 +225,11 @@ def s1(pg):
     pg.context.clear_cookies(); pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
     login(pg, "warehouse@nusantara.test")
     pg.wait_for_timeout(1500)
-    calls = after_login(reqs)
-    out["warehouse"] = {**pg.evaluate(CARD_AND_LINK), "dashboard_api_calls": len(calls), "dashboard_api_sample": calls[:24]}
+    landing_calls = after_login(reqs); landing_hash = pg.evaluate("() => location.hash")
+    reqs.clear(); pg.goto(BASE + "#/dashboard"); pg.wait_for_selector(".card, #view .empty", timeout=15000); pg.wait_for_timeout(1500)
+    calls = list(reqs)
+    out["warehouse"] = {**pg.evaluate(CARD_AND_LINK), "landing": landing_hash, "landing_api_calls": len(landing_calls), "landing_api_sample": landing_calls[:24],
+                        "dashboard_api_calls": len(calls), "dashboard_api_sample": calls[:24]}
     pg.screenshot(path=f"{OUT}/s1-warehouse-dashboard.png")
     return out
 
@@ -223,6 +240,8 @@ def s2(pg):
     pg.on("request", lambda r: reqs.append(r.url.split("/api/")[-1]) if "/api/" in r.url else None)
     login(pg, "direktur@nusantara.test")
     pg.wait_for_timeout(1500)
+    # UX-D.1: landing #/home; kartu persetujuan ada di dasbor, jadi dasbor dibuka dulu (bukan klik — tidak dihitung).
+    pg.goto(BASE + "#/dashboard"); pg.wait_for_selector(".card", timeout=15000); pg.wait_for_timeout(1200)
     reqs.clear()
     t0 = time.time()
     first_code = pg.evaluate("() => { const c=[...document.querySelectorAll('.card')].find(c=>/Menunggu persetujuan/.test(c.innerText)); return c.querySelector('tbody tr').innerText.split('\\n')[0] }")
@@ -1897,7 +1916,7 @@ def s11(pg):
     pg.wait_for_selector("table.data, .empty", timeout=15000); pg.wait_for_timeout(800)
     # Dasbor juga punya table.data (kartu "Menunggu persetujuan"): tunggu di atas puas di halaman yang
     # salah, dan `rows` di bawah akan mencatat baris kartu itu (verifikasi P1-B putaran 2, 6 Sep 2026).
-    assert_screen(pg, "#/tugas", "Tugas Saya")
+    assert_screen(pg, "#/tugas", "Persetujuan")  # "Tugas Saya" sampai UX-D.2
     out = pg.evaluate("() => ({ h1: document.querySelector('.page-head h1').innerText, rows: [...document.querySelectorAll('table.data tbody tr')].map(r=>r.innerText.split('\\n')[0]), types: [...document.querySelectorAll('.filters option')].map(o=>o.innerText) })")
     pg.screenshot(path=f"{OUT}/s11-tugas.png")
     click(pg, "table.data tbody tr:has-text('CTI/')")
@@ -5184,8 +5203,10 @@ MODULE_HOME = """() => { const head=document.querySelector('.module-head'); cons
              // Baris kroma aplikasi (data-chrome, hari ini hanya Beranda) BUKAN layar modul:
              // ia ada di menu tetapi tidak berkartu di beranda modul, dan penyaringnya penanda
              // yang dipasang aplikasi sendiri — bukan daftar href yang dikarang harness.
-             sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a:not([data-chrome])`)].map(a => a.getAttribute('href')) : [],
-             sidebar_chrome: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a[data-chrome]`)].map(a => a.getAttribute('href')) : [],
+             // Baris tetap (UX-D.2, .nav-pinned) tetap milik grupnya — anchor-nya membawa data-prefix.
+             sidebar: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a:not([data-chrome]), nav.nav .nav-pinned a[data-prefix="${prefix}"]:not([data-chrome])`)].map(a => a.getAttribute('href')) : [],
+             sidebar_chrome: prefix ? [...document.querySelectorAll(`nav.nav .nav-group[data-prefix="${prefix}"] .nav-items a[data-chrome], nav.nav .nav-pinned a[data-prefix="${prefix}"][data-chrome]`)].map(a => a.getAttribute('href')) : [],
+             pinned: [...document.querySelectorAll('nav.nav .nav-pinned a:not([data-chrome])')].map(a => a.getAttribute('href')),
              sidebar_open: prefix ? (document.querySelector(`nav.nav .nav-group[data-prefix="${prefix}"]`)||{}).dataset?.open : null,
              empty: e ? { text: e.innerText.trim(), kind: (e.querySelector('.illus')||{}).dataset?.kind } : null,
              smallest_font_px: Math.min(...[...document.querySelectorAll('#view *')].map(el=>parseFloat(getComputedStyle(el).fontSize)).filter(Boolean)) } }"""
@@ -5289,7 +5310,12 @@ def module_vs_sidebar(pg, prefixes):
         pg.goto(BASE + f"#/m/{prefix}"); pg.wait_for_timeout(900)
         m = pg.evaluate(MODULE_HOME)
         arrows = pg.evaluate(ARROWS) if m["cards"] else None
-        out[prefix] = {"cards": len(m["cards"]), "sidebar": len(m["sidebar"]), "match": m["cards"] == m["sidebar"], "head": bool(m["head"]),
+        # Baris tetap (UX-D.2) digambar DI ATAS grupnya di sidebar, jadi urutan dokumen sidebar = baris
+        # tetap dulu, lalu urutan NAV. Kartu beranda modul tetap urutan NAV; untuk membandingkan urutan
+        # dengan ketat, href baris tetap (anchor .nav-pinned) dipindah ke depan daftar kartu lebih dulu.
+        pinned_hrefs = set(m.get("pinned") or [])
+        cards_ordered = [h for h in m["cards"] if h in pinned_hrefs] + [h for h in m["cards"] if h not in pinned_hrefs]
+        out[prefix] = {"cards": len(m["cards"]), "sidebar": len(m["sidebar"]), "match": cards_ordered == m["sidebar"], "head": bool(m["head"]),
                        # Baris menu yang bukan layar (data-chrome) dicatat apa adanya: kalau
                        # daftarnya bertambah, yang bertambah harus terbaca di bukti dan bukan
                        # menghilang diam-diam dari pembandingan.
@@ -7409,7 +7435,7 @@ def s27k(browser):
 #      berbunyi "Budi a.n. Sari" sesudahnya;
 #   4. setujui massal TIDAK ADA selama plafonnya kosong;
 #   5. (putaran kedua) delegatnya SAMPAI ke pekerjaannya tanpa mengetik URL —
-#      "Tugas Saya" ada di bilah sampingnya, tombol Setujui ada di layar
+#      "Persetujuan" (dulu "Tugas Saya") ada di bilah sampingnya, tombol Setujui ada di layar
 #      dokumennya, tombol itu menyebut hak siapa yang dipinjamnya, dan
 #      menekannya benar-benar menyetujui "a.n." pemberinya;
 #   6. dan TIDAK LEBIH: `fin.approve` yang sama menggerbangi "Posting Jurnal",
@@ -7475,11 +7501,13 @@ INBOX_BULK = """() => {
 DELEGATION_BANNER = """() => (([...document.querySelectorAll('.alert')].find(a => /delegasi/i.test(a.innerText)) || {}).innerText || null)"""
 
 # Grup "Ringkasan" di bilah samping. Putaran kedua verifikasi F-1: seorang
-# delegat murni tidak melihat "Tugas Saya" di sini, dan S28 tidak dapat
+# delegat murni tidak melihat "Tugas Saya" (kini "Persetujuan") di sini, dan S28 tidak dapat
 # melihatnya karena ia membuka layarnya dengan mengetik #/tugas — jalan yang
 # tidak dimiliki pemakainya.
-NAV_RINGKASAN = """() => [...document.querySelectorAll('nav.nav a')].map(a => a.innerText.trim())
-  .filter(t => ['Beranda','Dasbor','Tugas Saya','Tenggat','Kalender','Laporan Bebas'].includes(t))"""
+# Label dibaca dari .lbl (UX-D.2: baris tetap membawa lencana jumlah di dalam <a>, jadi innerText
+# anchor-nya "Persetujuan\n12"); "Tugas Saya" bernama "Persetujuan" sejak paket itu.
+NAV_RINGKASAN = """() => [...document.querySelectorAll('nav.nav a')].map(a => ((a.querySelector('.lbl') || a).innerText || '').trim())
+  .filter(t => ['Beranda','Dasbor','Persetujuan','Tenggat','Kalender','Laporan Bebas'].includes(t))"""
 
 # Tombol aksi sebuah layar dokumen, DENGAN title-nya: "a.n." pada tombol Setujui
 # adalah satu-satunya tempat seorang delegat diberi tahu hak siapa yang sedang
@@ -7757,7 +7785,8 @@ def s28(pg):
         # memegangnya. Keempat syarat di bawah mengukur satu kalimat: seorang
         # delegat SAMPAI ke pekerjaannya sendiri, tanpa mengetik URL.
         "the_delegate_can_reach_the_queue_from_the_sidebar": (
-            "Tugas Saya" in (out.get("delegate_nav") or [])),
+            # "Tugas Saya" sampai UX-D.2 (ERRATA E-4: label layar menjadi "Persetujuan", rute tetap #/tugas).
+            "Persetujuan" in (out.get("delegate_nav") or [])),
         "the_delegate_is_offered_the_approve_button_on_the_document": any(
             b["label"] == "Setujui" for b in (out["delegate_press"].get("buttons") or [])),
         # …dan tombol itu MENYEBUT hak siapa yang dipakainya, sebelum ditekan.

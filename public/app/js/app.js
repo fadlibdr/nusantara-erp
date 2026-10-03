@@ -8,6 +8,7 @@ import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath, setLeaveGuard, clearLeaveGuard } from './router.js';
 import { setCrumbs } from './crumbs.js';
 import { prefs } from './prefs.js';
+import { loadInbox, inboxSummary } from './inbox.js';
 import { renderModuleHome } from './views/module.js';
 import { renderHome } from './views/home.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
@@ -562,10 +563,21 @@ function starButton(route, on) {
   return star;
 }
 
+// <svg>.className adalah SVGAnimatedString yang hanya-baca: menetapkannya melempar
+// TypeError di modul (strict), dan shell berhenti di pemutar boot. classList, bukan className.
+function navIcon(name) {
+  const node = svgIcon(name, { size: 15 });
+  node.classList.add('ni');
+  return node;
+}
+
 function navItemNode(item, favorites) {
   const link = el('a', { href: `#/${item.route}`, dataset: { route: item.route }, title: item.sub || null }, [
     el('span.tick'),
+    item.icon ? navIcon(item.icon) : null,
     el('span.lbl', { text: item.label }),
+    // Lencana jumlah (UX-D.2): diisi paintInboxCounts() dari js/inbox.js; kosong = belum ditanyakan.
+    item.count ? el('span.nav-count', { dataset: { count: item.count }, hidden: true }) : null,
   ]);
   // Baris kroma aplikasi (schema.js `chrome: true` — hari ini hanya Beranda):
   // ada di menu, tetapi bukan salah satu LAYAR modulnya. Ditandai di DOM supaya
@@ -577,10 +589,40 @@ function navItemNode(item, favorites) {
   return node;
 }
 
+/*
+ * Plafon tautan per grup (UX-D.2, ERRATA E-4). Grup yang rutenya lebih dari
+ * CAP_GROUP menampilkan CAP_SHOW rute pertama lalu satu baris "Semua layar
+ * <modul> →" ke beranda modulnya; sisanya tetap ADA di DOM (kelas beyond-cap,
+ * disembunyikan app.css) supaya kotak saring, pembaca luar (S21 membandingkan
+ * kartu beranda modul dengan tautan sidebar) dan rute aktif tetap menemukannya —
+ * setActiveNav menandai rute aktif di balik plafon dengan cap-active, jadi ia
+ * selalu tergambar. Pemisah di dalam irisan yang terlihat dipertahankan; yang
+ * bloknya seluruhnya di balik plafon ikut tersembunyi. Terukur 3 Okt 2026:
+ * Penjualan 13, Pengadaan 14, Persediaan 11, Proyek 20, Keuangan 22 rute.
+ */
+const CAP_GROUP = 10;
+const CAP_SHOW = 8;
+
 function navGroupNode(nav, group, favorites, stored) {
-  const items = el('.nav-items', group.items.map((item) => (item.divider
-    ? el('.nav-divider', { text: item.divider })
-    : navItemNode(item, favorites))));
+  const routes = group.items.filter((item) => item.route).length;
+  const capped = Boolean(group.prefix) && routes > CAP_GROUP;
+  let shown = 0;
+  const items = el('.nav-items', group.items.map((item) => {
+    const node = item.divider ? el('.nav-divider', { text: item.divider }) : navItemNode(item, favorites);
+    if (capped) {
+      if (item.divider ? shown >= CAP_SHOW : shown >= CAP_SHOW) node.classList.add('beyond-cap');
+      if (item.route) shown += 1;
+    }
+    return node;
+  }));
+  if (capped) {
+    items.appendChild(el('.nav-item.nav-more', [
+      el('a.nav-more-link', { href: `#/m/${group.prefix}`, dataset: { route: `m/${group.prefix}`, chrome: '1' } }, [
+        el('span.tick'),
+        el('span.lbl', { text: `Semua layar ${group.label} →` }),
+      ]),
+    ]));
+  }
 
   // Class 'chev' dipasang di sini, bukan di icon(): selector rotasi
   // `.nav-group[data-open="false"] > button .chev` di app.css tidak pernah
@@ -750,9 +792,25 @@ function renderNav(nav) {
   const groups = navForSession();
   const favorites = prefs.favorites();
   const stored = storedOpenGroups();
-  for (const group of [...shortcutGroups(groups), ...groups]) {
+  /* Lapis 1 (UX-D.2): baris tetap dari NAV (`pinned: true`), digambar di atas
+     Favorit dan dilewatkan di grupnya. Izinnya sudah disaring visibleNav(). Bukan
+     .nav-group: ia tidak punya kepala yang bisa dilipat, dan pembaca luar yang
+     membaca `.nav-group > button` (S5) tidak boleh menemukan grup tanpa tombol. */
+  const pinned = groups.flatMap((group) => group.items.filter((item) => item.pinned).map((item) => ({ ...item, prefix: group.prefix })));
+  if (pinned.length) {
+    nav.appendChild(el('.nav-pinned', { 'aria-label': 'Ruang kerja saya' }, [
+      el('.nav-items', pinned.map((item) => {
+        const node = navItemNode({ ...item, starrable: false }, favorites);
+        node.querySelector('a').dataset.prefix = item.prefix;
+        return node;
+      })),
+    ]));
+  }
+  const unpinned = groups.map((group) => ({ ...group, items: group.items.filter((item) => !item.pinned) }));
+  for (const group of [...shortcutGroups(groups), ...unpinned]) {
     nav.appendChild(navGroupNode(nav, group, favorites, stored));
   }
+  paintInboxCounts();
   // Sidebar dibangun ulang tiap bintang dan tiap dokumen yang dibuka. Kalau
   // sebuah saringan sedang aktif, ia harus selamat dari pembangunan itu —
   // kalau tidak, memberi bintang saat menyaring akan menumpahkan 149 tautan
@@ -772,6 +830,33 @@ function refreshNav() {
   renderNav(nav);
   setActiveNav(currentPath().split('?')[0]);
 }
+
+/*
+ * Lencana jumlah persetujuan (UX-D.2, ERRATA E-4): setiap [data-count="inbox"]
+ * di shell (sidebar, bilah bawah). Belum ditanyakan → tersembunyi; 0 → tersembunyi
+ * (tidak ada yang menunggu, tidak perlu lencana); meta.failed tidak kosong →
+ * angkanya BUKAN jumlah sebenarnya, jadi ia tidak boleh tampil telanjang:
+ * "N+" dengan kalimat tugas.js ("Daftar ini belum lengkap") sebagai title.
+ */
+function paintInboxCounts() {
+  const summary = inboxSummary();
+  for (const node of document.querySelectorAll('[data-count="inbox"]')) {
+    if (!summary) { node.hidden = true; continue; }
+    const incomplete = summary.failed.length > 0;
+    node.hidden = summary.total === 0 && !incomplete;
+    node.textContent = incomplete ? `${summary.total}+` : String(summary.total);
+    node.classList.toggle('incomplete', incomplete);
+    node.title = incomplete
+      ? `Gagal dimuat: ${summary.failed.join(', ')}. Daftar ini belum lengkap — sekurang-kurangnya ${summary.total} menunggu.`
+      : `${summary.total} dokumen menunggu keputusan Anda`;
+    node.setAttribute('aria-label', node.title);
+  }
+}
+window.addEventListener('erp:inbox-changed', paintInboxCounts);
+// Sesudah pindah halaman angka yang berumur lebih dari satu menit ditanyakan lagi —
+// keputusan di layar dokumen mengubahnya, dan lencana yang berbohong sejam lebih
+// buruk daripada satu permintaan ringan. loadInbox() diam tanpa izin approve.
+window.addEventListener('hashchange', () => { loadInbox().catch(() => {}); });
 
 /*
  * Tombol pencarian header, dan bentuk medannya di layar lebar (UI-3b).
@@ -1030,6 +1115,9 @@ function setActiveNav(path) {
       (target.startsWith('r/') && path.startsWith(`d/${target.slice(2)}/`)) ||
       (target === 'r/projects' && /^d\/projects\/\d+$/.test(path));
     link.classList.toggle('active', active);
+    // Rute aktif di balik plafon tautan (UX-D.2) selalu tergambar.
+    const item = link.closest('.nav-item');
+    if (item) item.classList.toggle('cap-active', active && item.classList.contains('beyond-cap'));
     if (active) {
       const group = link.closest('.nav-group');
       // Grup rute aktif dibuka (tidak disimpan) — inilah pengecualian bawaan
@@ -1465,7 +1553,7 @@ function registerRoutes() {
   });
 
   route('tugas', () => {
-    setCrumbs(['Ringkasan', 'Tugas Saya']);
+    setCrumbs(['Ringkasan', 'Persetujuan']);
     setActiveNav('tugas');
     const host = view();
     // Tanpa gerbang izin: core/inbox menyaring per {modul}.approve pemanggil.
@@ -1853,6 +1941,9 @@ async function boot() {
   applyDensity(readDensity());
   startNotificationPolling();
   buildShell();
+  // Lencana Persetujuan (UX-D.2): satu permintaan, dibagi dengan widget dasbor
+  // lewat js/inbox.js; tidak ada permintaan tanpa izin approve.
+  loadInbox().catch(() => {});
 
   if (!routesRegistered) {
     registerRoutes();

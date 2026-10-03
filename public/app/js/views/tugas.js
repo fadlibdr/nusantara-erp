@@ -1,4 +1,4 @@
-/* Tugas Saya — kotak masuk persetujuan lengkap.
+/* Persetujuan ("Tugas Saya" sampai UX-D.2) — kotak masuk persetujuan lengkap.
  *
  * Kartu dasbor hanya cuplikan lima baris; layar ini adalah antreannya: semua
  * jenis dokumen di ApprovableDocuments yang boleh disetujui pemanggil, yang
@@ -26,6 +26,7 @@
  *       checker, ambang direktur, jurnal, stok dan pemberitahuan berjalan
  *       persis seperti menyetujui satu-satu, karena memang itu yang terjadi. */
 import { api } from '../api.js';
+import { loadInbox } from '../inbox.js';
 import { el, clear, button, badge, emptyState, errorState, skeletonTable, toast, toastError, withBusy } from '../ui.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
@@ -184,13 +185,13 @@ function delegationCard() {
   return card;
 }
 
-/* -------------------------------------------------------------- Tugas Saya */
+/* ------------------------------------------------------------- Persetujuan */
 
 export async function renderTugas(host) {
   clear(host);
   host.appendChild(el('.page-head', [
     el('div', [
-      el('h1', { text: 'Tugas Saya' }),
+      el('h1', { text: 'Persetujuan' }),
       el('.desc', { text: 'Dokumen yang menunggu keputusan Anda, yang paling lama menunggu di atas.' }),
     ]),
     el('.actions', [button('Muat ulang', { iconName: 'refresh', onClick: () => renderTugas(host) })]),
@@ -202,7 +203,8 @@ export async function renderTugas(host) {
 
   let payload;
   try {
-    payload = await api.list('core/inbox');
+    // Pemuat bersama (UX-D.2): jawabannya juga memperbarui lencana sidebar/bilah bawah.
+    payload = (await loadInbox({ maxAge: 0 })) || { data: [], meta: {} };
   } catch (error) {
     clear(card).appendChild(el('.card-body', errorState(error, () => renderTugas(host))));
     return;

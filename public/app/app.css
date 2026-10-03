@@ -3450,3 +3450,28 @@ button.linkish:hover b { text-decoration: underline; }
 .menu-item.danger { color: var(--danger); }
 .menu-item.danger svg { color: var(--danger); }
 .menu-item.danger:hover, .menu-item.danger:focus-visible { background: var(--danger-soft); }
+
+/* ================================================== sidebar UX-D.2 */
+/* Baris tetap (Lapis 1): tanpa kepala grup, ikon 15 px, lencana jumlah di kanan. */
+.nav-pinned { margin: 0 0 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.nav-pinned .nav-items { padding: 0; }
+.nav-pinned .nav-items a { padding-left: 10px; font-weight: var(--fw-medium); }
+.nav-pinned .nav-items a .tick { display: none; }
+.nav-items a .ni { flex: none; opacity: .8; }
+.nav-items a.active .ni { opacity: 1; }
+.nav-count {
+  margin-left: auto; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft); color: var(--primary);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi); font-variant-numeric: tabular-nums;
+}
+.nav-count[hidden] { display: none; }
+/* Angka yang BUKAN jumlah sebenarnya (meta.failed): warna peringatan, "N+" — tidak pernah telanjang. */
+.nav-count.incomplete { background: var(--warning-soft); color: var(--warning); }
+/* Plafon tautan: baris di balik plafon tersembunyi, kecuali saat menyaring atau bila rutenya aktif. */
+.nav:not([data-filtering="true"]) .nav-item.beyond-cap:not(.cap-active),
+.nav:not([data-filtering="true"]) .nav-divider.beyond-cap { display: none; }
+.nav-item.nav-more .lbl { color: var(--primary); font-weight: var(--fw-medium); }
+.nav-items a.nav-more-link .tick { display: none; }
