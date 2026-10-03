@@ -1,7 +1,7 @@
 /* Generic document detail: header, key/value panel, line tables, approvals. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, icon, errorState, emptyState, pluck, toast, menuButton } from '../ui.js';
+import { el, clear, button, badge, statusBadge, actionPanel, icon, errorState, emptyState, pluck, toast, menuButton } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
@@ -759,7 +759,14 @@ function documentMeta(def, record) {
   return el('.doc-meta', parts);
 }
 
-function statusStrip(def, record, canEdit) {
+/**
+ * Kalimat keadaan dokumen: `{ tone, iconName, text, sub }` atau null bila
+ * statusnya tidak dikenal. Pengembalian DATA, bukan simpul (UX-C.4): pemanggil
+ * merendernya lewat actionPanel, dan daftar/Pekerjaan Saya nanti boleh membaca
+ * kalimat yang sama. Nama orang dan tingkat datang dari record.approvals dan
+ * required_levels — tidak ada yang dikarang di klien (E-3 butir 5).
+ */
+function statusStrip(def, record, canEdit, { canDecide = false } = {}) {
   const status = String(record.status || '');
   const approvals = Array.isArray(record.approvals) ? record.approvals : [];
   const last = (action) => [...approvals].reverse().find((a) => a.action === action);
@@ -769,6 +776,7 @@ function statusStrip(def, record, canEdit) {
   const label = (def.labelOne || 'Dokumen');
 
   let tone = 'info';
+  let iconName = 'pencil';
   let text = null;
   let sub = null;
 
@@ -780,24 +788,27 @@ function statusStrip(def, record, canEdit) {
     const given = approvals.filter((a) => a.action === 'approved').length;
     const need = Number(record.required_levels || 0);
     text = `${s ? `Diajukan ${when(s)} oleh ${who(s)}` : 'Diajukan'} · menunggu persetujuan${need > 1 ? ` (${given} dari ${need} tingkat)` : ''}.`;
-    sub = 'Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.';
-    tone = 'warn';
+    sub = canDecide
+      ? 'Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.'
+      : 'Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.';
+    tone = canDecide ? 'attn' : 'warn';
+    iconName = 'clock';
   } else if (status === 'rejected') {
     const r = last('rejected');
     text = `Ditolak ${when(r)} oleh ${who(r)}${r && r.note ? `: "${r.note}"` : '.'}`;
     sub = 'Perbaiki lalu ajukan lagi; riwayat penolakan tetap tersimpan.';
-    tone = 'error';
+    tone = 'danger';
+    iconName = 'circle-x';
   } else if (['approved', 'posted', 'active', 'closed'].includes(status)) {
     const a = last('approved');
     text = a ? `Disetujui ${when(a)} oleh ${who(a)} · dokumen terkunci.` : `${label} ini terkunci (${record.status_label || status}).`;
     sub = 'Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.';
+    tone = 'success';
+    iconName = 'circle-check';
   }
 
-  if (!text) return el('span', { hidden: true });
-  return el(`.alert.${tone}`, { style: { marginBottom: '14px' } }, [
-    icon(tone === 'info' ? 'inbox' : 'warn', 15),
-    el('div', { style: { flex: '1' } }, [el('div', { text }), sub ? el('.cell-sub', { text: sub }) : null]),
-  ]);
+  if (!text) return null;
+  return { tone, iconName, text, sub };
 }
 
 export function approvalTimeline(approvals) {
@@ -1033,7 +1044,7 @@ export async function renderDetail(host, { key, def, id }) {
     el('div', [
       el('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } }, [
         el('h1', { text: title }),
-        record.status ? badge(record.status_label || record.status, fmt.statusTone(record.status, statusEnum)) : null,
+        record.status ? statusBadge(record.status, statusEnum, { label: record.status_label || undefined }) : null,
       ]),
       subtitle ? el('.desc', { text: subtitle }) : null,
       documentMeta(def, record),
@@ -1054,7 +1065,20 @@ export async function renderDetail(host, { key, def, id }) {
    * dibaca di dokumen, bukan di tempat orang bertanya (asesmen 2 Sep 2026).
    * Datanya sudah ada di record.approvals; tidak ada permintaan tambahan.
    */
-  host.appendChild(statusStrip(def, record, canEdit));
+  /*
+   * UX-C.4 (ERRATA E-3 butir 4): statusStrip() hanya MENYUSUN kalimatnya;
+   * yang menggambar adalah actionPanel, kotak yang sama yang nanti memuat
+   * tombol keputusan (UX-E2). Satu sumber kalimat untuk semua layar — tidak
+   * ada generator kalimat kedua di enums.js. 'attn' hanya bila dokumen ini
+   * benar-benar menunggu KEPUTUSAN PEMBACA: pintu approve/reject yang dipegang
+   * (isDecisionDoor + canAct) dan terbuka untuk baris ini (when); pembaca lain
+   * melihat 'warn' — menunggu, tetapi bukan gilirannya.
+   */
+  const strip = statusStrip(def, record, canEdit, {
+    canDecide: (def.actions || []).some((action) => session.isDecisionDoor(action)
+      && session.canAct(action) && (!action.when || action.when(record))),
+  });
+  if (strip) host.appendChild(actionPanel({ tone: strip.tone, iconName: strip.iconName, title: strip.text, text: strip.sub }));
 
   /* P8 — revisi generik (D9): the superseded banner, speaking the 422's own
      words (Revisable::assertRevisiBerlaku) BEFORE anybody presses a button.

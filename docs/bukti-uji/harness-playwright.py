@@ -255,7 +255,7 @@ def s2(pg):
     pg.wait_for_timeout(600)
     t_done = int((time.time() - t0) * 1000)
     toast = toasts(pg)
-    after = pg.evaluate("() => ({ url: location.hash, status: (document.querySelector('.page-head .badge')||{}).innerText, nextOffer: [...document.querySelectorAll('.toast')].map(t=>t.innerText.slice(0,140)), strip: (document.querySelector('.page-head + .alert')||{}).innerText })")
+    after = pg.evaluate("() => ({ url: location.hash, status: (document.querySelector('.page-head .badge')||{}).innerText, nextOffer: [...document.querySelectorAll('.toast')].map(t=>t.innerText.slice(0,140)), strip: (document.querySelector('.page-head + .action-panel, .page-head + .alert')||{}).innerText })")
     if pg.locator(".toast button:has-text('Buka')").count():
         click(pg, ".toast button:has-text('Buka')"); pg.wait_for_timeout(1500)
         after["opened_next"] = pg.evaluate("() => (document.querySelector('.page-head h1')||{}).innerText")

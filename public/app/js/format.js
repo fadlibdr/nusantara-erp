@@ -246,8 +246,11 @@ export function statusIcon(value, enumName) {
       return 'history';
     case 'expired':
     case 'overdue':
-    case 'open':
       return 'circle-alert';
+    // 'open' di peta kata = keadaan normal (tiket), sejajar dengan hijaunya di
+    // statusTone; NCR, K3 dan defect menulis 'triangle-alert' di enum-nya sendiri.
+    case 'open':
+      return 'inbox';
     case 'in_progress':
     case 'assigned':
     case 'deployed':
