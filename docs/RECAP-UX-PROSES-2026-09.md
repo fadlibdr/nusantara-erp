@@ -214,6 +214,13 @@ Acceptance: delegate sees the delegator's queue and can approve; trail records "
 
 ## Phase 4 — Larger UX (P2, gated on research H1/H2)
 
+> **Superseded, 3 Oct 2026 (UX-0).** T4.1 (role home) and T4.2 (full-page forms) are no
+> longer gated on research H1/H2: the owner commissioned the redesign in
+> `docs/design_handoff_nusantara_erp/`, which builds both (ledger row 20 in
+> `ROADMAP-HASHMICRO.md` §5, `ERRATA.md` D-4). The harness metrics in
+> `docs/PROGRESS-UIUX.md` replace the research as evidence. T4.2's route `#/e/<resource>/<id>`
+> becomes `#/f/<resource>/new` and `#/f/<resource>/<id>` (ERRATA E-6). T4.3 and T4.4 are unchanged.
+
 **T4.1 Role home dashboards** (3 d) — direktur/finance (current), PM (S-curve deviation, open NCR, late PO lines, opname waiting), site manager (big Lapangan button, today's IPP, permits), procurement (PR waiting, RFQ open, late PO lines), warehouse (low stock, GRN waiting, transfers). Read `session.user.roles[0]`; reuse the "Proyek saya" switch.
 
 **T4.2 Full-page forms for resources with `lines`** (3 d) — route `#/e/<resource>/<id>`; header left, lines right/below; sticky Simpan; Enter on last cell = new row; multi-line Ctrl+V pastes columns by header order. Keep the modal for line-less forms.
