@@ -662,10 +662,16 @@ Susunannya dari atas ke bawah:
    **`Hapus semua`** di ujung chip membuang semuanya sekaligus, termasuk isi kotak Cari,
    tetapi mempertahankan urutan kolom yang Anda pilih. Saat dicetak, chip-chip ini ikut
    tercetak (tanpa × dan tanpa tombolnya) sebagai keterangan saringan lembar itu.
-   Paling kanan tertulis **jumlah datanya**, mis. *12 PO*, atau *3 PO · tersaring* bila
-   ada saringan atau kata pencarian yang aktif. Angka itu jumlah SELURUH hasil di server
-   (semua halaman), bukan baris yang sedang tampil; selama daftar dimuat, atau bila
-   pemuatannya gagal, tempat itu kosong — bukan 0. Angka ini juga ikut tercetak. Pada
+   Paling kanan tertulis **jumlah datanya**, mis. *12 PO*, atau *3 dari 12 PO · tersaring*
+   bila ada saringan atau kata pencarian yang aktif. Angka pertama jumlah SELURUH hasil
+   saringan di server (semua halaman), bukan baris yang sedang tampil; selama daftar
+   dimuat, atau bila pemuatannya gagal, tempat itu kosong — bukan 0. Angka sesudah
+   **dari** adalah seluruh isi layar itu tanpa saringan, seperti yang terlihat oleh akun
+   Anda; ia diambil paling sering sekali semenit, dan diambil ulang begitu Anda menekan
+   **Muat ulang**, menambah, atau menghapus data di layar itu. Bila angka itu belum
+   tiba, gagal diambil, atau lebih kecil dari angka pertama (data orang lain berubah
+   dalam semenit itu), kata **dari** tidak ditulis sama sekali — *3 PO · tersaring*.
+   Angka ini juga ikut tercetak. Pada
    lima layar yang mengabaikan kotak Cari (lihat di bawah), kata pencarian tetap menandai
    daftarnya *tersaring* walaupun isinya tidak berubah. **`Filter`** membuka panel kecil berisi saringan khusus layar
    itu — mis. Status, Vendor, Proyek — dan sepasang **Dari tanggal** / **Sampai tanggal**

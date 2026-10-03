@@ -18,6 +18,23 @@ import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath 
 
 const state = new Map(); // per-resource UI state, kept across navigations
 
+/*
+ * "M" dalam "N dari M PO · tersaring" (UX-E1.7): total TAK TERSARING per
+ * pengguna × layar, { total, at } atau { pending } selama permintaannya jalan.
+ *
+ * Satu permintaan tambahan per pengguna, layar dan menit — `per_page: 1` tanpa
+ * q, saringan, tanggal maupun urutan, karena yang dibutuhkan hanya meta.total.
+ * Batas lajunya 120 permintaan/menit; tiga ganti saringan dalam semenit tetap
+ * SATU permintaan tambahan. Kuncinya membawa id pengguna karena logout() tidak
+ * memuat ulang halaman: orang berikutnya di peramban yang sama memegang hak
+ * yang berbeda, jadi registernya pun berbeda. M boleh basi sampai 60 detik;
+ * karena itu ia hanya ditulis bila M ≥ N (lihat countText), dan perubahan
+ * milik orangnya sendiri — Muat ulang, dokumen baru, hapus — membuangnya.
+ */
+const unfilteredTotals = new Map();
+const UNFILTERED_TTL_MS = 60 * 1000;
+const unfilteredKey = (key) => `${(session.user || {}).id ?? '?'}:${key}`;
+
 function stateFor(key, def) {
   // perPage null = belum pernah diisi; renderList mengisinya dari bawaan skema
   // sekali saja, supaya pilihan pengguna dari pemilih baris-per-halaman ikut
@@ -144,7 +161,7 @@ export async function renderList(host, { key, def }) {
             await runAction(action, null, def, { trigger: event.currentTarget, onDone: load });
           },
         })),
-      button('', { iconName: 'refresh', title: 'Muat ulang', onClick: () => load() }),
+      button('', { iconName: 'refresh', title: 'Muat ulang', onClick: () => { forgetWhole(); load(); } }),
       canCreate
         ? button(`Tambah ${def.labelOne}`, {
           variant: 'primary', iconName: 'plus',
@@ -355,6 +372,33 @@ export async function renderList(host, { key, def }) {
     loading = false;
     syncUrl();
     if (stillOnScreen()) renderAll();
+    // Hanya sesudah muatan TERBARU yang berhasil, dan hanya bila tersaring.
+    if (!failure && stillOnScreen()) fetchWhole();
+  }
+
+  const forgetWhole = () => unfilteredTotals.delete(unfilteredKey(key));
+
+  /* Satu permintaan tak tersaring (lihat unfilteredTotals di atas modul).
+     Gagal = diam: angkanya kembali ke "N PO · tersaring" tanpa "dari", tidak ada
+     toast, tidak ada percobaan ulang sampai muatan berikutnya. */
+  function fetchWhole() {
+    if (!isFiltered()) return;
+    const cacheKey = unfilteredKey(key);
+    const known = unfilteredTotals.get(cacheKey);
+    if (known && (known.pending || Date.now() - known.at < UNFILTERED_TTL_MS)) return;
+    unfilteredTotals.set(cacheKey, { total: known ? known.total : undefined, pending: true });
+    api.list(def.api, { per_page: 1, page: 1 })
+      .then((answer) => {
+        const total = answer && answer.meta ? answer.meta.total : undefined;
+        if (typeof total === 'number') unfilteredTotals.set(cacheKey, { total, at: Date.now() });
+        else unfilteredTotals.delete(cacheKey);
+      })
+      .catch(() => {
+        unfilteredTotals.delete(cacheKey);
+      })
+      .finally(() => {
+        if (stillOnScreen()) syncCount();
+      });
   }
 
   /* Satu definisi "sedang disaring" dan satu jalan menghapusnya, dipakai
@@ -972,8 +1016,22 @@ export async function renderList(host, { key, def }) {
     const meta = payload.meta || {};
     if (typeof meta.total !== 'number') return '';
     const text = `${meta.total.toLocaleString('id-ID')} ${def.labelOne}`;
-    if (isFiltered()) return `${text} · tersaring`;
-    return text;
+    if (!isFiltered()) return text;
+    /* "dari M" (UX-E1.7) hanya bila M angka DAN M ≥ N. M boleh basi sampai 60
+       detik; M yang lebih kecil dari N adalah M yang sudah ketinggalan, dan
+       "5 dari 3" lebih buruk daripada tidak menyebut M sama sekali. M yang
+       tidak diketahui tidak pernah ditulis sebagai nol ataupun tanda pisah. */
+    const whole = unfilteredTotals.get(unfilteredKey(key));
+    if (whole && typeof whole.total === 'number' && whole.total >= meta.total) {
+      return `${meta.total.toLocaleString('id-ID')} dari ${whole.total.toLocaleString('id-ID')} ${def.labelOne} · tersaring`;
+    }
+    return `${text} · tersaring`;
+  }
+
+  function syncCount() {
+    const count = countText();
+    // Ditulis hanya bila berubah: live region yang ditulis ulang dengan teks sama tetap bisa diumumkan.
+    if (listCount.textContent !== count) listCount.textContent = count;
   }
 
   const toolbar = el('.list-toolbar', [
@@ -1081,9 +1139,7 @@ export async function renderList(host, { key, def }) {
     filterCount.hidden = set === 0;
     filterCount.replaceChildren(String(set), el('span.sr-only', { text: ' saringan aktif' }));
     syncCsv();
-    const count = countText();
-    // Ditulis hanya bila berubah: live region yang ditulis ulang dengan teks sama tetap bisa diumumkan.
-    if (listCount.textContent !== count) listCount.textContent = count;
+    syncCount();
   }
 
   function dateFilterInput(label, value, apply) {
@@ -1382,6 +1438,7 @@ export async function renderList(host, { key, def }) {
      setiap dokumen (diukur 2 Sep 2026: 13 klik PO 2 baris, 1 di antaranya ini).
      Layar tanpa halaman detail tetap memuat ulang daftarnya. */
   function afterCreate(saved) {
+    forgetWhole(); // registernya bertambah satu: M yang tersimpan sudah salah
     if (saved && saved.id && !def.noDetail) navigate(`d/${key}/${saved.id}`);
     else load();
   }
@@ -1426,6 +1483,7 @@ export async function renderList(host, { key, def }) {
             onConfirm: async () => {
               await api.del(`${def.api}/${row.id}`);
               invalidateByPath(def.api);
+              forgetWhole(); // registernya berkurang satu
               toast(`${def.labelOne} dihapus.`);
               load();
             },

@@ -198,7 +198,9 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertNotNull($count, 'countText() hilang dari list.js.');
         $this->assertStringContainsString("if (typeof meta.total !== 'number') return '';", $count);
         $this->assertStringContainsString("if (loading || error || !payload) return '';", $count);
-        $this->assertMatchesRegularExpression("/if \\(isFiltered\\(\\)\\) return `\\$\\{text\\} · tersaring`;/", $count,
+        // ' · tersaring' hanya sesudah cabang tak-tersaring kembali (UX-E1.7 menambah "dari M" di antaranya).
+        $this->assertStringContainsString('if (!isFiltered()) return text;', $count);
+        $this->assertLessThan(strpos($count, 'return `${text} · tersaring`;'), strpos($count, 'if (!isFiltered()) return text;'),
             "' · tersaring' harus berada di cabang isFiltered().");
         $this->assertStringNotContainsString('rows.length', $count, 'Jumlah dibaca dari baris HALAMAN ini, bukan dari total server.');
         $this->assertStringNotContainsString('?? 0', $count, 'Jumlah yang tidak diketahui menjadi 0.');
@@ -207,16 +209,51 @@ class ListViewWiringTest extends ErpTestCase
         // Anak terakhir bilah alat, live region sopan, disegarkan oleh syncToolbar().
         $this->assertStringContainsString("const listCount = el('span.list-count', { 'aria-live': 'polite' });", $list);
         $this->assertMatchesRegularExpression("/csvButton,\\n\\s*listCount,\\n\\s*\\]\\);/", $list);
+        // UX-E1.7: penulisannya pindah ke syncCount(), yang juga dipanggil jawaban "dari M".
         $sync = $this->functionBody($list, 'function syncToolbar() {');
-        $this->assertStringContainsString('const count = countText();', (string) $sync);
+        $this->assertStringContainsString('syncCount();', (string) $sync);
+        $this->assertStringContainsString('const count = countText();', (string) $this->functionBody($list, 'function syncCount() {'));
 
         $this->assertStringContainsString('.list-count { color: var(--muted); font-size: var(--fs-secondary); white-space: nowrap; }', $this->css());
+    }
+
+    /* ------------------------------------------------------------ E1.7 */
+
+    /** "N dari M": M dari SATU permintaan tak tersaring per pengguna × layar × menit, hanya bila M ≥ N. */
+    public function test_the_unfiltered_total_is_one_cached_request_per_user(): void
+    {
+        $list = $this->spa('views/list.js');
+        // Kunci membawa id pengguna: logout() tidak memuat ulang halaman.
+        $this->assertStringContainsString('const unfilteredKey = (key) => `${(session.user || {}).id ?? \'?\'}:${key}`;', $list);
+        $this->assertStringContainsString('const UNFILTERED_TTL_MS = 60 * 1000;', $list);
+
+        $fetch = $this->functionBody($list, 'function fetchWhole() {');
+        $this->assertNotNull($fetch, 'fetchWhole() hilang dari list.js.');
+        $this->assertStringContainsString('if (!isFiltered()) return;', $fetch);
+        $this->assertLessThan(strpos($fetch, 'api.list(def.api, { per_page: 1, page: 1 })'), strpos($fetch, 'if (!isFiltered()) return;'),
+            'Permintaan tak tersaring berjalan untuk daftar yang tidak tersaring.');
+        $this->assertStringContainsString('known.pending || Date.now() - known.at < UNFILTERED_TTL_MS', $fetch);
+        $this->assertStringContainsString('.catch(() => {', $fetch);
+        $this->assertStringNotContainsString('toast', $fetch, 'Kegagalan M bersuara — ia harus diam.');
+
+        // Dipanggil hanya sesudah muatan terbaru yang berhasil.
+        $load = (string) $this->functionBody($list, 'async function load() {');
+        $this->assertStringContainsString('if (!failure && stillOnScreen()) fetchWhole();', $load);
+
+        $count = (string) $this->functionBody($list, 'function countText() {');
+        $this->assertStringContainsString("typeof whole.total === 'number' && whole.total >= meta.total", $count);
+        $this->assertStringNotContainsString('dari 0', $count);
+
+        // Perubahan milik orangnya sendiri membuang M.
+        $this->assertStringContainsString("onClick: () => { forgetWhole(); load(); }", $list);
+        $this->assertStringContainsString('forgetWhole();', (string) $this->functionBody($list, 'function afterCreate(saved) {'));
+        $this->assertMatchesRegularExpression('/await api\\.del\\(`\\$\\{def\\.api\\}\\/\\$\\{row\\.id\\}`\\);\\n\\s*invalidateByPath\\(def\\.api\\);\\n\\s*forgetWhole\\(\\);/', $list);
     }
 
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(51, (int) $version[1],
+        $this->assertGreaterThanOrEqual(52, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 

@@ -2198,16 +2198,18 @@ def s54(pg):
     pg.wait_for_timeout(2200)
     jml["draf"] = pg.evaluate(S54_COUNT, {"status": "draft"})
     j = jml["draf"]
-    if not isinstance(j["truth"], int) or j["text"] != f"{idn(j['truth'])} PO · tersaring":
-        checks.append(f"jumlah: ?status=draft menulis {j['text']!r}, server berkata {j['truth']!r} — harus '<n> PO · tersaring'")
+    # UX-E1.7: tersaring membaca "N dari M" — M = total tak tersaring dari jawaban polos di atas.
+    whole = jml["polos"]["truth"]
+    if not isinstance(j["truth"], int) or j["text"] != f"{idn(j['truth'])} dari {idn(whole)} PO · tersaring":
+        checks.append(f"jumlah: ?status=draft menulis {j['text']!r}, server berkata {j['truth']!r} dari {whole!r} — harus '<n> dari <m> PO · tersaring'")
 
     pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq")
     pg.wait_for_selector("#view .empty", timeout=20000)
     pg.wait_for_timeout(700)
     jml["cari_kosong"] = pg.evaluate(S54_COUNT, {"q": "zzzzqq"})
     j = jml["cari_kosong"]
-    if j["text"] != "0 PO · tersaring" or not j["empty"] or j["truth"] != 0:
-        checks.append(f"jumlah: ?q=zzzzqq menulis {j['text']!r} (keadaan kosong={j['empty']}, server {j['truth']!r}) — harus '0 PO · tersaring'")
+    if j["text"] != f"0 dari {idn(whole)} PO · tersaring" or not j["empty"] or j["truth"] != 0:
+        checks.append(f"jumlah: ?q=zzzzqq menulis {j['text']!r} (keadaan kosong={j['empty']}, server {j['truth']!r}) — harus '0 dari {whole} PO · tersaring'")
 
     pg.emulate_media(media="print")
     jml["cetak"] = pg.evaluate("() => { const n = document.querySelector('.list-toolbar .list-count'); return { shown: getComputedStyle(n).display !== 'none' && getComputedStyle(n.parentElement).display !== 'none', text: n.textContent }; }")
