@@ -244,8 +244,8 @@ used (match Laravel skeleton style). Tests are optional; correctness of business
 ## 10. Pustaka vendor SPA (`public/app/vendor/`)
 
 Aturan (ROADMAP-HASHMICRO §5 keputusan #2): **tanpa CDN, tanpa npm saat runtime, tanpa pustaka
-lain tanpa keputusan pemilik**. Yang di-vendor hanya SortableJS 1.15 dan sprite ikon Lucide subset,
-masing-masing di `public/app/vendor/<lib>@<ver>/` bersama LICENSE-nya; grafik ditulis sendiri
+lain tanpa keputusan pemilik**. Yang di-vendor hanya SortableJS 1.15, sprite ikon Lucide subset, dan
+IBM Plex Mono 400/600 subset Latin1 untuk `--mono` (UX-C.2, ledger baris 17), masing-masing di `public/app/vendor/<lib>@<ver>/` bersama LICENSE-nya; grafik ditulis sendiri
 (`js/charts.js`, §11). Manifestnya `public/app/vendor/VENDOR.md` — per pustaka: versi, URL sumber,
 sha256 tarball, lisensi, gzip terukur, untuk apa, cara memperbarui (perintah persis); per berkas:
 sha256. Uji `tests/Feature/Core/VendorManifestTest` memaku semuanya: setiap berkas vendor ada di
@@ -339,7 +339,7 @@ NAV (bukan grup baru):
 
 | Slot | Grup NAV (prefix) | Alasan |
 |---|---|---|
-| 1 | Proyek (`prj`) | lapangan; slot 1 = `--primary` = `--chart-1` persis |
+| 1 | Proyek (`prj`) | lapangan; slot 1 = `--chart-1` persis (sampai UX-C.1 juga = `--primary`; sejak itu `--primary` `#2b4fc8`/`#7d9df3` berdiri sendiri karena palet aksen dan grafik dibekukan) |
 | 2 | Keuangan (`fin`) | keuangan & pajak |
 | 3 | Pengadaan (`prc`) · Persediaan (`inv`) · Subkontrak (`scm`) | rantai pasok; subkon adalah vendor (`is_subcontractor`) |
 | 4 | Penjualan (`crm`) · Estimasi (`est`) | komersial; RAB disusun bersama tender |
@@ -354,7 +354,7 @@ NAV (bukan grup baru):
 (CIEDE2000 di Lab; skrip turunan di scratch P1-B, matriks lengkap di komentar token app.css):
 minimum antar slot **20,1 terang / 20,9 gelap** (hue vs `--chart-n` maks 11,8° terang / 7,3° gelap);
 kontras WCAG aksen di `--surface` ≥ **5,20** terang /
-**5,41** gelap (batas 3:1; dipasang ≥ **5,2** karena aksen dipakai sebagai teks remah — angka yang
+**5,36** gelap (5,41 sebelum `--surface` gelap bergeser ke `#161b21` di UX-C.1) (batas 3:1; dipasang ≥ **5,2** karena aksen dipakai sebagai teks remah — angka yang
 sama dengan komentar blok token app.css), `-fg` di aksen
 ≥ 5,20 / 5,86, aksen di `-soft` ≥ 4,62 / 4,82. Harness **S21** mengukur nilai yang hidup di
 halaman (kedua tema, desktop + ponsel) dan menulisnya ke `results-phase-1.json`; uji
@@ -1031,9 +1031,9 @@ siapa saja yang memuat ulang), ia hanya tidak mengumumkan dirinya. `activate` me
 
 **Warna.** `manifest.webmanifest` hanya boleh punya SATU `theme_color` dan SATU `background_color`,
 dan keduanya dipakai layar splash sebelum dokumen ada — jadi keduanya nilai tema **terang**
-(`--primary` `#1a56db` dan `--bg` `#f4f6f8`). Yang bisa bermedia adalah `<meta name="theme-color">`,
+(`--primary` `#2b4fc8` dan `--bg` `#f4f5f7` sejak UX-C.1; sebelumnya `#1a56db` / `#f4f6f8`). Yang bisa bermedia adalah `<meta name="theme-color">`,
 dan index.html memasangnya **berpasangan** dengan nilai `--surface` kedua tema (`#ffffff` /
-`#151a21`) — `--surface`, bukan `--bg`, karena bilah peramban duduk persis di atas `.header`.
+`#161b21`) — `--surface`, bukan `--bg`, karena bilah peramban duduk persis di atas `.header`.
 `PwaManifestTest` membaca app.css dan menuntut keempat nilai itu sama persis dengan tokennya.
 
 **Ikon dibangkitkan, tidak digambar ulang.** `docs/bukti-uji/buat-ikon-pwa.py` memotret

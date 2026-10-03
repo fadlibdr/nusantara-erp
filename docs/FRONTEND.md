@@ -344,6 +344,19 @@ reading, in another shape. There is no `print` action anywhere in the permission
   first version of the rule applied to all of them and made the single-button case *worse*.
   The three-zone bar (`.zone.navigasi` / `.keluaran` / `.keputusan`) still has exactly one producer,
   `views/detail.js`; that count is a **floor** in the test, free to rise as screens adopt it.
+- **Shared primitives (UX-C.3)**: `ui.js` exports eleven builders from the UI/UX handoff — `pageHeader`,
+  `docHeader`, `statusBadge`, `actionPanel`, `tabs`, `filterChip`, `overflowMenu`, `keyValueTile`, `stepper`,
+  `drawer`, `errorSummary` — each with its rules in the `primitif UX-C.3` section at the end of `app.css` and
+  pinned by `UiPrimitivesTest` (exported, no hex literal in `ui.js`, every class it writes has a stylesheet
+  rule). `statusBadge(status, enumName, { label })` is **icon + word**, never colour alone: tone from
+  `fmt.statusTone()`, glyph from `fmt.statusIcon()` (the enum's own fourth tuple element in `enums.js`, else
+  the shared word map). `overflowMenu(items)` is `menuButton` with an ellipsis trigger; items may carry
+  `{ divider: true }` and `danger: true` so "Hapus…" stands after a rule in `--danger`. `actionPanel({ tone })`
+  is the only place `--attn` appears (`tone: 'attn'` = the reader's turn); `success`/`danger`/`warn`/`info`
+  draw a 3 px rail. `tabs(items, { active, onChange })` keeps buttons as direct children of `.tabs` (harness
+  clicks `.tabs button:nth-child(n)`), with `count: null` rendered as `—`. `drawer()` is a handle over the
+  existing `body.nav-open` drawer; the hamburger in `app.js` goes through it, and so will the bottom bar.
+  New screens use these instead of hand-rolling `.page-head`; existing views migrate per package (D, E, G).
 - **The command field and the palette (UI-3b)**: the header's search control stays a `<button>`,
   never an `<input>`. Its accessible name comes from the `<span>Cari</span>` inside it — that is what
   the `≤760px` rule hides visually while keeping the name — and an input's name cannot come from its

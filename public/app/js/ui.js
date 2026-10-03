@@ -1,6 +1,8 @@
 /* DOM helpers and shared widgets. No framework, no build step. */
 
 import { illustration } from './illustrations.js';
+import * as fmt from './format.js';
+import { enumLabel } from './enums.js';
 
 /** el('div.card', { onclick }, [children]) — tag supports .class and #id. */
 export function el(spec, props, children) {
@@ -284,12 +286,14 @@ export function spotlightClear() {
 let openMenu = null;
 let menuSeq = 0;
 
-export function menuButton(label, items, { iconName, title, variant = '', size = '' } = {}) {
+export function menuButton(label, items, { iconName, title, variant = '', size = '', chevron = true } = {}) {
   const id = `menu-${++menuSeq}`;
   const trigger = button(label, { iconName, title, variant, size });
   trigger.id = `${id}-trigger`;
   trigger.classList.add('menu-trigger');
-  trigger.appendChild(icon('chevron', 12));
+  // overflowMenu (UX-C.3) adalah tombol ⋯ tanpa label: panah kedua di sebelahnya hanya
+  // menggandakan isyarat "ini membuka sesuatu" yang sudah dibawa elipsisnya.
+  if (chevron) trigger.appendChild(icon('chevron', 12));
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.setAttribute('aria-expanded', 'false');
   const wrap = el('span.menu-wrap', [trigger]);
@@ -348,7 +352,14 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
     if (openMenu) openMenu.close();
     pop = el('.menu-pop', { id, role: 'menu', 'aria-labelledby': trigger.id });
     items.filter(Boolean).forEach((item) => {
-      const node = el('button.menu-item', {
+      /* `{ divider: true }` memisahkan item destruktif dari yang lain (README C3: Hapus…
+         sesudah garis, dalam --danger). Ia bukan item menu — tidak bisa difokus, tidak
+         dihitung panah atas/bawah (itemsIn hanya membaca .menu-item). */
+      if (item.divider) {
+        pop.appendChild(el('hr.menu-divider', { role: 'separator' }));
+        return;
+      }
+      const node = el(`button.menu-item${item.danger ? '.danger' : ''}`, {
         type: 'button', role: 'menuitem', tabindex: '-1', title: item.title, disabled: item.disabled || undefined,
       }, [item.iconName ? icon(item.iconName, 14) : null, el('span', { text: item.label })]);
       node.addEventListener('click', (event) => {
@@ -1112,4 +1123,217 @@ export function progressBar(value, tone = '') {
 /** Resolve 'customer.name' style paths against a row. */
 export function pluck(row, path) {
   return String(path).split('.').reduce((acc, key) => (acc === null || acc === undefined ? acc : acc[key]), row);
+}
+
+/* ============================================================ primitif UX-C.3 */
+/*
+ * Sebelas pembangun bersama dari handoff README C3 (ERRATA E-2): satu tempat
+ * untuk bentuk yang sampai kini dirakit ulang di tiap view — .page-head dibangun
+ * 69 kali di 54 berkas (FRONTEND § page head), lencana status 29 kali lewat
+ * badge(), chip filter dua kali di list.js. Aturan yang berlaku untuk semuanya:
+ *   - tidak ada literal warna di sini (UiPrimitivesTest memaku: nol hex di ui.js);
+ *     warna datang dari kelas yang app.css petakan ke token;
+ *   - ikon dari sprite (icon() → svgIcon()); nama yang tidak ada di sprite
+ *     ditangkap LauncherWiringTest, bukan oleh mata;
+ *   - status TIDAK PERNAH hanya warna: statusBadge selalu ikon + kata (E-3 butir 6);
+ *   - --attn hanya untuk actionPanel (dan kartu beranda di UX-F2), bukan status.
+ * Pemakai pertama datang di UX-C.4 (cells.js, detail.js); view lain pindah
+ * per paket (D, E1, E2, E3, G), bukan di sini.
+ */
+
+/** Kepala halaman: judul, keterangan, bilah aksi. `.page-head` lama persis, dari satu builder. */
+export function pageHeader({ title, description, actions = [] } = {}) {
+  const list = (Array.isArray(actions) ? actions : [actions]).filter(Boolean);
+  return el('.page-head', [
+    el('div', [
+      el('h1', { text: title ?? '' }),
+      description ? el('.desc', { text: description }) : null,
+    ]),
+    list.length ? el('.actions', list) : null,
+  ]);
+}
+
+/**
+ * Kepala dokumen: jenis · lencana · nomor (mono) · pihak · tautan konteks.
+ * `status` adalah simpul (biasanya statusBadge()); `context` { label, href } atau simpul.
+ */
+export function docHeader({ kind, code, status, party, context } = {}) {
+  const ctx = context instanceof Node
+    ? context
+    : (context && context.label ? el('a.doc-context', { href: context.href || '#', text: context.label }) : null);
+  return el('.doc-head', [
+    el('.doc-kind', [kind ? el('span', { text: kind }) : null, status || null]),
+    el('.doc-code.mono', { text: code ?? '—' }),
+    party ? el('.doc-party', { text: party }) : null,
+    ctx,
+  ]);
+}
+
+/**
+ * Lencana status: IKON + KATA, tidak pernah warna saja (ERRATA E-3 butir 6).
+ * Nada dan ikon dari enum-nya bila disebut (enums.js), lalu peta kata bersama
+ * (format.js). `label` dari server (status_label) menang atas label enum.
+ */
+export function statusBadge(status, enumName, { label } = {}) {
+  const value = status === null || status === undefined ? '' : String(status);
+  const tone = fmt.statusTone(value, enumName);
+  const glyph = fmt.statusIcon(value, enumName);
+  const text = label || (enumName ? enumLabel(enumName, value) : value) || '—';
+  return el(`span.badge${tone ? `.${tone}` : ''}.status`, { 'data-status': value || undefined }, [
+    glyph ? icon(glyph, 12) : null,
+    el('span', { text }),
+  ]);
+}
+
+/**
+ * Panel tindakan: kalimat keadaan + tombol keputusan di satu kotak (README E2,
+ * ERRATA E-3 butir 4). tone: 'attn' (giliran pembaca; latar --attn-soft),
+ * 'success' / 'danger' / 'warn' / 'info' (rel kiri 3 px). `text` boleh string
+ * atau simpul; `actions` daftar tombol yang sudah dibuat pemanggil.
+ */
+export function actionPanel({ tone = 'info', title, text, actions = [], iconName } = {}) {
+  const list = (Array.isArray(actions) ? actions : [actions]).filter(Boolean);
+  return el(`.action-panel.${tone}`, { role: tone === 'attn' || tone === 'danger' ? 'status' : undefined }, [
+    iconName ? el('.action-panel-icon', [icon(iconName, 18)]) : null,
+    el('.action-panel-body', [
+      title ? el('.action-panel-title', { text: title }) : null,
+      text ? (text instanceof Node ? text : el('.action-panel-text', { text })) : null,
+    ]),
+    list.length ? el('.action-panel-actions', list) : null,
+  ]);
+}
+
+/**
+ * Tab: tombol-tombol LANGSUNG di bawah .tabs (harness mengklik `.tabs button:nth-child(n)`),
+ * pil jumlah opsional, panah kiri/kanan berpindah, aria-selected mengikuti. items:
+ * [{ id, label, count }]; onChange(id) dipanggil pada pilihan baru saja.
+ */
+export function tabs(items, { active, onChange } = {}) {
+  const list = (items || []).filter(Boolean);
+  let current = active ?? (list[0] && list[0].id);
+  const host = el('.tabs', { role: 'tablist' });
+  const buttons = list.map((item) => {
+    const node = el('button', { type: 'button', role: 'tab', id: item.tabId || undefined, 'aria-controls': item.panelId || undefined }, [
+      el('span', { text: item.label }),
+      item.count === undefined ? null : el('span.tab-count', { text: item.count === null ? '—' : String(item.count) }),
+    ]);
+    node.dataset.tab = String(item.id);
+    node.addEventListener('click', () => select(item.id, true));
+    node.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const at = buttons.indexOf(node);
+      const next = buttons[(at + (event.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length];
+      next.focus();
+      select(next.dataset.tab, true);
+    });
+    return node;
+  });
+  function select(id, fire = false) {
+    const changed = String(id) !== String(current);
+    current = id;
+    buttons.forEach((node) => {
+      const on = node.dataset.tab === String(id);
+      node.classList.toggle('active', on);
+      node.setAttribute('aria-selected', String(on));
+      node.tabIndex = on ? 0 : -1;
+    });
+    if (fire && changed && onChange) onChange(id);
+  }
+  append(host, buttons);
+  select(current);
+  host.select = (id) => select(id, false);
+  host.setCount = (id, count) => {
+    const node = buttons.find((b) => b.dataset.tab === String(id));
+    const pill = node && node.querySelector('.tab-count');
+    if (pill) pill.textContent = count === null ? '—' : String(count);
+  };
+  return host;
+}
+
+/** Chip filter aktif: `Label: nilai ×` — markup yang sama dengan list.js UI-4a. */
+export function filterChip({ label, value, onRemove } = {}) {
+  const drop = onRemove ? el('button.chip-x', {
+    type: 'button', 'aria-label': `Hapus filter ${String(label || '').toLowerCase()}`, title: `Hapus filter ${String(label || '').toLowerCase()}`,
+  }, [icon('close', 12)]) : null;
+  if (drop) drop.addEventListener('click', onRemove);
+  return el('span.chip', [
+    el('span.chip-key', { text: `${label}: ` }),
+    el('b', { text: value ?? '' }),
+    drop,
+  ]);
+}
+
+/**
+ * Menu ⋯ baris: dibangun DI ATAS menuButton (ERRATA E-2) — bukan implementasi menu
+ * kedua. Item destruktif ditulis pemanggil sesudah `{ divider: true }` dengan
+ * `danger: true`. Esc, klik di luar, panah, dan satu-menu-terbuka ikut gratis.
+ */
+export function overflowMenu(items, { title = 'Lainnya', size = 'sm', variant = 'ghost' } = {}) {
+  const wrap = menuButton('', items, { iconName: 'ellipsis', title, size, variant, chevron: false });
+  wrap.classList.add('overflow-menu');
+  return wrap;
+}
+
+/** Ubin label–nilai (nilai mono, tabular). `value` null → '—' (bukan 0). */
+export function keyValueTile({ label, value, note, tone = '' } = {}) {
+  return el(`.kv-tile${tone ? `.${tone}` : ''}`, [
+    el('.kv-tile-label', { text: label ?? '' }),
+    el('.kv-tile-value.mono', { text: value === null || value === undefined || value === '' ? '—' : String(value) }),
+    note ? el('.kv-tile-note', { text: note }) : null,
+  ]);
+}
+
+/**
+ * Peta proses (README Fase F). steps: [{ label, href, count, active, done }].
+ * `count` tidak disebut → tanpa angka; null → '—' (kunci ModuleCounts gagal dimuat,
+ * CONVENTIONS §16); angka → angka. Tahap tanpa kunci terdaftar tidak pernah memamerkan 0.
+ */
+export function stepper(steps) {
+  return el('ol.stepper', (steps || []).filter(Boolean).map((step, index) => {
+    const body = [
+      el('span.step-index', { text: String(index + 1) }),
+      el('span.step-label', { text: step.label ?? '' }),
+      step.count === undefined ? null : el('span.step-count.mono', { text: step.count === null ? '—' : String(step.count) }),
+    ];
+    return el(`li.step${step.active ? '.active' : ''}${step.done ? '.done' : ''}`, { 'aria-current': step.active ? 'step' : undefined }, [
+      step.href ? el('a.step-link', { href: step.href, title: step.title || undefined }, body) : el('span.step-link', body),
+    ]);
+  }));
+}
+
+/**
+ * Laci navigasi ponsel: pegangan atas mekanisme yang SUDAH ADA (`body.nav-open`,
+ * app.css ≤ 760 px; app.js memasang Esc, sentuhan di luar, dan inert). Tidak ada
+ * laci kedua: bilah bawah UX-D memanggil open() yang sama dengan hamburger.
+ */
+export function drawer() {
+  const isOpen = () => document.body.classList.contains('nav-open');
+  const set = (open) => {
+    document.body.classList.toggle('nav-open', open);
+    document.querySelectorAll('.menu-toggle').forEach((node) => node.setAttribute('aria-expanded', String(open)));
+  };
+  return { open: () => set(true), close: () => set(false), toggle: () => set(!isOpen()), isOpen };
+}
+
+/**
+ * Ringkasan galat di atas formulir (README E3; ERRATA A-3: melengkapi lompat-ke-field
+ * yang sudah ada, bukan menggantinya). errors: [{ field, label, message }];
+ * onJump(field) memfokuskan kontrolnya. role=alert supaya pembaca layar mendengarnya.
+ */
+export function errorSummary(errors, { onJump, title } = {}) {
+  const list = (errors || []).filter((e) => e && (e.message || e.label));
+  if (!list.length) return el('span', { hidden: true });
+  const n = list.length;
+  return el('.error-summary', { role: 'alert', tabindex: '-1' }, [
+    el('.error-summary-head', [
+      icon('warn', 16),
+      el('strong', { text: title || `${n} isian perlu diperbaiki` }),
+    ]),
+    el('ul', list.map((entry) => el('li', [
+      onJump
+        ? el('button.linkish', { type: 'button', onclick: () => onJump(entry.field) }, [el('b', { text: entry.label || entry.field }), el('span', { text: `: ${entry.message || ''}` })])
+        : el('span', [el('b', { text: entry.label || entry.field }), el('span', { text: `: ${entry.message || ''}` })]),
+    ]))),
+  ]);
 }

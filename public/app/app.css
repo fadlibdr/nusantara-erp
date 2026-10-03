@@ -2,21 +2,50 @@
    No build step: plain CSS with custom properties, light + dark via
    prefers-color-scheme plus a data-theme override on <html>. */
 
+/* ------------------------------------------------------------------ fonts */
+/* IBM Plex Mono 400 dan 600 (UX-C.2, ERRATA D-1 bawaan): HANYA untuk --mono — nomor dokumen,
+   rupiah, angka KPI. --font tetap tumpukan sistem; Instrument Sans tidak di-vendor karena
+   keempat berkasnya 96.611 B gzip melampaui plafon VendorManifestTest 61.440 B (terukur
+   3 Okt 2026). Subset Latin1 dari paket @ibm/plex-mono@2.5.0 (public/app/vendor/VENDOR.md,
+   lisensi OFL di folder yang sama); bobot 500 jatuh ke 400 lewat pencocokan CSS biasa.
+   `swap`: teks mono tergambar dulu dengan ui-monospace, lalu berganti — di tablet lapangan
+   berkuota, angka yang terbaca 200 ms lebih awal lebih berharga daripada tidak berkedip. */
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("vendor/ibm-plex-mono@2.5.0/IBMPlexMono-Regular-Latin1.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("vendor/ibm-plex-mono@2.5.0/IBMPlexMono-SemiBold-Latin1.woff2") format("woff2");
+}
+
 /* ---------------------------------------------------------------- tokens */
 :root {
-  --bg: #f4f6f8;
+  --bg: #f4f5f7;
   --surface: #ffffff;
-  --surface-2: #fafbfc;
-  --surface-3: #f1f3f6;
-  --border: #e2e6eb;
-  --border-strong: #cbd2da;
-  --text: #14181d;
-  --text-2: #47505b;
-  --muted: #5e6874; /* dulu #6b7684 = 4,26:1 di atas --bg pada teks 11 px — di bawah AA (2 Sep 2026) */
-  --primary: #1a56db;
-  --primary-hover: #1745b0;
-  --primary-soft: #e8effc;
+  --surface-2: #f8f9fb;
+  --surface-3: #eef0f3;
+  --border: #e2e5ea;
+  --border-strong: #c6ccd4;
+  --text: #13181e;
+  --text-2: #3d4651;
+  --muted: #626c78; /* 4,89:1 di --bg · 5,07 di --surface-2 · 4,67 di --surface-3 (UX-C.1, 3 Okt 2026). Dulu #5e6874 (5,23), dan
+                       sebelumnya #6b7684 = 4,26:1 di atas --bg pada teks 11 px — di bawah AA (2 Sep 2026); S8 menjaga lantai 4,5 */
+  --primary: #2b4fc8; /* 6,87:1 di --surface dan --primary-fg di atasnya 6,87 (UX-C.1); dulu #1a56db = --chart-1 = --accent-1 */
+  --primary-hover: #2341a6;
+  --primary-soft: #e9eefb;
   --primary-fg: #ffffff;
+  --attn: #8a5a0f;
+  --attn-soft: #fbf1dc;
+  /* "Perlu tindakan Anda" (UX-C.1): HANYA untuk actionPanel dan kartu beranda — tidak pernah untuk
+     status (lencana tetap --warning/--success/--danger, ERRATA E-3). --attn di --attn-soft 5,27:1 terang /
+     8,41 gelap; di --surface 5,92 / 9,45; --attn-soft di --surface 1,12 (bidang, bukan teks). */
   --danger: #c62828;
   --danger-soft: #fdecec;
   --success: #17714a; /* dulu #1b7f4d = 4,42:1 di atas --success-soft pada badge 11,5 px */
@@ -27,15 +56,15 @@
   --info-soft: #e7f1f8;
   --neutral: #5a6472;
   --neutral-soft: #eef0f3;
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
-  --shadow-md: 0 4px 12px rgba(16, 24, 40, .1), 0 2px 4px rgba(16, 24, 40, .06);
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .07);
+  --shadow-md: 0 6px 20px rgba(16, 24, 40, .10), 0 2px 6px rgba(16, 24, 40, .06);
   --shadow-lg: 0 18px 48px rgba(16, 24, 40, .18);
-  --radius: 8px;
-  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-sm: 8px;
   --sidebar-w: 250px;
   --header-h: 56px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   /* ================================================== SKALA (UI-1)
      Tiga skala yang selama ini tidak ada, sehingga 873 literal px dan 15
@@ -56,13 +85,13 @@
   --fs-body: 13px;       /* teks isi — ukuran kerja aplikasi */
   --fs-table: 13px;      /* sel tabel */
   --fs-section: 14px;    /* judul kartu/seksi — TARGET, hari ini 13,5 */
-  --fs-page: 20px;       /* judul halaman */
+  --fs-page: 24px;       /* judul halaman — 24 di meja (handoff UX-C.3), 20 di ≤ 760 px (blok @media di bawah) */
   --fs-kpi: 22px;        /* angka KPI */
   --lh-tight: 1.25; --lh-body: 1.5;
   --fw-medium: 500; --fw-semi: 600; --fw-bold: 700;
   --tracking-caps: .06em;
 
-  --radius-lg: 12px;     /* modal, laci, permukaan besar */
+  --radius-lg: 14px;     /* modal, laci, permukaan besar */
   --radius-pill: 999px;  /* lencana, chip */
 
   /* Peran permukaan: ALIAS, bukan warna baru. Karena nilainya var(), ia
@@ -80,14 +109,14 @@
   --drawer-w: 264px;     /* laci nav ponsel; dulu 264px mentah di @media */
   /* Panah <select> dan combobox. Warnanya mengikuti --muted per tema; sebelum token
      ini ada, ia dipanggang di dalam data-URI dan tidak pernah berubah di tema gelap. */
-  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%235e6874' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%23626c78' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   /* Grafik (js/charts.js, P1-A). Delapan warna seri + enam struktur, didefinisikan di
      KEDUA tema dan ditukar ke abu-abu di blok cetak (§ grafik charts.js di bawah).
      Kontras WCAG terhadap --surface #ffffff, dihitung 5 Sep 2026 (rumus luminansi
      relatif, sama dengan S8): --chart-1 6,18:1 · --chart-2 5,18:1 · --chart-3 5,02:1 ·
      --chart-4 6,98:1 · --chart-5 5,36:1 · --chart-6 6,47:1 · --chart-7 4,92:1 ·
      --chart-8 7,58:1 — semua ≥ 3:1 (batas grafik/komponen UI); --chart-text 5,66:1
-     (= --muted). --chart-baseline 2,56:1 SENGAJA di bawah 3:1: ia bidang isi lebar di
+     (= --muted sampai UX-C.1; --muted kini #626c78, token grafik sengaja tidak ikut bergeser). --chart-baseline 2,56:1 SENGAJA di bawah 3:1: ia bidang isi lebar di
      bawah bar aktual, bukan garis tipis, dan harus lebih sunyi dari aktualnya. */
   --chart-1: #1a56db;
   --chart-2: #c2410c;
@@ -115,7 +144,8 @@
        8 Sistem (iam) · Mutu (qc) · Engineering (eng) · Ringkasan — fungsi penunjang, slot netral
      Hubungan dengan grafik: --accent-n memakai SUDUT HUE Lab yang sama dengan --chart-n
      (toleransi ±12° — terukur maks 11,8° slot 6 terang, 7,3° slot 8 gelap, S21 hue_delta; slot 1 =
-     --primary = --chart-1 persis), hanya L dan C yang digeser sampai
+     --chart-1 persis — sampai UX-C.1 juga = --primary, yang kini #2b4fc8 berdiri sendiri karena
+     README C1 membekukan palet aksen dan grafik), hanya L dan C yang digeser sampai
      setiap pasangan slot berjarak ≥ 20 ΔE2000 — palet grafik apa adanya gagal (terang 2–6 = 10,2;
      gelap 1–8 = 13,8). Dihitung 5 Sep 2026 (CIEDE2000 di Lab, luminansi relatif WCAG; skrip
      optimize2.py/finalize.py di scratch P1-B; harness S21 mengukur nilai terkomputasi yang hidup).
@@ -172,20 +202,22 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d1117;
-    --surface: #151a21;
-    --surface-2: #1a1f27;
-    --surface-3: #212832;
-    --border: #262d38;
-    --border-strong: #38414f;
-    --text: #e7ebf0;
-    --text-2: #b3bcc8;
-    --muted: #8b95a3;
-    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%238b95a3' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    --primary: #5b8def;
-    --primary-hover: #7ba4f4;
-    --primary-soft: #17263f;
-    --primary-fg: #0d1117;
+    --bg: #0e1216;
+    --surface: #161b21;
+    --surface-2: #1b2128;
+    --surface-3: #222931;
+    --border: #283039;
+    --border-strong: #3a4450;
+    --text: #e8ecf1;
+    --text-2: #b6bfca;
+    --muted: #8c96a3;
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%238c96a3' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --primary: #7d9df3;
+    --primary-hover: #98b2f6;
+    --primary-soft: #1a2540;
+    --primary-fg: #0e1216;
+    --attn: #e6b95c;
+    --attn-soft: #2b2410;
     --danger: #f87171;
     --danger-soft: #331a1a;
     --success: #4ade80;
@@ -199,9 +231,9 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
     --shadow-md: 0 4px 14px rgba(0, 0, 0, .45);
     --shadow-lg: 0 18px 48px rgba(0, 0, 0, .6);
-    /* Kontras terhadap --surface #151a21 (5 Sep 2026): --chart-1 5,41:1 · --chart-2 7,72:1 ·
-       --chart-3 10,03:1 · --chart-4 6,61:1 · --chart-5 9,67:1 · --chart-6 6,32:1 ·
-       --chart-7 11,41:1 · --chart-8 6,82:1; --chart-text 5,76:1; --chart-baseline 2,31:1
+    /* Kontras terhadap --surface #161b21 (UX-C.1, 3 Okt 2026; sebelumnya #151a21): --chart-1 5,36:1 ·
+       --chart-2 7,65:1 · --chart-3 9,94:1 · --chart-4 6,55:1 · --chart-5 9,58:1 · --chart-6 6,26:1 ·
+       --chart-7 11,31:1 · --chart-8 6,75:1; --chart-text 5,71:1; --chart-baseline 2,29:1
        (bidang sunyi, lihat catatan tema terang). */
     --chart-1: #5b8def;
     --chart-2: #fb923c;
@@ -217,7 +249,8 @@
     --chart-today: #f87171;
     --chart-weekend: #212832;
     --chart-baseline: #4b5563;
-    /* Aksen modul, tema GELAP — hue sama dengan --chart-n gelap (slot 1 = --primary gelap persis).
+    /* Aksen modul, tema GELAP — hue sama dengan --chart-n gelap (slot 1 = --chart-1 gelap persis;
+       --primary gelap #7d9df3 berdiri sendiri sejak UX-C.1).
        Slot 8 gelap digeser 5 Sep 2026 (verifikasi P1-B): #a4a8b7 berjarak hue 14,3°
        dari --chart-8 gelap, melanggar toleransi ±12° yang diklaim; #afb3bc = 7,3° (L 72,9,
        C 5,1), dan minimum matriks naik dari 20,5 ke 20,9. ΔE2000 antar slot, minimum 20,9 (1–4):
@@ -230,9 +263,10 @@
          6 40,9  23,4  71,4  32,5  70,0     —  45,9  29,0
          7 62,7  24,2  34,7  69,8  48,9  45,9     —  35,0
          8 22,5  31,1  31,6  21,7  23,5  29,0  35,0     —
-       Kontras (aksen di --surface #151a21 / -fg #0d1117 di aksen / aksen di -soft):
-         1 5,41/5,86/4,82 · 2 7,61/8,24/6,71 · 3 10,29/11,15/9,19 · 4 6,29/6,81/5,62 ·
-         5 9,74/10,54/8,59 · 6 6,27/6,79/5,56 · 7 11,53/12,48/10,20 · 8 8,32/9,01/7,42 */
+       Kontras (aksen di --surface #161b21 / -fg #0d1117 di aksen / aksen di -soft; UX-C.1 3 Okt 2026,
+       permukaan gelap bergeser dari #151a21 dan minimumnya turun 5,41 → 5,36, tetap ≥ 5,2):
+         1 5,36/5,86/4,82 · 2 7,54/8,24/6,71 · 3 10,20/11,15/9,19 · 4 6,23/6,81/5,62 ·
+         5 9,65/10,54/8,59 · 6 6,21/6,79/5,56 · 7 11,42/12,48/10,20 · 8 8,24/9,01/7,42 */
     --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117;
     --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
     --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117;
@@ -246,15 +280,15 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%235e6874' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
-  --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
-  --muted: #5e6874; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
-  --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%23626c78' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --bg: #f4f5f7; --surface: #ffffff; --surface-2: #f8f9fb; --surface-3: #eef0f3;
+  --border: #e2e5ea; --border-strong: #c6ccd4; --text: #13181e; --text-2: #3d4651;
+  --muted: #626c78; --primary: #2b4fc8; --primary-hover: #2341a6; --primary-soft: #e9eefb;
+  --primary-fg: #ffffff; --attn: #8a5a0f; --attn-soft: #fbf1dc; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
   --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
   --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
-  --shadow-sm: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
-  --shadow-md: 0 4px 12px rgba(16,24,40,.1), 0 2px 4px rgba(16,24,40,.06);
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.07);
+  --shadow-md: 0 6px 20px rgba(16,24,40,.10), 0 2px 6px rgba(16,24,40,.06);
   --shadow-lg: 0 18px 48px rgba(16,24,40,.18);
   --chart-1: #1a56db; --chart-2: #c2410c; --chart-3: #15803d; --chart-4: #7e22ce;
   --chart-5: #0e7490; --chart-6: #b91c1c; --chart-7: #a16207; --chart-8: #475569;
@@ -268,11 +302,11 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%238b95a3' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --bg: #0d1117; --surface: #151a21; --surface-2: #1a1f27; --surface-3: #212832;
-  --border: #262d38; --border-strong: #38414f; --text: #e7ebf0; --text-2: #b3bcc8;
-  --muted: #8b95a3; --primary: #5b8def; --primary-hover: #7ba4f4; --primary-soft: #17263f;
-  --primary-fg: #0d1117; --danger: #f87171; --danger-soft: #331a1a; --success: #4ade80;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%238c96a3' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --bg: #0e1216; --surface: #161b21; --surface-2: #1b2128; --surface-3: #222931;
+  --border: #283039; --border-strong: #3a4450; --text: #e8ecf1; --text-2: #b6bfca;
+  --muted: #8c96a3; --primary: #7d9df3; --primary-hover: #98b2f6; --primary-soft: #1a2540;
+  --primary-fg: #0e1216; --attn: #e6b95c; --attn-soft: #2b2410; --danger: #f87171; --danger-soft: #331a1a; --success: #4ade80;
   --success-soft: #12291d; --warning: #fbbf24; --warning-soft: #2e2411; --info: #60a5fa;
   --info-soft: #16243a; --neutral: #9aa4b2; --neutral-soft: #232a34;
   --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
@@ -790,7 +824,7 @@ table.data tr.emphasis td { background: var(--surface-2); }
    bergerak — yang berubah adalah: kalau skalanya nanti disetel, kepala halaman
    ikut, alih-alih tertinggal sendirian. --fs-page ada sejak UI-1 dan sampai
    sekarang tidak punya satu pun pemakai. */
-.page-head h1 { font-size: var(--fs-page); letter-spacing: -.015em; }
+.page-head h1 { font-size: var(--fs-page); letter-spacing: -.02em; font-weight: var(--fw-semi); }
 .page-head .desc { color: var(--muted); font-size: var(--fs-body); margin-top: 3px; }
 .page-head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -2031,11 +2065,11 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      yang kalau tidak akan tetap menang atas :root polos. */
   :root, :root[data-theme="dark"], :root[data-theme="light"] {
     color-scheme: light;
-    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%235e6874' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
-    --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
-    --muted: #5e6874; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
-    --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%23626c78' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --bg: #f4f5f7; --surface: #ffffff; --surface-2: #f8f9fb; --surface-3: #eef0f3;
+    --border: #e2e5ea; --border-strong: #c6ccd4; --text: #13181e; --text-2: #3d4651;
+    --muted: #626c78; --primary: #2b4fc8; --primary-hover: #2341a6; --primary-soft: #e9eefb;
+    --primary-fg: #ffffff; --attn: #8a5a0f; --attn-soft: #fbf1dc; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
     --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
     --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
     --shadow-sm: none; --shadow-md: none; --shadow-lg: none;
@@ -2052,6 +2086,8 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
   .nav, .brand, .header, .page-head .actions, .filters, .pager,
   .toasts, .overlay, .tabs { display: none !important; }
+  /* UX-C.3: tombol keputusan dan ringkasan galat adalah kontrol, bukan isi dokumen. */
+  .action-panel-actions, .error-summary, .overflow-menu { display: none !important; }
   /* Seleksi adalah keadaan LAYAR: bilahnya dan kolom centangnya tidak punya
      arti di kertas, dan kolom kosong selebar 16 px menggeser seluruh tabel. */
   .selbar, table.data th.pick, table.data td.pick { display: none !important; }
@@ -3263,3 +3299,140 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 .tone-pos { color: var(--success); }
 .tone-neg { color: var(--danger); }
 .tone-warn { color: var(--warning); }
+
+/* ===================================================== primitif UX-C.3 */
+/* Gaya untuk sebelas pembangun ui.js (README C3, quick sheet). Ditulis di akhir
+   berkas dengan sengaja: .tabs di bawah MENIMPA aturan .tabs lama (baris ~1659)
+   dan harus menang pada spesifisitas yang sama. Semua warna token; angka dari
+   quick sheet handoff (tab 38 px, lencana 11,5 px/600, kartu radius-lg). */
+
+/* Judul halaman 24 px di meja, 20 px di ponsel — token, bukan literal di komponen. */
+@media (max-width: 760px) {
+  :root { --fs-page: 20px; }
+}
+
+/* Lencana berikon (statusBadge): ikon 12 px; kelas .status tanpa titik ::before. */
+.badge .lucide { width: 12px; height: 12px; flex: none; }
+.badge.status { padding-left: 7px; }
+
+/* Kepala dokumen. Nomor dokumen adalah subjek kalimat (RECAP § copy rules 4),
+   maka ia yang paling besar: 26 px mono 600; jenis 12,5 px redup di atasnya. */
+.doc-head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.doc-kind { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.doc-code { font-size: 26px; font-weight: var(--fw-semi); line-height: 1.2; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.doc-party { font-size: 15px; font-weight: var(--fw-medium); color: var(--text); }
+.doc-context { font-size: var(--fs-body); color: var(--primary); text-decoration: none; }
+.doc-context:hover { text-decoration: underline; }
+@media (max-width: 760px) { .doc-code { font-size: 22px; } }
+
+/* Panel tindakan: 1 px tepi senada, radius-lg, latar lunak untuk attn; rel kiri
+   3 px untuk success/danger/warn/info (README C3). Tombolnya rata kanan di meja,
+   satu baris penuh di ponsel. */
+.action-panel {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface-2); color: var(--text);
+  font-size: var(--fs-body);
+}
+.action-panel-icon { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
+/* Basis 0, bukan auto: dengan auto, judul yang panjang membawa seluruh badan ke baris
+   berikutnya di 390 px dan ikonnya tertinggal sendirian di baris pertama (terukur 3 Okt 2026). */
+.action-panel-body { flex: 1 1 0; min-width: 0; }
+.action-panel-title { font-size: var(--fs-section); font-weight: var(--fw-semi); line-height: 1.35; }
+.action-panel-text { margin-top: 3px; color: var(--text-2); }
+.action-panel-title + .action-panel-text { margin-top: 4px; }
+.action-panel-actions { flex: none; display: flex; gap: 8px; flex-wrap: wrap; align-self: center; }
+.action-panel.attn { border-color: var(--attn); background: var(--attn-soft); }
+.action-panel.attn .action-panel-title, .action-panel.attn .action-panel-icon { color: var(--attn); }
+.action-panel.success, .action-panel.danger, .action-panel.warn, .action-panel.info { border-left-width: 3px; }
+.action-panel.success { border-left-color: var(--success); }
+.action-panel.success .action-panel-title, .action-panel.success .action-panel-icon { color: var(--success); }
+.action-panel.danger { border-left-color: var(--danger); }
+.action-panel.danger .action-panel-title, .action-panel.danger .action-panel-icon { color: var(--danger); }
+.action-panel.warn { border-left-color: var(--warning); }
+.action-panel.warn .action-panel-title, .action-panel.warn .action-panel-icon { color: var(--warning); }
+.action-panel.info { border-left-color: var(--info); }
+.action-panel.info .action-panel-title, .action-panel.info .action-panel-icon { color: var(--info); }
+@media (max-width: 760px) {
+  .action-panel { flex-wrap: wrap; }
+  .action-panel-actions { flex: 1 1 100%; align-self: auto; }
+  .action-panel-actions .btn { flex: 1 1 auto; height: 44px; }
+}
+
+/* Tab 38 px, satu baris, gulir mendatar; garis bawah 2 px; pil jumlah. */
+.tabs {
+  display: flex; gap: 2px; margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto; overflow-y: hidden; white-space: nowrap;
+  scrollbar-width: thin;
+}
+.tabs button {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 38px; padding: 0 13px; margin-bottom: -1px;
+  border: 0; border-bottom: 2px solid transparent; background: transparent;
+  font-size: var(--fs-body); font-weight: var(--fw-medium); color: var(--muted);
+  white-space: nowrap; cursor: pointer;
+}
+.tabs button:hover { color: var(--text); }
+.tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: var(--fw-semi); }
+.tabs button:focus-visible { outline-offset: -2px; }
+.tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 6px;
+  border-radius: var(--radius-pill); background: var(--surface-3); color: var(--text-2);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi); font-variant-numeric: tabular-nums;
+}
+.tabs button.active .tab-count { background: var(--primary-soft); color: var(--primary); }
+@media (pointer: coarse) { .tabs button { height: 44px; } }
+
+/* Ubin label–nilai (detail.headline, UX-E2): label 11 px kapital .08em, nilai mono. */
+.kv-tile { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.kv-tile-label { font-size: var(--fs-caption); font-weight: var(--fw-semi); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.kv-tile-value { margin-top: 2px; font-size: 16px; font-weight: var(--fw-semi); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv-tile-note { margin-top: 2px; font-size: var(--fs-secondary); color: var(--muted); }
+.kv-tile.success .kv-tile-value { color: var(--success); }
+.kv-tile.danger .kv-tile-value { color: var(--danger); }
+.kv-tile.warn .kv-tile-value { color: var(--warning); }
+.kv-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); }
+
+/* Peta proses (stepper, beranda modul UX-F2): urutan lazim, bukan wajib — tanpa
+   panah "harus"; angka hanya untuk kunci ModuleCounts yang terdaftar. */
+.stepper { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: thin; }
+.step { flex: 1 0 auto; min-width: 0; }
+.step-link {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  color: var(--text); text-decoration: none; white-space: nowrap;
+}
+a.step-link:hover { background: var(--surface-2); border-color: var(--border-strong); text-decoration: none; }
+.step-index {
+  flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--surface-3); color: var(--text-2); font-size: var(--fs-caption); font-weight: var(--fw-semi);
+}
+.step-label { font-size: var(--fs-body); font-weight: var(--fw-medium); }
+.step-count { margin-left: auto; font-size: var(--fs-body); font-weight: var(--fw-semi); color: var(--text-2); }
+.step.active .step-link { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.step.active .step-index { background: var(--primary); color: var(--primary-fg); }
+.step.done .step-index { background: var(--success-soft); color: var(--success); }
+
+/* Ringkasan galat (errorSummary): rel kiri --danger, daftar tombol lompat. */
+.error-summary {
+  margin-bottom: 14px; padding: 12px 14px;
+  border: 1px solid var(--border); border-left: 3px solid var(--danger); border-radius: var(--radius);
+  background: var(--danger-soft); color: var(--text); font-size: var(--fs-body);
+}
+.error-summary-head { display: flex; align-items: center; gap: 8px; color: var(--danger); }
+.error-summary ul { margin: 8px 0 0; padding-left: 20px; }
+.error-summary li + li { margin-top: 4px; }
+.error-summary b { font-weight: var(--fw-semi); }
+button.linkish {
+  border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+button.linkish:hover b { text-decoration: underline; }
+
+/* Menu ⋯: pemisah sebelum item destruktif, item destruktif dalam --danger. */
+.menu-divider { margin: 4px 0; border: 0; border-top: 1px solid var(--border); }
+.menu-item.danger { color: var(--danger); }
+.menu-item.danger svg { color: var(--danger); }
+.menu-item.danger:hover, .menu-item.danger:focus-visible { background: var(--danger-soft); }

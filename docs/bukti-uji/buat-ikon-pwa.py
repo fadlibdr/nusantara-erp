@@ -11,7 +11,7 @@ Tiga berkas, semuanya dari SATU sumber (favicon.svg, tidak disalin-tempel):
   icon-192.png / icon-512.png   ikon "any": lambang apa adanya, sudut membulat,
                                 latar transparan (omit_background) supaya peluncur
                                 yang memberi bingkainya sendiri tidak menumpuk kotak;
-  icon-maskable-512.png         ikon "maskable": latar #1a56db PENUH BIDANG (peluncur
+  icon-maskable-512.png         ikon "maskable": latar #2b4fc8 (= --primary terang) PENUH BIDANG (peluncur
                                 Android memotongnya menjadi lingkaran/squircle) dengan
                                 lambang diperkecil ke 78 % dan DIPUSATKAN pada kotak
                                 batasnya sendiri — zona aman maskable adalah lingkaran
@@ -46,7 +46,7 @@ MASKABLE = """<!doctype html><meta charset=utf-8>
 <style>html,body{margin:0;padding:0;background:transparent}
 svg{display:block;width:%(px)dpx;height:%(px)dpx}</style>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-<rect width="32" height="32" fill="#1a56db"/>
+<rect width="32" height="32" fill="#2b4fc8"/>
 <g transform="translate(3.52 2.935) scale(0.78)">%(body)s</g>
 </svg>"""
 

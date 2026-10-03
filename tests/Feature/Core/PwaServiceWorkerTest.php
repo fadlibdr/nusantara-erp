@@ -52,7 +52,7 @@ use Tests\TestCase;
 class PwaServiceWorkerTest extends TestCase
 {
     /** Ekstensi yang dimuat peramban saat aplikasi berjalan — definisi "cangkang". */
-    private const SHELL_EXTENSIONS = ['html', 'css', 'js', 'svg', 'webmanifest'];
+    private const SHELL_EXTENSIONS = ['html', 'css', 'js', 'svg', 'webmanifest', 'woff2'];
 
     /* --------------------------------------------------------------- (a) */
 

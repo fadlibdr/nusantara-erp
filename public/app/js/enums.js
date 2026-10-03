@@ -3,11 +3,20 @@
    Values must match the API exactly. */
 
 /* Pasangan [value, label] — dan, bila enum itu punya makna warna sendiri,
-   [value, label, tone]. `tone` hanya dipasang bila disebut (termasuk '' untuk
-   netral), supaya statusTone() bisa membedakan "enum ini menetapkan warnanya"
-   dari "ikuti peta kata bersama di format.js". */
-const opts = (pairs) => pairs.map(([value, label, tone]) =>
-  (tone === undefined ? { value, label } : { value, label, tone }));
+   [value, label, tone]; sejak UX-C.4 juga [value, label, tone, icon]
+   (ERRATA E-3 butir 1). `tone` hanya dipasang bila disebut: '' adalah netral
+   yang SAH, sedangkan `null`/kosong berarti "ikuti peta kata bersama di
+   format.js" — begitulah statusTone() membedakan keduanya, dan begitulah enum
+   status dokumen menulis ikonnya tanpa mengambil alih warnanya (`submitted`
+   tetap amber dari peta kata). `icon` = nama simbol sprite Lucide; setiap nilai
+   dari setiap enum yang dipakai kolom status wajib punya satu
+   (StatusVocabularyTest), supaya status tidak pernah hanya warna. */
+const opts = (pairs) => pairs.map(([value, label, tone, icon]) => ({
+  value,
+  label,
+  ...(tone === undefined || tone === null ? {} : { tone }),
+  ...(icon === undefined ? {} : { icon }),
+}));
 
 export const ENUMS = {
   /* P-0b — kotak keluar pengiriman notifikasi (core_notification_deliveries).
@@ -18,26 +27,26 @@ export const ENUMS = {
      dari status baris: `sent` = diterima penyedia; ini = apa yang terjadi
      sesudahnya di jalan. */
   waProviderStatus: opts([
-    ['sent', 'Diterima Meta', ''], ['delivered', 'Sampai', 'green'],
-    ['read', 'Dibaca', 'green'], ['failed', 'Gagal di jalan', 'red'],
+    ['sent', 'Diterima Meta', '', 'send'], ['delivered', 'Sampai', 'green', 'check'],
+    ['read', 'Dibaca', 'green', 'eye'], ['failed', 'Gagal di jalan', 'red', 'circle-x'],
   ]),
   deliveryStatus: opts([
-    ['queued', 'Antre', 'amber'], ['sent', 'Terkirim', 'green'],
-    ['failed', 'Gagal', 'red'], ['skipped', 'Dilewati', ''],
+    ['queued', 'Antre', 'amber', 'clock'], ['sent', 'Terkirim', 'green', 'send'],
+    ['failed', 'Gagal', 'red', 'circle-x'], ['skipped', 'Dilewati', '', 'x'],
   ]),
   documentStatus: opts([
-    ['draft', 'Draf'], ['submitted', 'Diajukan'], ['approved', 'Disetujui'],
-    ['rejected', 'Ditolak'], ['closed', 'Selesai'], ['cancelled', 'Dibatalkan'],
+    ['draft', 'Draf', null, 'pencil'], ['submitted', 'Diajukan', null, 'clock'], ['approved', 'Disetujui', null, 'circle-check'],
+    ['rejected', 'Ditolak', null, 'circle-x'], ['closed', 'Selesai', null, 'check'], ['cancelled', 'Dibatalkan', null, 'x'],
   ]),
-  postingStatus: opts([['draft', 'Draf'], ['posted', 'Terposting']]),
+  postingStatus: opts([['draft', 'Draf', null, 'pencil'], ['posted', 'Terposting', null, 'check']]),
   /* Pembayaran keluar (PAY) melewati persetujuan; penerimaan (RCV) langsung
      diposting dan hanya memakai draft/posted dari daftar yang sama. */
   paymentStatus: opts([
-    ['draft', 'Draf'], ['submitted', 'Diajukan'], ['approved', 'Disetujui'],
-    ['rejected', 'Ditolak'], ['posted', 'Terposting'],
+    ['draft', 'Draf', null, 'pencil'], ['submitted', 'Diajukan', null, 'clock'], ['approved', 'Disetujui', null, 'circle-check'],
+    ['rejected', 'Ditolak', null, 'circle-x'], ['posted', 'Terposting', null, 'check'],
     // Terminal, bukan kembali ke draf: uangnya benar-benar bergerak dan
     // rekening korannya akan selalu mengatakan begitu.
-    ['reversed', 'Dibalik'],
+    ['reversed', 'Dibalik', null, 'history'],
   ]),
   /* "Dibatalkan" adalah keadaan KETIGA, bukan jalan pulang ke draf: bon yang
      sudah diposting tetap berdiri di kartu stok selamanya, dan pembatalannya
@@ -47,8 +56,8 @@ export const ENUMS = {
      Barang. Hari ini hanya bon yang bisa sampai ke sana; GRN memakai daftar
      yang sama tetapi belum punya jalan kembali, jadi saringannya di layar
      Penerimaan Barang memang selalu kosong — lihat StockDocumentStatus.php. */
-  stockDocStatus: opts([['draft', 'Draf'], ['posted', 'Diposting'], ['cancelled', 'Dibatalkan']]),
-  transferStatus: opts([['draft', 'Draf'], ['in_transit', 'Dalam Perjalanan'], ['received', 'Diterima']]),
+  stockDocStatus: opts([['draft', 'Draf', null, 'pencil'], ['posted', 'Diposting', null, 'check'], ['cancelled', 'Dibatalkan', null, 'x']]),
+  transferStatus: opts([['draft', 'Draf', null, 'pencil'], ['in_transit', 'Dalam Perjalanan', null, 'truck'], ['received', 'Diterima', null, 'circle-check']]),
 
   /* Cermin Modules\Procurement\Enums\ProcurementMethod — metode paket belanja
      pada Rencana Pengadaan (PBL, P2). Nilai wajib sama persis dengan API. */
@@ -60,11 +69,11 @@ export const ENUMS = {
   ]),
   /* Status baris paket PBL — perencanaan, bukan dokumen berjenjang. */
   procurementPlanItemStatus: opts([
-    ['planned', 'Direncanakan'], ['in_progress', 'Berjalan'],
-    ['contracted', 'Terkontrak'], ['cancelled', 'Dibatalkan'],
+    ['planned', 'Direncanakan', null, 'pencil'], ['in_progress', 'Berjalan', null, 'arrow-right'],
+    ['contracted', 'Terkontrak', null, 'check'], ['cancelled', 'Dibatalkan', null, 'x'],
   ]),
   procurementPlanStatus: opts([
-    ['draft', 'Draf'], ['active', 'Aktif'], ['closed', 'Selesai'],
+    ['draft', 'Draf', null, 'pencil'], ['active', 'Aktif', null, 'circle-check'], ['closed', 'Selesai', null, 'check'],
   ]),
 
   /* P7 — cermin Modules\Crm\Enums\Tkdn*. Nilainya adalah tabel Permenperin
@@ -92,8 +101,8 @@ export const ENUMS = {
     ['maintenance', 'Pemeliharaan'],
   ]),
   leadStatus: opts([
-    ['new', 'Baru'], ['contacted', 'Sudah Dihubungi'], ['qualified', 'Terkualifikasi'],
-    ['proposal', 'Penawaran Dikirim'], ['won', 'Menang'], ['lost', 'Kalah'],
+    ['new', 'Baru', null, 'inbox'], ['contacted', 'Sudah Dihubungi', null, 'send'], ['qualified', 'Terkualifikasi', null, 'star'],
+    ['proposal', 'Penawaran Dikirim', null, 'file-text'], ['won', 'Menang', null, 'circle-check'], ['lost', 'Kalah', null, 'circle-x'],
   ]),
   /* Aktivitas CRM (F-3) — cermin Modules\Crm\Enums\ActivityType, dijaga
      ActivityRegistryTest. Tanpa warna: jenis pekerjaan bukan keadaan, dan
@@ -107,7 +116,7 @@ export const ENUMS = {
      adalah bagian dari "terbuka", dan menggabungkannya membuat antrean kerja
      harian mustahil ditanyakan. Urutannya urutan yang ditanyakan orang. */
   activityState: opts([
-    ['open', 'Terbuka'], ['overdue', 'Lewat tanggal'], ['done', 'Selesai'],
+    ['open', 'Terbuka', null, 'inbox'], ['overdue', 'Lewat tanggal', null, 'circle-alert'], ['done', 'Selesai', null, 'check'],
   ]),
   /* Jenis dokumen tempat sebuah aktivitas menggantung — cermin
      ActivityDocuments::DOCUMENTS. */
@@ -130,14 +139,14 @@ export const ENUMS = {
      tersaring untuk layar yang pilihannya lebih sempit daripada padanannya,
      supaya form tidak menawarkan jenis yang pasti ditolak. */
   spkAddendumType: opts([['tambah_kurang', 'Tambah-Kurang'], ['eskalasi_harga', 'Eskalasi Harga']]),
-  activeStatus: opts([['active', 'Aktif'], ['inactive', 'Nonaktif']]),
+  activeStatus: opts([['active', 'Aktif', null, 'circle-check'], ['inactive', 'Nonaktif', null, 'x']]),
   certificateType: opts([['skk', 'SKK Konstruksi'], ['k3', 'Sertifikat K3/AK3'], ['principal', 'Sertifikasi Principal'], ['lainnya', 'Lainnya']]),
   guaranteeType: opts([
     ['bid_bond', 'Jaminan Penawaran'], ['performance_bond', 'Jaminan Pelaksanaan'],
     ['advance_payment_bond', 'Jaminan Uang Muka'], ['maintenance_bond', 'Jaminan Pemeliharaan'],
     ['car', 'Asuransi CAR'], ['tpl', 'Asuransi TPL'], ['lainnya', 'Lainnya'],
   ]),
-  guaranteeStatus: opts([['active', 'Berlaku'], ['released', 'Dikembalikan'], ['claimed', 'Dicairkan']]),
+  guaranteeStatus: opts([['active', 'Berlaku', null, 'circle-check'], ['released', 'Dikembalikan', null, 'check'], ['claimed', 'Dicairkan', null, 'circle-x']]),
 
   ahspCategory: opts([
     ['sipil', 'Sipil'], ['arsitektur', 'Arsitektur'], ['mep', 'MEP'], ['elv', 'ELV'], ['ict', 'ICT'],
@@ -154,8 +163,8 @@ export const ENUMS = {
     ['maintenance', 'Pemeliharaan'],
   ]),
   projectStatus: opts([
-    ['preparation', 'Persiapan'], ['active', 'Berjalan'], ['on_hold', 'Ditangguhkan'],
-    ['finishing', 'Finishing'], ['warranty', 'Masa Pemeliharaan'], ['closed', 'Ditutup'],
+    ['preparation', 'Persiapan', null, 'pencil'], ['active', 'Berjalan', null, 'hard-hat'], ['on_hold', 'Ditangguhkan', null, 'clock'],
+    ['finishing', 'Finishing', null, 'arrow-right'], ['warranty', 'Masa Pemeliharaan', null, 'clipboard-check'], ['closed', 'Ditutup', null, 'check'],
   ]),
   /* Status yang bisa dipilih dari FORM proyek — pola assetStatusEditable.
      'Ditutup' sengaja tidak ada: menutup proyek adalah aksi ber-checklist
@@ -164,8 +173,8 @@ export const ENUMS = {
      server membacanya "biarkan apa adanya". Daftar penuh projectStatus di atas
      tetap dipakai kolom & filter, supaya proyek tutup tetap terbaca. */
   projectStatusEditable: opts([
-    ['preparation', 'Persiapan'], ['active', 'Berjalan'], ['on_hold', 'Ditangguhkan'],
-    ['finishing', 'Finishing'], ['warranty', 'Masa Pemeliharaan'],
+    ['preparation', 'Persiapan', null, 'pencil'], ['active', 'Berjalan', null, 'hard-hat'], ['on_hold', 'Ditangguhkan', null, 'clock'],
+    ['finishing', 'Finishing', null, 'arrow-right'], ['warranty', 'Masa Pemeliharaan', null, 'clipboard-check'],
   ]),
   weather: opts([['cerah', 'Cerah'], ['mendung', 'Mendung'], ['hujan', 'Hujan']]),
   /* P0-C — cermin Modules\Projects\Enums\WorkShift & GatePassDirection. */
@@ -276,13 +285,13 @@ export const ENUMS = {
     ['proyek', 'Proyek'], ['engineering', 'Engineering'], ['keuangan', 'Keuangan'],
     ['hrga', 'HR & GA'], ['procurement', 'Procurement'], ['servis', 'Servis'],
   ]),
-  employeeStatus: opts([['active', 'Aktif'], ['resigned', 'Resign']]),
+  employeeStatus: opts([['active', 'Aktif', null, 'circle-check'], ['resigned', 'Resign', null, 'log-out']]),
   payrollRunType: opts([['regular', 'Gaji Bulanan'], ['thr', 'THR Keagamaan']]),
   leaveType: opts([['tahunan', 'Cuti Tahunan'], ['sakit', 'Sakit'], ['izin', 'Izin'], ['khusus', 'Cuti Khusus']]),
-  attendanceStatus: opts([['hadir', 'Hadir'], ['setengah_hari', 'Setengah Hari'], ['absen', 'Absen']]),
+  attendanceStatus: opts([['hadir', 'Hadir', null, 'circle-check'], ['setengah_hari', 'Setengah Hari', null, 'clock'], ['absen', 'Absen', null, 'circle-x']]),
 
   billingCycle: opts([['monthly', 'Bulanan'], ['quarterly', 'Triwulanan'], ['yearly', 'Tahunan']]),
-  svcContractStatus: opts([['active', 'Aktif'], ['expired', 'Berakhir'], ['terminated', 'Diputus']]),
+  svcContractStatus: opts([['active', 'Aktif', null, 'circle-check'], ['expired', 'Berakhir', null, 'circle-alert'], ['terminated', 'Diputus', null, 'x']]),
   ticketCategory: opts([
     ['incident', 'Gangguan'], ['request', 'Permintaan'], ['preventive', 'Pemeliharaan Preventif'],
   ]),
@@ -291,9 +300,9 @@ export const ENUMS = {
      layanan, jadi 'open' → hijau dari peta bersama statusTone memang benar di
      sini — berbeda dengan NCR/insiden/defect di bawah. */
   ticketStatus: opts([
-    ['open', 'Terbuka'], ['assigned', 'Ditugaskan'], ['in_progress', 'Dikerjakan'],
-    ['pending_customer', 'Menunggu Pelanggan'], ['resolved', 'Terselesaikan'],
-    ['closed', 'Ditutup'], ['cancelled', 'Dibatalkan'],
+    ['open', 'Terbuka', null, 'inbox'], ['assigned', 'Ditugaskan', null, 'user'], ['in_progress', 'Dikerjakan', null, 'arrow-right'],
+    ['pending_customer', 'Menunggu Pelanggan', null, 'clock'], ['resolved', 'Terselesaikan', null, 'circle-check'],
+    ['closed', 'Ditutup', null, 'check'], ['cancelled', 'Dibatalkan', null, 'x'],
   ]),
   ticketChannel: opts([
     ['phone', 'Telepon'], ['email', 'Email'], ['wa', 'WhatsApp'], ['portal', 'Portal'], ['system', 'Sistem'],
@@ -302,7 +311,7 @@ export const ENUMS = {
     ['comment', 'Komentar'], ['status_change', 'Perubahan Status'],
     ['assignment', 'Penugasan'], ['work_log', 'Catatan Pekerjaan'],
   ]),
-  fieldReportStatus: opts([['draft', 'Draf'], ['submitted', 'Diajukan'], ['acknowledged', 'Disahkan Pelanggan']]),
+  fieldReportStatus: opts([['draft', 'Draf', null, 'pencil'], ['submitted', 'Diajukan', null, 'clock'], ['acknowledged', 'Disahkan Pelanggan', null, 'circle-check']]),
   pmFrequency: opts([['monthly', 'Bulanan'], ['quarterly', 'Triwulanan'], ['semiannual', 'Semesteran']]),
 
   incidentSeverity: opts([
@@ -322,7 +331,7 @@ export const ENUMS = {
      tindakan koreksinya belum selesai — merah, bukan hijau 'open' tiket
      layanan (diukur 4 Sep 2026: lencana detail K3/2026/IX/003 "Terbuka → green"). */
   incidentStatus: opts([
-    ['open', 'Terbuka', 'red'], ['investigating', 'Investigasi', 'amber'], ['closed', 'Selesai', 'green'],
+    ['open', 'Terbuka', 'red', 'triangle-alert'], ['investigating', 'Investigasi', 'amber', 'search'], ['closed', 'Selesai', 'green', 'check'],
   ]),
 
   /* Register defect (punch list). "Menunggu verifikasi" masih dihitung TERBUKA:
@@ -341,9 +350,9 @@ export const ENUMS = {
      register memakai peta pribadinya (Terbuka → red) sementara halaman detail
      temuan yang sama memakai statusTone (Terbuka → green). */
   defectStatus: opts([
-    ['open', 'Terbuka', 'red'], ['in_progress', 'Perbaikan berjalan', 'amber'],
-    ['ready_for_review', 'Menunggu verifikasi', 'blue'], ['closed', 'Selesai (terverifikasi)', 'green'],
-    ['waived', 'Dispensasi pelanggan', ''],
+    ['open', 'Terbuka', 'red', 'triangle-alert'], ['in_progress', 'Perbaikan berjalan', 'amber', 'arrow-right'],
+    ['ready_for_review', 'Menunggu verifikasi', 'blue', 'eye'], ['closed', 'Selesai (terverifikasi)', 'green', 'check'],
+    ['waived', 'Dispensasi pelanggan', '', 'info'],
   ]),
 
   /* P1-ENG — cermin Modules\Engineering\Enums, satu peta per enum, SEKALI.
@@ -364,9 +373,9 @@ export const ENUMS = {
   /* Status register gambar — CERMIN keputusan submittal terkini, digerakkan
      DrawingSubmittalService, tidak pernah diketik dari form mana pun. */
   drawingStatus: opts([
-    ['belum_diajukan', 'Belum diajukan'], ['diajukan', 'Diajukan'],
-    ['approved', 'Disetujui'], ['approved_as_noted', 'Disetujui dengan catatan'],
-    ['revise_resubmit', 'Revisi & ajukan ulang'], ['rejected', 'Ditolak'],
+    ['belum_diajukan', 'Belum diajukan', null, 'pencil'], ['diajukan', 'Diajukan', null, 'clock'],
+    ['approved', 'Disetujui', null, 'circle-check'], ['approved_as_noted', 'Disetujui dengan catatan', null, 'clipboard-check'],
+    ['revise_resubmit', 'Revisi & ajukan ulang', null, 'refresh-cw'], ['rejected', 'Ditolak', null, 'circle-x'],
   ]),
   transmittalDirection: opts([['keluar', 'Keluar'], ['masuk', 'Masuk']]),
   /* Kosakata baris transmittal — TransmittalService::LINE_KINDS, bukan enum
@@ -403,14 +412,14 @@ export const ENUMS = {
      yang jujur — statusTone bersama melukis 'open' hijau (diukur 4 Sep 2026:
      lencana detail NCR/2026/IX/0002 "Terbuka → green"). */
   ncrStatus: opts([
-    ['open', 'Terbuka', 'red'], ['under_correction', 'Perbaikan berjalan', 'amber'],
-    ['verified', 'Terverifikasi', 'blue'], ['closed', 'Ditutup', 'green'],
+    ['open', 'Terbuka', 'red', 'triangle-alert'], ['under_correction', 'Perbaikan berjalan', 'amber', 'arrow-right'],
+    ['verified', 'Terverifikasi', 'blue', 'eye'], ['closed', 'Ditutup', 'green', 'check'],
   ]),
 
   /* P3 — cermin Modules\Projects\Enums\ZoneCertificateStatus. 'done' digerbangi
      NCR terbuka di zona itu; 'waiting_repair' memblokir klaim owner (kriteria #6). */
   zoneCertificateStatus: opts([
-    ['done', 'Selesai'], ['check', 'Diperiksa'], ['waiting_repair', 'Nunggu perbaikan'],
+    ['done', 'Selesai', null, 'check'], ['check', 'Diperiksa', null, 'eye'], ['waiting_repair', 'Nunggu perbaikan', null, 'clock'],
   ]),
   /* Pihak yang menandatangani BAPP — fakta tercatat, tidak pernah diisi dari
      master proyek (roadmap §7). */
@@ -431,8 +440,8 @@ export const ENUMS = {
   ]),
 
   assetStatus: opts([
-    ['available', 'Tersedia'], ['deployed', 'Termobilisasi'],
-    ['maintenance', 'Dalam Perawatan'], ['disposed', 'Dihapusbukukan'],
+    ['available', 'Tersedia', null, 'circle-check'], ['deployed', 'Termobilisasi', null, 'truck'],
+    ['maintenance', 'Dalam Perawatan', null, 'settings'], ['disposed', 'Dihapusbukukan', null, 'x'],
   ]),
   // P5 — kepemilikan aset. Sewa: kolom perolehan/penyusutan NULL (bergaris,
   // bukan Rp 0 — alat itu tidak ada di neraca kita) dan tidak pernah
@@ -445,12 +454,12 @@ export const ENUMS = {
   // (POST assets/{id}/dispose) yang memposting jurnal pelepasannya — lewat
   // update biasa server kini menolaknya (Temuan 55).
   assetStatusEditable: opts([
-    ['available', 'Tersedia'], ['maintenance', 'Dalam Perawatan'],
+    ['available', 'Tersedia', null, 'circle-check'], ['maintenance', 'Dalam Perawatan', null, 'settings'],
   ]),
   maintenanceType: opts([
     ['service_rutin', 'Service Rutin'], ['perbaikan', 'Perbaikan'], ['kalibrasi', 'Kalibrasi'],
   ]),
-  deploymentStatus: opts([['active', 'Aktif'], ['returned', 'Dikembalikan']]),
+  deploymentStatus: opts([['active', 'Aktif', null, 'circle-check'], ['returned', 'Dikembalikan', null, 'check']]),
 };
 
 /** Look up a display label for an enum value. */
@@ -469,4 +478,15 @@ export function enumTone(name, value) {
   const list = ENUMS[name] || [];
   const hit = list.find((option) => option.value === value);
   return hit && 'tone' in hit ? hit.tone : undefined;
+}
+
+/**
+ * Ikon sprite yang ditetapkan enum itu sendiri untuk satu nilai (kolom keempat
+ * tuple opts, UX-C.3), atau `undefined` bila enum tidak menetapkannya —
+ * statusIcon() di format.js lalu memakai peta kata bersamanya.
+ */
+export function enumIcon(name, value) {
+  const list = ENUMS[name] || [];
+  const hit = list.find((option) => option.value === value);
+  return hit && 'icon' in hit ? hit.icon : undefined;
 }

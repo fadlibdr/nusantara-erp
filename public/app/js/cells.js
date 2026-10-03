@@ -1,6 +1,6 @@
 /* Value rendering shared by list tables, detail panels and report tables. */
 
-import { el, badge, pluck, progressBar } from './ui.js';
+import { el, badge, statusBadge, pluck, progressBar } from './ui.js';
 import * as fmt from './format.js';
 import { enumLabel } from './enums.js';
 import { labelFor } from './lookup.js';
@@ -99,12 +99,10 @@ export function renderCell(row, column) {
       );
 
     case 'status':
-      // `column.enum` (bila ada) memberi statusTone enum-nya: 'open' merah untuk
-      // NCR/K3/defect, hijau untuk tiket — lihat enums.js dan format.js.
-      return badge(
-        row[`${column.key}_label`] || (column.enum ? enumLabel(column.enum, raw) : raw) || '—',
-        fmt.statusTone(raw, column.enum),
-      );
+      // `column.enum` (bila ada) memberi statusTone DAN statusIcon enum-nya: 'open'
+      // merah bersegitiga untuk NCR/K3/defect, hijau berkotak masuk untuk tiket —
+      // lihat enums.js dan format.js. Ikon + kata (UX-C.4), bukan warna saja.
+      return statusBadge(raw, column.enum, { label: row[`${column.key}_label`] || undefined });
 
     case 'priority': {
       const tone = { critical: 'red', high: 'amber', medium: 'blue', low: '' }[raw] || '';

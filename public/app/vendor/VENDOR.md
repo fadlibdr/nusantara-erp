@@ -11,26 +11,32 @@ tidak satu pun berkas di `public/app` boleh memuat skrip/stylesheet/modul/`fetch
 1. **Tanpa CDN, tanpa npm saat runtime.** Semua yang dibutuhkan peramban ada di repositori
    dan dilayani dari asal yang sama. Uji `VendorManifestTest::test_no_cdn_loader_anywhere_under_app`
    memindai `*.html *.js *.css` di `public/app`.
-2. **Hanya dua pustaka ini** — SortableJS dan sprite Lucide subset. Grafik ditulis sendiri
-   (`js/charts.js`, 0 KB vendor). Pustaka lain butuh keputusan pemilik yang dicatat di ledger
-   ROADMAP-HASHMICRO §5, lalu baris di sini + uji manifest yang hijau.
+2. **Hanya tiga pustaka ini** — SortableJS, sprite Lucide subset, dan IBM Plex Mono 400/600
+   (ledger ROADMAP-HASHMICRO §5 baris 17 = ERRATA D-1, bawaan: hanya `--mono`; Instrument Sans
+   TIDAK di-vendor karena 96.611 B melampaui plafon). Grafik ditulis sendiri (`js/charts.js`,
+   0 KB vendor). Pustaka lain butuh keputusan pemilik yang dicatat di ledger itu, lalu baris di
+   sini + uji manifest yang hijau.
 3. **Satu folder per pustaka per versi** (`<lib>@<ver>/`), hanya berkas yang dipakai +
    LICENSE. Memperbarui = folder baru, ubah rujukan (`ui.js` `LUCIDE_SPRITE`, pemuat Sortable
    di paket yang memakainya), hapus folder lama, perbarui tabel di bawah.
-4. **Plafon**: jumlah gzip -9 seluruh folder ≤ 60 KB (61 440 byte). Terukur 5 Sep 2026:
-   **21 206 byte** (lihat kolom gzip di tabel).
+4. **Plafon**: jumlah gzip -9 seluruh folder ≤ 60 KB (61 440 byte). Terukur 3 Okt 2026 (UX-C.2):
+   **58 658 byte** (lihat kolom gzip di tabel; 21 206 sebelum font). Sisa 2 782 byte — woff2 sudah
+   terkompresi (gzip tidak mengecilkannya), jadi satu bobot font lagi tidak akan muat tanpa
+   keputusan pemilik soal plafon.
 
 ## Pustaka
 
 | Pustaka | Versi | Sumber | sha256 tarball (seperti diunduh) | Lisensi | gzip -9 | Untuk apa |
 |---|---|---|---|---|---|---|
 | SortableJS | 1.15.7 | https://registry.npmjs.org/sortablejs/-/sortablejs-1.15.7.tgz | `66cbfc8fa18860783584fe0c346baf6cbf3399da72d23d21053425ba232abed4` | MIT (`sortablejs@1.15.7/LICENSE`, SPDX `MIT`) | 14 993 B (`Sortable.min.js`) | seret-lepas widget dasbor (P1-D) dan kartu kanban (P1-G), termasuk sentuh; dimuat malas oleh layar yang memakainya, bukan oleh shell |
+| IBM Plex Mono (`@ibm/plex-mono`) | 2.5.0 | https://registry.npmjs.org/@ibm/plex-mono/-/plex-mono-2.5.0.tgz | `55b5ffcfcd5e9db36ef2070b2b07a573434ca02c6f3be2b921c0b88fff29acad` | OFL-1.1 (`ibm-plex-mono@2.5.0/LICENSE` = `LICENSE.txt` paket, SPDX `OFL-1.1`) | 17 567 B (Regular) + 17 895 B (SemiBold) | `--mono` untuk nomor dokumen, rupiah, dan angka KPI (UX-C.2, ERRATA D-1): bobot 400 dan 600 subset `Latin1` dari `fonts/split/woff2/` paket — berkas yang sama dengan rilis GitHub IBM/plex v6.4.x (sha256 identik); `font-display: swap`, dimuat dari `@font-face` app.css, bukan oleh JS |
 | Lucide (lucide-static) | 1.41.0 | https://registry.npmjs.org/lucide-static/-/lucide-static-1.41.0.tgz | `d10f583e2076986ddcf79def168e6ce1e64f742fa06b6014347c59fa581aa6cb` | ISC (`lucide@1.41.0/LICENSE`, SPDX `ISC`; ikon turunan Feather MIT tercantum di berkas yang sama) | 4 045 B (`sprite.svg`) | sprite 79 simbol `<symbol id="lucide-<nama>" viewBox="0 0 24 24">` untuk `ui.js svgIcon()` — glyph `icon()` hari ini, 14 glyph grup NAV (launcher/beranda modul P1-C), dan kebutuhan Fase 1 (dasbor, kanban, gantt, grafik, PWA) |
 
 Integritas tarball diverifikasi terhadap registry saat diunduh (5 Sep 2026): `dist.shasum`
 sha1 `83a0bddc472117ee328dea20b2e6f490fed20f86` (sortablejs) dan
 `56c437537404a446883ff611301ef2442835bece` (lucide-static), serta `dist.integrity` sha512
-`Kk8wLQPl…u6ux0A==` dan `39fX7SH+…uhQSFg==` — ketiganya cocok.
+`Kk8wLQPl…u6ux0A==` dan `39fX7SH+…uhQSFg==` — ketiganya cocok. IBM Plex Mono (3 Okt 2026):
+sha1 `152c0b1dda619ef5f032db258bda798cf278125e`, sha512 `STBJIPxP…j/wc1w==` — cocok.
 
 ## Berkas
 
@@ -41,6 +47,9 @@ adalah jumlahnya terhadap plafon, bukan kesamaan kolom.
 
 | Berkas | sha256 | byte | gzip -9 |
 |---|---|---|---|
+| `ibm-plex-mono@2.5.0/IBMPlexMono-Regular-Latin1.woff2` | `e8993d946649b9d01abb1ed06d574b19d8ea3e66b5c3948602db335c44c18e56` | 17544 | 17567 |
+| `ibm-plex-mono@2.5.0/IBMPlexMono-SemiBold-Latin1.woff2` | `b7acd05041ab65f3b7039e218ddd893065e11a07e85ea85019473152a51b6b7d` | 17872 | 17895 |
+| `ibm-plex-mono@2.5.0/LICENSE` | `7e6b2818edbd8f6a01ae80641cc8f16a51080d08fb4e532be3a0b6f74adb07da` | 4456 | 1990 |
 | `lucide@1.41.0/LICENSE` | `b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57` | 3208 | 1500 |
 | `lucide@1.41.0/sprite.svg` | `3d01cd3c836247add5ab9ee9415324e129db79e0ed39ca79f3e20c83ba8d1502` | 23271 | 4045 |
 | `sortablejs@1.15.7/LICENSE` | `e94dfc31e800d169257569db270457c9f028440c9ccae41e7eb78b2db18f1298` | 1106 | 668 |
@@ -85,6 +94,15 @@ sha256sum /tmp/sortablejs-$V.tgz            # → kolom "sha256 tarball" di atas
 # 2. Ekstrak HANYA yang dipakai
 mkdir -p public/app/vendor/sortablejs@$V
 tar xzf /tmp/sortablejs-$V.tgz -C public/app/vendor/sortablejs@$V --strip-components=1 package/Sortable.min.js package/LICENSE
+
+# IBM Plex Mono: unduh + verifikasi seperti di atas (paket @ibm/plex-mono), lalu ambil HANYA dua bobot
+# subset Latin1 + lisensinya (nama folder = versi paket npm, bukan versi rilis monorepo IBM/plex).
+PV=2.5.0; mkdir -p public/app/vendor/ibm-plex-mono@$PV
+tar xzf /tmp/plex-mono-$PV.tgz -C public/app/vendor/ibm-plex-mono@$PV --strip-components=4 \
+  package/fonts/split/woff2/IBMPlexMono-Regular-Latin1.woff2 package/fonts/split/woff2/IBMPlexMono-SemiBold-Latin1.woff2
+tar xzf /tmp/plex-mono-$PV.tgz -C public/app/vendor/ibm-plex-mono@$PV --strip-components=1 package/LICENSE.txt
+mv public/app/vendor/ibm-plex-mono@$PV/LICENSE.txt public/app/vendor/ibm-plex-mono@$PV/LICENSE
+# lalu ubah dua url() @font-face di app.css, dua baris SHELL di sw.js, dan naikkan SHELL_VERSION.
 
 # Lucide: unduh + verifikasi seperti di atas (paket lucide-static), lalu bangun sprite subset.
 # Skrip di bawah = satu-satunya cara membuat sprite.svg; daftar nama = daftar "Isi sprite" di atas.

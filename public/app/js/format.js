@@ -1,6 +1,6 @@
 /* Display formatting — Indonesian locale throughout (id-ID, IDR, WIB). */
 
-import { enumTone } from './enums.js';
+import { enumTone, enumIcon } from './enums.js';
 
 const money0 = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const money2 = new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -183,5 +183,86 @@ export function statusTone(value, enumName) {
       return 'blue';
     default:
       return '';
+  }
+}
+
+/**
+ * Status value -> nama ikon sprite, pendamping statusTone (UX-C.3/C.4, ERRATA E-3).
+ *
+ * Status tidak boleh hanya warna: lencana membawa ikon + kata, jadi buta warna
+ * dan fotokopi hitam-putih tetap membedakan "disetujui" dari "ditolak". Urutan
+ * yang sama dengan statusTone: ikon yang ditetapkan enum-nya sendiri menang
+ * (enums.js kolom keempat), lalu peta kata bersama di bawah; kata yang tidak
+ * dikenal memakai ikon netral supaya tidak pernah ada lencana tanpa ikon.
+ */
+export function statusIcon(value, enumName) {
+  if (enumName) {
+    const own = enumIcon(enumName, String(value));
+    if (own !== undefined) return own;
+  }
+
+  switch (String(value)) {
+    case 'draft':
+    case 'planned':
+      return 'pencil';
+    case 'submitted':
+    case 'queued':
+    case 'pending_customer':
+    case 'on_hold':
+    case 'in_transit':
+      return 'clock';
+    case 'approved':
+    case 'active':
+    case 'available':
+    case 'won':
+    case 'resolved':
+    case 'acknowledged':
+    case 'received':
+    case 'delivered':
+    case 'read':
+      return 'circle-check';
+    case 'rejected':
+    case 'failed':
+    case 'lost':
+    case 'claimed':
+      return 'circle-x';
+    case 'posted':
+    case 'closed':
+    case 'done':
+    case 'contracted':
+    case 'released':
+    case 'returned':
+    case 'sent':
+      return 'check';
+    case 'cancelled':
+    case 'inactive':
+    case 'resigned':
+    case 'terminated':
+    case 'disposed':
+    case 'skipped':
+    case 'superseded':
+      return 'x';
+    case 'reversed':
+      return 'history';
+    case 'expired':
+    case 'overdue':
+      return 'circle-alert';
+    // 'open' di peta kata = keadaan normal (tiket), sejajar dengan hijaunya di
+    // statusTone; NCR, K3 dan defect menulis 'triangle-alert' di enum-nya sendiri.
+    case 'open':
+      return 'inbox';
+    case 'in_progress':
+    case 'assigned':
+    case 'deployed':
+    case 'finishing':
+    case 'maintenance':
+    case 'warranty':
+    case 'qualified':
+    case 'proposal':
+    case 'contacted':
+    case 'new':
+      return 'arrow-right';
+    default:
+      return 'info';
   }
 }
