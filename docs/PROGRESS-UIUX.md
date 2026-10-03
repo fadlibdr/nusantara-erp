@@ -154,6 +154,22 @@ Branch `feat/ux-redesign-d`, seven task commits plus one test fix, merged `--no-
 
 ---
 
+## UX-E1 — List
+
+Branch `feat/ux-redesign-e1` from `7112adb`. The plan came from a read-only workflow (six readers over `list.js`, its PHPUnit and harness pins, the handoff design, schema/API facts and the conventions; two planners with opposite priorities; a judge). Its main calls, all recorded as deviations below where they differ from README E1:
+- status tabs read the declared status filter (the shared `statusColumn` has no enum) and carry **no counts** — no list endpoint returns per-status totals;
+- the ⋯ menu replaces the existing row buttons one for one, so no row gains a trigger and the frozen densities (CONVENTIONS §13) hold;
+- "N dari M" takes M from one cached unfiltered request, in its own revertable commit;
+- filter controls stay in the DOM inside the popover (chips read their labels from them; S30r/S46 read `.filters`).
+
+### UX-E1.0 — Baseline on the merge base
+- Commit: the commit that adds this entry.
+- Files: `docs/bukti-uji/results-ux-e1-base.json`, `docs/bukti-uji/ux-e1-probes.py`, `docs/bukti-uji/ux-e1-probe-base.json`, this file
+- Acceptance: harness on `7112adb`, fresh seed per batch — S1 S2 S3 S4 S5 S6 S7 S8 S9 S10 S11 S12 S13 S14 S16 S18 S19 S20 S21 S21m S22 S22m S30r S32 S34 S37 S37m S43 S44 S45 S46 S47 S51 S52 S53 ok. **Red before E1:** S28 (`two_documents_were_actually_picked`, OQ-7), **S29** (types into `.modal`; the PO form is a page since UI-4d), **S30** (`and_the_information_panel_shows_the_same_date` — red on the UX-0 code with the UX-0 harness too, so it predates the redesign). Probe (`ux-e1-probes.py`, 7 lists × admin/direktur × 3 densities × fine/coarse): single-line rows 32 / 47 / 48 px fine and 43 / 55 / 55 px coarse where rows carry buttons; header 30,5 / 42,5 px (coarse 38 / 50 on two-line lists); toolbar (filter bar + chip rows) 98 px plain and 178 px with two filters at 1440, 200 / 384 px at 390; row actions are direct buttons (1 click) on item-categories, accounts, customers, tickets and weekly-progress for admin, none for direktur except weekly-progress's print.
+- Deviations: none; measurements only.
+
+---
+
 ## Metrics
 
 Method for every row: the scenario named, on the fresh seed above, 1440 × 900, light theme unless stated. "Last recorded" is ERRATA §4, which quotes `RECAP-UX-PROSES-2026-09.md` of 5 Sep 2026.
