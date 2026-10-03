@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <title>Nusantara ERP — UI saat ini (rekreasi)</title>
+  <link rel="stylesheet" href="public/app/app.css">
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .shell { height: 100dvh; min-height: 0; }
+    .recreation-bar { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 200; display: flex; gap: 4px; padding: 5px; background: #14181d; border-radius: 999px; box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+    .recreation-bar button { font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #c9d1dc; background: transparent; border: 0; border-radius: 999px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+    .recreation-bar button:hover { color: #fff; background: rgba(255,255,255,.08); }
+    .recreation-bar button.on { color: #14181d; background: #fff; }
+    @media print { .recreation-bar { display: none; } }
+  </style>
+</helmet>
+
+<div class="shell">
+  <div class="brand">
+    <img src="public/app/favicon.svg" alt="" width="28" height="28">
+    <div class="brand-text"><strong>Nusantara ERP</strong><span>Konstruksi &amp; SI</span></div>
+  </div>
+
+  <header class="header">
+    <button class="btn ghost icon menu-toggle" type="button" title="Menu" onClick="{{ toggleNav }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+    <button class="btn ghost icon home-btn" type="button" title="Beranda" onClick="{{ goHome }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 7.2 8 2.5l5.5 4.7M4 8.6V13a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V8.6M6.5 13.5V9.5h3v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+    <nav class="crumbs" id="crumbs" aria-label="Remah roti" data-root="{{ crumbRoot }}">
+      <sc-if value="{{ crumbModule }}" hint-placeholder-val="{{ true }}">
+        <a class="crumb-module" href="#" data-accent="{{ crumbAccent }}"><span class="lbl">{{ crumbModule }}</span></a>
+      </sc-if>
+      <sc-if value="{{ crumbScreen }}" hint-placeholder-val="{{ false }}">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 4 10.5 8 6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <sc-if value="{{ crumbDoc }}" hint-placeholder-val="{{ false }}"><a class="crumb-screen" href="#">{{ crumbScreen }}</a></sc-if>
+        <sc-if value="{{ noCrumbDoc }}" hint-placeholder-val="{{ true }}"><b>{{ crumbScreen }}</b></sc-if>
+      </sc-if>
+      <sc-if value="{{ crumbDoc }}" hint-placeholder-val="{{ false }}">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 4 10.5 8 6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <b>{{ crumbDoc }}</b>
+      </sc-if>
+    </nav>
+    <div class="spacer"></div>
+    <button class="btn ghost global-search" type="button" title="Pencarian global (Ctrl+K)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11 11 15 15M7 12.5A5.5 5.5 0 1 0 7 1.5a5.5 5.5 0 0 0 0 11Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Cari</span></button>
+    <button class="btn ghost icon" type="button" title="Ganti tema" onClick="{{ cycleTheme }}"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 1v1.5M8 13.5V15M15 8h-1.5M2.5 8H1M12.9 3.1l-1 1M4.1 11.9l-1 1M12.9 12.9l-1-1M4.1 4.1l-1-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+    <button class="btn ghost icon bell" type="button" title="Notifikasi"><svg class="lucide" width="16" height="16" aria-hidden="true"><use href="public/app/vendor/lucide@1.41.0/sprite.svg#lucide-bell"></use></svg><span class="bell-count">3</span></button>
+    <button class="userchip" type="button">
+      <div class="avatar">BS</div>
+      <div class="who"><b>Budi Santoso</b><span>Direktur</span></div>
+    </button>
+  </header>
+
+  <nav class="nav" aria-label="Navigasi utama">
+    <div class="nav-group" data-open="true" data-kind="shortcut">
+      <button type="button">Favorit<svg class="chev" width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+      <div class="nav-items">
+        <div class="nav-item shortcut"><a href="#"><span class="tick"></span><span class="lbl">Tugas Saya</span></a><button class="star on" type="button" aria-pressed="true" aria-label="Hapus dari Favorit"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.9l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2.1.7-4.3-3.1-3 4.3-.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg></button></div>
+        <div class="nav-item shortcut"><a href="#"><span class="tick"></span><span class="lbl">Pesanan (PO)</span></a><button class="star on" type="button" aria-pressed="true" aria-label="Hapus dari Favorit"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.9l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2.1.7-4.3-3.1-3 4.3-.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg></button></div>
+      </div>
+    </div>
+    <div class="nav-group" data-open="true" data-kind="shortcut">
+      <button type="button">Terakhir dibuka<svg class="chev" width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+      <div class="nav-items">
+        <div class="nav-item shortcut"><a href="#" title="PT Semen Distribusi Utama"><span class="tick"></span><span class="lbl">PO/2026/VII/0001</span></a></div>
+        <div class="nav-item shortcut"><a href="#" title="Gedung Kantor Graha Sentosa"><span class="tick"></span><span class="lbl">PRJ-2026-001</span></a></div>
+        <div class="nav-item shortcut"><a href="#"><span class="tick"></span><span class="lbl">INV/2026/VII/0003</span></a></div>
+      </div>
+    </div>
+    <sc-for list="{{ navGroups }}" as="g" hint-placeholder-count="6">
+      <div class="nav-group {{ g.activeClass }}" data-open="{{ g.open }}" data-accent="{{ g.accent }}" data-prefix="{{ g.prefix }}">
+        <button type="button" onClick="{{ g.toggle }}">{{ g.label }}<svg class="chev" width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+        <div class="nav-items">
+          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="4">
+            <sc-if value="{{ it.divider }}" hint-placeholder-val="{{ false }}"><div class="nav-divider">{{ it.divider }}</div></sc-if>
+            <sc-if value="{{ it.label }}" hint-placeholder-val="{{ true }}">
+              <div class="nav-item"><a href="#" class="{{ it.activeClass }}" onClick="{{ it.go }}"><span class="tick"></span><span class="lbl">{{ it.label }}</span></a><button class="star" type="button" aria-pressed="false" aria-label="Tandai sebagai Favorit"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.9l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2.1.7-4.3-3.1-3 4.3-.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg></button></div>
+            </sc-if>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </nav>
+
+  <main class="main" id="view">
+
+    <!-- ================= DASBOR (views/dashboard.js) ================= -->
+    <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+      <div data-screen-label="Dasbor">
+        <div class="page-head">
+          <div><h1>Selamat pagi, Budi</h1><div class="desc">Ringkasan operasional per Jumat, 2 Oktober 2026</div></div>
+          <div class="actions">
+            <button class="btn" type="button">Proyek saya</button>
+            <button class="btn" type="button"><svg class="lucide" width="16" height="16" aria-hidden="true"><use href="public/app/vendor/lucide@1.41.0/sprite.svg#lucide-settings-2"></use></svg>Atur dasbor</button>
+            <button class="btn icon" type="button" title="Muat ulang"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.7-4M13.5 2v3.5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+          </div>
+        </div>
+        <div class="dash-grid">
+          <div class="card widget" data-size="lebar" data-accent="8" style="grid-column: span 4">
+            <div class="card-head"><h2>Proyek, piutang &amp; hutang</h2><div class="spacer"></div></div>
+            <div class="widget-body"><div class="card-body"><div class="stat-row" style="margin-bottom:0">
+              <div class="stat"><div class="label">Nilai proyek berjalan</div><div class="value">Rp 58.300.000.000</div><div class="delta">2 proyek aktif</div></div>
+              <div class="stat"><div class="label">Piutang terbuka</div><div class="value">Rp 7.275.000.000</div><div class="delta down">Rp 1.455.000.000 lewat jatuh tempo</div></div>
+              <div class="stat"><div class="label">Hutang terbuka</div><div class="value">Rp 2.918.400.000</div><div class="delta">4 tagihan vendor</div></div>
+            </div></div></div>
+          </div>
+          <div class="card widget" data-size="sedang" data-accent="8" style="grid-column: span 2">
+            <div class="card-head"><h2>Menunggu persetujuan Anda</h2><div class="spacer"></div><span class="badge amber dot">6</span></div>
+            <div class="widget-body"><div class="table-wrap"><table class="data">
+              <thead><tr><th>Dokumen</th><th>Menunggu</th><th class="right">Nilai</th></tr></thead>
+              <tbody>
+                <tr class="clickable"><td><span class="cell-main mono" style="font-size:12px">PO/2026/VII/0004</span><span class="cell-sub">PT Elektrindo Supply</span></td><td>12 hari</td><td class="right num">Rp 486.500.000</td></tr>
+                <tr class="clickable"><td><span class="cell-main mono" style="font-size:12px">SPK/2026/VII/0002</span><span class="cell-sub">PT Mekanika Prima</span></td><td>9 hari</td><td class="right num">Rp 1.250.000.000</td></tr>
+                <tr class="clickable"><td><span class="cell-main mono" style="font-size:12px">OPN/2026/IX/0003</span><span class="cell-sub">CV Karya Sipil Sejahtera</span></td><td>4 hari</td><td class="right num">Rp 312.000.000</td></tr>
+                <tr class="clickable"><td><span class="cell-main mono" style="font-size:12px">PRL/2026/IX</span><span class="cell-sub">Payroll September 2026</span></td><td>2 hari</td><td class="right num">Rp 684.200.000</td></tr>
+              </tbody>
+            </table></div><div class="card-foot"><span class="muted" style="font-size:12.5px;margin-right:auto">4 dari 6 ditampilkan</span><button class="btn sm" type="button">Buka Tugas Saya</button></div></div>
+          </div>
+          <div class="card widget" data-size="sedang" data-accent="8" style="grid-column: span 2">
+            <div class="card-head"><h2>Tenggat menipis &amp; lewat</h2><div class="spacer"></div></div>
+            <div class="widget-body"><div class="card-body" style="padding-top:8px;padding-bottom:8px">
+              <div class="bar-row"><span class="name">Perkiraan kirim PO/2026/III/0002</span><span class="badge red dot">lewat 40 hari</span><span class="amt">Rp 128.000.000</span></div>
+              <div class="bar-row"><span class="name">Jatuh tempo INV/2026/VI/0002</span><span class="badge red dot">lewat 11 hari</span><span class="amt">Rp 1.455.000.000</span></div>
+              <div class="bar-row"><span class="name">SPT Masa PPN September</span><span class="badge amber dot">18 hari lagi</span><span class="amt">—</span></div>
+              <div class="bar-row"><span class="name">Masa berlaku SBU CV Karya Sipil</span><span class="badge amber dot">27 hari lagi</span><span class="amt">—</span></div>
+            </div></div>
+          </div>
+          <div class="card widget" data-size="sedang" data-accent="1" style="grid-column: span 2">
+            <div class="card-head"><h2>Progres proyek</h2><div class="spacer"></div></div>
+            <div class="widget-body"><div class="card-body">
+              <div class="bar-row"><span class="name">PRJ-2026-001 Gedung Graha Sentosa</span><div class="progress"><span style="width:46%"></span></div><span class="amt">46 % / 51 %</span></div>
+              <div class="bar-row"><span class="name">PRJ-2026-002 ELV Bank Artha</span><div class="progress green"><span style="width:72%"></span></div><span class="amt">72 % / 70 %</span></div>
+            </div></div>
+          </div>
+          <div class="card widget" data-size="kecil" data-accent="2">
+            <div class="card-head"><h2>Umur piutang</h2><div class="spacer"></div></div>
+            <div class="widget-body"><div class="card-body"><div class="stat-row" style="margin-bottom:0">
+              <div class="stat"><div class="label">Belum jatuh tempo</div><div class="value sm">Rp 5.820.000.000</div></div>
+              <div class="stat"><div class="label">1–30 hari</div><div class="value sm">Rp 0</div></div>
+              <div class="stat"><div class="label">&gt; 30 hari</div><div class="value sm">Rp 1.455.000.000</div></div>
+            </div></div></div>
+          </div>
+          <div class="card widget" data-size="kecil" data-accent="3">
+            <div class="card-head"><h2>Perlu dipesan ulang</h2><div class="spacer"></div></div>
+            <div class="widget-body"><div class="card-body"><div class="alert error" style="margin:0"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 6v3.5M8 11.6v.1M7.1 2.6 1.6 12a1 1 0 0 0 .9 1.5h11a1 1 0 0 0 .9-1.5L8.9 2.6a1 1 0 0 0-1.8 0Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg><div>Widget "Perlu dipesan ulang" tidak dapat dijalankan. Isinya tidak diketahui — jangan dibaca sebagai "tidak ada data".</div></div></div></div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ================= BERANDA / LAUNCHER (views/home.js) ================= -->
+    <sc-if value="{{ isHome }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Beranda">
+        <div class="page-head">
+          <div><h1>Beranda</h1><div class="desc">Selamat datang, Budi Santoso. Pilih modul untuk mulai bekerja.</div></div>
+          <div class="actions"><button class="btn" type="button" onClick="{{ goDashboard }}">Dasbor</button></div>
+        </div>
+        <div class="home-searchbar"><input class="home-search" type="search" placeholder="Cari modul atau layar…" aria-label="Cari modul atau layar"></div>
+        <section class="home-section"><h2 class="home-section-title">Favorit</h2><ul class="home-chips"><li><a class="home-chip" href="#"><b>Tugas Saya</b><span class="hint">Ringkasan</span></a></li><li><a class="home-chip" href="#"><b>Pesanan (PO)</b><span class="hint">Pengadaan</span></a></li></ul></section>
+        <section class="home-section"><h2 class="home-section-title">Terakhir dibuka</h2><ul class="home-chips"><li><a class="home-chip" href="#"><b>PO/2026/VII/0001</b><span class="hint">PT Semen Distribusi Utama</span></a></li><li><a class="home-chip" href="#"><b>PRJ-2026-001</b><span class="hint">Gedung Kantor Graha Sentosa</span></a></li><li><a class="home-chip" href="#"><b>INV/2026/VII/0003</b></a></li></ul></section>
+        <section class="home-section"><h2 class="home-section-title">Modul</h2>
+          <ul class="home-grid" aria-label="Modul">
+            <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="8">
+              <li><a class="home-tile" href="#" data-accent="{{ t.accent }}" onClick="{{ t.go }}">
+                <div class="home-tile-icon"><svg class="lucide" width="20" height="20" aria-hidden="true"><use href="{{ t.iconHref }}"></use></svg></div>
+                <div class="home-tile-body"><b class="home-tile-label">{{ t.label }}</b><div class="home-kpi"><span class="home-kpi-value">{{ t.value }}</span><span class="home-kpi-unit">{{ t.unit }}</span></div><div class="home-kpi-label" title="{{ t.kpi }}">{{ t.kpi }}</div></div>
+                <div class="home-tile-screens">{{ t.screens }} layar</div>
+              </a></li>
+            </sc-for>
+          </ul>
+        </section>
+      </div>
+    </sc-if>
+
+    <!-- ================= BERANDA MODUL PENGADAAN (views/module.js) ================= -->
+    <sc-if value="{{ isModule }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Beranda modul Pengadaan">
+        <div class="module-head" data-accent="3">
+          <div class="module-icon"><svg class="lucide" width="22" height="22" aria-hidden="true"><use href="public/app/vendor/lucide@1.41.0/sprite.svg#lucide-shopping-cart"></use></svg></div>
+          <div><div class="eyebrow">Modul</div><h1>Pengadaan</h1><div class="desc">Vendor, permintaan (PR), RFQ, pesanan (PO), PPK alat dan jasa, evaluasi vendor.</div></div>
+        </div>
+        <div class="module-kpis">
+          <div class="module-kpi"><div class="module-kpi-value">7 <span class="module-kpi-unit">PO</span></div><div class="module-kpi-label">PO terbuka</div></div>
+          <div class="module-kpi"><div class="module-kpi-value">3 <span class="module-kpi-unit">PR</span></div><div class="module-kpi-label">PR menunggu persetujuan</div></div>
+          <div class="module-kpi"><div class="module-kpi-value">2 <span class="module-kpi-unit">RFQ</span></div><div class="module-kpi-label">RFQ menunggu penawaran</div></div>
+          <div class="module-kpi"><div class="module-kpi-value">—</div><div class="module-kpi-label">Baris PO lewat batas kirim</div><div class="module-kpi-note muted">tidak dapat dimuat</div></div>
+        </div>
+        <div class="module-recent"><h2 class="module-recent-title">Terakhir dibuka</h2><ul class="home-chips"><li><a class="home-chip" href="#"><b>PO/2026/VII/0001</b><span class="hint">PT Semen Distribusi Utama</span></a></li></ul></div>
+        <ul class="module-grid" aria-label="Layar Pengadaan">
+          <sc-for list="{{ moduleCards }}" as="c" hint-placeholder-count="8">
+            <li class="module-cell"><a class="module-card" href="#" onClick="{{ c.go }}"><svg class="lucide" width="16" height="16" aria-hidden="true"><use href="public/app/vendor/lucide@1.41.0/sprite.svg#lucide-file-text"></use></svg><div><b>{{ c.label }}</b><span class="hint">{{ c.hint }}</span></div></a><button class="star {{ c.starClass }}" type="button" aria-label="Tandai sebagai Favorit"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.9l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2.1.7-4.3-3.1-3 4.3-.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg></button></li>
+          </sc-for>
+        </ul>
+      </div>
+    </sc-if>
+
+    <!-- ================= DAFTAR PO (views/list.js) ================= -->
+    <sc-if value="{{ isList }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Daftar PO">
+        <div class="page-head">
+          <div><h1>Pesanan Pembelian (PO)</h1></div>
+          <div class="actions">
+            <button class="btn" type="button"><svg class="lucide" width="16" height="16" aria-hidden="true"><use href="public/app/vendor/lucide@1.41.0/sprite.svg#lucide-columns-3"></use></svg>Kolom</button>
+            <button class="btn icon" type="button" title="Muat ulang"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.7-4M13.5 2v3.5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+            <button class="btn primary" type="button" onClick="{{ openForm }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>Tambah PO</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="filters">
+            <div class="search"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11 11 15 15M7 12.5A5.5 5.5 0 1 0 7 1.5a5.5 5.5 0 0 0 0 11Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg><input type="text" placeholder="Cari pesanan pembelian (po)…" aria-label="Cari"></div>
+            <select class="filter-w" aria-label="Status"><option>Status</option></select>
+            <div class="combo" style="width:190px"><input class="combo-input" placeholder="Vendor" aria-label="Vendor"></div>
+            <div class="combo" style="width:190px"><input class="combo-input" placeholder="Proyek" aria-label="Proyek"></div>
+            <button class="btn sm ghost" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.5v8M4.5 7.5 8 11l3.5-3.5M2.5 13.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>Ekspor CSV</button>
+          </div>
+          <div class="table-wrap"><table class="data">
+            <thead><tr>
+              <th aria-sort="descending"><button class="th-sort" type="button">Nomor ▼</button></th><th>Vendor</th><th class="hide-narrow">Proyek</th><th class="hide-narrow"><button class="th-sort" type="button">Tgl PO</button></th><th class="right"><button class="th-sort" type="button">Total</button></th><th>Status</th><th></th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{ poRows }}" as="r" hint-placeholder-count="7">
+                <tr class="clickable" tabindex="0" onClick="{{ r.go }}">
+                  <td class="code">{{ r.code }}</td>
+                  <td><span class="cell-main">{{ r.vendor }}</span><span class="cell-sub">{{ r.vendorCode }}</span></td>
+                  <td class="hide-narrow">{{ r.project }}</td>
+                  <td class="hide-narrow">{{ r.date }}</td>
+                  <td class="right num">{{ r.total }}</td>
+                  <td><span class="badge dot {{ r.tone }}">{{ r.status }}</span></td>
+                  <td><div class="row-actions">
+                    <button class="btn sm ghost icon" type="button" title="Cetak PO" data-label="Cetak"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 6V2.5h7V6M4.5 12H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1.5M4.5 9.5h7v4h-7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg></button>
+                    <sc-if value="{{ r.editable }}" hint-placeholder-val="{{ false }}">
+                      <button class="btn sm ghost icon" type="button" title="Ubah" data-label="Ubah"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.2 2.8a1.7 1.7 0 0 1 2.4 2.4L5.5 13.3l-3.2.8.8-3.2 8.1-8.1Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg></button>
+                      <button class="btn sm ghost icon" type="button" title="Hapus" data-label="Hapus"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.2a1 1 0 0 0 1 .8h3.8a1 1 0 0 0 1-.8l.6-8.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+                    </sc-if>
+                  </div></td>
+                </tr>
+              </sc-for>
+            </tbody>
+            <tfoot><tr><td colspan="4">Total halaman ini</td><td class="right num">Rp 3.279.900.000</td><td colspan="2"></td></tr></tfoot>
+          </table></div>
+          <div class="pager"><span>Menampilkan 1–7 dari 7</span><div class="spacer"></div><select style="width:auto;height:28px;font-size:12.5px"><option>20 / halaman</option></select><button class="btn sm icon" type="button" title="Sebelumnya" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M9.5 3.5 5 8l4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button><span class="num">1 / 1</span><button class="btn sm icon" type="button" title="Berikutnya" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 4 10.5 8 6.5 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ================= DETAIL PO (views/detail.js) ================= -->
+    <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Detail PO">
+        <div class="page-head">
+          <div>
+            <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><h1>PO/2026/VII/0004</h1><span class="badge dot amber">Diajukan</span></div>
+            <div class="desc">PT Elektrindo Supply · PRJ-2026-002</div>
+          </div>
+          <div class="actions">
+            <div class="zone navigasi"><button class="btn icon" type="button" title="Kembali" onClick="{{ goList }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M9.5 3.5 5 8l4.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></div>
+            <div class="zone keluaran"><div class="menu-wrap"><button class="btn menu-trigger" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 6V2.5h7V6M4.5 12H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1.5M4.5 9.5h7v4h-7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg>Cetak<svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></div></div>
+            <div class="zone keputusan"><button class="btn primary" type="button">Setujui</button><button class="btn danger" type="button">Tolak</button></div>
+            <details class="action-note"><summary>Tambah catatan persetujuan</summary><textarea placeholder="Catatan (opsional)"></textarea></details>
+          </div>
+        </div>
+        <div class="alert warn" style="margin-bottom:14px"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 6v3.5M8 11.6v.1M7.1 2.6 1.6 12a1 1 0 0 0 .9 1.5h11a1 1 0 0 0 .9-1.5L8.9 2.6a1 1 0 0 0-1.8 0Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg><div style="flex:1"><div>Diajukan 20 Sep 2026 oleh Andi Kurniawan · menunggu persetujuan (1 dari 2 tingkat).</div><div class="cell-sub">Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.</div></div></div>
+        <div class="stat-row">
+          <div class="stat"><div class="label">Subtotal</div><div class="value sm">Rp 438.288.288</div></div>
+          <div class="stat"><div class="label">Discount Amount</div><div class="value sm">Rp 0</div></div>
+          <div class="stat"><div class="label">Dpp</div><div class="value sm">Rp 438.288.288</div></div>
+          <div class="stat"><div class="label">Ppn Amount</div><div class="value sm">Rp 48.211.712</div></div>
+          <div class="stat"><div class="label">Total</div><div class="value sm">Rp 486.500.000</div></div>
+        </div>
+        <div class="detail-grid">
+          <div>
+            <div class="card">
+              <div class="card-head"><h2>Informasi</h2></div>
+              <div class="card-body"><dl class="kv">
+                <dt>Code</dt><dd class="mono">PO/2026/VII/0004</dd>
+                <dt>Status</dt><dd>submitted</dd>
+                <dt>Order Date</dt><dd>18 Sep 2026</dd>
+                <dt>Expected Date</dt><dd>9 Okt 2026</dd>
+                <dt>Payment Term Days</dt><dd>30</dd>
+                <dt>Pr Bypass Reason</dt><dd>—</dd>
+                <dt>Delivery Address</dt><dd>Gudang Site PRJ-2026-002, Jl. Jend. Sudirman Kav. 52, Jakarta Selatan</dd>
+                <dt>Notes</dt><dd>Pengadaan switch core dan access point tahap 2 sesuai RFQ/2026/VIII/0003.</dd>
+                <dt>Qualification Override Reason</dt><dd>—</dd>
+                <dt>Required Levels</dt><dd>2</dd>
+                <dt>Created By</dt><dd>5</dd>
+              </dl></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>Item pesanan</h2></div>
+              <div class="table-wrap"><table class="data">
+                <thead><tr><th class="right">#</th><th>Uraian</th><th class="right">Qty</th><th class="right">Diterima</th><th>Satuan</th><th class="right">Harga satuan</th><th class="right">Jumlah</th></tr></thead>
+                <tbody>
+                  <tr><td class="right">1</td><td>Switch Managed 24 Port (ITM-0006)</td><td class="right num">12,000</td><td class="right num">0,000</td><td>unit</td><td class="right num">Rp 18.500.000</td><td class="right num">Rp 222.000.000</td></tr>
+                  <tr><td class="right">2</td><td>Access Point WiFi 6 (ITM-0008)</td><td class="right num">48,000</td><td class="right num">0,000</td><td>unit</td><td class="right num">Rp 3.650.000</td><td class="right num">Rp 175.200.000</td></tr>
+                  <tr><td class="right">3</td><td>Kabel UTP Cat6 (ITM-0003)</td><td class="right num">36,000</td><td class="right num">0,000</td><td>roll</td><td class="right num">Rp 1.141.341</td><td class="right num">Rp 41.088.288</td></tr>
+                </tbody>
+                <tfoot><tr><td colspan="6">Total</td><td class="right">Rp 438.288.288</td></tr></tfoot>
+              </table></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>Lampiran</h2></div>
+              <div class="card-body">
+                <div class="attachment"><div class="attachment-main"><div class="attachment-name">penawaran-elektrindo-rev2.pdf</div><div class="cell-sub">PDF · 1,2 MB · Andi Kurniawan · 18 Sep 2026</div></div><div class="row-actions"><button class="btn sm" type="button">Unduh</button></div></div>
+                <div class="attachment-add"><div class="attachment-add-row"><button class="btn sm" type="button">Pilih berkas…</button><span class="attachment-expiry">Masa berlaku <input type="date"></span></div><div class="help">PDF, gambar, Word, Excel, CSV, XML, DWG/DXF, MPP. Maks 5 MB (gambar teknik dan MPP 25 MB).</div></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card"><div class="card-head"><h2>Terkait</h2></div><div class="card-body"><dl class="kv"><dt>Vendor</dt><dd><a href="#">PT Elektrindo Supply</a><span class="cell-sub">VND-0003</span></dd><dt>Project</dt><dd><a href="#">Instalasi ELV &amp; Data Center Bank Artha Nusantara</a><span class="cell-sub">PRJ-2026-002</span></dd><dt>Warehouse</dt><dd><a href="#">Gudang Site PRJ-2026-002</a></dd><dt>Purchase Requisition</dt><dd><a href="#">PR/2026/VIII/0007</a></dd></dl></div></div>
+            <div class="card"><div class="card-head"><h2>Riwayat Persetujuan</h2></div><div class="card-body"><div class="timeline">
+              <div class="timeline-item ok"><b>Disetujui</b><div class="meta">Rina Wijaya · 24 Sep 2026 10:12</div><div class="note">Tingkat 1. Harga sesuai BA negosiasi.</div></div>
+              <div class="timeline-item pending"><b>Diajukan</b><div class="meta">Andi Kurniawan · 20 Sep 2026 15:40</div></div>
+            </div></div></div>
+            <div class="card"><div class="card-head"><h2>Metadata</h2></div><div class="card-body"><dl class="kv"><dt>ID</dt><dd class="mono">4</dd><dt>Dibuat</dt><dd>18 Sep 2026 14:02</dd><dt>Diperbarui</dt><dd>24 Sep 2026 10:12</dd></dl></div></div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ================= TUGAS SAYA (views/tugas.js) ================= -->
+    <sc-if value="{{ isTugas }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Tugas Saya">
+        <div class="page-head">
+          <div><h1>Tugas Saya</h1><div class="desc">Dokumen yang menunggu keputusan Anda, yang paling lama menunggu di atas.</div></div>
+          <div class="actions"><button class="btn" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.7-4M13.5 2v3.5H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>Muat ulang</button></div>
+        </div>
+        <div class="card">
+          <div class="filters"><span class="muted">Jenis dokumen</span><select class="filter-w"><option>Semua (6)</option><option>PO (2)</option><option>SPK (1)</option></select></div>
+          <div class="table-wrap"><table class="data">
+            <thead><tr><th style="width:34px"></th><th>Dokumen</th><th>Keterangan</th><th>Diajukan oleh</th><th>Menunggu</th><th class="right">Nilai</th></tr></thead>
+            <tbody>
+              <tr class="clickable"><td><input type="checkbox" aria-label="Pilih"></td><td><span class="cell-main mono" style="font-size:12px">PO/2026/VII/0004</span><span class="cell-sub">Pesanan Pembelian (PO)</span></td><td>PT Elektrindo Supply · PRJ-2026-002</td><td>Andi Kurniawan</td><td>12 hari</td><td class="right num">Rp 486.500.000</td></tr>
+              <tr class="clickable"><td><input type="checkbox" aria-label="Pilih"></td><td><span class="cell-main mono" style="font-size:12px">SPK/2026/VII/0002</span><span class="cell-sub">SPK Subkon</span></td><td>PT Mekanika Prima · Pekerjaan ME lantai 1–4</td><td>Rina Wijaya</td><td>9 hari</td><td class="right num">Rp 1.250.000.000</td></tr>
+              <tr class="clickable"><td><input type="checkbox" aria-label="Pilih"></td><td><span class="cell-main mono" style="font-size:12px">OPN/2026/IX/0003</span><span class="cell-sub">Opname Subkon</span></td><td>CV Karya Sipil Sejahtera · Termin 3</td><td>Agus Prasetyo</td><td>4 hari</td><td class="right num">Rp 312.000.000</td></tr>
+              <tr class="clickable"><td><input type="checkbox" aria-label="Pilih"></td><td><span class="cell-main mono" style="font-size:12px">PRL/2026/IX</span><span class="cell-sub">Payroll</span></td><td>September 2026 · 48 karyawan</td><td>Siti Rahayu</td><td>2 hari</td><td class="right num">Rp 684.200.000</td></tr>
+              <tr class="clickable"><td><input type="checkbox" aria-label="Pilih"></td><td><span class="cell-main mono" style="font-size:12px">BOQ/2026/0003 v2</span><span class="cell-sub">BOQ / RAB</span></td><td>Tender RS Medika Husada · Rev. 2</td><td>Made Wirawan</td><td>1 hari</td><td class="right num">Rp 12.400.000.000</td></tr>
+              <tr class="clickable"><td><input type="checkbox" aria-label="Pilih"></td><td><span class="cell-main mono" style="font-size:12px">CUTI/2026/0021</span><span class="cell-sub">Cuti &amp; Izin</span></td><td>Joko Susilo · 6–8 Okt 2026</td><td>Joko Susilo</td><td>0 hari</td><td class="right num">—</td></tr>
+            </tbody>
+          </table></div>
+          <div class="card-foot"><span class="muted" style="font-size:12.5px;margin-right:auto">0 dipilih · maks 20 per batch</span><button class="btn" type="button" disabled>Setujui yang dipilih</button></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ================= LAPANGAN (views/lapangan.js) ================= -->
+    <sc-if value="{{ isLapangan }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Lapangan (mobile)" style="max-width:520px">
+        <div class="page-head"><div><h1>Lapangan</h1><div class="desc">Laporan harian dan foto progres dari lokasi.</div></div></div>
+        <div class="offline-ribbon" hidden></div>
+        <div class="card"><div class="card-body">
+          <div class="field"><label>Proyek</label><div class="combo"><input class="combo-input field-select" value="PRJ-2026-001 — Gedung Kantor Graha Sentosa" readonly></div></div>
+          <div class="tabs" style="margin-top:14px"><button class="active" type="button">Laporan harian</button><button type="button">Tiket servis</button></div>
+          <div class="cell-sub" style="margin-bottom:10px">Laporan hari ini: <b>LH/2026/X/0002</b> · dibuat 07.42 oleh Agus Prasetyo</div>
+          <button class="btn lg primary" type="button"><svg class="lucide" width="18" height="18" aria-hidden="true"><use href="public/app/vendor/lucide@1.41.0/sprite.svg#lucide-camera"></use></svg>Ambil foto</button>
+          <div class="upload-queue">
+            <div class="upload-item" data-state="uploading"><div class="upload-item-main"><div class="cell-main">IMG_20261002_074512.jpg</div><div class="cell-sub">Mengirim… 64 %</div><div class="progress"><span style="width:64%"></span></div></div></div>
+            <div class="upload-item" data-state="failed"><div class="upload-item-main"><div class="cell-main">IMG_20261002_074330.jpg</div><div class="cell-sub">Gagal: koneksi terputus</div></div><div class="row-actions"><button class="btn sm" type="button">Kirim ulang</button><button class="btn sm ghost" type="button">Buang</button></div></div>
+          </div>
+          <div class="field-photos">
+            <div class="field-photo"><div class="field-photo-main"><div class="cell-main">IMG_20261002_072210.jpg</div><div class="cell-sub">07.22 · lantai 5 zona A</div></div><span class="badge green dot">120 m dari proyek</span></div>
+            <div class="field-photo"><div class="field-photo-main"><div class="cell-main">IMG_20261002_071855.jpg</div><div class="cell-sub">07.18</div></div><span class="badge dot">tanpa lokasi</span></div>
+          </div>
+        </div></div>
+      </div>
+    </sc-if>
+  </main>
+</div>
+
+<!-- ================= FORM PO (views/form.js — modal) ================= -->
+<sc-if value="{{ formOpen }}" hint-placeholder-val="{{ false }}">
+  <div class="overlay" style="position:fixed">
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="po-form-title">
+      <div class="modal-head"><h2 id="po-form-title">Tambah PO</h2><div class="spacer"></div><button class="btn ghost icon sm" type="button" title="Tutup" onClick="{{ closeForm }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></div>
+      <div class="modal-body">
+        <div class="form-section"><h3>Pesanan pembelian</h3>
+          <div class="form-grid">
+            <div class="field"><label>Vendor<span class="req">*</span></label><div class="combo clearable"><input class="combo-input" value="PT Elektrindo Supply (VND-0003)"><button class="combo-clear" type="button" aria-label="Kosongkan">×</button></div></div>
+            <div class="field"><label>Dari PR</label><div class="combo"><input class="combo-input" placeholder="Pilih…"></div></div>
+            <div class="field span2 invalid"><label>Alasan tanpa PR<span class="req">*</span></label><textarea placeholder=""></textarea><div class="help">PO ini dibuat tanpa permintaan pembelian (PR). Sebutkan mengapa pembelian langsung dilakukan (mis. kebutuhan darurat di lapangan).</div><div class="err">Alasan tanpa PR wajib diisi.</div></div>
+            <div class="field"><label>Proyek</label><div class="combo"><input class="combo-input" value="PRJ-2026-002 — Instalasi ELV &amp; Data Center"></div><div class="help" style="color:var(--warning)">Sisa anggaran RAP non-subkon: Rp 61.200.000 (93 % terpakai).</div></div>
+            <div class="field"><label>Gudang tujuan</label><div class="combo"><input class="combo-input" placeholder="Pilih…"></div></div>
+            <div class="field"><label>Tanggal PO<span class="req">*</span></label><input type="date" value="2026-10-02"></div>
+            <div class="field"><label>Perkiraan kirim<span class="req">*</span></label><input type="date"></div>
+            <div class="field"><label>Termin bayar (hari)</label><input type="number" placeholder=""><div class="help">Kosongkan untuk memakai termin vendor.</div></div>
+            <div class="field"><label>Diskon</label><div class="input-affix prefix"><span>Rp</span><input type="text" inputmode="numeric" value="0"></div></div>
+            <div class="field span2"><label>Alamat pengiriman</label><textarea></textarea></div>
+            <div class="field span2"><label>Catatan</label><textarea></textarea></div>
+            <div class="field span2"><label>Alasan override prakualifikasi</label><textarea></textarea><div class="help">Isi hanya bila vendor terblokir prakualifikasi (nonaktif / dokumen wajib kedaluwarsa) dan PO tetap harus dibuat.</div></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="lines-head"><h3>Item pesanan</h3><div class="spacer"></div><button class="btn sm" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>Tambah baris</button></div>
+          <div style="overflow-x:auto"><table class="lines">
+            <thead><tr><th style="width:24%">Item</th><th style="width:30%">Uraian<span class="req">*</span></th><th style="width:12%">Qty<span class="req">*</span></th><th style="width:10%">Satuan</th><th style="width:20%">Harga satuan<span class="req">*</span></th><th class="right">Jumlah</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><div class="combo compact"><input class="combo-input" value="ITM-0006 Switch Managed 24 Port"></div></td><td><input type="text" value="Switch Managed 24 Port"></td><td><input type="text" inputmode="decimal" value="12"></td><td><input type="text" value="unit"></td><td><input type="text" inputmode="numeric" value="18.500.000"></td><td class="right row-total">Rp 222.000.000</td><td><button class="btn sm ghost icon" type="button" title="Hapus baris"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.2a1 1 0 0 0 1 .8h3.8a1 1 0 0 0 1-.8l.6-8.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></td></tr>
+              <tr><td><div class="combo compact"><input class="combo-input" placeholder="Pilih item…"></div></td><td class="cell-invalid"><input type="text" value=""><div class="err">Uraian wajib diisi.</div></td><td><input type="text" inputmode="decimal" value="1"></td><td><input type="text"></td><td><input type="text" inputmode="numeric" placeholder="0"></td><td class="right row-total">Rp 0</td><td><button class="btn sm ghost icon" type="button" title="Hapus baris"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.2a1 1 0 0 0 1 .8h3.8a1 1 0 0 0 1-.8l.6-8.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button></td></tr>
+            </tbody>
+          </table></div>
+          <div style="display:flex;justify-content:flex-end;margin-top:10px;font-size:13px"><span class="muted" style="margin-right:12px">Total item</span><b class="num">Rp 222.000.000</b></div>
+        </div>
+      </div>
+      <div class="modal-foot"><button class="btn" type="button" onClick="{{ closeForm }}">Batal</button><button class="btn primary" type="button">Simpan</button></div>
+    </div>
+  </div>
+</sc-if>
+
+<div class="recreation-bar" role="tablist" aria-label="Layar rekreasi">
+  <sc-for list="{{ screenTabs }}" as="s" hint-placeholder-count="7">
+    <button type="button" class="{{ s.cls }}" onClick="{{ s.go }}">{{ s.label }}</button>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;light&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;tsType&quot;:&quot;'light' | 'dark'&quot;,&quot;section&quot;:&quot;Tampilan&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;normal&quot;,&quot;options&quot;:[&quot;compact&quot;,&quot;normal&quot;,&quot;comfortable&quot;],&quot;tsType&quot;:&quot;'compact' | 'normal' | 'comfortable'&quot;,&quot;section&quot;:&quot;Tampilan&quot;}}">
+const SPRITE = 'public/app/vendor/lucide@1.41.0/sprite.svg#lucide-';
+const NAV = [
+  { label: 'Ringkasan', prefix: 'ringkasan', accent: 8, items: [['Beranda','home'],['Dasbor','dashboard'],['Tugas Saya','tugas'],['Absensi Saya'],['Timesheet Saya'],['Tenggat'],['Ambang & Batas'],['Kalender'],['Laporan Bebas'],['Profil & Notifikasi']] },
+  { label: 'Penjualan', prefix: 'crm', accent: 4, items: [['Pelanggan'],['Prospek'],['Papan Pipeline'],['Aktivitas CRM'],['Paket Tender'],['Penawaran'],['Lembar TKDN'],['RKK Penawaran'],['Penyusun Kualifikasi'],['Kontrak'],['Pekerjaan Tambah-Kurang'],['Analitik Win-Rate'],['Jaminan & Asuransi']] },
+  { label: 'Estimasi', prefix: 'est', accent: 4, items: [['AHSP'],['BOQ / RAB'],['RAP'],['Riwayat Harga Satuan'],['Pustaka Metode Kerja']] },
+  { label: 'Engineering', prefix: 'eng', accent: 8, items: [['Register Gambar'],['Persetujuan Gambar (SDS)'],['Persetujuan Material (SMS)'],['Transmittal'],['Ijin Pelaksanaan (IPP)'],['Lokasi Tapak']] },
+  { label: 'Proyek', prefix: 'prj', accent: 1, items: [{ divider: 'Pelaksanaan' },['Daftar Proyek'],['Laporan Harian'],['Lapangan (mobile)','lapangan'],['Progres Mingguan'],['Opname Owner (OPN)'],['Variasi Kontrak (Plafon Opname)'],['EVM & Baseline'],['Milestone'],{ divider: 'Serah terima' },['BAPP per Zona'],['BAST'],{ divider: 'Izin & K3' },['Izin Kerja (IKL)'],['Izin Lembur (ILB)'],['Izin Material (IMK)'],['Register K3 (SMK3)'],['Formulir K3 Harian'],['Register IBPRP'],['Laporan K3'],{ divider: 'Register' },['Register Defect (Punch List)'],['Varian Material'],['Penugasan Personel']] },
+  { label: 'Mutu (QA/QC)', prefix: 'qc', accent: 8, items: [['Inspeksi Mutu (QCI)'],['Ketidaksesuaian (NCR)'],['Papan NCR'],['Benda Uji Beton'],['Template Inspeksi']] },
+  { label: 'Pengadaan', prefix: 'prc', accent: 3, items: [['Vendor & Subkon'],['Dokumen Vendor'],['Permintaan (PR)'],['Papan PR'],['RFQ (Banding Penawaran)'],['Pesanan (PO)','list'],['Baris PO Terbuka'],['PPK Alat & Jasa'],['Tagihan Periode PPK'],['Rekap Tagihan Alat'],['BA Negosiasi'],['Keputusan Pemenang'],['Rencana Pengadaan'],['Evaluasi Vendor']] },
+  { label: 'Persediaan', prefix: 'inv', accent: 3, items: [['Saldo Stok'],['Item'],['Kategori Item'],['Gudang'],['Aturan Reorder'],['Usulan Pesan Ulang'],['Pindai Barcode'],['Penerimaan (GRN)'],['Pengeluaran'],['Transfer'],['Opname']] },
+  { label: 'Subkontrak', prefix: 'scm', accent: 3, items: [['SPK Subkon'],['Addendum SPK'],['Opname Subkon'],['BAST Subkon'],['SP3 Mandor'],['Opname Mandor']] },
+  { label: 'Keuangan', prefix: 'fin', accent: 2, items: [{ divider: 'AR/AP' },['Invoice Termin (AR)'],['Tagihan Vendor (AP)'],['Pembayaran'],['Termin Siap Ditagih'],['Piutang Retensi'],{ divider: 'Kas' },['Kasir Kas Kecil'],['Kas Kecil & Kasbon'],['Rekonsiliasi Bank'],{ divider: 'Pelaporan' },['Jurnal'],['Biaya Proyek'],['Anggaran vs Realisasi'],['Anggaran Overhead (OVB)'],['Pengakuan Pendapatan'],['Periode Fiskal'],['Laporan Keuangan'],['Buku Besar'],{ divider: 'Pajak' },['Ekspor Pajak'],['Kalender Pajak'],['Ekualisasi Pajak'],{ divider: 'Master' },['Bagan Akun'],['Pajak'],['Rekening Bank']] },
+  { label: 'SDM & Payroll', prefix: 'hr', accent: 5, items: [['Karyawan'],['Sertifikat & PKWT'],['Cuti & Izin'],['Absensi Harian'],['Timesheet & Lembur'],['Usulan Rekap Absensi'],['Rekap Absensi'],['Payroll'],['Rekap PPh 21 Bulanan']] },
+  { label: 'Layanan', prefix: 'svc', accent: 7, items: [['Tiket'],['Tiket Lewat SLA'],['Kepuasan Pelanggan'],['Kontrak Layanan'],['Jadwal Preventif'],['Berita Acara']] },
+  { label: 'Aset', prefix: 'ast', accent: 6, items: [['Daftar Aset'],['Kategori Aset'],['Mobilisasi'],['Log BBM & Jam Alat'],['Perawatan'],['Penyusutan'],['Utilisasi Aset'],['Evaluasi Sewa vs Beli']] },
+  { label: 'Sistem', prefix: 'iam', accent: 8, items: [['Pengguna'],['Peran & Hak Akses'],['Profil Perusahaan'],['Impor Data Master'],['Impor Dokumen'],['Pengaturan'],['Pengiriman Notifikasi'],['Antrean Gagal'],['Webhook']] },
+];
+const MODULES = {
+  ringkasan: { icon: 'layout-dashboard', kpi: 'Notifikasi belum dibaca', value: '3', unit: 'notifikasi' },
+  crm: { icon: 'handshake', kpi: 'Prospek terbuka', value: '5', unit: 'prospek' },
+  est: { icon: 'calculator', kpi: 'RAB menunggu persetujuan', value: '1', unit: 'RAB' },
+  eng: { icon: 'drafting-compass', kpi: 'Gambar menunggu keputusan MK', value: '4', unit: 'gambar' },
+  prj: { icon: 'hard-hat', kpi: 'Proyek aktif', value: '2', unit: 'proyek' },
+  qc: { icon: 'clipboard-check', kpi: 'NCR terbuka', value: '2', unit: 'NCR' },
+  prc: { icon: 'shopping-cart', kpi: 'PO terbuka', value: '7', unit: 'PO' },
+  inv: { icon: 'warehouse', kpi: 'Pasangan gudang × item di bawah titik pesan ulang', value: '—', unit: '' },
+  scm: { icon: 'file-signature', kpi: 'Opname subkon menunggu persetujuan', value: '1', unit: 'opname' },
+  fin: { icon: 'landmark', kpi: 'Invoice termin belum lunas', value: '3', unit: 'invoice' },
+  hr: { icon: 'users', kpi: 'Cuti menunggu persetujuan', value: '1', unit: 'cuti' },
+  svc: { icon: 'headset', kpi: 'Tiket belum selesai', value: '6', unit: 'tiket' },
+  ast: { icon: 'truck', kpi: 'Aset dalam perawatan', value: '1', unit: 'aset' },
+  iam: { icon: 'settings', kpi: 'Job gagal', value: '0', unit: 'job' },
+};
+const SCREENS = [
+  ['dashboard', 'Dasbor', 'Ringkasan', 8, 'Dasbor'],
+  ['home', 'Beranda', 'Ringkasan', 8, null],
+  ['module', 'Modul Pengadaan', 'Pengadaan', 3, null],
+  ['list', 'Daftar PO', 'Pengadaan', 3, 'Pesanan (PO)'],
+  ['detail', 'Detail PO', 'Pengadaan', 3, 'Pesanan (PO)', 'PO/2026/VII/0004'],
+  ['tugas', 'Tugas Saya', 'Ringkasan', 8, 'Tugas Saya'],
+  ['lapangan', 'Lapangan', 'Proyek', 1, 'Lapangan (mobile)'],
+];
+const PO_ROWS = [
+  ['PO/2026/VII/0007', 'CV Baja Mandiri', 'VND-0002', 'PRJ-2026-001', '28 Sep 2026', 'Rp 612.000.000', 'Draf', '', true],
+  ['PO/2026/VII/0006', 'PT Semen Distribusi Utama', 'VND-0001', 'PRJ-2026-001', '25 Sep 2026', 'Rp 148.400.000', 'Ditolak', 'red', true],
+  ['PO/2026/VII/0005', 'PT Alat Berat Nusantara', 'VND-0007', 'PRJ-2026-001', '22 Sep 2026', 'Rp 69.200.000', 'Disetujui', 'green', false],
+  ['PO/2026/VII/0004', 'PT Elektrindo Supply', 'VND-0003', 'PRJ-2026-002', '18 Sep 2026', 'Rp 486.500.000', 'Diajukan', 'amber', false],
+  ['PO/2026/VII/0003', 'PT Elektrindo Supply', 'VND-0003', 'PRJ-2026-002', '2 Agu 2026', 'Rp 1.221.800.000', 'Disetujui', 'green', false],
+  ['PO/2026/III/0002', 'CV Baja Mandiri', 'VND-0002', 'PRJ-2026-001', '14 Mar 2026', 'Rp 128.000.000', 'Disetujui', 'green', false],
+  ['PO/2026/VII/0001', 'PT Semen Distribusi Utama', 'VND-0001', 'PRJ-2026-001', '3 Jul 2026', 'Rp 614.000.000', 'Selesai', 'blue', false],
+];
+
+class Component extends DCLogic {
+  state = { screen: 'dashboard', formOpen: false, open: { Ringkasan: true, Pengadaan: true } };
+
+  componentDidMount() { this.applyTheme(); }
+  componentDidUpdate() { this.applyTheme(); }
+  applyTheme() {
+    const t = this.props.theme ?? 'light';
+    document.documentElement.dataset.theme = t;
+    document.documentElement.dataset.density = this.props.density ?? 'normal';
+  }
+
+  renderVals() {
+    const { screen, formOpen, open } = this.state;
+    const go = (s) => () => this.setState({ screen: s, formOpen: false });
+    const current = SCREENS.find((s) => s[0] === screen) || SCREENS[0];
+    const activeRoute = screen;
+    const navGroups = NAV.map((g) => {
+      const items = g.items.map((it) => {
+        if (it.divider) return { divider: it.divider };
+        const [label, route] = it;
+        const active = route && route === activeRoute;
+        return { label, activeClass: active ? 'active' : '', go: route ? (e) => { e.preventDefault(); go(route)(); } : (e) => e.preventDefault() };
+      });
+      const hasActive = items.some((i) => i.activeClass);
+      const isOpen = open[g.label] ?? (g.label === 'Ringkasan' || hasActive);
+      return { ...g, items, activeClass: hasActive ? 'has-active' : '', open: String(isOpen), accent: String(g.accent),
+        toggle: () => this.setState((s) => ({ open: { ...s.open, [g.label]: !(s.open[g.label] ?? (g.label === 'Ringkasan' || hasActive)) } })) };
+    });
+    const tiles = NAV.map((g) => {
+      const m = MODULES[g.prefix];
+      return { label: g.label, accent: String(g.accent), iconHref: SPRITE + m.icon, kpi: m.kpi, value: m.value, unit: m.unit,
+        screens: g.items.filter((i) => !i.divider && i[0] !== 'Beranda').length, go: (e) => { e.preventDefault(); go(g.prefix === 'prc' ? 'module' : 'home')(); } };
+    });
+    const prc = NAV.find((g) => g.prefix === 'prc');
+    const moduleCards = prc.items.map((it) => ({ label: it[0], hint: it[1] === 'list' ? 'Daftar, tambah, ubah, cetak' : 'Buka layar', starClass: it[1] === 'list' ? 'on' : '', go: (e) => { e.preventDefault(); if (it[1]) go(it[1])(); } }));
+    const poRows = PO_ROWS.map((r) => ({ code: r[0], vendor: r[1], vendorCode: r[2], project: r[3], date: r[4], total: r[5], status: r[6], tone: r[7], editable: r[8], go: go('detail') }));
+    const screenTabs = SCREENS.map((s) => ({ label: s[1], cls: s[0] === screen ? 'on' : '', go: go(s[0]) }));
+    return {
+      navGroups, tiles, moduleCards, poRows, screenTabs, formOpen,
+      isDashboard: screen === 'dashboard', isHome: screen === 'home', isModule: screen === 'module', isList: screen === 'list',
+      isDetail: screen === 'detail', isTugas: screen === 'tugas', isLapangan: screen === 'lapangan',
+      crumbModule: current[2], crumbAccent: String(current[3]), crumbScreen: current[4], crumbDoc: current[5] || null, noCrumbDoc: !current[5],
+      crumbRoot: 'module',
+      goHome: go('home'), goDashboard: go('dashboard'), goList: go('list'),
+      openForm: () => this.setState({ formOpen: true }), closeForm: () => this.setState({ formOpen: false }),
+      toggleNav: () => document.body.classList.toggle('nav-open'),
+      cycleTheme: () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = t; },
+    };
+  }
+}
+</script>
+</body>
+</html>

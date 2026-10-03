@@ -1,0 +1,2374 @@
+/* Nusantara ERP — front-end stylesheet.
+   No build step: plain CSS with custom properties, light + dark via
+   prefers-color-scheme plus a data-theme override on <html>. */
+
+/* ---------------------------------------------------------------- tokens */
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #fafbfc;
+  --surface-3: #f1f3f6;
+  --border: #e2e6eb;
+  --border-strong: #cbd2da;
+  --text: #14181d;
+  --text-2: #47505b;
+  --muted: #5e6874; /* dulu #6b7684 = 4,26:1 di atas --bg pada teks 11 px — di bawah AA (2 Sep 2026) */
+  --primary: #1a56db;
+  --primary-hover: #1745b0;
+  --primary-soft: #e8effc;
+  --primary-fg: #ffffff;
+  --danger: #c62828;
+  --danger-soft: #fdecec;
+  --success: #17714a; /* dulu #1b7f4d = 4,42:1 di atas --success-soft pada badge 11,5 px */
+  --success-soft: #e6f4ec;
+  --warning: #96601a;
+  --warning-soft: #fdf1dd;
+  --info: #1f5f8b;
+  --info-soft: #e7f1f8;
+  --neutral: #5a6472;
+  --neutral-soft: #eef0f3;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, .1), 0 2px 4px rgba(16, 24, 40, .06);
+  --shadow-lg: 0 18px 48px rgba(16, 24, 40, .18);
+  --radius: 8px;
+  --radius-sm: 6px;
+  --sidebar-w: 250px;
+  --header-h: 56px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  /* Grafik (js/charts.js, P1-A). Delapan warna seri + enam struktur, didefinisikan di
+     KEDUA tema dan ditukar ke abu-abu di blok cetak (§ grafik charts.js di bawah).
+     Kontras WCAG terhadap --surface #ffffff, dihitung 5 Sep 2026 (rumus luminansi
+     relatif, sama dengan S8): --chart-1 6,18:1 · --chart-2 5,18:1 · --chart-3 5,02:1 ·
+     --chart-4 6,98:1 · --chart-5 5,36:1 · --chart-6 6,47:1 · --chart-7 4,92:1 ·
+     --chart-8 7,58:1 — semua ≥ 3:1 (batas grafik/komponen UI); --chart-text 5,66:1
+     (= --muted). --chart-baseline 2,56:1 SENGAJA di bawah 3:1: ia bidang isi lebar di
+     bawah bar aktual, bukan garis tipis, dan harus lebih sunyi dari aktualnya. */
+  --chart-1: #1a56db;
+  --chart-2: #c2410c;
+  --chart-3: #15803d;
+  --chart-4: #7e22ce;
+  --chart-5: #0e7490;
+  --chart-6: #b91c1c;
+  --chart-7: #a16207;
+  --chart-8: #475569;
+  --chart-grid: #e2e6eb;
+  --chart-axis: #cbd2da;
+  --chart-text: #5e6874;
+  --chart-today: #c62828;
+  --chart-weekend: #f1f3f6;
+  --chart-baseline: #94a3b8;
+  /* Aksen modul (P1-B). Delapan slot warna departemen; 14 grup NAV (schema.js MODULES,
+     kunci = prefix izin grup) dipetakan ke slot begini — turunan dari isi NAV, bukan grup baru:
+       1 Proyek (prj)                                    — lapangan
+       2 Keuangan (fin)                                  — keuangan & pajak
+       3 Pengadaan (prc) · Persediaan (inv) · Subkontrak (scm) — rantai pasok; subkon = vendor
+       4 Penjualan (crm) · Estimasi (est)                — komersial; RAB disusun bersama tender
+       5 SDM & Payroll (hr)
+       6 Aset (ast)                                      — peralatan
+       7 Layanan (svc)                                   — tiket & kontrak layanan
+       8 Sistem (iam) · Mutu (qc) · Engineering (eng) · Ringkasan — fungsi penunjang, slot netral
+     Hubungan dengan grafik: --accent-n memakai SUDUT HUE Lab yang sama dengan --chart-n
+     (toleransi ±12° — terukur maks 11,8° slot 6 terang, 7,3° slot 8 gelap, S21 hue_delta; slot 1 =
+     --primary = --chart-1 persis), hanya L dan C yang digeser sampai
+     setiap pasangan slot berjarak ≥ 20 ΔE2000 — palet grafik apa adanya gagal (terang 2–6 = 10,2;
+     gelap 1–8 = 13,8). Dihitung 5 Sep 2026 (CIEDE2000 di Lab, luminansi relatif WCAG; skrip
+     optimize2.py/finalize.py di scratch P1-B; harness S21 mengukur nilai terkomputasi yang hidup).
+     ΔE2000 antar slot, tema TERANG (minimum 20,1 = 1–8 dan 5–8):
+            1     2     3     4     5     6     7     8
+       1    —  48,9  51,0  20,4  20,3  40,1  56,0  20,1
+       2 48,9     —  58,9  46,3  54,0  20,2  20,7  35,1
+       3 51,0  58,9     —  52,2  33,1  66,7  36,4  31,7
+       4 20,4  46,3  52,2     —  33,1  32,2  59,4  23,6
+       5 20,3  54,0  33,1  33,1     —  56,6  42,8  20,1
+       6 40,1  20,2  66,7  32,2  56,6     —  34,0  29,8
+       7 56,0  20,7  36,4  59,4  42,8  34,0     —  33,0
+       8 20,1  35,1  31,7  23,6  20,1  29,8  33,0     —
+     Kontras WCAG terang (aksen di --surface / -fg di aksen / aksen di -soft), batas 3:1 · 4,5:1 ·
+     4,5:1 — dipasang ≥ 5,2:1 di --surface karena aksen dipakai sebagai TEKS remah roti:
+       1 6,18/6,18/5,47 · 2 5,20/5,20/4,64 · 3 5,25/5,25/4,62 · 4 7,00/7,00/6,15 ·
+       5 5,33/5,33/4,77 · 6 8,71/8,71/7,66 · 7 5,34/5,34/4,79 · 8 8,10/8,10/7,17
+     Catatan jujur: slot 3/6/7 sekeluarga hue dengan --success/--danger/--warning (warisan palet
+     grafik; ΔE 6,7 / 12,5 / 3,8 di tema terang). Aksen tidak pernah dipakai pada lencana atau
+     alert — hanya penanda grup aktif, remah modul, dan kepala beranda modul. */
+  --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff;
+  --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+  --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff;
+  --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+  --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff;
+  --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+  --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff;
+  --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
+  /* Kepadatan (P1-B). Diukur 5 Sep 2026 sebelum token ada: baris tabel satu baris teks 13 px =
+     19,5 + 2×9 padding + 1 border = 38,5 px; baris berlencana 41,13; baris bertombol aksi (.btn.sm
+     28 px) 47. "normal" = angka itu persis (lantai 38,5 tidak pernah mengikat, tidak ada yang
+     bergeser tanpa pilihan); rapat 32 (padding 3, tombol aksi 24) dan lega 48 (padding tetap,
+     lantai naik) — di kedua profil itu SEMUA baris satu-baris tepat 32/48. Diaktifkan lewat
+     data-density di <html> (app.js, kunci localStorage nusantara_erp_density:<id pengguna>). */
+  --row-h: 38.5px;
+  --cell-py: 9px;
+  --cell-px: 12px;
+  /* Kaki tabel (tfoot "Total") punya padding sendiri: sebelum token ada ia 10 px,
+     bukan 9 px seperti td — verifikasi P1-B 5 Sep 2026 mengukur baris total
+     41 → 39 px di PO, detail PO, Saldo Stok, dan Laporan begitu tfoot ikut
+     --cell-py. Normal = 10 px persis (41 px lagi); rapat 4; lega 10. */
+  --foot-py: 10px;
+  --nav-py: 6px;
+  --form-gap: 13px 16px;
+  --kv-gap: 9px 14px;
+}
+
+:root[data-density="compact"] {
+  --row-h: 32px; --cell-py: 3px; --cell-px: 10px; --foot-py: 4px; --nav-py: 4px; --form-gap: 9px 14px; --kv-gap: 5px 12px;
+}
+:root[data-density="comfortable"] {
+  --row-h: 48px; --cell-py: 9px; --cell-px: 14px; --foot-py: 10px; --nav-py: 8px; --form-gap: 16px 18px; --kv-gap: 12px 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --surface: #151a21;
+    --surface-2: #1a1f27;
+    --surface-3: #212832;
+    --border: #262d38;
+    --border-strong: #38414f;
+    --text: #e7ebf0;
+    --text-2: #b3bcc8;
+    --muted: #8b95a3;
+    --primary: #5b8def;
+    --primary-hover: #7ba4f4;
+    --primary-soft: #17263f;
+    --primary-fg: #0d1117;
+    --danger: #f87171;
+    --danger-soft: #331a1a;
+    --success: #4ade80;
+    --success-soft: #12291d;
+    --warning: #fbbf24;
+    --warning-soft: #2e2411;
+    --info: #60a5fa;
+    --info-soft: #16243a;
+    --neutral: #9aa4b2;
+    --neutral-soft: #232a34;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, .45);
+    --shadow-lg: 0 18px 48px rgba(0, 0, 0, .6);
+    /* Kontras terhadap --surface #151a21 (5 Sep 2026): --chart-1 5,41:1 · --chart-2 7,72:1 ·
+       --chart-3 10,03:1 · --chart-4 6,61:1 · --chart-5 9,67:1 · --chart-6 6,32:1 ·
+       --chart-7 11,41:1 · --chart-8 6,82:1; --chart-text 5,76:1; --chart-baseline 2,31:1
+       (bidang sunyi, lihat catatan tema terang). */
+    --chart-1: #5b8def;
+    --chart-2: #fb923c;
+    --chart-3: #4ade80;
+    --chart-4: #c084fc;
+    --chart-5: #22d3ee;
+    --chart-6: #f87171;
+    --chart-7: #facc15;
+    --chart-8: #94a3b8;
+    --chart-grid: #262d38;
+    --chart-axis: #38414f;
+    --chart-text: #8b95a3;
+    --chart-today: #f87171;
+    --chart-weekend: #212832;
+    --chart-baseline: #4b5563;
+    /* Aksen modul, tema GELAP — hue sama dengan --chart-n gelap (slot 1 = --primary gelap persis).
+       Slot 8 gelap digeser 5 Sep 2026 (verifikasi P1-B): #a4a8b7 berjarak hue 14,3°
+       dari --chart-8 gelap, melanggar toleransi ±12° yang diklaim; #afb3bc = 7,3° (L 72,9,
+       C 5,1), dan minimum matriks naik dari 20,5 ke 20,9. ΔE2000 antar slot, minimum 20,9 (1–4):
+              1     2     3     4     5     6     7     8
+         1    —  50,5  53,2  20,9  28,7  40,9  62,7  22,5
+         2 50,5     —  53,3  50,5  50,2  23,4  24,2  31,1
+         3 53,2  53,3     —  54,1  35,6  71,4  34,7  31,6
+         4 20,9  50,5  54,1     —  40,8  32,5  69,8  21,7
+         5 28,7  50,2  35,6  40,8     —  70,0  48,9  23,5
+         6 40,9  23,4  71,4  32,5  70,0     —  45,9  29,0
+         7 62,7  24,2  34,7  69,8  48,9  45,9     —  35,0
+         8 22,5  31,1  31,6  21,7  23,5  29,0  35,0     —
+       Kontras (aksen di --surface #151a21 / -fg #0d1117 di aksen / aksen di -soft):
+         1 5,41/5,86/4,82 · 2 7,61/8,24/6,71 · 3 10,29/11,15/9,19 · 4 6,29/6,81/5,62 ·
+         5 9,74/10,54/8,59 · 6 6,27/6,79/5,56 · 7 11,53/12,48/10,20 · 8 8,32/9,01/7,42 */
+    --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117;
+    --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
+    --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117;
+    --accent-4: #bd7efc; --accent-4-soft: #222233; --accent-4-fg: #0d1117;
+    --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117;
+    --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
+    --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117;
+    --accent-8: #afb3bc; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
+  }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
+  --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
+  --muted: #5e6874; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
+  --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #17714a;
+  --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
+  --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --shadow-md: 0 4px 12px rgba(16,24,40,.1), 0 2px 4px rgba(16,24,40,.06);
+  --shadow-lg: 0 18px 48px rgba(16,24,40,.18);
+  --chart-1: #1a56db; --chart-2: #c2410c; --chart-3: #15803d; --chart-4: #7e22ce;
+  --chart-5: #0e7490; --chart-6: #b91c1c; --chart-7: #a16207; --chart-8: #475569;
+  --chart-grid: #e2e6eb; --chart-axis: #cbd2da; --chart-text: #5e6874; --chart-today: #c62828;
+  --chart-weekend: #f1f3f6; --chart-baseline: #94a3b8;
+  --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff; --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+  --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff; --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+  --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff; --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+  --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff; --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1117; --surface: #151a21; --surface-2: #1a1f27; --surface-3: #212832;
+  --border: #262d38; --border-strong: #38414f; --text: #e7ebf0; --text-2: #b3bcc8;
+  --muted: #8b95a3; --primary: #5b8def; --primary-hover: #7ba4f4; --primary-soft: #17263f;
+  --primary-fg: #0d1117; --danger: #f87171; --danger-soft: #331a1a; --success: #4ade80;
+  --success-soft: #12291d; --warning: #fbbf24; --warning-soft: #2e2411; --info: #60a5fa;
+  --info-soft: #16243a; --neutral: #9aa4b2; --neutral-soft: #232a34;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.45);
+  --shadow-lg: 0 18px 48px rgba(0,0,0,.6);
+  --chart-1: #5b8def; --chart-2: #fb923c; --chart-3: #4ade80; --chart-4: #c084fc;
+  --chart-5: #22d3ee; --chart-6: #f87171; --chart-7: #facc15; --chart-8: #94a3b8;
+  --chart-grid: #262d38; --chart-axis: #38414f; --chart-text: #8b95a3; --chart-today: #f87171;
+  --chart-weekend: #212832; --chart-baseline: #4b5563;
+  --accent-1: #5b8def; --accent-1-soft: #1b2434; --accent-1-fg: #0d1117; --accent-2: #f9913c; --accent-2-soft: #272423; --accent-2-fg: #0d1117;
+  --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117; --accent-4: #bd7efc; --accent-4-soft: #222233; --accent-4-fg: #0d1117;
+  --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117; --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
+  --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117; --accent-8: #afb3bc; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
+}
+
+/* ------------------------------------------------------------------ base */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3, h4 { margin: 0; font-weight: 600; line-height: 1.3; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+::selection { background: var(--primary-soft); }
+
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); font-size: .92em; }
+.muted { color: var(--muted); }
+.nowrap { white-space: nowrap; }
+.right { text-align: right; }
+.center { text-align: center; }
+.hidden { display: none !important; }
+
+/* Read by a screen reader, invisible on screen. NOT `display: none` and not
+   `visibility: hidden` — either one takes the text out of the accessibility
+   tree, which is the whole point of the node. The combobox's live region uses
+   it to speak the two things inside its popup that aria-activedescendant can
+   never reach: "Menampilkan 50 dari 2.000" and the truncation warning. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- booting */
+.boot {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+}
+
+.boot-spinner {
+  width: 26px; height: 26px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ----------------------------------------------------------------- login */
+.login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(1100px 520px at 15% -10%, var(--primary-soft), transparent 60%),
+    var(--bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 396px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  padding: 32px;
+}
+
+.login-brand {
+  display: flex; align-items: center; gap: 11px;
+  margin-bottom: 22px;
+}
+
+.login-brand img { width: 38px; height: 38px; }
+.login-brand strong { font-size: 17px; letter-spacing: -.01em; }
+.login-brand span { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+
+.login h1 { font-size: 19px; margin-bottom: 4px; }
+.login .sub { color: var(--muted); margin-bottom: 22px; font-size: 13px; }
+.login .field { margin-bottom: 14px; }
+.login button[type=submit] { width: 100%; margin-top: 6px; }
+
+.login-hint {
+  margin-top: 20px; padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--muted); line-height: 1.7;
+}
+
+.login-hint code {
+  font-family: var(--mono); background: var(--surface-3);
+  padding: 1px 5px; border-radius: 4px; cursor: pointer;
+}
+.login-hint code:hover { background: var(--primary-soft); color: var(--primary); }
+
+/* Lupa kata sandi (T2.7): satu baris di bawah tombol Masuk — tautan bila server
+   mengaku suratnya sampai, nama administrator bila tidak. .link-btn adalah
+   tombol yang tampak seperti tautan: <a href="#"> akan menggeser hash dan
+   membangunkan router di halaman yang belum punya shell. */
+.login .password-help { margin-top: 14px; font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.6; }
+.login .password-help:empty { display: none; }
+.link-btn {
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: var(--primary); text-decoration: underline; cursor: pointer;
+}
+.link-btn:hover { color: var(--primary-hover); }
+
+/* ----------------------------------------------------------------- shell */
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  grid-template-rows: var(--header-h) minmax(0, 1fr);
+  grid-template-areas: "brand header" "nav main";
+  min-height: 100dvh;
+}
+
+.brand {
+  grid-area: brand;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand img { width: 28px; height: 28px; flex: none; }
+.brand-text { min-width: 0; }
+.brand-text strong { display: block; font-size: 13.5px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 11 px adalah lantai ukuran huruf seluruh aplikasi (diukur 4 Sep 2026: S8
+   smallest_font_px 10,5 dari baris ini dan .userchip .who span; 10 dari
+   .bell-count). Teks 10 px yang tersisa ada di bawah, bukan di sini lagi. */
+.brand-text span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+
+.header {
+  grid-area: header;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.header .crumbs { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); min-width: 0; }
+.header .crumbs b { color: var(--text); font-weight: 600; }
+.header .crumbs a { color: inherit; }
+
+/* ------------------------------------------------------------ aksen modul */
+/* Satu atribut data-accent="1..8" (app.js/module.js) memilih slot; tiga variabel
+   turunan inilah yang dipakai aturan di bawah, jadi tidak ada aturan yang
+   menyebut nomor slot dua kali. Tabel pemetaan grup → slot ada di blok token. */
+[data-accent="1"] { --module-accent: var(--accent-1); --module-accent-soft: var(--accent-1-soft); --module-accent-fg: var(--accent-1-fg); }
+[data-accent="2"] { --module-accent: var(--accent-2); --module-accent-soft: var(--accent-2-soft); --module-accent-fg: var(--accent-2-fg); }
+[data-accent="3"] { --module-accent: var(--accent-3); --module-accent-soft: var(--accent-3-soft); --module-accent-fg: var(--accent-3-fg); }
+[data-accent="4"] { --module-accent: var(--accent-4); --module-accent-soft: var(--accent-4-soft); --module-accent-fg: var(--accent-4-fg); }
+[data-accent="5"] { --module-accent: var(--accent-5); --module-accent-soft: var(--accent-5-soft); --module-accent-fg: var(--accent-5-fg); }
+[data-accent="6"] { --module-accent: var(--accent-6); --module-accent-soft: var(--accent-6-soft); --module-accent-fg: var(--accent-6-fg); }
+[data-accent="7"] { --module-accent: var(--accent-7); --module-accent-soft: var(--accent-7-soft); --module-accent-fg: var(--accent-7-fg); }
+[data-accent="8"] { --module-accent: var(--accent-8); --module-accent-soft: var(--accent-8-soft); --module-accent-fg: var(--accent-8-fg); }
+
+/* Remah modul (P1-B): "Modul › Layar › (Dokumen)" — remah pertama adalah tautan
+   ke beranda modul #/m/<prefix> dan membawa aksen modulnya (teks ≥ 5,2:1 di
+   --surface, lihat blok token). Titik di depannya adalah penanda warna yang sama
+   dengan penanda grup aktif di sidebar, supaya keduanya terbaca sebagai satu hal. */
+.header .crumbs a.crumb-module {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--module-accent); font-weight: 600;
+  white-space: nowrap;
+}
+.header .crumbs a.crumb-module::before {
+  content: ""; width: 8px; height: 8px; border-radius: 2px; flex: none;
+  background: var(--module-accent);
+}
+.header .crumbs a.crumb-module:hover { text-decoration: underline; }
+.header .crumbs a.crumb-screen { color: var(--text-2); }
+.header .crumbs a.crumb-screen:hover { color: var(--text); }
+.header .spacer { flex: 1; }
+
+/* .btn sets display: inline-flex further down, so match its specificity here. */
+.btn.menu-toggle { display: none; }
+
+.userchip {
+  display: flex; align-items: center; gap: 9px;
+  padding: 4px 9px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.userchip:hover { background: var(--surface-3); }
+
+.avatar {
+  width: 27px; height: 27px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--primary); color: var(--primary-fg);
+  font-size: 11px; font-weight: 700; letter-spacing: .02em;
+  flex: none;
+}
+
+.userchip .who { text-align: left; line-height: 1.25; }
+.userchip .who b { display: block; font-size: 12.5px; font-weight: 600; }
+.userchip .who span { display: block; font-size: 11px; color: var(--muted); }
+
+/* ------------------------------------------------------------------- nav */
+.nav {
+  grid-area: nav;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+  padding: 10px 10px 28px;
+}
+
+.nav-group + .nav-group { margin-top: 3px; }
+
+.nav-group > button {
+  width: 100%;
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 9px;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  cursor: pointer;
+}
+.nav-group > button:hover { background: var(--surface-3); color: var(--text); }
+/* Penanda grup aktif (P1-B): grup yang memuat rute aktif (atau beranda modulnya)
+   memakai aksen modulnya — batang 3 px di kiri judul + judul berwarna aksen.
+   Hanya di sini dan di remah roti; baris tautan aktif tetap --primary-soft. */
+.nav-group.has-active > button { color: var(--module-accent); box-shadow: inset 3px 0 0 var(--module-accent); }
+.nav-group > button .chev { margin-left: auto; transition: transform .16s; opacity: .55; }
+.nav-group[data-open="false"] > button .chev { transform: rotate(-90deg); }
+.nav-group[data-open="false"] .nav-items { display: none; }
+
+.nav-items { padding: 2px 0 6px; }
+
+.nav-items a {
+  display: flex; align-items: center; gap: 8px;
+  padding: var(--nav-py) 10px var(--nav-py) 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: 13px;
+  text-decoration: none;
+}
+.nav-items a:hover { background: var(--surface-3); color: var(--text); text-decoration: none; }
+.nav-items a.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+
+.nav-items a .tick {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: currentColor; opacity: .35; flex: none;
+  margin-left: -14px; margin-right: 4px;
+}
+.nav-items a.active .tick { opacity: 1; }
+.nav-items a .lbl { min-width: 0; }
+
+/* Sidebar T2.5 — diukur 2 Sep 2026: admin 121 tautan / 4,9 viewport, Proyek
+   dan Keuangan 20 tautan rata. Pemisah = keterangan kecil di dalam grup
+   (11 px = lantai huruf T2.10, --muted di atas --surface lulus AA); baris
+   menu = tautan + bintang favorit, bintang tampil saat hover/fokus atau
+   selalu bila sudah aktif. Layar sentuh tidak punya hover, jadi di sana
+   bintang tampil redup terus dan sasaran sentuhnya dilebarkan. */
+.nav-divider {
+  margin: 7px 0 2px; padding: 0 10px 0 28px;
+  font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted);
+}
+.nav-divider:first-child { margin-top: 2px; }
+
+.nav-item { display: flex; align-items: center; gap: 2px; }
+.nav-item > a { flex: 1; min-width: 0; }
+.nav-item.shortcut .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-item .star {
+  flex: none; width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--muted); cursor: pointer;
+  opacity: 0;
+}
+.nav-item:hover .star, .nav-item:focus-within .star, .nav-item .star.on { opacity: 1; }
+.nav-item .star:hover, .nav-item .star:focus-visible { background: var(--surface-3); color: var(--text); }
+.nav-item .star.on { color: var(--primary); }
+.nav-item .star.on svg path { fill: currentColor; }
+@media (pointer: coarse) {
+  .nav-item .star { opacity: .45; width: 34px; height: 32px; }
+}
+
+/* ------------------------------------------------------------------ main */
+.main { grid-area: main; overflow-y: auto; padding: 20px 22px 60px; }
+
+.page-head {
+  display: flex; align-items: flex-start; gap: 14px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.page-head h1 { font-size: 20px; letter-spacing: -.015em; }
+.page-head .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.page-head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Catatan persetujuan inline (actions.js inlineNote) — diukur 2 Sep 2026: modal
+   catatan = 1 klik ekstra per persetujuan. Baris sendiri di bawah tombol
+   (flex-basis 100%); contain: inline-size supaya label, help, dan textarea
+   tidak ikut melebarkan .actions — lebarnya tetap mengikuti tombol, dan bilah
+   tetap berlabuh kanan lewat margin-left: auto di atas. */
+.page-head .actions .action-note { flex: 1 1 100%; contain: inline-size; }
+/* Pelipat rapat kanan lewat fit-content + margin-left: auto, BUKAN flex pada
+   <details>-nya: isi selain summary dirender di kotak slot internal
+   (::details-content), dan sebagai flex item kotak itu menciut ke lebar
+   teks help — terukur 4 Sep 2026: textarea 355 px di dalam panel 440 px. */
+.action-note > summary {
+  display: flex; align-items: center; gap: 5px; width: fit-content; margin-left: auto;
+  min-height: 28px; padding: 0 7px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-weight: 500; color: var(--primary);
+  cursor: pointer; user-select: none; list-style: none;
+}
+.action-note > summary::-webkit-details-marker { display: none; }
+.action-note > summary:hover { background: var(--surface-3); }
+.action-note[open] > summary { margin-bottom: 6px; }
+.action-note textarea { width: 100%; min-height: 56px; }
+/* Tombol rapat kanan selama panelnya ada: sebagai item yang membungkus,
+   panel tetap menyumbang satu `gap` (8 px) ke lebar max-content .actions —
+   terukur 4 Sep 2026: tombol berhenti 8 px sebelum tepi kanan. Sekali dibuka,
+   .actions perlu lebar untuk kotak catatannya. Peramban tanpa :has() hanya
+   kehilangan dua rapian ini. */
+.page-head .actions:has(.action-note) { justify-content: flex-end; }
+.page-head .actions:has(.action-note[open]) { min-width: min(100%, 440px); }
+@media (pointer: coarse) { .action-note > summary { min-height: 36px; } }
+
+/* Zonasi bilah aksi dokumen (detail.js renderDetail, T2.6): kiri navigasi
+   (Kembali), tengah keluaran (satu "Cetak ▾"), kanan keputusan (Ubah ·
+   Ajukan/Setujui/Tolak). Diukur 4 Sep 2026: PO draf 7 tombol setara di satu
+   baris, keputusan di sebelah "Cetak halaman"; kini 4 dengan sekat tipis di
+   antara zona. Zona kosong tidak digambar, jadi tidak ada sekat menggantung;
+   .actions tetap flex, jadi panel catatan (di atas) dan pembungkus baris
+   tetap bekerja. */
+.page-head .actions .zone { display: flex; gap: 8px; flex-wrap: wrap; }
+.page-head .actions .zone + .zone { padding-left: 12px; border-left: 1px solid var(--border-strong); }
+
+/* Tombol bermenu (ui.js menuButton) — "Cetak ▾" di bilah aksi dokumen (T2.6).
+   Popup absolut di bawah tombolnya, rapat kanan: bilah aksi berlabuh kanan
+   (margin-left: auto), jadi ruang kosongnya ada di kiri. Popup hanya ada di
+   DOM selagi terbuka — tidak ada aturan [hidden] di sini, sengaja. z-index di
+   atas th sticky (1), di bawah overlay (60). */
+.menu-wrap { position: relative; display: inline-flex; }
+.menu-trigger svg:last-child { margin-left: -2px; opacity: .7; }
+.menu-pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 25;
+  min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 1px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); box-shadow: var(--shadow-md);
+}
+.menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text);
+  font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--surface-3); }
+.menu-item:focus-visible { outline-offset: -2px; }
+.menu-item:disabled { opacity: .5; cursor: not-allowed; }
+.menu-item svg { flex: none; color: var(--muted); }
+/* Sasaran jempol, seperti .combo-opt dan .btn.sm di bawah. */
+@media (pointer: coarse) { .menu-item { min-height: 42px; } }
+
+/* --------------------------------------------------------------- buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; padding: 0 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s, opacity .12s;
+}
+.btn:hover:not(:disabled) { background: var(--surface-3); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+.btn.danger:hover:not(:disabled) { background: var(--danger-soft); }
+.btn.success { color: var(--success); border-color: var(--success); background: transparent; }
+.btn.success:hover:not(:disabled) { background: var(--success-soft); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover:not(:disabled) { background: var(--surface-3); }
+.btn.sm { height: 28px; padding: 0 9px; font-size: 12.5px; }
+.btn.icon { width: 34px; padding: 0; }
+.btn.sm.icon { width: 28px; }
+
+.btn .spin {
+  width: 13px; height: 13px;
+  border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin .6s linear infinite;
+}
+
+/* ----------------------------------------------------------------- cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.card + .card { margin-top: 16px; }
+
+.card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.card-head h2 { font-size: 13.5px; font-weight: 600; }
+.card-head .sub { font-size: 12px; color: var(--muted); }
+.card-head .spacer { flex: 1; }
+.card-body { padding: 16px; }
+.card-body.flush { padding: 0; }
+.card-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+/* Several small buttons inside one table cell. */
+.row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* --------------------------------------------------------------- filters */
+.filters {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.search {
+  position: relative;
+  flex: 1 1 230px; min-width: 180px; max-width: 340px;
+}
+.search input { width: 100%; padding-left: 32px; }
+.search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: .45; pointer-events: none; }
+
+/* --------------------------------------------------------------- inputs */
+.input, input[type=text], input[type=password], input[type=email], input[type=number],
+input[type=date], input[type=datetime-local], select, textarea {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color .12s, box-shadow .12s;
+}
+
+textarea { height: auto; min-height: 74px; padding: 8px 10px; line-height: 1.55; resize: vertical; }
+
+select {
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%236b7684' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+
+input.filter-w { width: auto; min-width: 130px; max-width: 190px; }
+select.filter-w { width: auto; min-width: 138px; max-width: 230px; }
+
+.field { display: block; }
+.field > label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+}
+.field .req { color: var(--danger); margin-left: 2px; }
+.field .help { margin-top: 4px; font-size: 11.5px; color: var(--muted); }
+.field .err { margin-top: 4px; font-size: 11.5px; color: var(--danger); }
+.field.invalid input, .field.invalid select, .field.invalid textarea { border-color: var(--danger); }
+
+.check-row { display: flex; align-items: center; gap: 8px; height: 34px; }
+.check-row label { margin: 0; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
+
+/* Kontrol Kepadatan di dialog Akun (app.js densityControl, P1-B). */
+.density-pick { margin: 14px 0 0; padding: 10px 12px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.density-pick legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.density-pick .check-row { height: 30px; font-size: 13px; cursor: pointer; }
+.density-pick .check-row .muted { font-size: 12px; margin-left: auto; text-align: right; }
+.density-pick .density-note { margin: 4px 0 6px; font-size: 12px; line-height: 1.4; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--form-gap);
+}
+.form-grid .span2 { grid-column: 1 / -1; }
+
+.form-section + .form-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+.form-section > h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 12px; }
+
+.input-affix { position: relative; }
+.input-affix > span {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  font-size: 12px; color: var(--muted); pointer-events: none;
+}
+.input-affix.prefix > span { left: 10px; }
+.input-affix.prefix input { padding-left: 32px; }
+.input-affix.suffix > span { right: 10px; }
+.input-affix.suffix input { padding-right: 28px; }
+
+/* --------------------------------------------------------------- tables */
+/* Kontainer scroll DUA arah, bukan hanya overflow-x. th sticky (di bawah)
+   menempel pada kontainer scroll terdekatnya — dan itu wrapper ini, yang dulu
+   tidak pernah menggulung vertikal, sehingga header ikut tergulung bersama
+   halaman: baris ke-80 neraca saldo dibaca tanpa judul kolom terlihat = salah
+   baca kolom. max-height membuat wrapper inilah yang menggulung dan sticky
+   hidup; lantai 320px menjaga tabel tetap terbaca di viewport pendek
+   (ponsel lanskap). Cetak mengembalikannya ke visible — lihat @media print. */
+.table-wrap { overflow: auto; max-height: max(320px, calc(100dvh - 240px)); }
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.data th {
+  position: sticky; top: 0; z-index: 1;
+  text-align: left;
+  padding: var(--cell-py) var(--cell-px);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em;
+  white-space: nowrap;
+}
+
+/* Kepadatan (P1-B, blok token): height pada sel tabel = tinggi MINIMUM baris
+   (border-box termasuk border yang runtuh — diukur 5 Sep 2026: height 48px →
+   baris 48 px), jadi baris dua-baris (.cell-sub) tetap tumbuh apa adanya. */
+table.data td {
+  padding: var(--cell-py) var(--cell-px);
+  height: var(--row-h);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+/* Tombol aksi baris ikut merapat — HANYA pada penunjuk halus: di layar sentuh
+   sasaran jempol 36 px (aturan pointer: coarse di bawah) menang atas kepadatan,
+   jadi baris rapat bertombol di ponsel tetap 43 px (36 + 2×3 + 1), diukur. */
+@media (pointer: fine) {
+  :root[data-density="compact"] table.data .btn.sm { height: 24px; }
+  :root[data-density="compact"] table.data .btn.sm.icon { width: 24px; }
+}
+
+table.data tbody tr:last-child td { border-bottom: 0; }
+table.data tbody tr.clickable { cursor: pointer; }
+table.data tbody tr.clickable:hover { background: var(--surface-2); }
+table.data th.right, table.data td.right { text-align: right; }
+table.data th.center, table.data td.center { text-align: center; }
+table.data td.code { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+table.data td.strong { font-weight: 600; }
+table.data tfoot td {
+  padding: var(--foot-py) var(--cell-px);
+  border-top: 2px solid var(--border-strong);
+  font-weight: 700;
+  background: var(--surface-2);
+}
+table.data tr.section-row td { background: var(--surface-3); font-weight: 600; }
+table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
+
+.cell-main { display: block; font-weight: 500; }
+.cell-sub { display: block; font-size: 11.5px; color: var(--muted); }
+
+.pager {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px; color: var(--muted);
+}
+.pager .spacer { flex: 1; }
+
+/* ------------------------------------------------------ ikon sprite Lucide */
+/* ui.js svgIcon(): <svg class="lucide"><use href="vendor/lucide@<ver>/sprite.svg#…">.
+   Warna = currentColor dari simbolnya sendiri; di sini hanya perilaku kotak,
+   sama seperti svg icon() di tombol (flex: none agar label tidak memampatkannya). */
+.lucide { display: inline-block; flex: none; vertical-align: middle; }
+
+/* --------------------------------------------------------------- badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px; font-weight: 600;
+  white-space: nowrap;
+  background: var(--neutral-soft); color: var(--neutral);
+}
+.badge.dot::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.badge.green { background: var(--success-soft); color: var(--success); }
+.badge.red { background: var(--danger-soft); color: var(--danger); }
+.badge.amber { background: var(--warning-soft); color: var(--warning); }
+.badge.blue { background: var(--info-soft); color: var(--info); }
+.badge.primary { background: var(--primary-soft); color: var(--primary); }
+
+/* ------------------------------------------------------------ empty/err */
+.empty {
+  padding: 46px 20px;
+  text-align: center;
+  color: var(--muted);
+}
+/* Aturan lama `.empty svg { opacity: .3; margin-bottom: 10px }` dihapus (verifikasi
+   P1-B 5 Sep 2026): sasarannya ikon inbox 34 px yang sudah diganti .illus, tetapi
+   ia ikut memudarkan ikon × / + di tombol "Hapus filter" / "Tambah …" (0,3, terangkat
+   5 px dari tengah tombol). Ilustrasi mengatur ukuran/jaraknya sendiri di .illus. */
+.empty h3 { font-size: 14px; color: var(--text-2); margin-bottom: 4px; }
+.empty p { margin: 0 0 14px; font-size: 13px; }
+.empty p:last-child { margin-bottom: 0; }
+/* Ubin dasbor / kotak pemberitahuan: ilustrasi lebih kecil, tanpa judul. */
+.empty.compact { padding: 18px 16px 16px; }
+.empty.compact .illus { width: 72px; height: 72px; margin-bottom: 6px; }
+
+/* Ilustrasi keadaan kosong (js/illustrations.js, P1-B): lima jenis inbox ·
+   search · filter · error · done, garis (stroke) saja, tanpa satu pun literal
+   warna — kelas .ln/.ac/.fl/.fa di bawah inilah yang memberi warna dari token,
+   jadi ilustrasi mengikuti tema dan harness S21 bisa mengukur stroke-nya. */
+.empty .illus { display: block; margin: 0 auto 12px; width: 112px; height: 112px; opacity: 1; overflow: visible; }
+.empty .illus .ln { fill: none; stroke: var(--border-strong); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.empty .illus .ac { fill: none; stroke: var(--primary); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.empty .illus .fl { fill: var(--surface-3); stroke: none; }
+.empty .illus .fa { fill: var(--primary-soft); stroke: none; }
+.empty .illus[data-kind="error"] .ac { stroke: var(--danger); }
+.empty .illus[data-kind="error"] .fa { fill: var(--danger-soft); }
+.empty .illus[data-kind="done"] .ac { stroke: var(--success); }
+.empty .illus[data-kind="done"] .fa { fill: var(--success-soft); }
+
+.alert {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+}
+.alert.error { border-left-color: var(--danger); background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.alert.warn { border-left-color: var(--warning); background: var(--warning-soft); color: var(--warning); border-color: transparent; }
+.alert.info { border-left-color: var(--info); background: var(--info-soft); color: var(--info); border-color: transparent; }
+.alert + .alert, .alert + .card, .card + .alert { margin-top: 14px; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 37%, var(--surface-3) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.3s ease infinite;
+  border-radius: 4px;
+  height: 12px;
+}
+@keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+/* ---------------------------------------------------------------- detail */
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.kv { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); gap: var(--kv-gap); }
+.kv dt { font-size: 12px; color: var(--muted); }
+.kv dd { margin: 0; font-size: 13px; word-break: break-word; }
+.kv dd.num { font-variant-numeric: tabular-nums; }
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* ---------------------------------------------------------- beranda modul */
+/* #/m/<prefix> (views/module.js, P1-B): kepala beraksen + kisi kartu layar yang
+   boleh dibuka pemanggil (penyaring visibleNav yang sama dengan sidebar). Kartu
+   adalah <a>, jadi Tab/Enter bekerja tanpa skrip; panah kiri/kanan/atas/bawah
+   memindah fokus di kisi. P1-C menambahkan KPI dan "Terakhir dibuka" di sini. */
+.module-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--module-accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.module-head .module-icon {
+  width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: var(--module-accent-soft); color: var(--module-accent);
+}
+.module-head h1 { font-size: 20px; letter-spacing: -.015em; }
+.module-head .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--module-accent); }
+.module-head .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+/* Kisi = <ul> berlabel (li per kartu), pemisah NAV = <h2> yang melabeli
+   <section>-nya (verifikasi P1-B 5 Sep 2026: aria-label pada div generic
+   diabaikan, pemisah div bukan judul). li adalah sel kisinya; kartu <a>
+   mengisi sel lewat display: grid pada li, bukan display: contents (yang
+   menghapus semantik daftar di sebagian peramban). */
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  list-style: none; margin: 0; padding: 0;
+}
+.module-grid > li { display: grid; min-width: 0; }
+/* Sel kartu (P1-C): kartu <a> + bintang <button> BERSEBELAHAN, tidak bersarang —
+   tombol di dalam tautan bukan HTML yang sah, dan Enter di atasnya membuka
+   layarnya alih-alih memasang bintang. Bintang ditumpuk di pojok kanan atas dan
+   kartunya diberi ruang kanan supaya judul panjang tidak lewat di bawahnya. */
+.module-cell { position: relative; }
+.module-cell > .module-card { padding-right: 34px; }
+.module-cell > .star { position: absolute; top: 8px; right: 6px; }
+.module-section-block + .module-section-block, .module-grid + .module-section-block { margin-top: 18px; }
+/* .module-section = pemisah NAV yang MELABELI kisinya (aria-labelledby); judul
+   "Terakhir dibuka" memakai kelas sendiri dengan gaya yang sama, karena ia tidak
+   melabeli kisi mana pun dan uji struktur memeriksa persis sifat itu. */
+.module-section, .module-recent-title {
+  margin: 0 0 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.module-card {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  min-height: 56px;
+}
+.module-card:hover { background: var(--surface-2); border-color: var(--border-strong); text-decoration: none; }
+.module-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.module-card .lucide { color: var(--muted); margin-top: 1px; }
+.module-card b { display: block; font-size: 13px; font-weight: 600; line-height: 1.35; }
+.module-card .hint { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Ubin angka kepala modul (P1-C): angka utama registri + paling banyak tiga
+   angka sekunder dari jawaban yang SAMA. Kisi auto-fit, bukan kolom tetap:
+   modul yang hanya punya angka utama tidak boleh meninggalkan tiga sel kosong. */
+.module-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.module-kpis:empty { display: none; }
+.module-kpi {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.module-kpi-value { font-size: 20px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.module-kpi-unit { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+.module-kpi-label { font-size: 12px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-kpi-note { font-size: 12.5px; }
+.module-recent { margin-bottom: 18px; }
+
+/* ------------------------------------------------------------ app launcher */
+/* #/home (views/home.js, P1-C): kotak cari, dua baris pintasan (Favorit,
+   Terakhir dibuka) dan kisi ubin modul. Ubin memakai aksen slot modulnya lewat
+   data-accent, mekanisme yang sama dengan penanda grup sidebar dan kepala
+   beranda modul — satu atribut, tiga variabel (blok "Aksen modul" di atas).
+
+   Sasaran sentuh: ubin 76 px dan chip 44 px di penunjuk kasar; angka itu bukan
+   selera melainkan lantai WCAG 2.5.5/2.5.8 yang sama dengan yang dipakai
+   kepadatan (aturan pointer: coarse di § kepadatan). */
+.home-searchbar { margin-bottom: 14px; }
+.home-search {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+.home-search:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+.home-results { margin-bottom: 18px; }
+.home-section { margin-bottom: 20px; }
+.home-section-title {
+  margin: 0 0 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.home-note { font-size: 12.5px; margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Pintasan: chip mengalir, bukan kisi — jumlahnya berubah tiap hari dan sel
+   kosong di baris terakhir kisi terbaca sebagai sesuatu yang hilang. */
+.home-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.home-chip {
+  display: block;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  max-width: 100%;
+}
+.home-chip:hover { background: var(--surface-2); border-color: var(--border-strong); text-decoration: none; }
+.home-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.home-chip b { font-size: 13px; font-weight: 600; }
+.home-chip .hint { font-size: 12px; color: var(--muted); margin-left: 6px; }
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+  list-style: none; margin: 0; padding: 0;
+}
+.home-grid > li { display: grid; min-width: 0; }
+
+/* Ponsel mendapat DUA kolom: dengan minimum 230 px hanya satu yang muat di
+   390 px, dan launcher admin menjadi 2.235 px — 2,6 layar gulungan untuk
+   menggantikan laci yang menampilkan keempat belas kepala grupnya sekaligus
+   (diukur 6 Sep 2026, verifikasi P1-C putaran 2). Ambang sama dengan ambang
+   laci (760 px) supaya "tampilan ponsel" berarti satu hal di seluruh berkas. */
+@media (max-width: 760px) {
+  .home-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+.home-tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "icon body" "screens screens";
+  gap: 4px 12px;
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--module-accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  min-height: 92px;
+  align-content: start;
+}
+.home-tile:hover { background: var(--surface-2); border-color: var(--border-strong); border-left-color: var(--module-accent); text-decoration: none; }
+.home-tile:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.home-tile-icon {
+  grid-area: icon;
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: var(--module-accent-soft); color: var(--module-accent);
+}
+.home-tile-body { grid-area: body; min-width: 0; }
+.home-tile-label { display: block; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.home-kpi { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+/* Angka sebesar judul dan bertabular: ubin yang berjejer harus bisa dibandingkan
+   sekilas, dan angka proporsional membuat "11" tampak lebih pendek dari "9". */
+.home-kpi-value { font-size: 22px; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.home-kpi-unit { font-size: 12.5px; color: var(--muted); }
+/* Nama angkanya di barisnya sendiri, satu baris, dielipsiskan: "Opname subkon
+   menunggu persetujuan" tidak muat di ubin 230 px, dan ubin yang tingginya
+   berbeda-beda karena panjang kalimat membuat kisi tampak rusak. Kalimat
+   penuhnya tetap terbaca sebagai title dan di kepala beranda modulnya. */
+.home-kpi-label { font-size: 12px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* Tinggi barisnya dipesan walau kosong: ubin '—' (izin hitungannya tidak
+     dipegang) tanpa ini 18 px lebih pendek dari tetangganya dan kisinya
+     tampak seperti gigi gergaji — terukur warehouse@ 390 px: 105 vs 123 px. */
+  min-height: 1.35em; }
+.home-tile-screens { grid-area: screens; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+
+@media (pointer: coarse) {
+  .home-tile { min-height: 100px; }
+  .home-chip { min-height: 44px; display: flex; flex-direction: column; justify-content: center; }
+  .home-chip .hint { margin-left: 0; }
+  .home-search { min-height: 44px; }
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 15px;
+  box-shadow: var(--shadow-sm);
+}
+.stat .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.stat .value { font-size: 20px; font-weight: 650; letter-spacing: -.02em; margin-top: 5px; font-variant-numeric: tabular-nums; }
+.stat .value.sm { font-size: 16px; }
+.stat .delta { font-size: 11.5px; margin-top: 3px; }
+.stat .delta.up { color: var(--success); }
+.stat .delta.down { color: var(--danger); }
+
+.timeline { position: relative; padding-left: 20px; }
+.timeline::before { content: ""; position: absolute; left: 5px; top: 5px; bottom: 5px; width: 1.5px; background: var(--border); }
+.timeline-item { position: relative; padding-bottom: 15px; }
+.timeline-item:last-child { padding-bottom: 0; }
+.timeline-item::before {
+  content: ""; position: absolute; left: -19px; top: 4px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--border-strong);
+}
+.timeline-item.ok::before { border-color: var(--success); }
+.timeline-item.bad::before { border-color: var(--danger); }
+.timeline-item.pending::before { border-color: var(--warning); }
+.timeline-item b { font-size: 13px; }
+.timeline-item .meta { font-size: 11.5px; color: var(--muted); }
+.timeline-item .note { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
+
+.progress {
+  height: 7px; border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.progress > span { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.progress.green > span { background: var(--success); }
+.progress.red > span { background: var(--danger); }
+.progress.amber > span { background: var(--warning); }
+
+.wbs-indent { display: inline-block; }
+
+/* ----------------------------------------------------------------- tabs */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
+.tabs button {
+  border: 0; background: transparent; cursor: pointer;
+  padding: 9px 13px;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.tabs button:hover { color: var(--text); }
+.tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+/* ---------------------------------------------------------------- lines */
+.lines-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 9px;
+}
+.lines-head h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.lines-head .spacer { flex: 1; }
+
+table.lines { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.lines th {
+  text-align: left; padding: 6px 8px;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+table.lines td { padding: 4px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.lines td:first-child { padding-left: 0; }
+table.lines input, table.lines select { height: 31px; font-size: 12.5px; }
+table.lines th.right, table.lines td.right { text-align: right; }
+table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- modal */
+.overlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(12, 17, 23, .5);
+  backdrop-filter: blur(2px);
+  display: grid; place-items: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+.overlay[hidden] { display: none; }
+
+.modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100dvh - 40px);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  animation: pop .14s ease-out;
+}
+.modal.wide { max-width: 960px; }
+.modal.narrow { max-width: 420px; }
+
+@keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.99); } }
+
+.modal-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { font-size: 15px; }
+.modal-head .spacer { flex: 1; }
+.modal-body { padding: 18px; overflow-y: auto; flex: 1; }
+.modal-foot {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 13px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 0 0 12px 12px;
+}
+.modal-foot .spacer { flex: 1; }
+
+/* --------------------------------------------------------------- toasts */
+.toasts {
+  position: fixed; right: 16px; bottom: 16px; z-index: 90;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: min(420px, calc(100vw - 32px));
+}
+
+.toast {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 11px 13px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--muted);
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  animation: slide-in .18s ease-out;
+}
+.toast.ok { border-left-color: var(--success); }
+.toast.err { border-left-color: var(--danger); }
+.toast.info { border-left-color: var(--info); }
+/* .toast.warn ditambahkan pada putaran verifikasi F-1: empat pemanggil sudah
+   memintanya (board, tutupproyek, laporanbebas, onboarding) dan mendapat toast
+   TANPA warna — rgb(94, 104, 116), identik dengan toast tanpa kelas. Yang
+   diperbaiki adalah warnanya, bukan maksud penulisnya: "Perpindahan ditolak"
+   dan "Server tidak mengirimkan ringkasan" memang peringatan, bukan galat. */
+.toast.warn { border-left-color: var(--warning); }
+.toast b { display: block; margin-bottom: 1px; }
+.toast .msg { color: var(--text-2); word-break: break-word; }
+.toast button { border: 0; background: transparent; cursor: pointer; color: var(--muted); padding: 0 2px; }
+
+@keyframes slide-in { from { opacity: 0; transform: translateX(14px); } }
+
+/* ------------------------------------------------------- kerangka grafik */
+/* `.chart` adalah pembungkus responsif yang dipakai SETIAP svg grafik (viewBox
+   + lebar 100 %). Sampai P1-D ia juga membawa gaya untuk tiga grafik tangan
+   (.grid/.axis/.plan/.act/.act-fill/.pt/.base/.ev dan swatch legendanya);
+   P1-E memindahkan ketiganya ke charts.js, yang memakai kelasnya sendiri
+   (.chart-grid/.chart-axis/.series-line/.series-point/.series-area) dan
+   mewarnai lewat token --chart-*. Aturan lama DIHAPUS, bukan dibiarkan:
+   selektor yang tidak lagi cocok dengan apa pun adalah warna yang menunggu
+   dipakai lagi oleh grafik berikutnya tanpa ada yang tahu dari mana asalnya. */
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* Legenda DOM. charts.js menggambar legendanya sendiri di dalam svg; yang
+   tersisa memakai blok ini adalah tren harga satuan, yang pembedanya per TITIK
+   (PO vs GRN pada satu garis) dan karena itu tidak bisa dinyatakan legenda
+   per-seri. Swatch-nya memakai token --chart-* yang sama dengan titiknya. */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 16px; height: 2.5px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+/* Swatch berbentuk TITIK, untuk legenda yang mewakili titik dan bukan garis
+   (tren harga satuan: PO vs GRN pada satu garis kronologis). Ukurannya
+   mencerminkan jari-jari titiknya, jadi pembedanya selamat di kertas abu-abu —
+   di mana perbedaan #222222 vs #363636 hanya 1,32:1 (verifikasi P1-E). */
+.legend i.pt { width: 8px; height: 8px; border-radius: 50%; }
+.legend i.pt.lg { width: 12px; height: 12px; }
+
+/* ------------------------------------------------- grafik charts.js (P1-A) */
+/* svg dari js/charts.js: class "chart chart-lib chart-<jenis>". .chart memberi
+   width:100 % + viewBox; di sini tipografi dan warna teks. Warna BENTUK tidak
+   ada di sini — setiap bentuk membawa style="fill|stroke: var(--chart-n)" +
+   data-token sendiri (charts.js), sehingga token yang dipakai terbaca dari DOM
+   dan diukur harness S20 di dua tema. Aturan .chart-lib menang atas .chart text
+   (spesifisitas sama, ditulis belakangan). */
+.chart-lib text { fill: var(--chart-text); font-family: var(--font); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart-lib .chart-empty { font-size: 13px; }
+.chart-lib .chart-center { font-size: 18px; font-weight: 600; }
+.chart-lib .gantt-label { font-size: 11.5px; }
+.chart-lib .mark { cursor: default; }
+/* Donat berukuran intrinsik (atribut width/height dari charts.js, 360–560 px):
+   tipografinya 11 px apa pun panjang labelnya, dan hanya menyusut bila wadahnya
+   lebih sempit (ponsel). Sebelumnya viewBox 360 direntang ke max-width 560 px
+   → teks 17 px / angka tengah 28 px untuk label pendek (diukur 5 Sep 2026). */
+.chart-donut { width: auto; height: auto; max-width: 100%; }
+/* Sparkline: ukuran dari atribut width/height-nya (120×32 bawaan), sebaris
+   dengan angka di sel/ubin — bukan 100 % lebar seperti .chart. */
+.chart-spark { width: auto; height: auto; display: inline-block; vertical-align: middle; }
+.chart-spark .chart-empty { font-size: 11px; }
+/* Gantt punya min-width 80 % lebar alaminya (charts.js) supaya teks tetap
+   terbaca di ponsel; pembungkus inilah yang menggulir, bukan halaman. */
+.chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+@media print {
+  /* Kertas hitam-putih: token seri jadi abu-abu bertingkat, dan seri 2..8
+     dibedakan BENTUK (pola putus-putus pada garis + legenda-nya, garis tepi
+     berpola pada batang/irisan/swatch), bukan warna saja — dua kurva rencana vs
+     aktual harus tetap terbaca dari fotokopi. Tiga selector menyamai spesifisitas
+     blok :root[data-theme] seperti blok cetak token utama.
+     Delapan abu-abu berjarak geometris 3:1 … 21:1 terhadap kertas #ffffff dan
+     diselang-seling supaya seri yang BERDEKATAN nomornya berjauhan nilainya
+     (dihitung 5 Sep 2026, rumus luminansi relatif): --chart-1 15,91:1 · -2 5,25 ·
+     -3 9,15 · -4 3,07 · -5 21,0 · -6 6,90 · -7 12,08 · -8 3,95 — semua ≥ 3:1;
+     antar-tetangga 1→2 3,03 · 2→3 1,74 · 3→4 2,98 · 4→5 6,84 · 5→6 3,04 · 6→7 1,75 ·
+     7→8 3,06 (≥ 1,74:1); --chart-7 vs --chart-grid 8,2:1. Delapan abu-abu dengan
+     jarak ≥ 1,5:1 antar SEMUA pasangan tidak mungkin (7 langkah dari 3:1 ke 21:1 =
+     1,32:1 per langkah), maka bentuk tetap pembeda utama: setiap seri 2..8 punya
+     pola putus-putus garis DAN pola garis tepi batang/irisan yang berbeda.
+     Sebelumnya --chart-7 = --chart-grid (#d1d5db, 1,47:1: seri ke-7 tak terbedakan
+     dari kisi) dan --chart-4 2,54:1, dengan pola tepi hanya untuk seri 2 dan 4. */
+  :root, :root[data-theme="dark"], :root[data-theme="light"] {
+    --chart-1: #222222; --chart-2: #6c6c6c; --chart-3: #484848; --chart-4: #939393;
+    --chart-5: #000000; --chart-6: #5a5a5a; --chart-7: #363636; --chart-8: #808080;
+    --chart-grid: #d1d5db; --chart-axis: #6b7280; --chart-text: #374151; --chart-today: #000000;
+    --chart-weekend: #f3f4f6; --chart-baseline: #c4c9d0;
+  }
+  /* Seri 2 dimulai dari TITIK-TITIK, bukan garis putus 6 3: seri 1 yang sudah
+     `dashed`/`dash` dari datanya (rencana vs aktual) memakai 6 4 / 5 3 dan akan kembar.
+
+     `:not([stroke-dasharray])` — POLA YANG DITULIS PEMANGGIL MENANG DI KERTAS
+     JUGA. Sebuah deklarasi CSS mengalahkan atribut presentasi yang charts.js
+     tulis dari `series[].dash`, jadi tanpa penjaga ini setiap pola yang dipilih
+     pemanggil hilang begitu halamannya dicetak: terukur pada EVM, baseline
+     yang ditulis '2 4' dan garis EV yang di layar UTUH sama-sama menjadi
+     titik-titik yang hanya berbeda 1 px celah, dan pada kurva-S 'Aktual' yang
+     utuh di layar menjadi garis paling putus-putus di kertas (verifikasi
+     P1-E). Seri yang TIDAK menyebut dash-nya sendiri (atributnya tidak ditulis
+     sama sekali — make() melewati nilai null) tetap mendapat pola cetak, yang
+     memang alasan blok ini ada: delapan seri yang hanya berbeda abu-abu. */
+  /* `1 3` dan bukan `2 3`: pola cetak seri 2 berdiri di samping seri 1 yang
+     sering menulis `2 4` sendiri (baseline EVM dan baseline kurva-S), dan dua
+     pola yang hanya berbeda 1 px celah adalah satu pola di kertas — terukur
+     pada EVM sebelum verifikasi P1-E. */
+  .chart-lib .series-line[data-series="2"]:not([stroke-dasharray]) { stroke-dasharray: 1 3; }
+  .chart-lib .series-line[data-series="3"]:not([stroke-dasharray]) { stroke-dasharray: 8 3 2 3; }
+  .chart-lib .series-line[data-series="4"]:not([stroke-dasharray]) { stroke-dasharray: 1 2; }
+  .chart-lib .series-line[data-series="5"]:not([stroke-dasharray]) { stroke-dasharray: 10 4; }
+  .chart-lib .series-line[data-series="6"]:not([stroke-dasharray]) { stroke-dasharray: 4 2 1 2; }
+  .chart-lib .series-line[data-series="7"]:not([stroke-dasharray]) { stroke-dasharray: 12 3 3 3; }
+  .chart-lib .series-line[data-series="8"]:not([stroke-dasharray]) { stroke-dasharray: 6 3; }
+  /* Garis tepi batang/irisan/swatch: seri 1 utuh, seri 2..8 masing-masing pola
+     sendiri (tebal 1 px supaya polanya terbaca pada 0,75 px pun tidak). */
+  .chart-lib rect.mark, .chart-lib path.mark, .chart-lib rect.legend-swatch { stroke: #111827; stroke-width: 1; }
+  .chart-lib rect.mark[data-series="2"], .chart-lib path.mark[data-series="2"], .chart-lib rect.legend-swatch[data-series="2"] { stroke-dasharray: 2 1.5; }
+  .chart-lib rect.mark[data-series="3"], .chart-lib path.mark[data-series="3"], .chart-lib rect.legend-swatch[data-series="3"] { stroke-dasharray: 5 2; }
+  .chart-lib rect.mark[data-series="4"], .chart-lib path.mark[data-series="4"], .chart-lib rect.legend-swatch[data-series="4"] { stroke-dasharray: 1 1; }
+  .chart-lib rect.mark[data-series="5"], .chart-lib path.mark[data-series="5"], .chart-lib rect.legend-swatch[data-series="5"] { stroke-dasharray: 6 2 1 2; stroke: #ffffff; }
+  .chart-lib rect.mark[data-series="6"], .chart-lib path.mark[data-series="6"], .chart-lib rect.legend-swatch[data-series="6"] { stroke-dasharray: 3 1 1 1; }
+  .chart-lib rect.mark[data-series="7"], .chart-lib path.mark[data-series="7"], .chart-lib rect.legend-swatch[data-series="7"] { stroke-dasharray: 8 2; }
+  .chart-lib rect.mark[data-series="8"], .chart-lib path.mark[data-series="8"], .chart-lib rect.legend-swatch[data-series="8"] { stroke-dasharray: 1.5 2.5; }
+  .chart-lib .series-area { fill-opacity: .08; }
+
+  /* LEGENDA DOM (satu-satunya yang tersisa: tren harga satuan) ikut tercetak.
+     Dua hal yang keduanya terukur sebelum verifikasi P1-E:
+      - Tanpa `print-color-adjust: exact` Chrome TIDAK melukis latar `.legend i`
+        pada setelan bawaan (grafik latar mati), jadi PDF layar itu memuat dua
+        label telanjang tanpa satu swatch pun — tidak ada yang memberi tahu
+        titik mana PO dan titik mana GRN.
+      - Dengan latar menyala pun keduanya #222222 vs #363636, beda 1,32:1.
+        Karena itu swatch-nya BERBENTUK titik dengan ukuran yang berbeda, sama
+        seperti pembedanya di grafik — bentuk dan ukuran selamat dari abu-abu,
+        warna tidak. */
+  .legend i { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .chart-scroll { overflow: visible; }
+  .chart-gantt { min-width: 0 !important; }
+
+  /* P1-H — LEMBAR GANTT MENDATAR.
+     `@page` BERNAMA, bukan `@page` telanjang: satu stylesheet melayani 16 layar
+     yang memanggil window.print(), dan setiap satu di antaranya adalah tabel
+     potret (neraca saldo, buku besar, WIP schedule, EVM, K3, …). Sebuah
+     `@page { size: landscape }` di sini akan memutar semuanya. Idiomnya disalin
+     dari Modules/Core/Resources/views/forms/layout.blade.php, yang sudah
+     memakai halaman bernama untuk grid mingguannya.
+
+     `.detail-grid` dijadikan blok DI DALAM lembar ini saja: kisi 2fr/1fr tidak
+     pernah diruntuhkan blok cetak, jadi gantt di kolom `main` mendapat ~478 px
+     dari 733 px kertas potret — label 11,5 px tercetak ~6 px.
+
+     `break-inside: auto` menimpa `.card { break-inside: avoid }` di bawah:
+     sebuah SVG tidak bisa dipaginasi, dan kartu gantt yang lebih tinggi dari
+     satu halaman akan didorong Chrome ke lembar baru lalu tetap dipotong —
+     membuang satu halaman untuk tidak menyelesaikan apa pun. */
+  @page gantt { size: A4 landscape; margin: 8mm 8mm 10mm 8mm; }
+  .gantt-sheet { page: gantt; break-inside: auto; }
+  .gantt-sheet .filters { display: none !important; }
+  /* Kalimat sumber tercetak SEKALI: salinan DOM-nya ada untuk pembaca ponsel
+     (yang di dalam svg berada di luar jendela pada posisi gulir awal), di
+     kertas svg-nya utuh dan salinan kedua hanya mengulang. */
+  .gantt-sheet .gantt-note-dom { display: none !important; }
+
+  /* LEMBAR BERHALAMAN. Sebuah <svg> tidak bisa dipaginasi: jadwal 66 baris yang
+     dicetak sebagai satu gambar memberi halaman kosong, baris yang terbelah di
+     batas halaman, dan tiga dari empat halaman gambar TANPA sumbu tanggal
+     (diukur 7 Sep 2026). Untuk jadwal setinggi itu jadwal.js menggambar satu
+     svg per halaman — masing-masing dengan pita bulan, tick dan legendanya
+     sendiri — dan gambar layarnya disembunyikan di kertas. */
+  .gantt-print { display: block !important; }
+  .gantt-sheet.is-paginated .chart-scroll { display: none !important; }
+  .gantt-print-page { break-inside: avoid; break-after: page; }
+  .gantt-print-page:last-child { break-after: auto; }
+  .gantt-sheet .card-head { break-after: avoid; }
+}
+
+/* Lembar cetak berhalaman gantt: hanya untuk kertas (blok @media print di atas
+   yang menyalakannya). */
+.gantt-print { display: none; }
+
+.bar-row { display: grid; grid-template-columns: minmax(110px, 26%) 1fr minmax(96px, auto); gap: 10px; align-items: center; padding: 6px 0; }
+.bar-row .name { font-size: 12.5px; }
+.bar-row .amt { font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------- responsive */
+@media (max-width: 900px) {
+  .detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .form-grid .span2 { grid-column: auto; }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "header" "main";
+  }
+  .brand { display: none; }
+  .nav {
+    position: fixed; inset: var(--header-h) auto 0 0; z-index: 50;
+    width: 264px;
+    transform: translateX(-100%);
+    transition: transform .18s ease-out;
+    box-shadow: var(--shadow-lg);
+  }
+  body.nav-open .nav { transform: none; }
+  body.nav-open::after {
+    content: ""; position: fixed; inset: var(--header-h) 0 0 0; z-index: 40;
+    background: rgba(12, 17, 23, .45);
+  }
+  .btn.menu-toggle { display: inline-flex; }
+  /* Remah roti di ponsel (verifikasi P1-B 5 Sep 2026): remah terakhir membungkus
+     tiga baris (58,5 px di header 56 px) dan menimpa tombol Cari — di halaman
+     dokumen main pun sudah menimpa 90 px. Yang tampil hanya remah modul: satu-
+     satunya informasi yang tidak ada di tempat lain di ponsel (sidebar
+     tertutup), dan tautan ke beranda modulnya. Remah layar/dokumen hanya
+     disembunyikan secara VISUAL — judul halaman (h1) sudah memuatnya, pembaca
+     layar tetap mendapat remah aria-current. Halaman beremah tunggal (Dasbor,
+     beranda modul) tetap menampilkannya, dielipsiskan bila perlu.
+     Putaran 2 (6 Sep 2026): aturan itu MENGANDAIKAN setiap rantai berakar pada grup
+     NAV. Tujuh layar tidak — RESOURCES di luar NAV (projects/baselines,
+     projects/defects, inventory/issue-returns, inventory/purchase-returns,
+     hr/certificates, finance/petty-cash-vouchers, finance/kasbon) berakar pada
+     penanda "ERP" milik groupLabelFor(), yang dirender <span>. Dengan span, svg dan
+     remah layar disembunyikan sekaligus, header ponselnya KOSONG (terukur: anak
+     ['SPAN','svg','B'], teks tampak '', tinggi remah 0 px di header 56 px). Karena
+     itu crumbs.js menandai bentuk rantainya di #crumbs[data-root] dan yang disembunyikan
+     hanya yang benar-benar tergantikan remah modul. */
+  /* Basis auto, bukan 0: dengan basis 0 remah berbagi ruang bebas sama rata dengan
+     .spacer (terukur: 'Keuangan' terpotong padahal 54 px masih kosong). */
+  .header .crumbs { flex: 0 1 auto; min-width: 0; }
+  .header .crumbs a.crumb-module { min-width: 0; }
+  .header .crumbs a.crumb-module .lbl, .header .crumbs > b:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Penanda akar "ERP" dan chevron tidak pernah dibutuhkan di ponsel. */
+  .header .crumbs > svg, .header .crumbs > span { display: none; }
+  /* Berakar modul: remah modul saja; layar/dokumen tersembunyi VISUAL (aria tetap). */
+  .header .crumbs[data-root="module"] a.crumb-screen { display: none; }
+  .header .crumbs[data-root="module"] > b:not(:first-child) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Tanpa remah modul: remah LAYAR yang tampil, dipotong elipsis supaya tetap satu
+     baris di sebelah tombol Cari. Di halaman dokumen yang tampil tautan layarnya
+     (jalan kembali ke daftar); kode dokumennya sudah menjadi judul halaman. */
+  .header .crumbs[data-root="screen"] a.crumb-screen,
+  .header .crumbs[data-root="screen"] > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header .crumbs[data-root="screen"] a.crumb-screen ~ b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* Tombol Cari hanya ikon di ponsel (title + aria-label tetap): berlabel, isi header
+     390 px berjumlah 416 px dan remah modul terpendek pun ikut terpotong. */
+  .header .btn.global-search { width: 34px; padding: 0; }
+  .header .btn.global-search > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .main { padding: 16px 14px 50px; }
+  .userchip .who { display: none; }
+  .kv { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
+  .kv dd { margin-bottom: 8px; }
+  /* Kolom bertanda hideOnNarrow di schema.js — list.js/detail.js menempelkan
+     class ini per sel (th, td, termasuk tfoot supaya jumlah selnya tetap
+     segaris). Breakpoint yang SAMA dengan drawer nav di atas: di lebar ini
+     tabel 7-10 kolom hanya bisa digeser-geser, dan menyetujui PO dari ponsel
+     cukup kode-nilai-status. */
+  table.data .hide-narrow { display: none; }
+}
+
+@media print {
+  /* Cetak adalah satu-satunya jalur keluar laporan keuangan, dan pengguna
+     bertema gelap mencetak --text #e7ebf0 (abu sangat terang) di kertas putih
+     — hasilnya nyaris kosong. Token terang dipaksa di sini; selector kedua
+     ada untuk menyamai spesifisitas (0,2,0) blok :root[data-theme="dark"],
+     yang kalau tidak akan tetap menang atas :root polos. */
+  :root, :root[data-theme="dark"], :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f6f8; --surface: #ffffff; --surface-2: #fafbfc; --surface-3: #f1f3f6;
+    --border: #e2e6eb; --border-strong: #cbd2da; --text: #14181d; --text-2: #47505b;
+    --muted: #6b7684; --primary: #1a56db; --primary-hover: #1745b0; --primary-soft: #e8effc;
+    --primary-fg: #ffffff; --danger: #c62828; --danger-soft: #fdecec; --success: #1b7f4d;
+    --success-soft: #e6f4ec; --warning: #96601a; --warning-soft: #fdf1dd; --info: #1f5f8b;
+    --info-soft: #e7f1f8; --neutral: #5a6472; --neutral-soft: #eef0f3;
+    --shadow-sm: none; --shadow-md: none; --shadow-lg: none;
+    /* Aksen modul ikut dipaksa ke nilai terang (verifikasi P1-B 5 Sep 2026: tema
+       gelap mencetak --accent-7 #fbcd1a di kertas putih = 1,52:1, slot 3 1,70,
+       slot 5 1,79, slot 2 2,30 — semua di bawah 3:1 — dan ubin ikon -soft
+       nyaris hitam). Nilai = blok token terang, kontras di #ffffff ≥ 5,20. */
+    --accent-1: #1a56db; --accent-1-soft: #edf1fc; --accent-1-fg: #ffffff; --accent-2: #c43e05; --accent-2-soft: #faf0eb; --accent-2-fg: #ffffff;
+    --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff; --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
+    --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff; --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
+    --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff; --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
+  }
+  /* .toasts dan .overlay ikut daftar ini: toast yang masih tampil dan dialog
+     yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
+  .nav, .brand, .header, .page-head .actions, .filters, .pager,
+  .toasts, .overlay, .tabs { display: none !important; }
+  .shell { display: block; }
+  /* P1-H: kisi 2fr/1fr tidak pernah diruntuhkan di kertas, dan lembar gantt
+     butuh seluruh lebarnya. Diruntuhkan untuk SEMUA layar detail: sebuah kolom
+     samping selebar 280 px di kertas hanya memaksa kolom utamanya sempit. */
+  .detail-grid { display: block; }
+  .main { padding: 0; overflow: visible; }
+  .card { box-shadow: none; break-inside: avoid; }
+  /* Plafon scroll layar di .table-wrap memotong cetakan pada satu layar
+     baris; kertas tidak menggulung, jadi seluruh baris harus mengalir. */
+  .table-wrap { max-height: none; overflow: visible; }
+  body { background: #fff; }
+}
+
+/* Judul khusus cetak (dipakai layar run PSAK 115): di layar judulnya kode run
+   di .page-head, tetapi kertas yang dilampirkan KAP sebagai working paper
+   harus menyebut nama laporannya — "WIP Schedule", bukan "REV/2026/…". */
+.print-title { display: none; }
+@media print {
+  .print-title { display: block; margin-bottom: 12px; }
+  .print-title h1 { font-size: 20px; letter-spacing: -.015em; }
+  .print-title .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
+}
+
+/* ------------------------------------------------------- notification bell */
+.header .btn.bell { position: relative; }
+.bell-count {
+  position: absolute; top: 1px; right: 1px;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 8px;
+  background: var(--danger); color: #fff;
+  /* 11 px, lantai aplikasi — teks 10 px terakhir (S8 4 Sep 2026). */
+  font-size: 11px; font-weight: 700; line-height: 15px; text-align: center;
+  pointer-events: none;
+}
+
+.notif { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.notif:last-child { border-bottom: 0; }
+.notif-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.notif-head .spacer { flex: 1; }
+.notif-title { font-weight: 600; font-size: 13.5px; }
+.notif-body { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+.notif .row-actions { margin-top: 8px; }
+/* Unread rows carry a rail rather than a fill, so a long list stays readable. */
+.notif.unread { border-left: 2px solid var(--danger); padding-left: 10px; margin-left: -12px; }
+
+/* ----------------------------------------------------------- attachments */
+/* Membungkus menurut lebar KARTU, bukan lebar viewport. Kartu Lampiran tinggal
+   di kolom samping .detail-grid (minmax(280px, 1fr)), jadi di SETIAP lebar
+   desktop antara 901 px dan ~1900 px kartunya sempit sementara viewport-nya
+   lebar: tiga tombol (Masa berlaku · Unduh · Hapus) berukuran tetap 258 px
+   memakan hampir seluruh baris dan nama berkas terukur tersisa 0-75 px —
+   "ser / tifik / at- / kali / bra / si.p / df", 7 baris berisi 2-4 huruf, dan
+   lencana masa berlakunya menjadi gumpalan 3-6 baris (diukur 1280/1366/1440).
+   flex-basis 260 px pada bagian utamanya adalah ambangnya: selama nama berkas
+   masih dapat 260 px di samping tombolnya, barisnya tetap SATU baris; lebih
+   sempit dari itu tombolnya turun ke barisnya sendiri dan namanya mendapat
+   seluruh lebar kartu. Terukur: kartu 606 px (viewport 900, .detail-grid sudah
+   runtuh) → tombol tetap sebaris; kartu 537/377/323 px (viewport 1920/1440/
+   1280, kartu di kolom samping) → tombol turun. Media query menurut viewport
+   tidak bisa melihat perbedaan itu — itulah sebabnya perbaikan ponsel 560 px
+   dulu hijau sementara seluruh pita 901-1900 px rusak. */
+.attachment {
+  display: flex; align-items: flex-start; gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.attachment:first-child { padding-top: 0; }
+.attachment-main { min-width: 0; flex: 1 1 260px; }
+.attachment-name { font-size: 13px; font-weight: 500; word-break: break-word; }
+/* margin-left: auto — ketika tombolnya turun, ia tetap rata kanan; ketika ia
+   masih sebaris, bagian utamanya sudah menghabiskan ruang bebas dan aturan ini
+   tidak berpengaruh. (.upload-item menyelesaikan hal yang sama dengan media
+   query 560 px di bawah, dan di sana itu memang cukup: layar Lapangan dan
+   Absensi Saya satu kolom di setiap lebar, jadi lebar kartunya MEMANG lebar
+   viewport-nya. Kartu Lampiran tidak.) */
+.attachment .row-actions { flex: none; margin-left: auto; }
+.attachment-add { padding-top: 10px; }
+.attachment-add .help { margin-top: 6px; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+/* F-8. Tombol + kotak tanggal membungkus alih-alih memaksa kartu melebar:
+   kartu lampiran juga dirender di kolom sempit layar detail di ponsel. */
+.attachment-add-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.attachment-expiry { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+.attachment-expiry input { height: 30px; }
+/* Baris keadaan masa berlaku. 'Tanpa masa berlaku' mewarisi warna .cell-sub —
+   ia keterangan, bukan peringatan; hanya menipis/kedaluwarsa memakai lencana. */
+.attachment-validity { margin-top: 2px; }
+/* white-space: normal MENIMPA .badge { white-space: nowrap }: lencana ini
+   membawa kalimat ("Berlaku s/d 22 Sep 2026 · 12 hari lagi"), bukan satu kata
+   status, dan pada 390 px kalimat itu terukur TERPOTONG di dalam kotaknya
+   (scrollWidth > clientWidth, harness S35 ponsel). Keterangan yang terpotong
+   adalah keterangan yang tidak ada. */
+.attachment-validity .badge { font-size: 11px; white-space: normal; }
+
+/* ------------------------------------------------------------- lapangan */
+/* The field screen is one column at every width: it is used one-handed on a
+   phone, and a layout that only collapses below a breakpoint is a layout that
+   was designed on a desktop. */
+.field-select { width: 100%; }
+/* .btn.lg dipakai HANYA di layar ponsel (Lapangan, Absensi Saya). `height`
+   eksplisit, bukan padding: .btn punya height: 34px dan box-sizing: border-box,
+   jadi padding vertikal di sini tidak menumbuhkan kotaknya sama sekali —
+   terukur 8 Sep 2026, keempat tombol absen 328x34 px. Standar target sentuh
+   rumah ini 42-44 px (@media (pointer: coarse) di atas), dan layar yang
+   docblock-nya menyebut "satu tangan sambil berdiri" adalah tempat terakhir
+   yang boleh melanggarnya. */
+.btn.lg { height: 46px; padding: 0 18px; font-size: 15px; width: 100%; justify-content: center; }
+
+/* T2.9 — antrean kirim foto: satu baris per foto tepat di bawah tombol kamera,
+   bilah kemajuan (.progress, ui.js progressBar) di bawah namanya; yang gagal
+   membawa "Kirim ulang · Buang". Kosong = tidak memakan tempat. Di lebar
+   ponsel tombolnya turun ke baris sendiri: dua tombol 36 px di samping nama
+   berkas IMG_20260904_101500.jpg menyisakan ~150 px untuk namanya. */
+.upload-queue { margin-top: 12px; }
+.upload-queue:empty { display: none; }
+.upload-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.upload-item:last-child { border-bottom: 0; }
+.upload-item-main { flex: 1; min-width: 0; }
+.upload-item .progress { margin-top: 6px; }
+.upload-item[data-state="failed"] > .upload-item-main > .cell-sub:first-of-type { color: var(--danger); }
+.upload-item .upload-warn { color: var(--warning); margin-top: 3px; }
+.upload-item .row-actions { flex: none; flex-wrap: nowrap; }
+.upload-pending .card-body > .cell-sub { margin: 0 0 4px; }
+@media (max-width: 480px) {
+  .upload-item { flex-wrap: wrap; }
+  .upload-item .row-actions { width: 100%; justify-content: flex-end; }
+}
+
+/* F-4 — absensi masuk/pulang.
+   .absensi-actions: empat tombol lg satu kolom penuh, karena layar ini dipakai
+   sambil berdiri dengan satu tangan; .btn.lg di atas sudah width:100%, jadi
+   yang dibutuhkan hanya jarak antar tombol.
+   .absensi-side: satu blok per sisi (masuk/pulang) dengan lencana putusan di
+   kanan judulnya. Garis pemisah, bukan kartu — kartu di dalam kartu membuat
+   panel rincian terlihat seperti empat dokumen berbeda. */
+.absensi-actions { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.absensi-side { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+.absensi-side-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.absensi-side .cell-sub { margin-top: 2px; }
+.absensi-day .card-body > .cell-sub:first-child { margin: 0; }
+.absensi-trail { border-bottom: 1px solid var(--border); padding: 8px 0; }
+.absensi-trail:last-child { border-bottom: 0; }
+
+/* P1-I — pita luring di atas antrean Lapangan. Bentuknya .alert.warn (token yang
+   sama, kedua tema ikut sendiri), tetapi kelasnya sendiri karena ia BUKAN alert
+   sebuah halaman: ia menyala dan padam mengikuti jaringan, dan ui.js
+   offlineRibbon() yang memegang [hidden]-nya. Ikonnya tidak boleh menyusut
+   ketika kalimatnya membungkus di 390 px. */
+.offline-ribbon {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 11px 13px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 13px;
+}
+.offline-ribbon[hidden] { display: none; }
+.offline-ribbon svg { flex: none; margin-top: 1px; }
+
+.field-photos { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
+.field-photo {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.field-photo:last-child { border-bottom: 0; }
+.field-photo-main { flex: 1; min-width: 0; }
+.field-photo .badge { flex: none; }
+
+/* ------------------------------------------------------------- global search */
+.search-input {
+  width: 100%;
+  padding: 9px 11px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+.search-input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+.search-results { margin-top: 12px; max-height: 52vh; overflow-y: auto; }
+.search-results > p { margin: 8px 2px; font-size: 13px; }
+.search-group + .search-group { margin-top: 12px; }
+.search-group-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted); padding: 4px 2px;
+}
+.search-hit {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%; text-align: left; cursor: pointer;
+  padding: 7px 9px; border: 0; border-radius: var(--radius);
+  background: transparent; color: inherit; font: inherit;
+}
+.search-hit:hover, .search-hit:focus-visible { background: var(--surface-2); }
+.search-hit .cell-sub { color: var(--muted); font-size: 12px; }
+.search-hit.screen .cell-main { font-weight: 600; }
+
+/* ------------------------------------------------------- stacked overlays */
+/* A dialog opened over a form gets its own backdrop. Two full-strength ones
+   stack into mud and the form underneath stops being readable, so the upper
+   layer is lighter and drops the blur. */
+.overlay.overlay-stacked { background: rgba(12, 17, 23, .35); backdrop-filter: none; }
+
+/* --------------------------------------------------- keyboard-reachable rows */
+/* The global :focus-visible uses outline-offset: 2px, which on a table row draws
+   over the row above and below it. Inset it instead. */
+table.data tbody tr.clickable:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* ------------------------------------------------------- lookup combobox */
+/* Metrics are copied from the shared input rule rather than inherited, because
+   the control may be an <input> with no type attribute and `input[type=text]`
+   would then not match it. Two class selectors so this beats `input[type=text]`
+   on specificity: a picker one pixel taller than the <select> beside it makes a
+   whole form grid look broken. */
+.combo { position: relative; display: block; width: 100%; }
+
+/* The truncation / permission notice sits beside .combo, not inside it: .combo
+   is the positioning context for the × (top: 50%), and a notice within it would
+   centre the × against input-plus-notice and leave it dangling below the box. */
+.combo-field { display: block; }
+
+.combo .combo-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background-color: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color .12s, box-shadow .12s;
+  /* Same chevron data-URI as the native `select` rule, so the 94 fields that
+     become comboboxes stay indistinguishable from the 41 that do not. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' stroke='%236b7684' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+
+/* Room for the × as well as the chevron. Only when a clear button is actually
+   rendered — 50px of dead space inside a 20%-wide item column is not free. */
+.combo.clearable .combo-input { padding-right: 50px; }
+
+.combo .combo-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.combo .combo-input:disabled {
+  background-color: var(--surface-3);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* After :focus on purpose — a field the server rejected must stay red while the
+   user is fixing it, which is how the native inputs already behave. */
+.field.invalid .combo .combo-input { border-color: var(--danger); }
+
+/* 31px, not 30: that is the height `table.lines input, table.lines select` uses,
+   and a one-pixel difference between the item picker and the qty box in the same
+   row reads as a broken table. The `table.lines` rule repeats it so a line-table
+   picker is the right height even if the caller forgets `compact: true` — this
+   file and the component are written by different hands. */
+.combo.compact .combo-input,
+table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
+
+/* position: fixed and parented to <body> because .modal-body (overflow-y) and
+   .table-wrap (overflow-x) both clip an absolutely-positioned popup. z-index
+   sits above .overlay (60) and every stacked layer. */
+.combo-pop {
+  position: fixed;
+  z-index: 200;
+  max-height: 288px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+.combo-opt {
+  display: block;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+.combo-opt:hover { background: var(--surface-3); }
+
+/* The keyboard highlight must not use the same colour as :hover, or the mouse
+   position and the arrow-key position lie about each other and Enter picks the
+   row the user is not looking at. */
+.combo-opt.active { background: var(--primary-soft); color: var(--primary); }
+.combo-opt[aria-selected="true"] { font-weight: 600; }
+
+.combo-empty, .combo-more { padding: 8px 9px; font-size: 12px; color: var(--muted); }
+.combo-more { border-top: 1px solid var(--border); }
+
+/* The 10.000-row ceiling notice. It lives at the top of the popup and under the
+   field for as long as the source is truncated — the toast it replaces was 8
+   seconds long and fired before the form had finished rendering. */
+.combo-warn {
+  padding: 8px 9px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.field .combo-warn { margin: 4px 0 0; }
+
+.combo-clear {
+  position: absolute;
+  top: 50%;
+  right: 26px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.combo-clear:hover { background: var(--surface-3); color: var(--text); }
+
+/* Author `display: grid` beats the UA stylesheet's `[hidden] { display: none }`,
+   so the × would stay on screen with nothing to clear. Exactly the reason
+   `.overlay[hidden]` a few hundred lines up has to exist too. */
+.combo-clear[hidden] { display: none; }
+
+/* The "Coba lagi" that a failed source offers, sitting inside the notice. */
+.combo-warn .btn { margin-left: 8px; vertical-align: middle; }
+
+/* Same trap as `.combo-clear[hidden]` above: `.btn` sets `display: inline-flex`,
+   and an author rule beats the UA stylesheet's `[hidden] { display: none }`, so
+   without this the retry button stays on screen for every source that never
+   failed. It is toggled rather than rebuilt because rebuilding it destroyed the
+   button the user had just pressed Enter on. */
+.combo-warn .btn[hidden] { display: none; }
+
+/* Thumb targets. A 28px row is a coin flip on a phone. */
+@media (pointer: coarse) {
+  .combo-opt { min-height: 42px; display: flex; align-items: center; }
+  .combo-pop { max-height: 50vh; }
+  /* Tombol baris 28 px (Ubah/Hapus/Cetak) adalah sasaran undian di ponsel. */
+  .btn.sm { height: 36px; }
+  .btn.sm.icon { width: 36px; }
+  /* Kepadatan di layar sentuh (verifikasi P1-B 5 Sep 2026): tautan drawer profil
+     rapat 27,5 px dan baris radio dialog Kepadatan 30 px berada di bawah sasaran
+     jempol 36 px yang dipakai aturan ini. Lantai 36 px untuk tautan sidebar di
+     SEMUA profil (normal 31,5 → 36 di layar sentuh, terukur; desktop tetap
+     27,5/31,5/35,5) dan baris radio ≥ 40 px dengan radio 18 px. */
+  .nav-items a { min-height: 36px; }
+  .density-pick .check-row { height: auto; min-height: 40px; }
+  .density-pick input[type="radio"] { width: 18px; height: 18px; }
+  /* Ikon aksi baris hanya membawa `title`, dan tooltip tidak ada di layar
+     sentuh (ASESMEN-UX §1.5): kata kerjanya (data-label, list.js) ditulis di
+     samping ikon. Lebar tetap ikut isinya, bukan 36 px kotak ikon. */
+  table.data td .btn.icon[data-label] { width: auto; padding: 0 12px; }
+  table.data td .btn.icon[data-label]::after { content: attr(data-label); }
+}
+
+/* Print is the only way a financial report leaves this app; an open picker
+   floating over the figures would be printed exactly where it sits. */
+@media print {
+  .combo-pop { display: none !important; }
+}
+
+/* ------------------------------------------------- daftar: urut kolom */
+
+/* Judul kolom yang bisa diurutkan adalah <button> asli DI DALAM th-nya —
+   fokus keyboard dan Enter/Space datang gratis dari elemennya sendiri.
+   Tipografinya mewarisi th (11px, uppercase, muted) supaya kolom yang bisa
+   dan tidak bisa diurutkan tampak satu keluarga; hanya kursor dan penanda
+   ▲/▼ yang membedakan. */
+table.data th .th-sort {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0; border: 0; background: none;
+  font: inherit; color: inherit;
+  text-transform: inherit; letter-spacing: inherit;
+  cursor: pointer;
+}
+table.data th .th-sort:hover { color: var(--text); }
+table.data th .th-sort:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Kolom yang sedang aktif diurutkan sedikit lebih gelap dari saudaranya. */
+table.data th[aria-sort] .th-sort { color: var(--text); }
+
+/* --------------------------------------- tabel baris: galat per sel (422) */
+
+/* Padanan `.field.invalid` untuk sel tabel baris, yang tidak punya pembungkus
+   .field — form.js menandai td-nya langsung. .err memakai gaya yang sama
+   dengan .field .err, sedikit lebih rapat karena sel 31px. */
+table.lines td.cell-invalid input,
+table.lines td.cell-invalid select,
+table.lines td.cell-invalid textarea,
+table.lines td.cell-invalid .combo-input { border-color: var(--danger); }
+table.lines td .err { margin-top: 3px; font-size: 11px; color: var(--danger); }
+
+/* ------------------------------------------------------------ onboarding */
+/* Panduan onboarding per peran, v2 (views/onboarding.js). v1 (5 Sep 2026
+   pagi) adalah modal yang menutupi halaman; masukan pemilik 5 Sep 2026: "it
+   was great to show the intended page/location while user displayed the
+   onboarding the also make it on mobile version". Maka: PANEL BERLABUH di
+   kanan pada desktop — halaman di bawahnya tetap hidup (sidebar, formulir),
+   .shell diberi margin selebar panel supaya tidak ada yang tersembunyi di
+   baliknya — dan LEMBAR BAWAH (bottom sheet) pada ≤760px, breakpoint yang sama
+   dengan drawer nav. Dipasang di body, di luar #root: gambar-ulang rute tidak
+   membuangnya, dan `inert` pada #root saat modal terbuka tidak mematikannya
+   (overlay z-index 60 tetap di atasnya, jadi formulir tetap bekerja di atas
+   panel). z-index 55: di atas drawer nav (50) dan backdrop-nya (40), di bawah
+   overlay modal (60) dan toast (90). */
+:root { --dock-w: 400px; }
+
+.onboarding-dock {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 55;
+  width: var(--dock-w); max-width: 100vw;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  font-size: 13.5px;
+}
+body.onboarding-docked .shell { margin-right: var(--dock-w); }
+body.onboarding-docked .toasts { right: calc(var(--dock-w) + 16px); }
+
+.onboarding-dock .dock-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.onboarding-dock .dock-handle { display: none; }
+
+.dock-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 12px 8px 18px;
+}
+.dock-head h2 { font-size: 15px; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.dock-head .onboarding-counter { flex: none; }
+
+/* Tab tepi (desktop terlipat) dan bilah bawah (ponsel terlipat): satu tombol,
+   dua wujud. Terlipat = panel tidak digambar sama sekali; .shell kembali
+   selebar layar (class body dicabut oleh JS bersama status). */
+.onboarding-dock .dock-bar { display: none; }
+.onboarding-dock[data-state="collapsed"] .dock-panel { display: none; }
+.onboarding-dock[data-mode="desktop"][data-state="collapsed"] {
+  top: 50%; bottom: auto; right: 0; width: auto;
+  transform: translateY(-50%);
+  background: transparent; border: 0; box-shadow: none;
+}
+.onboarding-dock[data-mode="desktop"][data-state="collapsed"] .dock-bar {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 12px 9px 10px;
+  border: 1px solid var(--primary); border-right: 0;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: var(--primary); color: var(--primary-fg);
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  box-shadow: var(--shadow-md);
+}
+.onboarding-dock[data-mode="desktop"][data-state="collapsed"] .dock-bar .chev { transform: rotate(90deg); }
+
+.onboarding-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 0 18px;
+  font-size: 12.5px; color: var(--muted);
+}
+.onboarding-head .spacer { flex: 1; }
+.onboarding-counter { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-2); }
+.onboarding-steps {
+  list-style: none; margin: 0; padding: 10px 18px 12px;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.onboarding-step {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface-2); color: var(--text-2);
+  font: inherit; font-size: 12.5px; line-height: 1.4; cursor: pointer;
+  white-space: nowrap;
+}
+.onboarding-step:hover { border-color: var(--border-strong); color: var(--text); }
+.onboarding-step:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.onboarding-step .n {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: inline-grid; place-items: center;
+  background: var(--surface-3); font-size: 11.5px; font-weight: 600;
+}
+.onboarding-step.current { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); font-weight: 600; }
+.onboarding-step.current .n { background: var(--primary); color: var(--primary-fg); }
+
+.onboarding-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px 18px; line-height: 1.55; }
+.onboarding-body:focus { outline: none; }
+.onboarding-heading { font-size: 16px; margin-bottom: 8px; }
+
+/* Keping lokasi "Buka › Grup › Layar" di bawah judul bagian: layar yang
+   disebut bagian itu, yang izinnya dipegang; klik = pindah + sorot. Yang
+   sedang dibuka ditandai. */
+.onboarding-locations { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.onboarding-location {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--primary); border-radius: 999px;
+  background: var(--surface); color: var(--primary);
+  font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.onboarding-location:hover { background: var(--primary-soft); }
+.onboarding-location:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.onboarding-location.here { background: var(--primary); color: var(--primary-fg); }
+.onboarding-location .k { font-weight: 600; }
+.onboarding-content p { margin: 0 0 10px; }
+.onboarding-content h3, .onboarding-content h4 { margin: 16px 0 6px; font-size: 14px; }
+.onboarding-content ul, .onboarding-content ol { margin: 0 0 10px; padding-left: 22px; }
+.onboarding-content li { margin: 3px 0; }
+.onboarding-content li > p { margin: 0; }
+.onboarding-content blockquote {
+  margin: 0 0 10px; padding: 8px 12px;
+  border-left: 3px solid var(--border-strong); background: var(--surface-2); color: var(--text-2);
+}
+.onboarding-content code { font-family: var(--mono); font-size: 12px; background: var(--surface-3); padding: 1px 5px; border-radius: 4px; }
+.onboarding-content pre { margin: 0 0 10px; padding: 10px 12px; background: var(--surface-3); border-radius: var(--radius-sm); overflow-x: auto; }
+.onboarding-content pre code { background: none; padding: 0; }
+.onboarding-content hr { border: 0; border-top: 1px solid var(--border); margin: 14px 0; }
+.onboarding-content a { text-decoration: underline; text-underline-offset: 2px; }
+/* Daftar periksa: butir GFM `- [ ]` — kotaknya yang jadi penanda, bukan bulatan. */
+.onboarding-content li:has(> input[type="checkbox"]) { list-style: none; margin-left: -18px; }
+.onboarding-content input[type="checkbox"] { margin: 0 7px 0 0; vertical-align: -2px; accent-color: var(--primary); }
+.onboarding-note { font-size: 12px; margin: -4px 0 12px; }
+
+.onboarding-table { overflow-x: auto; margin: 0 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.onboarding-table table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.onboarding-table th, .onboarding-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: top; text-align: left; }
+.onboarding-table th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+.onboarding-table tbody tr:last-child td { border-bottom: 0; }
+
+.dock-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.dock-foot .spacer { flex: 1; }
+/* Lanjut dan Selesai bergantian lewat `hidden` — jebakan yang sama dengan
+   `.combo-warn .btn[hidden]`: `.btn` memasang display:inline-flex dan mengalahkan
+   aturan UA `[hidden]`, jadi tanpa baris ini kedua tombol tampil bersamaan. */
+.dock-foot .btn[hidden] { display: none; }
+
+/* Ponsel: lembar bawah. Tinggi 58dvh terbuka; terlipat = satu baris bilah
+   "Langkah n dari 7 · …" yang menyebut lokasi sesudah pindah halaman. Tombol
+   drawer nav dan kendali akun ada di header ATAS, jadi lembar bawah tidak
+   pernah menutupinya. z-index 45: di bawah drawer nav (50) supaya drawer yang
+   dibuka tampil utuh di atas lembar. Kepingan langkah menggulir mendatar;
+   tombol kaki selebar lembar dan ≥44px — ukuran jari, bukan kursor. */
+.onboarding-dock[data-mode="mobile"] {
+  top: auto; left: 0; right: 0; bottom: 0; z-index: 45;
+  width: auto; max-width: none;
+  height: 58dvh; max-height: 60dvh;
+  border-left: 0; border-top: 1px solid var(--border);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -8px 30px rgba(12, 17, 23, .22);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.onboarding-dock[data-mode="mobile"] .dock-handle {
+  display: block; width: 40px; height: 4px; flex: none;
+  margin: 8px auto 2px; border-radius: 2px;
+  background: var(--border-strong);
+  touch-action: none;
+}
+.onboarding-dock[data-mode="mobile"] .dock-head { padding: 4px 8px 6px 16px; }
+/* Panah lipat menunjuk ke arah lembar pergi: ke bawah di ponsel, ke kanan di desktop. */
+.onboarding-dock[data-mode="mobile"] .dock-head .btn svg:first-child { transform: rotate(90deg); }
+.onboarding-dock[data-mode="mobile"] .dock-head .btn:last-child svg { transform: none; }
+.onboarding-dock[data-mode="mobile"] .onboarding-head { padding: 0 16px; }
+.onboarding-dock[data-mode="mobile"] .onboarding-steps {
+  flex-wrap: nowrap; overflow-x: auto; padding: 8px 16px 10px;
+  scrollbar-width: thin; -webkit-overflow-scrolling: touch;
+}
+.onboarding-dock[data-mode="mobile"] .onboarding-body { padding: 12px 16px 16px; }
+.onboarding-dock[data-mode="mobile"] .dock-foot {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 16px;
+}
+.onboarding-dock[data-mode="mobile"] .dock-foot .spacer { display: none; }
+.onboarding-dock[data-mode="mobile"] .dock-foot .btn { min-height: 44px; justify-content: center; }
+.onboarding-dock[data-mode="mobile"] .dock-foot .leave { grid-column: 1 / -1; border: 1px solid var(--border); }
+.onboarding-dock[data-mode="mobile"][data-state="collapsed"] { height: auto; max-height: none; }
+.onboarding-dock[data-mode="mobile"][data-state="collapsed"] .dock-bar {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  min-height: 48px; padding: 0 16px;
+  border: 0; background: var(--primary); color: var(--primary-fg);
+  font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer;
+  border-radius: 14px 14px 0 0;
+}
+.onboarding-dock[data-mode="mobile"] .dock-bar .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.onboarding-dock[data-mode="mobile"] .dock-bar .chev { flex: none; transform: rotate(180deg); }
+body.onboarding-sheet .main { padding-bottom: 72px; }
+
+/* Sorotan (ui.js spotlight): cincin berdenyut di atas elemen tujuan. z-index 58
+   — di atas panel onboarding (55) dan drawer nav (50), di bawah overlay modal
+   (60) supaya formulir yang terbuka tetap menutupinya. */
+.spotlight {
+  position: fixed; left: 0; top: 0; z-index: 58;
+  pointer-events: none;
+  border: 2px solid var(--primary); border-radius: 10px;
+  box-shadow: 0 0 0 3px var(--primary-soft);
+  animation: spotlight-pulse 1.6s ease-in-out infinite;
+}
+.spotlight[hidden] { display: none; }
+.spotlight.label-right .spotlight-label { top: 50%; left: 100%; transform: translateY(-50%); margin: 0 0 0 8px; }
+.spotlight.label-above .spotlight-label { top: auto; bottom: 100%; margin: 0 0 7px 0; }
+.spotlight-label {
+  position: absolute; top: 100%; left: 0; margin-top: 7px;
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--primary); color: var(--primary-fg);
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+@keyframes spotlight-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--primary-soft); }
+  50% { box-shadow: 0 0 0 10px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spotlight { animation: none; }
+  .nav { transition: none; }
+}
+
+/* Menu akun kini empat tombol (Tutup · Ganti kata sandi · Panduan onboarding
+   · Keluar) di modal 420 px: dibiarkan melipat, bukan meluap. */
+.modal.narrow .modal-foot { flex-wrap: wrap; }
+
+/* ------------------------------------------------------- dasbor P1-D
+   Kisi widget. EMPAT kolom di desktop supaya ketiga ukuran punya arti dan dua
+   'sedang' muat bersebelahan (kecil 1, sedang 2, lebar 4 = satu baris penuh);
+   alasan lengkapnya di registry.js SPAN. Komentar ini menyebut TIGA kolom
+   sampai verifikasi kedua P1-D — perbaikan harness ke empat kolom tidak
+   sampai ke sini. `minmax(0, 1fr)` dan bukan
+   `auto` karena sebuah tabel lebar di dalam sel grid akan MELEBARKAN kolomnya
+   sampai halaman menggulung mendatar — nilai minimum otomatis sel grid adalah
+   min-content, bukan nol.
+
+   Di bawah 1180 px kisinya dua kolom, 'sedang' dan 'lebar' sama-sama penuh; di bawah 760 px
+   (titik potong yang sama dengan laci nav dan aturan landing P1-C) satu kolom,
+   dan span dari inline style dibatalkan — grid-column inline ditulis penyusun
+   dasbor, jadi pembatalnya harus lebih spesifik. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.card.widget { min-width: 0; }
+.card.widget > .card-head { border-left: 3px solid var(--module-accent); }
+.card.widget .widget-body { min-width: 0; }
+/* Ubin di dalam widget 'kecil' berdiri sendiri-sendiri; .stat-row bawaan
+   mengejar empat kolom dan menyisakan tiga sel kosong di lebar 1 kolom. */
+.card.widget[data-size="kecil"] .stat-row { grid-template-columns: minmax(0, 1fr); }
+
+@media (max-width: 1180px) {
+  .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card.widget[data-size="lebar"] { grid-column: span 2 !important; }
+  .card.widget[data-size="sedang"] { grid-column: span 2 !important; }
+}
+@media (max-width: 760px) {
+  .dash-grid { grid-template-columns: minmax(0, 1fr); }
+  /* `[data-size]` bukan hiasan: pembatal ini harus SEKURANGNYA sespesifik
+     `.card.widget[data-size="lebar"]` di blok 1180 px di atas, karena di antara
+     dua deklarasi !important yang menang adalah yang lebih spesifik — bukan
+     yang belakangan. Tanpa atributnya, sebuah kartu 'lebar' tetap `span 2` di
+     390 px, dan kisi satu kolom menumbuhkan kolom IMPLISIT untuk menampungnya:
+     terukur 6 Sep 2026 (S23 ponsel, teknisi) sebagai grid 84,6 px + 261,4 px —
+     tiga kartu 'sedang' terjepit di 85 px sementara yang 'lebar' memakai
+     keduanya. */
+  .card.widget[data-size] { grid-column: span 1 !important; }
+}
+
+/* Laci "Atur dasbor". Baris = satu kisi supaya nama, ukuran dan tombol berbaris
+   rapi di setiap baris; di ponsel nama pindah ke baris sendiri dan kendalinya
+   MEMBUNGKUS, bukan mengecil.
+
+   Tinggi kendalinya sekarang dipaksa 44 px di penunjuk kasar. Sampai verifikasi
+   kedua P1-D komentar ini menyebut "target 44 px" sementara yang terukur di
+   laci pada 390x844 adalah 36 px (Naik/Turun/Hapus), 34 px (select ukuran) dan
+   34 px (Kembalikan/Batal/Simpan) — di atas lantai WCAG 2.5.8 (24 px) tetapi
+   bukan angka yang ditulisnya. Aturan di bawah membuat kalimat itu benar. */
+.dash-setup-head { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 16px 0 8px; }
+.dash-setup-head:first-child { margin-top: 0; }
+.dash-setup-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--module-accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 6px;
+}
+.dash-setup-row .dash-setup-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dash-setup-row .dash-setup-name .cell-sub { white-space: normal; }
+.dash-setup-grip { cursor: grab; color: var(--muted); display: inline-flex; padding: 4px; }
+.dash-setup-grip:active { cursor: grabbing; }
+.dash-setup-row.spare { opacity: .92; }
+.dash-setup-row select.dash-setup-size { width: auto; flex: none; }
+/* Kelas yang dipasang SortableJS pada baris yang sedang diseret. */
+.dash-setup-row.sortable-ghost { opacity: .4; }
+@media (max-width: 560px) {
+  .dash-setup-row { flex-wrap: wrap; }
+  .dash-setup-row .dash-setup-name { flex-basis: 100%; }
+
+  /* …dan 44 px, angka yang komentar di atas sudah menyebut sejak P1-D.
+     Terukur di laci pada 390x844 sebelum aturan ini: Naik/Turun/Hapus 28 px,
+     select ukuran 34 px, tombol kaki 34 px — di atas lantai WCAG 2.5.8 (24 px)
+     tetapi bukan angka yang dijanjikan (verifikasi kedua P1-D).
+
+     Lebar layar, BUKAN `pointer: coarse`: idiom itu tidak bisa diukur harness
+     ini (Chromium-nya melaporkan maxTouchPoints 0 walau konteksnya ponsel),
+     dan sebuah janji yang tidak bisa diukur adalah janji berikutnya yang
+     diam-diam batal. Titik potongnya sama dengan pembungkus baris di atas. */
+  .dash-setup-row .btn,
+  .dash-setup-row select.dash-setup-size,
+  .modal:has(.dash-setup-list) .modal-foot .btn { min-height: 44px; }
+}
+
+/* ----------------------------------------------------------- papan (P1-G)
+   Kolom yang menggulir MENDATAR sebagai satu blok, bukan kisi yang membungkus:
+   sebuah papan yang kolomnya turun ke baris kedua berhenti menjadi papan.
+   `min-width` per kolom menjaga kartu tetap terbaca; di ponsel kolom menyempit
+   tetapi tetap satu baris, dan jempol menggulir mendatar seperti pada .chart-scroll. */
+.board-grid {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+.board-lane {
+  flex: 1 0 240px;
+  min-width: 240px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+/* Kertas tidak menggulir — alasan yang sama dengan .table-wrap dan
+   .chart-scroll di blok @media print utama, yang melewatkan papan sampai
+   8 Sep 2026. Diukur dengan emulate_media('print') pada 794 px (A4 potret
+   @96 dpi): scrollWidth 1500 px, dan hanya 3 dari 6 kolom papan prospek yang
+   utuh di halaman — "Penawaran Dikirim", "Menang" dan "Kalah" tidak tercetak,
+   tanpa satu kalimat pun yang mengaku. DIBUNGKUS, bukan dipotong: kolom yang
+   tidak muat turun ke baris berikutnya, dan tidak ada kolom yang terbelah dua
+   halaman. Blok ini berdiri SESUDAH .board-grid, bukan di blok cetak jauh di
+   atas: spesifisitasnya sama, jadi yang belakangan menang — sebuah aturan
+   cetak yang ditulis lebih dulu akan kalah oleh `overflow-x: auto` di atas
+   tanpa satu tanda pun. */
+@media print {
+  .board-grid { overflow: visible; flex-wrap: wrap; }
+  .board-lane { break-inside: avoid; }
+}
+.board-lane-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.board-lane-head .board-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+/* min-height BUKAN hiasan: SortableJS hanya bisa menerima kartu ke dalam kolom
+   yang punya tinggi (emptyInsertThreshold diukur terhadap kotaknya), jadi kolom
+   kosong setinggi nol tidak bisa dijatuhi apa pun. */
+.board-cards { min-height: 96px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.board-empty { opacity: .75; }
+
+.board-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--module-accent, var(--border-strong));
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: grab;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.board-card:active { cursor: grabbing; }
+.board-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.board-card-head { display: flex; align-items: baseline; gap: 8px; }
+.board-card-head .num { margin-left: auto; }
+.board-card-foot { display: flex; gap: 8px; justify-content: space-between; }
+/* Kelas yang dipasang SortableJS pada kartu yang sedang diseret. */
+.board-card-ghost { opacity: .4; }
+
+@media (max-width: 760px) {
+  .board-lane { flex-basis: 78vw; min-width: 78vw; }
+}
