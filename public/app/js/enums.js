@@ -6,8 +6,12 @@
    [value, label, tone]. `tone` hanya dipasang bila disebut (termasuk '' untuk
    netral), supaya statusTone() bisa membedakan "enum ini menetapkan warnanya"
    dari "ikuti peta kata bersama di format.js". */
-const opts = (pairs) => pairs.map(([value, label, tone]) =>
-  (tone === undefined ? { value, label } : { value, label, tone }));
+const opts = (pairs) => pairs.map(([value, label, tone, icon]) => ({
+  value,
+  label,
+  ...(tone === undefined ? {} : { tone }),
+  ...(icon === undefined ? {} : { icon }),
+}));
 
 export const ENUMS = {
   /* P-0b — kotak keluar pengiriman notifikasi (core_notification_deliveries).
@@ -469,4 +473,15 @@ export function enumTone(name, value) {
   const list = ENUMS[name] || [];
   const hit = list.find((option) => option.value === value);
   return hit && 'tone' in hit ? hit.tone : undefined;
+}
+
+/**
+ * Ikon sprite yang ditetapkan enum itu sendiri untuk satu nilai (kolom keempat
+ * tuple opts, UX-C.3), atau `undefined` bila enum tidak menetapkannya —
+ * statusIcon() di format.js lalu memakai peta kata bersamanya.
+ */
+export function enumIcon(name, value) {
+  const list = ENUMS[name] || [];
+  const hit = list.find((option) => option.value === value);
+  return hit && 'icon' in hit ? hit.icon : undefined;
 }

@@ -85,7 +85,7 @@
   --fs-body: 13px;       /* teks isi — ukuran kerja aplikasi */
   --fs-table: 13px;      /* sel tabel */
   --fs-section: 14px;    /* judul kartu/seksi — TARGET, hari ini 13,5 */
-  --fs-page: 20px;       /* judul halaman */
+  --fs-page: 24px;       /* judul halaman — 24 di meja (handoff UX-C.3), 20 di ≤ 760 px (blok @media di bawah) */
   --fs-kpi: 22px;        /* angka KPI */
   --lh-tight: 1.25; --lh-body: 1.5;
   --fw-medium: 500; --fw-semi: 600; --fw-bold: 700;
@@ -824,7 +824,7 @@ table.data tr.emphasis td { background: var(--surface-2); }
    bergerak — yang berubah adalah: kalau skalanya nanti disetel, kepala halaman
    ikut, alih-alih tertinggal sendirian. --fs-page ada sejak UI-1 dan sampai
    sekarang tidak punya satu pun pemakai. */
-.page-head h1 { font-size: var(--fs-page); letter-spacing: -.015em; }
+.page-head h1 { font-size: var(--fs-page); letter-spacing: -.02em; font-weight: var(--fw-semi); }
 .page-head .desc { color: var(--muted); font-size: var(--fs-body); margin-top: 3px; }
 .page-head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -2086,6 +2086,8 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
   .nav, .brand, .header, .page-head .actions, .filters, .pager,
   .toasts, .overlay, .tabs { display: none !important; }
+  /* UX-C.3: tombol keputusan dan ringkasan galat adalah kontrol, bukan isi dokumen. */
+  .action-panel-actions, .error-summary, .overflow-menu { display: none !important; }
   /* Seleksi adalah keadaan LAYAR: bilahnya dan kolom centangnya tidak punya
      arti di kertas, dan kolom kosong selebar 16 px menggeser seluruh tabel. */
   .selbar, table.data th.pick, table.data td.pick { display: none !important; }
@@ -3297,3 +3299,140 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 .tone-pos { color: var(--success); }
 .tone-neg { color: var(--danger); }
 .tone-warn { color: var(--warning); }
+
+/* ===================================================== primitif UX-C.3 */
+/* Gaya untuk sebelas pembangun ui.js (README C3, quick sheet). Ditulis di akhir
+   berkas dengan sengaja: .tabs di bawah MENIMPA aturan .tabs lama (baris ~1659)
+   dan harus menang pada spesifisitas yang sama. Semua warna token; angka dari
+   quick sheet handoff (tab 38 px, lencana 11,5 px/600, kartu radius-lg). */
+
+/* Judul halaman 24 px di meja, 20 px di ponsel — token, bukan literal di komponen. */
+@media (max-width: 760px) {
+  :root { --fs-page: 20px; }
+}
+
+/* Lencana berikon (statusBadge): ikon 12 px; kelas .status tanpa titik ::before. */
+.badge .lucide { width: 12px; height: 12px; flex: none; }
+.badge.status { padding-left: 7px; }
+
+/* Kepala dokumen. Nomor dokumen adalah subjek kalimat (RECAP § copy rules 4),
+   maka ia yang paling besar: 26 px mono 600; jenis 12,5 px redup di atasnya. */
+.doc-head { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.doc-kind { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.doc-code { font-size: 26px; font-weight: var(--fw-semi); line-height: 1.2; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.doc-party { font-size: 15px; font-weight: var(--fw-medium); color: var(--text); }
+.doc-context { font-size: var(--fs-body); color: var(--primary); text-decoration: none; }
+.doc-context:hover { text-decoration: underline; }
+@media (max-width: 760px) { .doc-code { font-size: 22px; } }
+
+/* Panel tindakan: 1 px tepi senada, radius-lg, latar lunak untuk attn; rel kiri
+   3 px untuk success/danger/warn/info (README C3). Tombolnya rata kanan di meja,
+   satu baris penuh di ponsel. */
+.action-panel {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface-2); color: var(--text);
+  font-size: var(--fs-body);
+}
+.action-panel-icon { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; }
+/* Basis 0, bukan auto: dengan auto, judul yang panjang membawa seluruh badan ke baris
+   berikutnya di 390 px dan ikonnya tertinggal sendirian di baris pertama (terukur 3 Okt 2026). */
+.action-panel-body { flex: 1 1 0; min-width: 0; }
+.action-panel-title { font-size: var(--fs-section); font-weight: var(--fw-semi); line-height: 1.35; }
+.action-panel-text { margin-top: 3px; color: var(--text-2); }
+.action-panel-title + .action-panel-text { margin-top: 4px; }
+.action-panel-actions { flex: none; display: flex; gap: 8px; flex-wrap: wrap; align-self: center; }
+.action-panel.attn { border-color: var(--attn); background: var(--attn-soft); }
+.action-panel.attn .action-panel-title, .action-panel.attn .action-panel-icon { color: var(--attn); }
+.action-panel.success, .action-panel.danger, .action-panel.warn, .action-panel.info { border-left-width: 3px; }
+.action-panel.success { border-left-color: var(--success); }
+.action-panel.success .action-panel-title, .action-panel.success .action-panel-icon { color: var(--success); }
+.action-panel.danger { border-left-color: var(--danger); }
+.action-panel.danger .action-panel-title, .action-panel.danger .action-panel-icon { color: var(--danger); }
+.action-panel.warn { border-left-color: var(--warning); }
+.action-panel.warn .action-panel-title, .action-panel.warn .action-panel-icon { color: var(--warning); }
+.action-panel.info { border-left-color: var(--info); }
+.action-panel.info .action-panel-title, .action-panel.info .action-panel-icon { color: var(--info); }
+@media (max-width: 760px) {
+  .action-panel { flex-wrap: wrap; }
+  .action-panel-actions { flex: 1 1 100%; align-self: auto; }
+  .action-panel-actions .btn { flex: 1 1 auto; height: 44px; }
+}
+
+/* Tab 38 px, satu baris, gulir mendatar; garis bawah 2 px; pil jumlah. */
+.tabs {
+  display: flex; gap: 2px; margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto; overflow-y: hidden; white-space: nowrap;
+  scrollbar-width: thin;
+}
+.tabs button {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 38px; padding: 0 13px; margin-bottom: -1px;
+  border: 0; border-bottom: 2px solid transparent; background: transparent;
+  font-size: var(--fs-body); font-weight: var(--fw-medium); color: var(--muted);
+  white-space: nowrap; cursor: pointer;
+}
+.tabs button:hover { color: var(--text); }
+.tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: var(--fw-semi); }
+.tabs button:focus-visible { outline-offset: -2px; }
+.tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 6px;
+  border-radius: var(--radius-pill); background: var(--surface-3); color: var(--text-2);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi); font-variant-numeric: tabular-nums;
+}
+.tabs button.active .tab-count { background: var(--primary-soft); color: var(--primary); }
+@media (pointer: coarse) { .tabs button { height: 44px; } }
+
+/* Ubin label–nilai (detail.headline, UX-E2): label 11 px kapital .08em, nilai mono. */
+.kv-tile { min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.kv-tile-label { font-size: var(--fs-caption); font-weight: var(--fw-semi); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.kv-tile-value { margin-top: 2px; font-size: 16px; font-weight: var(--fw-semi); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kv-tile-note { margin-top: 2px; font-size: var(--fs-secondary); color: var(--muted); }
+.kv-tile.success .kv-tile-value { color: var(--success); }
+.kv-tile.danger .kv-tile-value { color: var(--danger); }
+.kv-tile.warn .kv-tile-value { color: var(--warning); }
+.kv-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); }
+
+/* Peta proses (stepper, beranda modul UX-F2): urutan lazim, bukan wajib — tanpa
+   panah "harus"; angka hanya untuk kunci ModuleCounts yang terdaftar. */
+.stepper { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: thin; }
+.step { flex: 1 0 auto; min-width: 0; }
+.step-link {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  color: var(--text); text-decoration: none; white-space: nowrap;
+}
+a.step-link:hover { background: var(--surface-2); border-color: var(--border-strong); text-decoration: none; }
+.step-index {
+  flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--surface-3); color: var(--text-2); font-size: var(--fs-caption); font-weight: var(--fw-semi);
+}
+.step-label { font-size: var(--fs-body); font-weight: var(--fw-medium); }
+.step-count { margin-left: auto; font-size: var(--fs-body); font-weight: var(--fw-semi); color: var(--text-2); }
+.step.active .step-link { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.step.active .step-index { background: var(--primary); color: var(--primary-fg); }
+.step.done .step-index { background: var(--success-soft); color: var(--success); }
+
+/* Ringkasan galat (errorSummary): rel kiri --danger, daftar tombol lompat. */
+.error-summary {
+  margin-bottom: 14px; padding: 12px 14px;
+  border: 1px solid var(--border); border-left: 3px solid var(--danger); border-radius: var(--radius);
+  background: var(--danger-soft); color: var(--text); font-size: var(--fs-body);
+}
+.error-summary-head { display: flex; align-items: center; gap: 8px; color: var(--danger); }
+.error-summary ul { margin: 8px 0 0; padding-left: 20px; }
+.error-summary li + li { margin-top: 4px; }
+.error-summary b { font-weight: var(--fw-semi); }
+button.linkish {
+  border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+button.linkish:hover b { text-decoration: underline; }
+
+/* Menu ⋯: pemisah sebelum item destruktif, item destruktif dalam --danger. */
+.menu-divider { margin: 4px 0; border: 0; border-top: 1px solid var(--border); }
+.menu-item.danger { color: var(--danger); }
+.menu-item.danger svg { color: var(--danger); }
+.menu-item.danger:hover, .menu-item.danger:focus-visible { background: var(--danger-soft); }

@@ -2,7 +2,7 @@
 
 import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
-import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth, confirmDialog } from './ui.js';
+import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth, confirmDialog, drawer } from './ui.js';
 import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath, setLeaveGuard, clearLeaveGuard } from './router.js';
@@ -854,9 +854,11 @@ function buildShell() {
      tetap inert: terlihat, dan tidak bisa disentuh siapa pun. */
   new MutationObserver(syncInert).observe(document.body, { attributeFilter: ['class'] });
 
+  // Satu mekanisme laci (UX-C.3): ui.drawer() memegang kelasnya dan aria-expanded
+  // hamburger; bilah bawah UX-D membuka laci lewat pegangan yang sama persis.
+  const navDrawer = drawer();
   const setDrawer = (open) => {
-    document.body.classList.toggle('nav-open', open);
-    menuToggle.setAttribute('aria-expanded', String(open));
+    if (open) navDrawer.open(); else navDrawer.close();
     syncInert();
   };
   syncInert();
