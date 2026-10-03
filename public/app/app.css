@@ -59,7 +59,7 @@
   --shadow-sm: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .07);
   --shadow-md: 0 6px 20px rgba(16, 24, 40, .10), 0 2px 6px rgba(16, 24, 40, .06);
   --shadow-lg: 0 18px 48px rgba(16, 24, 40, .18);
-  --radius: 10px;
+  --radius: 10px;   /* bersama --radius-sm/-lg juga ditulis di keempat blok tema dan kedua blok cetak (ERRATA E-1 butir 4), nilai sama */
   --radius-sm: 8px;
   --sidebar-w: 250px;
   --header-h: 56px;
@@ -183,6 +183,13 @@
   --row-h: 38.5px;
   --cell-py: 9px;
   --cell-px: 12px;
+  /* Tinggi kontrol (UX-C.5, ERRATA E-1 butir 5): 38 px medan isian dan 36 px tombol adalah
+     angka quick sheet handoff untuk kepadatan NORMAL; rapat dan lega menurunkannya dari
+     --row-h di blok masing-masing (32/30 dan 44/42). .btn.sm (28) dan kontrol di dalam tabel
+     (table.lines 31, td select 34) tidak ikut: tinggi barisnya dibekukan pemilik dan diukur S21.
+     Di layar sentuh lantai 36 px tetap berlaku lewat max() di blok pointer: coarse. */
+  --input-h: 38px;
+  --btn-h: 36px;
   /* Kaki tabel (tfoot "Total") punya padding sendiri: sebelum token ada ia 10 px,
      bukan 9 px seperti td — verifikasi P1-B 5 Sep 2026 mengukur baris total
      41 → 39 px di PO, detail PO, Saldo Stok, dan Laporan begitu tfoot ikut
@@ -195,9 +202,11 @@
 
 :root[data-density="compact"] {
   --row-h: 32px; --cell-py: 3px; --cell-px: 10px; --foot-py: 4px; --nav-py: 4px; --form-gap: 9px 14px; --kv-gap: 5px 12px;
+  --input-h: var(--row-h); --btn-h: calc(var(--row-h) - 2px);
 }
 :root[data-density="comfortable"] {
   --row-h: 48px; --cell-py: 9px; --cell-px: 14px; --foot-py: 10px; --nav-py: 8px; --form-gap: 16px 18px; --kv-gap: 12px 16px;
+  --input-h: calc(var(--row-h) - 4px); --btn-h: calc(var(--row-h) - 6px);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -218,6 +227,7 @@
     --primary-fg: #0e1216;
     --attn: #e6b95c;
     --attn-soft: #2b2410;
+    --radius: 10px; --radius-sm: 8px; --radius-lg: 14px;
     --danger: #f87171;
     --danger-soft: #331a1a;
     --success: #4ade80;
@@ -298,6 +308,7 @@
   --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff; --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
   --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff; --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
   --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff; --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
+  --radius: 10px; --radius-sm: 8px; --radius-lg: 14px;
 }
 
 :root[data-theme="dark"] {
@@ -320,6 +331,7 @@
   --accent-3: #49e181; --accent-3-soft: #182627; --accent-3-fg: #0d1117; --accent-4: #bd7efc; --accent-4-soft: #222233; --accent-4-fg: #0d1117;
   --accent-5: #00d4f2; --accent-5-soft: #142730; --accent-5-fg: #0d1117; --accent-6: #f57272; --accent-6-soft: #292228; --accent-6-fg: #0d1117;
   --accent-7: #fbcd1a; --accent-7-soft: #232521; --accent-7-fg: #0d1117; --accent-8: #afb3bc; --accent-8-soft: #1f242c; --accent-8-fg: #0d1117;
+  --radius: 10px; --radius-sm: 8px; --radius-lg: 14px;
 }
 
 /* ------------------------------------------------------------------ base */
@@ -896,7 +908,7 @@ table.data tr.emphasis td { background: var(--surface-2); }
 /* --------------------------------------------------------------- buttons */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 34px; padding: 0 13px;
+  height: var(--btn-h); padding: 0 13px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -920,7 +932,7 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .btn.subtle { border-color: transparent; background: var(--surface-3); color: var(--text-2); }
 .btn.subtle:hover:not(:disabled) { background: var(--border); color: var(--text); }
 .btn.sm { height: 28px; padding: 0 9px; font-size: 12.5px; }
-.btn.icon { width: 34px; padding: 0; }
+.btn.icon { width: var(--btn-h); padding: 0; }
 .btn.sm.icon { width: 28px; }
 
 .btn .spin {
@@ -1025,7 +1037,7 @@ table.data tr.emphasis td { background: var(--surface-2); }
 input[type=text], input[type=password], input[type=email], input[type=number],
 input[type=date], input[type=datetime-local], select, textarea {
   width: 100%;
-  height: 34px;
+  height: var(--input-h);
   padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -1067,7 +1079,7 @@ select.filter-w { width: auto; min-width: 138px; max-width: 230px; }
 .field .err { margin-top: 4px; font-size: 11.5px; color: var(--danger); }
 .field.invalid input, .field.invalid select, .field.invalid textarea { border-color: var(--danger); }
 
-.check-row { display: flex; align-items: center; gap: 8px; height: 34px; }
+.check-row { display: flex; align-items: center; gap: 8px; height: var(--input-h); }
 .check-row label { margin: 0; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
 
 /* Kontrol Kepadatan di dialog Akun (app.js densityControl, P1-B). */
@@ -1850,6 +1862,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
     --chart-5: #000000; --chart-6: #5a5a5a; --chart-7: #363636; --chart-8: #808080;
     --chart-grid: #d1d5db; --chart-axis: #6b7280; --chart-text: #374151; --chart-today: #000000;
     --chart-weekend: #f3f4f6; --chart-baseline: #c4c9d0;
+    --radius: 10px; --radius-sm: 8px; --radius-lg: 14px;
   }
   /* Seri 2 dimulai dari TITIK-TITIK, bukan garis putus 6 3: seri 1 yang sudah
      `dashed`/`dash` dari datanya (rencana vs aktual) memakai 6 4 / 5 3 dan akan kembar.
@@ -2081,6 +2094,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
     --accent-3: #007d3d; --accent-3-soft: #e8f3ee; --accent-3-fg: #ffffff; --accent-4: #9000c6; --accent-4-soft: #f7edfb; --accent-4-fg: #ffffff;
     --accent-5: #00758f; --accent-5-soft: #ebf4f6; --accent-5-fg: #ffffff; --accent-6: #970e2a; --accent-6-soft: #f8eef0; --accent-6-fg: #ffffff;
     --accent-7: #926100; --accent-7-soft: #f6f2eb; --accent-7-fg: #ffffff; --accent-8: #4a505c; --accent-8-soft: #f1f1f2; --accent-8-fg: #ffffff;
+    --radius: 10px; --radius-sm: 8px; --radius-lg: 14px;
   }
   /* .toasts dan .overlay ikut daftar ini: toast yang masih tampil dan dialog
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
@@ -2273,7 +2287,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
    was designed on a desktop. */
 .field-select { width: 100%; }
 /* .btn.lg dipakai HANYA di layar ponsel (Lapangan, Absensi Saya). `height`
-   eksplisit, bukan padding: .btn punya height: 34px dan box-sizing: border-box,
+   eksplisit, bukan padding: .btn punya height: var(--btn-h) (34 px saat ini ditulis, 36 sejak UX-C.5) dan box-sizing: border-box,
    jadi padding vertikal di sini tidak menumbuhkan kotaknya sama sekali —
    terukur 8 Sep 2026, keempat tombol absen 328x34 px. Standar target sentuh
    rumah ini 42-44 px (@media (pointer: coarse) di atas), dan layar yang
@@ -2573,7 +2587,7 @@ table.data tbody tr.clickable:focus-visible { outline: 2px solid var(--primary);
 
 .combo .combo-input {
   width: 100%;
-  height: 34px;
+  height: var(--input-h);
   padding: 0 28px 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -2715,8 +2729,8 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
      penting: `.btn` 34 px lawan `.btn.sm` 36 px. Terukur 19 Sep 2026 di 143
      rute pada 390 px dengan pointer kasar: 565 sasaran setinggi 34 px, semuanya
      `.btn` bawaan. Alasannya sama persis dengan kalimat di atas. */
-  .btn { height: 36px; }
-  .btn.icon { width: 36px; }
+  .btn { height: max(36px, var(--btn-h)); }
+  .btn.icon { width: max(36px, var(--btn-h)); }
   /* Medan isian ikut lantai yang sama. Sesudah tombol dinaikkan, sisa sasaran
      di bawah 36 px pada 390 px turun 565 → 336, dan SELURUH sisanya adalah
      <input>/<select>: kotak saring di bilah alat, yang di ponsel justru kontrol
@@ -2729,11 +2743,11 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
      seseorang memakai jenis berikutnya. Yang dikecualikan sekarang justru yang
      kotaknya BUKAN medan isian: kotak centang, radio, berkas, rentang. */
   input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=hidden]),
-  select { height: 36px; }
+  select { height: max(36px, var(--input-h)); }
   /* `.pager select` (0,1,1) mengalahkan `select` (0,0,1) di atas, jadi ia butuh
      barisnya sendiri — pelajaran yang sama dengan `.combo .combo-input`. */
-  .pager select { height: 36px; }
-  .check-row { height: 36px; }
+  .pager select { height: max(36px, var(--input-h)); }
+  .check-row { height: max(36px, var(--input-h)); }
   /* Kontrol DI DALAM tabel: lantai 24 px, bukan 36 (UI-7).
      Terukur 19 Sep 2026 di 390 px dengan pointer kasar, sesudah lantai tombol
      dan medan isian di atas: yang tersisa di bawah 36 px hampir seluruhnya
@@ -2806,7 +2820,7 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
      berlaku — 34 px lawan 36 px, medan isian, combobox — tetapi hitungannya
      tidak. Angka atas halaman penuh: 545 sasaran < 36 px sebelum tiga aturan
      berikutnya, 496 sesudahnya, dan 6 yang masih < 24 px. */
-  .combo .combo-input { height: 36px; }
+  .combo .combo-input { height: max(36px, var(--input-h)); }
   /* Kepadatan di layar sentuh (verifikasi P1-B 5 Sep 2026): tautan drawer profil
      rapat 27,5 px dan baris radio dialog Kepadatan 30 px berada di bawah sasaran
      jempol 36 px yang dipakai aturan ini. Lantai 36 px untuk tautan sidebar di
