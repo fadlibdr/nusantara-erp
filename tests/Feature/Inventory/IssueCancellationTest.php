@@ -603,7 +603,10 @@ class IssueCancellationTest extends ErpTestCase
             'stockDocStatus could not be found in enums.js; this test can no longer check anything.',
         );
 
-        preg_match_all("/\['([a-z_]+)', '([^']+)'\]/", $matches[1], $pairs, PREG_SET_ORDER);
+        // Sejak UX-C.4 (ERRATA E-3) sebuah tuple boleh membawa tone dan ikon sesudah label —
+        // ['draft', 'Draf', null, 'pencil'] — jadi yang dibaca di sini tetap PASANGAN nilai–label,
+        // dan anggota opsional sesudahnya dilewati. Perbandingannya dengan PHP tetap persis.
+        preg_match_all("/\['([a-z_]+)', '([^']+)'(?:, (?:null|'[^']*'))*\]/", $matches[1], $pairs, PREG_SET_ORDER);
 
         return array_map(fn (array $pair): array => [$pair[1], $pair[2]], $pairs);
     }

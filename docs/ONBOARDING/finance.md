@@ -305,7 +305,7 @@ kode dokumen, teks merah persis, tombol yang ditekan (PANDUAN §14.5). Bila jawa
 ---
 
 > **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** dengan satu kotak masuk untuk
+> `ux/p0-measured`, belum digabung): layar **Persetujuan** (dulu bernama Tugas Saya) dengan satu kotak masuk untuk
 > semua jenis dokumen; draf formulir bertahan di peramban saat sesi habis; catatan
 > persetujuan diketik langsung di halaman tanpa dialog; ganti kata sandi sendiri. Sampai
 > rilis itu tayang, panduan ini yang berlaku.

@@ -73,7 +73,7 @@ final class ModuleCounts
                 'unit' => 'notifikasi',
                 'permission' => null,
                 'tables' => ['core_notifications'],
-                'why' => 'Ringkasan adalah modul MILIK PEMBACANYA (Dasbor, Tugas Saya, Tenggat, Kalender), jadi '
+                'why' => 'Ringkasan adalah modul MILIK PEMBACANYA (Dasbor, Persetujuan, Tenggat, Kalender), jadi '
                     .'angkanya harus per orang. "Menunggu persetujuan Anda" akan lebih tepat, tetapi ApprovalQueue '
                     .'::pending memuat SETIAP dokumen submitted dari 28 registri untuk menerapkan aturan '
                     .'maker-checker — bukan satu kueri murah, dan bukan sesuatu yang boleh berjalan di setiap '

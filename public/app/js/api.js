@@ -44,7 +44,7 @@ export const session = {
   },
   /** An array means "any of these" — a screen several modules can reach.
       A function is asked with the list held AND the list LENT — a screen gated
-      by the SHAPE of a permission rather than a name (Tugas Saya and the
+      by the SHAPE of a permission rather than a name (Persetujuan and the
       approvals card: any `<module>.approve`, schema.js ANY_APPROVE, T2.11).
 
       `borrowed` (F-1 putaran 2): hitung juga hak yang DIPINJAMKAN sebuah

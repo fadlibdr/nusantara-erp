@@ -72,7 +72,8 @@ tempo terdekat**, **Tiket layanan aktif**, **Perlu dipesan ulang**.
 
 > **Kartu "Menunggu persetujuan Anda" memuat SETIAP jenis dokumen berpersetujuan** — ke-29
 > jenis yang sama dengan yang disebut di atas, dari Penawaran sampai Pengajuan cuti. Kartu
-> dasbor menggambar lima baris teratas; sisanya ada di **Tugas Saya**, yang kakinya ditaut
+> dasbor menggambar lima baris teratas; sisanya ada di **Persetujuan** (baris tetap di puncak
+> sidebar; sampai Oktober 2026 bernama Tugas Saya), yang kakinya ditaut
 > dari kartu itu.
 >
 > Sampai 2 September 2026 kartu ini hanya menanyakan 11 jenis, sehingga pengajuan cuti yang
@@ -262,6 +263,6 @@ PANDUAN-ADMINISTRATOR §12 dan ANALISIS §5; itu keputusan Anda, bukan keputusan
 ---
 
 > **Sudah tayang di erp1 sejak 5 September 2026** (cabang `ux/p0-measured`, digabung dan
-> ter-deploy): layar **Tugas Saya** dengan satu kotak masuk untuk **semua jenis dokumen
+> ter-deploy): layar **Persetujuan** (dulu bernama Tugas Saya) dengan satu kotak masuk untuk **semua jenis dokumen
 > berpersetujuan** (bukan 11); draf formulir bertahan di peramban saat sesi habis; catatan
 > persetujuan diketik langsung di halaman tanpa dialog; ganti kata sandi sendiri.

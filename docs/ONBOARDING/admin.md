@@ -274,7 +274,7 @@ layar — jadwalkan rilis, jangan menyunting basis data hidup.
 
 > **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
 > `ux/p0-measured`, belum digabung; menggabungkan dan men-deploy-nya keputusan pemilik):
-> layar **Tugas Saya** dengan satu kotak masuk untuk semua jenis dokumen; draf formulir
+> layar **Persetujuan** (dulu bernama Tugas Saya) dengan satu kotak masuk untuk semua jenis dokumen; draf formulir
 > bertahan di peramban saat sesi habis; catatan persetujuan diketik langsung di halaman
 > tanpa dialog; **ganti kata sandi sendiri** — yang akan mengurangi permintaan
 > ADMINISTRATOR §3.4 kepada Anda. Sampai rilis itu tayang, panduan ini yang berlaku.

@@ -12,7 +12,7 @@ use Modules\Core\Support\Erp;
 
 /**
  * GET core/inbox — kotak masuk persetujuan pemanggil. Logikanya di
- * ApprovalQueue supaya kartu dasbor, layar Tugas Saya, dan erp:approval-watch
+ * ApprovalQueue supaya kartu dasbor, layar Persetujuan, dan erp:approval-watch
  * membaca antrean yang sama persis.
  */
 class InboxController extends ApiController

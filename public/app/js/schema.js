@@ -6339,7 +6339,7 @@ export const RESOURCES = {
 };
 
 /*
- * Izin persetujuan APA PUN — gerbang tautan Tugas Saya (NAV di bawah) dan
+ * Izin persetujuan APA PUN — gerbang tautan Persetujuan (NAV di bawah; "Tugas Saya" sampai UX-D.2) dan
  * kartu "Menunggu persetujuan Anda" di dasbor (T2.11). Bentuk izin, bukan
  * nama: GET core/inbox hanya memuat jenis yang `<awalan>.approve`-nya
  * dipegang pemanggil (ApprovalQueue::pending), jadi tanpa satu pun izin itu
@@ -6357,9 +6357,9 @@ export const RESOURCES = {
  * ARGUMEN KEDUA ADALAH HAK PINJAMAN (F-1 putaran 2), dan tanpanya gerbang ini
  * menutup pintu tepat di depan orang yang fitur delegasi ada untuknya: seorang
  * delegat murni tidak memegang satu pun `.approve` sendiri, jadi ia tidak
- * mendapat tautan "Tugas Saya" — sementara kotak masuk di baliknya berisi
+ * mendapat tautan "Persetujuan" — sementara kotak masuk di baliknya berisi
  * dokumen yang server izinkan ia putuskan (diukur 7 Sep 2026 pada
- * finance@nusantara.test: bilah samping tanpa "Tugas Saya", dasbor tanpa kata
+ * finance@nusantara.test: bilah samping tanpa "Persetujuan", dasbor tanpa kata
  * "persetujuan", kotak masuk dengan 2 baris). PANJANGNYA saja yang diperiksa,
  * bukan bentuknya: satu-satunya ability yang pernah dipinjamkan sebuah delegasi
  * adalah `<awalan>.approve` dan `<awalan>.approve-director`
@@ -6443,13 +6443,20 @@ export const NAV = [
     // 'Beranda' di #/m/ringkasan menutup lingkaran (#/home → ubin Ringkasan →
     // #/m/ringkasan → kartu Beranda → #/home). Sidebar tetap memuatnya;
     // yang menyaring adalah kisi kartu dan hitungan layar.
+    /* `pinned: true` (UX-D.2, ERRATA E-4) — BARIS TETAP di puncak sidebar dan
+       bilah bawah ponsel: Beranda, Persetujuan, dan nanti Pekerjaan Saya (UX-F2).
+       Barisnya tetap milik grup ini (izin, palet Ctrl+K, onboarding, beranda
+       modul membacanya dari sini); shell hanya MENGGAMBARNYA di atas dan
+       melewatkannya di grupnya. `icon` untuk rel ikon/bilah bawah, `count:
+       'inbox'` = lencana jumlah dari core/inbox (js/inbox.js), hanya untuk
+       pemegang ANY_APPROVE — tidak ada izin yang ditulis di shell. */
     /* P1-F — 'Laporan Bebas' duduk di Ringkasan, bukan di Keuangan: ia
        menyusun laporan atas DELAPAN sumber dari enam modul, dan menaruhnya di
        satu modul akan menyembunyikannya dari lima peran lain yang punya
        sumbernya sendiri. Tanpa `perm`: katalognya menyaring dirinya per entri,
        dan peran yang tidak punya satu sumber pun mendapat kalimat yang
        mengatakannya — bukan baris menu yang hilang tanpa sebab. */
-    items: [{ label: 'Beranda', route: 'home', chrome: true }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Tugas Saya', route: 'tugas', perm: ANY_APPROVE }, { label: 'Absensi Saya', route: 'absensi-saya' }, { label: 'Timesheet Saya', route: 'timesheet-saya' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }, { label: 'Profil & Notifikasi', route: 'profil' }],
+    items: [{ label: 'Beranda', route: 'home', chrome: true, pinned: true, icon: 'home' }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Persetujuan', route: 'tugas', perm: ANY_APPROVE, pinned: true, icon: 'inbox', count: 'inbox' }, { label: 'Absensi Saya', route: 'absensi-saya' }, { label: 'Timesheet Saya', route: 'timesheet-saya' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }, { label: 'Profil & Notifikasi', route: 'profil' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',

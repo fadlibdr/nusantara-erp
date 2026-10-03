@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '39';
+const SHELL_VERSION = '45';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -97,11 +97,15 @@ const SHELL = [
   'js/charts.js',
   'js/combobox.js',
   'js/crumbs.js',
+  // UX-D.4 — sumber Buat ▾ (dan grup Aksi di Ctrl+K): tombol Tambah yang dikumpulkan.
+  'js/create.js',
   'js/csv.js',
   'js/drafts.js',
   'js/enums.js',
   'js/format.js',
   'js/illustrations.js',
+  // UX-D.2 — pemuat bersama kotak masuk persetujuan (lencana, widget, layar).
+  'js/inbox.js',
   'js/kalenderpalette.js',
   'js/lookup.js',
   'js/money.js',

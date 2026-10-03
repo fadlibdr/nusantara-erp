@@ -7,6 +7,7 @@ import { promptFields, buildInput, openForm } from './form.js';
 import { navigate } from '../router.js';
 import { RESOURCES } from '../schema.js';
 import { openPrintTab, showPrintable } from '../print.js';
+import { loadInbox } from '../inbox.js';
 
 const PAST = {
   submit: 'diajukan · menunggu persetujuan', approve: 'disetujui', reject: 'ditolak', post: 'diposting',
@@ -16,11 +17,14 @@ const PAST = {
 /*
  * Setelah memutus satu dokumen, tunjukkan yang berikutnya di antrean — tanpa
  * kembali ke dasbor (18 permintaan) dan mencari barisnya lagi. Satu permintaan
- * ke core/inbox; gagal = tidak ada tawaran, bukan galat.
+ * ke core/inbox; gagal = tidak ada tawaran, bukan galat. Lewat pemuat bersama
+ * (UX-D.2): jawaban yang sama memperbarui lencana Persetujuan di sidebar dan
+ * bilah bawah, jadi angkanya turun begitu keputusan diambil.
  */
 async function offerNext(justDecided) {
   try {
-    const rows = (await api.get('core/inbox')) || [];
+    const payload = await loadInbox({ maxAge: 0 });
+    const rows = (payload && Array.isArray(payload.data)) ? payload.data : [];
     const next = rows.find((r) => r.code !== justDecided);
     if (!next) { toast('Kotak masuk persetujuan Anda kosong.', { tone: 'info', timeout: 4000 }); return; }
     const node = toast(`${next.code} · ${next.label}${next.amount ? ` · Rp ${Number(next.amount).toLocaleString('id-ID')}` : ''}`, {
@@ -28,7 +32,7 @@ async function offerNext(justDecided) {
     });
     node.querySelector('.msg').appendChild(el('.row-actions', { style: { marginTop: '8px' } }, [
       button('Buka', { size: 'sm', variant: 'primary', onClick: () => { node.remove(); navigate(next.link.replace(/^#\//, '')); } }),
-      rows.length > 1 ? button('Semua tugas', { size: 'sm', variant: 'ghost', onClick: () => { node.remove(); navigate('tugas'); } }) : null,
+      rows.length > 1 ? button('Buka Persetujuan', { size: 'sm', variant: 'ghost', onClick: () => { node.remove(); navigate('tugas'); } }) : null,
     ]));
   } catch { /* tawaran, bukan kewajiban */ }
 }
@@ -373,7 +377,7 @@ export function actionButtons(def, row, onDone) {
        * "a.n." SEBELUM DITEKAN, bukan hanya sesudahnya (F-1 putaran 2). Tombol
        * ini ada di layar seorang delegat KARENA sebuah delegasi meminjamkan
        * haknya, dan jejak yang lahir saat ia menekannya akan berbunyi "Dewi
-       * a.n. Administrator Sistem". Spanduk di Tugas Saya mengatakannya; layar
+       * a.n. Administrator Sistem". Spanduk di Persetujuan mengatakannya; layar
        * dokumen tidak punya spanduk, jadi tombolnya yang mengatakannya.
        * null untuk hak yang dipegang sendiri — aturan yang sama dengan
        * ApprovalDelegations::actingForId, supaya tidak ada "a.n." karangan.

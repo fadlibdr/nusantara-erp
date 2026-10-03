@@ -901,7 +901,7 @@ class SettingService
             'min' => 1,
             'max' => 100,
             'column' => 'batch_cap',
-            'help' => 'Kosong = tombol "Setujui terpilih" TIDAK ADA di layar Tugas Saya (bawaan). '
+            'help' => 'Kosong = tombol "Setujui terpilih" TIDAK ADA di layar Persetujuan (bawaan). '
                 .'Diisi, sekian dokumen boleh dipilih sekaligus; aplikasi memanggil tombol Setujui '
                 .'tiap dokumen satu per satu, jadi maker-checker, ambang direktur, catatan dan '
                 .'pemberitahuan tetap berjalan persis seperti menyetujui satu-satu.',

@@ -248,7 +248,7 @@ bukan soal layar (bayar siapa dulu, buka bulan atau tidak) adalah milik direktur
 ---
 
 > **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** dengan satu kotak masuk untuk
+> `ux/p0-measured`, belum digabung): layar **Persetujuan** (dulu bernama Tugas Saya) dengan satu kotak masuk untuk
 > semua jenis dokumen (termasuk pembayaran keluar); draf formulir bertahan di peramban
 > saat sesi habis; catatan persetujuan diketik langsung di halaman tanpa dialog; ganti
 > kata sandi sendiri. Sampai rilis itu tayang, panduan ini yang berlaku.

@@ -125,7 +125,7 @@ final class ApprovalDelegations
      *
      * Ini jawaban MENTAHNYA, tanpa memandang rute. Gate::before membungkusnya
      * dengan honouredOnThisRequest(); ApprovalQueue memanggilnya langsung,
-     * karena antrean adalah BACAAN — layar "Tugas Saya" harus menampilkan apa
+     * karena antrean adalah BACAAN — layar "Persetujuan" harus menampilkan apa
      * yang boleh diputuskan orang ini nanti, dan ia bukan pintu keputusan.
      */
     public static function grants(User $user, string $ability): ?bool

@@ -26,6 +26,7 @@ Integration branch `feat/ux-redesign`, one branch per package. Nothing here is m
 - Commit: `c39455b`
 - Files: `docs/bukti-uji/ux-baseline/*.jpg` (28)
 - Acceptance: landing, Tugas Saya, PO list, PO form, PO detail, Pengadaan module page and Lapangan, in light and dark, at 390 and 1440 px, from the running app. No page errors on any of them.
+- Correction (UX-D, 3 Oct 2026): the four "Pengadaan module page" shots were the not-found page — the script used `#/m/procurement`, the prefix is `prc`, and a not-found page raises no page error. Re-shot from this package's code (`f41204d`); see UX-D gate.
 - Deviations: shot from the same scratch DB the harness had just used, so S22's `UJI-S22-*` rows show in Tugas Saya. Roles: admin (landing), direktur (Tugas Saya), procurement (PO and Pengadaan), site-manager (Lapangan). The 390 px landing is the launcher (`#/home`) and the 1440 px landing is `#/dashboard`, which is today's rule and the one D-2 replaces.
 
 ### UX-0.4 — This file, metrics and grep baselines
@@ -79,7 +80,77 @@ Branch `feat/ux-redesign-c`, six task commits, merged `--no-ff` into `feat/ux-re
 ### UX-C gate
 - `tests/Feature/Core` → **1 434 tests, 11 768 assertions, 11 skipped, green** (1 421 at UX-0; +8 UiPrimitivesTest, +5 StatusVocabularyTest). Named gate tests all green (see C.1).
 - Harness on the final tree: S1 S2 S3 S4 S5 S8 S10 S20 S21 S22 S43 all ok → `docs/bukti-uji/results-ux-c.json`.
-- The seven baseline screens re-shot, light and dark, 390 and 1440 px, 0 page errors → `docs/bukti-uji/ux-c/*.jpg` (28). Reviewed: landing, PO list dark, PO form, PO detail dark, Tugas Saya 390, Lapangan 390 dark — no unstyled or half-styled element. Not diffed pixel-wise against the prototype shots.
+- The seven baseline screens re-shot, light and dark, 390 and 1440 px, 0 page errors → `docs/bukti-uji/ux-c/*.jpg` (28). Reviewed: landing, PO list dark, PO form, PO detail dark, Tugas Saya 390, Lapangan 390 dark — no unstyled or half-styled element. Not diffed pixel-wise against the prototype shots. Correction (UX-D): the module-page shots (`ux-c/6-*`) were the not-found page for the reason given under UX-0.3 — that screen was not among those reviewed. Re-shot from `4d7cc1c`.
+
+---
+
+## UX-D — Shell
+
+Branch `feat/ux-redesign-d`, seven task commits plus one test fix, merged `--no-ff` into `feat/ux-redesign`. Every harness number below is from a freshly seeded scratch SQLite (`migrate --seed`), copied anew for each run so no scenario reads another's leftovers.
+
+### UX-D.1 — Landing on `#/home` at every width (D-2 default)
+- Commit: `64a810a`
+- Files: `public/app/js/app.js` (`landOnDefault()` and its comment), `js/views/onboarding.js` (`tour()` opens on Beranda), `sw.js` (40), `tests/Feature/Core/LauncherWiringTest.php`, harness (`landing_boundary`, S22 expectation)
+- Acceptance: LauncherWiringTest and NavRouteRegistryTest → 13 tests green. S22 → 759, 760 and 761 px all `#/home`; 1440 and 390 px `#/home`. S18 and S19 ok.
+- Deviations: none from D-2. The assertion that `app.css` still folds the sidebar at 760 px is kept, as D-2 asks; the assertion that pinned `window.innerWidth > 760` now pins that the branch is gone.
+
+### UX-D.2 — Pinned rows, link cap, one inbox loader, the rename in code
+- Commit: `d2c95f2`
+- Files: `js/inbox.js` (new), `js/app.js`, `js/schema.js`, `js/views/tugas.js`, `js/views/actions.js`, `js/views/widgets/inbox.js`, `js/api.js` (comment), `app.css`, `sw.js` (41), `tests/Feature/Core/ShellWiringTest.php` (new), `ApprovalInboxGateTest`, `LauncherWiringTest`, harness (`nav_click` follows the module home for a row past the cap; S1/S2 open the dashboard explicitly after the `#/home` landing; S11/S28 read the new label; S21's card-vs-sidebar check reads the pinned rows)
+- Acceptance: S1 S2 S5 S11 S14 S21 ok. Landing requests: direktur **5**, warehouse **4** (baseline 12 and 8, which were dashboard landings). Sidebar content per role ≤ 1,09 viewport. S2: 4 clicks for two documents, 25 requests detail→back — the base SPA measures the same 25 with the same single `core/inbox` on the same seed. ShellWiringTest pins: pinned rows come from NAV and the shell writes no permission; the cap keeps the active route and the filter; `inbox.js` is the only `core/inbox` caller, asks nothing without ANY_APPROVE, and keys its cache by user; an incomplete inbox never shows a bare number.
+- Deviations: (1) `pekerjaan` is not added to NAV — the screen arrives in UX-F2, and NavRouteRegistryTest refuses a NAV entry without a route. Pinned rows and the bottom bar read `pinned: true`, so Pekerjaan Saya joins both by gaining one NAV entry. (2) Found while building it: the first version of the shared cache would have shown the previous user's count for up to a minute after logging out and in as someone else in the same tab; the cache and the in-flight request are keyed by user id. (3) The next-document offer after a decision (`actions.js offerNext`) goes through the same loader, so the badge drops as soon as a document is decided; its button now reads "Buka Persetujuan".
+
+### UX-D.3 — CONVENTIONS §35 sweep
+- Commit: `5d5654d`
+- Files: `docs/PANDUAN-PENGGUNA.md`, `docs/PANDUAN-ADMINISTRATOR.md`, `docs/CONVENTIONS.md`, `docs/ONBOARDING/` (README, admin, direktur, finance-manager, finance, project-manager), `Modules/Core/Services/SettingService.php` (the one user-facing string), four code comments, `ApprovalInboxGateTest` prose
+- Acceptance — `grep -rIF "Tugas Saya"`:
+
+  | Where | UX-0 | Before the sweep | After |
+  |---|---|---|---|
+  | `docs/` excl. handoff | 98 lines / 33 files | 103 / 34 | 96 / 33 |
+  | `public/app/` | 11 / 6 | 2 / 2 | 2 / 2 (history notes) |
+  | `tests/` | 5 | 5 | 3 |
+  | Harness | 6 | 5 | 5 (history notes) |
+  | `Modules/` | 5 | 5 | 0 |
+  | Handoff folder | 11 | 11 | 11 (untouched) |
+
+  What still says "Tugas Saya": dated history (reports, progress logs, result JSON) left as written, "(dulu Tugas Saya)" notes, and seven ONBOARDING boxes (below). "Persetujuan" also begins three other labels (Persetujuan Gambar (SDS), Persetujuan Material (SMS), Matriks Persetujuan), so every new guide sentence names the pinned row at the top of the sidebar.
+- Deviations: seven ONBOARDING boxes (estimator, hr, procurement, warehouse, sales, site-manager, teknisi) promise a "Tugas Saya" that lists the reader's OWN rejected and waiting documents. The approval inbox never did that; it is Pekerjaan Saya (D-3). Renaming them to "Persetujuan" would make them wrong in a new way, so they are left for UX-F2's sweep.
+
+### UX-D.4 — Buat ▾ and the theme in the Akun dialog
+- Commit: `1009c5c`
+- Files: `js/create.js` (new), `js/app.js`, `js/ui.js` (`menuButton` takes an item function and `{ heading }` rows), `js/views/list.js` (shared predicate), `app.css`, `sw.js` (42), ShellWiringTest, `docs/PANDUAN-PENGGUNA.md`
+- Acceptance: procurement on the PO list → "Pengadaan" + 8 forms; admin with no history → 6 forms in NAV order; teknisi → 4; warehouse on GRN → "Persediaan" + 8; direktur (creates nothing) → no button. PO item → `#/f/procurement/purchase-orders` (page), Vendor item → dialog, as Tambah does. Theme radios apply at once. Breadcrumb on the PO detail vs the base SPA: 377/339/350/196/149 px at 1440/1280/1024/820/768 against 377/364/351/208/167, never clipped, no header overflow. S8 S9 S14 S21 S21m ok.
+- Deviations: "top 6 by prefs recent" falls back to the first six forms in NAV order when there is no history, rather than an empty menu. The label shows ≥ 1200 px only (UI-3b measured no header slack below that).
+
+### UX-D.5 — Bottom bar ≤ 760 px
+- Commit: `a58f64c`
+- Files: `js/app.js`, `js/ui.js` (`drawer()` updates every toggle), `app.css`, `sw.js` (43), ShellWiringTest, `docs/PANDUAN-PENGGUNA.md`, `docs/bukti-uji/ux-d/bottom-*.png`
+- Acceptance at 390 px: with the onboarding sheet open its bottom (782) meets the bar's top (782); sheet buttons and every bar item hit themselves, open and collapsed. Drawer opened from the bar: its bottom-left corner hits the drawer, the rest of the bar hits the scrim, a tap there closes it. direktur: four items, badge 4, tap → `#/tugas` "Persetujuan" active; warehouse: three items, 130 px each. S6 S19 S21m S22m ok.
+- Deviations: non-approvers get three buttons until Pekerjaan Saya exists (UX-F2), instead of E-4's "else Pekerjaan Saya". The onboarding sheet is lifted to stand on the bar (bar z-index 20, under scrim 40, sheet 45, drawer 50).
+
+### UX-D.6 — Icon rail
+- Commit: `39603f7`
+- Files: `js/app.js`, `app.css` (`--sidebar-w` 248, `--header-h` 60, rail block), `sw.js` (44), ShellWiringTest, `docs/PANDUAN-PENGGUNA.md`, `docs/bukti-uji/ux-d/rail-*.png`
+- Acceptance: 1440 px collapse 248 → 64 px, persists across reload (`nusantara_erp_nav_rail`), expands back; 761/900/1023 px rail, 1024 px not; at 900 px the toggle opens the full 264 px menu over the page and a link closes it; a module icon opens `#/m/<prefix>`, a shortcut icon opens the full menu, Esc returns focus to the toggle; labels clipped (1 px) with title tooltips, never `display:none`. S5 S8 S18 S19 S21 S21m S22 S43 S51 ok.
+- Deviations: the header grows 56 → 60 px and the sidebar 250 → 248 px, from the handoff's quick sheet. The handoff does not say where the rail toggle sits; it is at the end of the menu filter row, and the row's focus ring now follows the input only.
+
+### UX-D.7 — Typed search hits and the Aksi group
+- Commit: `c020459`
+- Files: `js/search.js`, `app.css`, `sw.js` (45), ShellWiringTest, `docs/FRONTEND.md`, `docs/PANDUAN-PENGGUNA.md`
+- Acceptance: procurement "po" → Layar 2 · Aksi 1 · PO 2 · Item 3, rows carry module icons; "buat po" + Enter → the PO page form; "PO/2026/II/0001" + Enter → its detail; direktur "setujui" → "Setujui yang menunggu · 4 menunggu" → `#/tugas`; warehouse "setujui" → nothing. S14 S22 ok.
+- Deviations: README's party · amount · submitter · status are not in `core/search`; adding them changes an API contract (ground rule 2). See OQ-6.
+
+### Test fix found by the gate
+- Commit: `7d56513`
+- `tests/Feature/Inventory/IssueCancellationTest.php` had been red since UX-C.4 (`c5f7daf`): its parser required `]` straight after the label and read nothing from the extended tuples. The UX-C gate ran `tests/Feature/Core` only, as the prompt names it, so it went unseen. The parser now skips the optional members; the comparison with the PHP enum stays exact. From this package on, the gate runs every `tests/Feature/<Module>` directory.
+
+### UX-D gate
+- PHPUnit: `tests/Feature/Core` → **1 445 tests, 11 862 assertions, 11 skipped, green** (+11 ShellWiringTest). Every other directory green: Assets 128, Crm 315, Engineering 44, Estimation 94, Finance 984, HrPayroll 350, Iam 107, Inventory 442, Procurement 189, Projects 367, Quality 51, ServiceDesk 122, Subcontract 136, HealthCheckTest 1 tests.
+- Harness → `docs/bukti-uji/results-ux-d.json`: S1 S2 S3 S4 S5 S8 S10 S20 S21 S22 ok; S6 S9 S11 S14 S18 S19 S21m S22m S43 S51 ok; S28 fails only `two_documents_were_actually_picked`, identical on the base SPA (OQ-7).
+- Gate items: S5 admin sidebar **0,95 viewport** (≤ 2,0); S22 landing `#/home` at every width; S2 **2 clicks per document**; Persetujuan still shows the delegation banner and "Setujui terpilih" (S28) and the "Delegasi Persetujuan" card (probe); warehouse makes **0 `core/inbox` requests** across five routes and the palette at 1440 and 390 px (24 requests in all); at 390 px the bar never covers the onboarding sheet or the drawer (D.5 hit-tests).
+- Screenshots: `docs/bukti-uji/ux-d/` — the seven screens, light and dark, 390 and 1440 px (28), plus 11 component shots; 0 page errors.
+- Evidence correction: the UX-0 screenshot script used `#/m/procurement` for "Pengadaan module page"; the module prefix is `prc`, so `ux-baseline/6-*` and `ux-c/6-*` showed "Modul procurement tidak dikenal", with no page error to flag it. Screen 6 of both sets is re-shot from that package's own code (`f41204d`, `4d7cc1c`); the script is now `docs/bukti-uji/ux-shots.py`.
 
 ---
 
@@ -87,18 +158,18 @@ Branch `feat/ux-redesign-c`, six task commits, merged `--no-ff` into `feat/ux-re
 
 Method for every row: the scenario named, on the fresh seed above, 1440 × 900, light theme unless stated. "Last recorded" is ERRATA §4, which quotes `RECAP-UX-PROSES-2026-09.md` of 5 Sep 2026.
 
-| Metric | Last recorded | Bound | Baseline (UX-0) | UX-C |
-|---|---|---|---|---|
-| Admin sidebar height (S5) | 0.7 viewport | ≤ 2.0 | **Content 840 px, 0.93 viewport.** The harness's raw `viewportsTall` reads 2.6 (`nav.scrollHeight` 2308 px), which its own comment says is the grid row's floor, not the content. S5 does not gate on either number. | Content 910 px, 1,01 viewport (five "Terakhir dibuka" rows from the harness runs, one at UX-0); raw 2,8. |
-| Approval clicks per document (S2) | 2 | ≤ 2 | 4 clicks for two documents, so 2 each. S2 ok. | 4 clicks for two documents, 2 each. |
-| Create→submit PO, 2 lines (S3) | 12 clicks | ≤ 10 once the page form ships | **S3 as written: red, 3 clicks before it times out.** Page-adapted copy: **12 clicks**, saved to the detail page and submitted ("Diajukan"). | **12 clicks** on the real scenario (page form, C.0). |
-| Fields lost on session expiry (S4) | 0 | 0 | **S4 as written: red, 1 click before it times out.** Page-adapted copy: 14 typed, 14 fields and 3 lines restored, so 0 lost. The restore opens as a dialog, not on the page. | 14 typed, 14 + 3 lines restored → 0 lost. |
-| English validation strings on 422 (S10) | 0 | 0 | 0 on 3 requests (PO, customer, AP bill), all Indonesian. | 0 on 3 requests. |
-| `--muted` on `--bg` (S8) | 5.23 | ≥ 4.5 | 5.23 light, 6.24 dark. 5.47 on `--surface-2`, 5.29 on the success badge. | **4,89** light, 6,27 dark (`--muted` `#626c78`/`#8c96a3`, `--bg` `#f4f5f7`/`#0e1216`); 5,07 on `--surface-2`, 5,29 success badge. |
-| Smallest font on the PO list (S8) | 11 px | ≥ 11 px | **10 px.** The only element under 11 px is the `Ctrl K` keycap in the top bar search. UI-4 chose that on purpose and S8's own floor is 10 px. See Open questions. | 10 px, same keycap (OQ-3). |
-| API calls on opening the landing page (S1) | 11 direktur, 6 warehouse | not higher than today for the same role | **12 direktur, 8 warehouse.** Those two numbers are the bound for UX-F2. | 12 direktur, 8 warehouse — equal. |
-| API calls, detail → approve → back (S2) | 14 | informational | 23 (`api_calls_detail_to_back`). Not comparable with 14: S2 now walks several documents. I did not trace the difference. | 19. |
-| S20, S21, S22 | pass | pass | pass. S22 landing is `#/dashboard` at 1440 and `#/home` at 760 px and below. | pass; S21 dark accent minimum 5,36 (surface moved). |
+| Metric | Last recorded | Bound | Baseline (UX-0) | UX-C | UX-D |
+|---|---|---|---|---|---|
+| Admin sidebar height (S5) | 0.7 viewport | ≤ 2.0 | **Content 840 px, 0.93 viewport.** The harness's raw `viewportsTall` reads 2.6 (`nav.scrollHeight` 2308 px), which its own comment says is the grid row's floor, not the content. S5 does not gate on either number. | Content 910 px, 1,01 viewport (five "Terakhir dibuka" rows from the harness runs, one at UX-0); raw 2,8. | Content 851 px, **0,95 viewport**; highest role direktur 984 px (1,09). Pinned rows + 8-of-10+ cap. |
+| Approval clicks per document (S2) | 2 | ≤ 2 | 4 clicks for two documents, so 2 each. S2 ok. | 4 clicks for two documents, 2 each. | 4 clicks for two documents, 2 each. |
+| Create→submit PO, 2 lines (S3) | 12 clicks | ≤ 10 once the page form ships | **S3 as written: red, 3 clicks before it times out.** Page-adapted copy: **12 clicks**, saved to the detail page and submitted ("Diajukan"). | **12 clicks** on the real scenario (page form, C.0). | 12 clicks (Buat ▾ or Tambah, same page form). |
+| Fields lost on session expiry (S4) | 0 | 0 | **S4 as written: red, 1 click before it times out.** Page-adapted copy: 14 typed, 14 fields and 3 lines restored, so 0 lost. The restore opens as a dialog, not on the page. | 14 typed, 14 + 3 lines restored → 0 lost. | 14 typed, 14 + 3 lines restored → 0 lost. |
+| English validation strings on 422 (S10) | 0 | 0 | 0 on 3 requests (PO, customer, AP bill), all Indonesian. | 0 on 3 requests. | 0 on 3 requests. |
+| `--muted` on `--bg` (S8) | 5.23 | ≥ 4.5 | 5.23 light, 6.24 dark. 5.47 on `--surface-2`, 5.29 on the success badge. | **4,89** light, 6,27 dark (`--muted` `#626c78`/`#8c96a3`, `--bg` `#f4f5f7`/`#0e1216`); 5,07 on `--surface-2`, 5,29 success badge. | 4,89 light, 6,27 dark (unchanged). |
+| Smallest font on the PO list (S8) | 11 px | ≥ 11 px | **10 px.** The only element under 11 px is the `Ctrl K` keycap in the top bar search. UI-4 chose that on purpose and S8's own floor is 10 px. See Open questions. | 10 px, same keycap (OQ-3). | 10 px, same keycap (OQ-3). |
+| API calls on opening the landing page (S1) | 11 direktur, 6 warehouse | not higher than today for the same role | **12 direktur, 8 warehouse.** Those two numbers are the bound for UX-F2. | 12 direktur, 8 warehouse — equal. | **5 direktur, 4 warehouse** — landing is now `#/home`; the dashboard opened afterwards: 9 and 5. |
+| API calls, detail → approve → back (S2) | 14 | informational | 23 (`api_calls_detail_to_back`). Not comparable with 14: S2 now walks several documents. I did not trace the difference. | 19. | 25 — equal to the base SPA on the same fresh seed. |
+| S20, S21, S22 | pass | pass | pass. S22 landing is `#/dashboard` at 1440 and `#/home` at 760 px and below. | pass; S21 dark accent minimum 5,36 (surface moved). | pass; S22 landing `#/home` at 759/760/761, 1440 and 390 px. |
 
 Package columns are added at the end of each package.
 
@@ -149,6 +220,10 @@ Found by grep, one screenshot and reading `app.js`, `ui.js`, `sw.js` and commit 
 
 **OQ-5 — `--primary` and `--accent-1` have parted (UX-C.1).** README C1 changes `--primary` and freezes the accent and chart palettes, so Proyek's accent (`#1a56db`) and the primary button (`#2b4fc8`) are now two close blues. Nothing in tests or the harness pins the identity; CONVENTIONS §12 and the token comments record it. If you would rather keep them identical, the choice is between re-deriving slot 1 (and its ΔE matrix) from the new primary, or keeping the old primary — both are owner calls on a palette the handoff declared frozen. Built as written until told otherwise.
 
+**OQ-6 — Typed search hits need fields `core/search` does not send (UX-D.7).** README Phase D asks for "kind — party title, sub (project · amount · submitter), status badge". `GlobalSearchService` returns `id`, `code`, `title` and `link` per hit; party, project, amount, submitter and status are not there. Rendering them means adding fields to the response, which ground rule 2 forbids ("no change to … API contracts"). Built: module icon, mono code, title or kind. Owner call: allow an additive field set on `core/search` (with its own Feature test), or keep the hits as they are.
+
+**OQ-7 — S28 `two_documents_were_actually_picked` is red on a fresh seed, before and after UX-D.** The delegate's queue holds one document (`CTI/2026/VIII/0002`), and the check expects exactly two. Measured on the base SPA (`4d7cc1c`, same backend, same fresh seed) with the base harness: the same single failure. Not caused by this redesign; not investigated further. Every other S28 check is green, including the delegation banner and "Setujui terpilih".
+
 **OQ-4 — Which sidebar number is the bound.** S5 reports raw scroll height (2.6) and content height (0.93). ERRATA's 0.7 was a content figure. Proposal: gate UX-D on content height ≤ 2.0 viewports, which holds with wide margin.
 
 ---
@@ -169,3 +244,14 @@ Found by grep, one screenshot and reading `app.js`, `ui.js`, `sw.js` and commit 
 - The sprite was not rebuilt: every icon the status vocabulary and the primitives need was already among the 79 symbols.
 - Screenshots were reviewed by eye for unstyled elements, not diffed against the prototype's shots.
 - MySQL not run (stays on UX-F1 and UX-I).
+
+---
+
+## Not done in UX-D
+
+- Pekerjaan Saya is not in NAV, the sidebar pinned rows or the bottom bar: the screen and `core/my-work` arrive in UX-F1/F2. Both surfaces pick it up from one `pinned: true` NAV entry.
+- The seven ONBOARDING boxes that describe the reader's own rejected and waiting documents still say "Tugas Saya" (UX-F2, see D.3).
+- Party, amount, submitter and status on search hits (OQ-6).
+- No per-user server preference for the rail, by design (E-4: per device).
+- Screenshots were reviewed by eye, not diffed against the prototype's.
+- MySQL not run (UX-F1, UX-I).

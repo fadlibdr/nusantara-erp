@@ -439,7 +439,7 @@ action }`) tetap sah — bawaan `kind: 'inbox'`. Lima jenis di `js/illustrations
 | `inbox` | belum ada yang tercatat | daftar tanpa baris (+ Tambah), pemberitahuan, kalender, beranda modul tanpa layar yang boleh dibuka |
 | `search` | pencarian tanpa hasil | daftar dengan `q` saja (`Tidak ada <label> yang cocok dengan "<q>".` + **Hapus pencarian**) |
 | `filter` | filter menyaring semuanya | daftar tersaring (`Tidak ada <label> yang lolos filter yang dipasang.` + **Hapus filter**) |
-| `error` | sumbernya gagal, bukan kosong | kotak masuk/Tugas Saya saat `meta.failed` — jangan pernah `inbox`/`done` untuk kegagalan |
+| `error` | sumbernya gagal, bukan kosong | kotak masuk/Persetujuan saat `meta.failed` — jangan pernah `inbox`/`done` untuk kegagalan |
 | `done` | semuanya selesai | kotak masuk kosong, piutang/tiket tanpa yang tertunda, "Stok aman" (Saldo Stok), "Laci bersih" (Kasir Kas Kecil) |
 
 Aturan gambar: SVG garis (stroke) 120 × 120, dibaca di 96–120 px (ubin `compact` 72 px), **tanpa

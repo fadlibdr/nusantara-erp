@@ -62,7 +62,7 @@ panduan berbeda tahu di mana mencari apa:
 
 Setiap panduan ditutup kotak **"Yang berubah pada rilis UX berikutnya"**: cabang
 `ux/p0-measured` yang **belum digabung dan belum tayang di erp1**. Yang berlaku hari ini
-adalah `main`; kotak itu ada supaya karyawan baru tidak mencari layar Tugas Saya atau
+adalah `main`; kotak itu ada supaya karyawan baru tidak mencari layar Persetujuan (dulu Tugas Saya) atau
 tombol ganti kata sandi yang belum ada.
 
 ## Cara menyerahkan panduan kepada karyawan baru

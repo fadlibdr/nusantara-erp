@@ -321,6 +321,20 @@ reading, in another shape. There is no `print` action anywhere in the permission
   without one keeps its screen crumb (ellipsised), because the seven RESOURCES outside NAV are
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
+- **The shell (UX-D)**: the landing is `#/home` at every width (ERRATA D-2). NAV rows with `pinned: true`
+  (Beranda, Persetujuan; Pekerjaan Saya when UX-F2 adds it) are drawn as fixed rows above Favorit and as
+  the first slots of the ≤ 760 px bottom bar — still owned by their NAV group, still filtered by
+  `visibleNav()`, so the shell writes no permission. `icon` names their glyph; `count: 'inbox'` asks for
+  the approval badge. Groups with more than 10 routes show 8 plus "Semua layar <modul> →"; the rest stay
+  in the DOM (`.beyond-cap`) so the filter, the module-home comparison and the active route still reach
+  them. **`js/inbox.js` is the only `core/inbox` caller**: badge, dashboard widget, the Persetujuan screen
+  and the next-document offer share one request, the cache is keyed by user id, nothing is asked without
+  ANY_APPROVE, and `meta.failed` renders as "N+" with tugas.js's sentence, never a bare number.
+  **`js/create.js`** gathers the lists' own "Tambah …" buttons for Buat ▾ and the palette's Aksi group:
+  `canCreateResource()` is the one predicate `list.js` and the shell share. The rail (64 px) is per device
+  (`localStorage nusantara_erp_nav_rail`), always on at 761–1023 px; in it a module icon opens
+  `#/m/<prefix>` and the full menu opens over the page through the same `ui.drawer()` the phone uses.
+  `ShellWiringTest` pins all of the above.
 - **One icon system (UI-3c)**: `icon(name, size)` now delegates to `svgIcon(name, {size})`, so every icon in
   the SPA comes from the vendored Lucide sprite. The two functions' signatures do **not** match — one takes a
   number, the other an object — so a mechanical `icon(` → `svgIcon(` rename is valid JavaScript that silently
@@ -374,9 +388,15 @@ reading, in another shape. There is no `print` action anywhere in the permission
   letter typed must not be lost), announced via `aria-activedescendant`; Enter opens the selected row,
   or the first when nothing is selected. Matches are wrapped in `<mark>` by substring — what the eye is
   looking for — even though screens are *matched* on word starts. Harness **S14** gates all of it.
-  There is deliberately no "Tindakan" group: both sources are lookups (NAV screens client-side,
-  documents server-side) and nothing in the codebase can produce a command, so inventing the heading
-  would promise a third kind of result that never arrives.
+  Until UX-D.7 there was deliberately no actions group: both sources were lookups and nothing could
+  produce a command. Since Buat ▾ (UX-D.4) there is one: the **Aksi** group lists "Buat <form>" rows from
+  `js/create.js` — the same source as the top bar, so the two doors never disagree — plus "Setujui yang
+  menunggu" for ANY_APPROVE holders. Matching is per word (every typed word must start a word of the
+  label), so a full document code never matches an action and Enter on it still opens the document.
+  Picking an action closes the palette first, then runs it, so a dialog form never stacks on the palette.
+  Document rows are typed from data the server already sends (the group's `resource` key → module icon,
+  `labelOne` when there is no title); party, amount, submitter and status are not in `core/search` and
+  are not invented.
 - **Layout primitives and the type scale (UI-2)**: compose spacing with `.stack` (12 px, card
   contents), `.stack.tight` (8), `.stack.loose` (16, page blocks — the same step as `.card + .card`),
   `.row`, `.row.top`, `.cluster` (wrapping) and `.grid-auto`; all four gaps come from the UI-1

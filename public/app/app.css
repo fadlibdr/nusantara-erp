@@ -61,8 +61,8 @@
   --shadow-lg: 0 18px 48px rgba(16, 24, 40, .18);
   --radius: 10px;   /* bersama --radius-sm/-lg juga ditulis di keempat blok tema dan kedua blok cetak (ERRATA E-1 butir 4), nilai sama */
   --radius-sm: 8px;
-  --sidebar-w: 250px;
-  --header-h: 56px;
+  --sidebar-w: 248px;   /* 248 / rel 64 / header 60 — quick sheet handoff (UX-D.6); dulu 250 dan 56 */
+  --header-h: 60px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
@@ -716,7 +716,9 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .nav-filter-input::placeholder { color: var(--muted); }
 /* Fokus dipasang pada PEMBUNGKUS, bukan pada input tanpa tepi: cincin di sekitar
    kotak terbaca sebagai satu medan, cincin di sekitar teks terbaca sebagai cacat. */
-.nav-filter:focus-within { color: var(--text-2); box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+/* :has(input:focus), bukan :focus-within — sejak UX-D.6 tombol rel ikut duduk di baris ini, dan cincin
+   kotak saring yang muncul saat TOMBOL itu yang difokus menunjuk ke hal yang salah. */
+.nav-filter:has(.nav-filter-input:focus) { color: var(--text-2); box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
 .nav-filter-input:focus { outline: none; }
 /* Saat menyaring, penanda grup aktif tidak lagi berarti "tempat Anda berada"
    melainkan "grup yang kebetulan cocok" — jadi ia diredam. */
@@ -1083,9 +1085,10 @@ select.filter-w { width: auto; min-width: 138px; max-width: 230px; }
 .check-row label { margin: 0; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
 
 /* Kontrol Kepadatan di dialog Akun (app.js densityControl, P1-B). */
-.density-pick { margin: 14px 0 0; padding: 10px 12px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
-.density-pick legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
-.density-pick .check-row { height: 30px; font-size: 13px; cursor: pointer; }
+/* .theme-pick (UX-D.4) memakai bentuk yang sama: dua pilihan tampilan, satu rupa. */
+.density-pick, .theme-pick { margin: 14px 0 0; padding: 10px 12px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.density-pick legend, .theme-pick legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.density-pick .check-row, .theme-pick .check-row { height: 30px; font-size: 13px; cursor: pointer; }
 .density-pick .check-row .muted { font-size: 12px; margin-left: auto; text-align: right; }
 .density-pick .density-note { margin: 4px 0 6px; font-size: 12px; line-height: 1.4; }
 
@@ -2827,8 +2830,8 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
      SEMUA profil (normal 31,5 → 36 di layar sentuh, terukur; desktop tetap
      27,5/31,5/35,5) dan baris radio ≥ 40 px dengan radio 18 px. */
   .nav-items a { min-height: 36px; }
-  .density-pick .check-row { height: auto; min-height: 40px; }
-  .density-pick input[type="radio"] { width: 18px; height: 18px; }
+  .density-pick .check-row, .theme-pick .check-row { height: auto; min-height: 40px; }
+  .density-pick input[type="radio"], .theme-pick input[type="radio"] { width: 18px; height: 18px; }
   /* Ikon aksi baris hanya membawa `title`, dan tooltip tidak ada di layar
      sentuh (ASESMEN-UX §1.5): kata kerjanya (data-label, list.js) ditulis di
      samping ikon. Lebar tetap ikut isinya, bukan 36 px kotak ikon. */
@@ -3450,3 +3453,141 @@ button.linkish:hover b { text-decoration: underline; }
 .menu-item.danger { color: var(--danger); }
 .menu-item.danger svg { color: var(--danger); }
 .menu-item.danger:hover, .menu-item.danger:focus-visible { background: var(--danger-soft); }
+
+/* ================================================== sidebar UX-D.2 */
+/* Baris tetap (Lapis 1): tanpa kepala grup, ikon 15 px, lencana jumlah di kanan. */
+.nav-pinned { margin: 0 0 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.nav-pinned .nav-items { padding: 0; }
+.nav-pinned .nav-items a { padding-left: 10px; font-weight: var(--fw-medium); }
+.nav-pinned .nav-items a .tick { display: none; }
+.nav-items a .ni { flex: none; opacity: .8; }
+.nav-items a.active .ni { opacity: 1; }
+.nav-count {
+  margin-left: auto; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft); color: var(--primary);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi); font-variant-numeric: tabular-nums;
+}
+.nav-count[hidden] { display: none; }
+/* Angka yang BUKAN jumlah sebenarnya (meta.failed): warna peringatan, "N+" — tidak pernah telanjang. */
+.nav-count.incomplete { background: var(--warning-soft); color: var(--warning); }
+/* Plafon tautan: baris di balik plafon tersembunyi, kecuali saat menyaring atau bila rutenya aktif. */
+.nav:not([data-filtering="true"]) .nav-item.beyond-cap:not(.cap-active),
+.nav:not([data-filtering="true"]) .nav-divider.beyond-cap { display: none; }
+.nav-item.nav-more .lbl { color: var(--primary); font-weight: var(--fw-medium); }
+.nav-items a.nav-more-link .tick { display: none; }
+
+/* ================================================ bilah atas UX-D.4 */
+/* Buat ▾: tombol utama di bilah atas. Labelnya hanya tergambar ≥ 1200 px — ruang bebas
+   header diukur 0 px pada 1024/820/768 (UI-3b, catatan .global-search), jadi di bawah itu
+   ia ikon saja dengan nama aksesibel yang tetap "Buat" (span disembunyikan secara VISUAL). */
+.header .create-menu .menu-trigger > span {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+.header .create-menu .menu-trigger { padding: 0 9px; }
+.header .create-menu .menu-trigger svg:last-child { display: none; }
+@media (min-width: 1200px) {
+  .header .create-menu .menu-trigger > span { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+  .header .create-menu .menu-trigger { padding: 0 11px 0 12px; }
+  .header .create-menu .menu-trigger svg:last-child { display: inline-block; }
+}
+.create-menu[hidden] { display: none; }
+/* Daftar Buat bisa sepanjang 15 baris; popup menggulung sendiri, bukan halamannya. */
+.header .create-menu .menu-pop { max-height: min(70vh, 520px); overflow-y: auto; }
+.menu-heading {
+  padding: 8px 10px 4px; font-size: var(--fs-caption); font-weight: var(--fw-semi);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
+}
+
+/* ================================================== bilah bawah UX-D.5 */
+/* Beranda · Persetujuan · Cari · Menu, hanya ≤ 760 px (tempat sidebar menjadi laci).
+   z-index 20: di atas isi halaman (≤ 2), DI BAWAH semua yang melayang — popup menu (25),
+   kain laci (40), lembar onboarding (45), laci nav (50), panel onboarding (55), sorotan
+   (58), dialog (60), combobox (200), toast (90). Jadi ia tidak pernah menutupi laci
+   maupun lembar panduan (gerbang UX-D), dan kain laci yang terbuka meredupkannya. */
+:root { --bottom-nav-h: 62px; }
+.bottom-nav { display: none; }
+@media (max-width: 760px) {
+  .bottom-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: flex; align-items: stretch;
+    height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  /* padding 0: <button> membawa padding UA (1px 6px), <a> tidak — tanpa ini tombol Cari/Menu
+     12 px lebih lebar dari tautannya dan barisnya 392 px di layar 390 px (terukur 3 Okt 2026). */
+  .bn-item {
+    position: relative; flex: 1 1 0; min-width: 0; padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    border: 0; background: transparent; color: var(--muted); text-decoration: none;
+    font: inherit; font-size: var(--fs-caption); font-weight: var(--fw-medium); cursor: pointer;
+  }
+  .bn-item:hover { color: var(--text); text-decoration: none; }
+  .bn-item.active { color: var(--primary); font-weight: var(--fw-semi); }
+  .bn-item:focus-visible { outline-offset: -4px; }
+  .bn-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+  .bn-item .nav-count { position: absolute; top: 6px; left: calc(50% + 6px); margin: 0; }
+  /* Isi halaman, toast, dan lembar onboarding berdiri DI ATAS bilah, bukan di belakangnya. */
+  .main { padding-bottom: calc(var(--bottom-nav-h) + 24px + env(safe-area-inset-bottom)); }
+  body.onboarding-sheet .main { padding-bottom: calc(var(--bottom-nav-h) + 72px + env(safe-area-inset-bottom)); }
+  .toasts { bottom: calc(var(--bottom-nav-h) + 12px + env(safe-area-inset-bottom)); }
+  .onboarding-dock[data-mode="mobile"] { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom)); padding-bottom: 0; }
+}
+@media print { .bottom-nav { display: none !important; } }
+
+/* ===================================================== rel ikon UX-D.6 */
+/* body.rail dipasang app.js: SELALU di 761–1023 px, atas pilihan di ≥ 1024 px (tombol di baris
+   saring sidebar, disimpan per perangkat). Label TIDAK pernah display:none di sini — ia nama
+   aksesibel tautan dan tombol grupnya; disembunyikan secara visual saja, dan muncul sebagai
+   tooltip (title). Menu lengkap dibuka DI ATAS isi lewat laci yang sama dengan ponsel. */
+:root { --rail-w: 64px; }
+.rail-toggle { display: none; }
+@media (min-width: 761px) {
+  .rail-toggle {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 28px; height: 28px; margin-left: auto; padding: 0;
+    border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .rail-toggle:hover { background: var(--surface-3); color: var(--text); }
+  body.rail .shell { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+  body.rail .brand { padding: 0; justify-content: center; }
+  body.rail .brand-text { display: none; }
+  body.rail:not(.nav-open) .nav { padding: 8px 8px 28px; overflow-x: hidden; }
+  body.rail:not(.nav-open) .nav-filter { justify-content: center; margin: -8px -8px 8px; padding: 10px 0; }
+  body.rail:not(.nav-open) .nav-filter > .lucide,
+  body.rail:not(.nav-open) .nav-filter-input,
+  body.rail:not(.nav-open) .nav-filter-empty,
+  body.rail:not(.nav-open) .nav-group > .nav-items,
+  body.rail:not(.nav-open) .nav-group > button .chev,
+  body.rail:not(.nav-open) .nav-item .star { display: none; }
+  body.rail:not(.nav-open) .rail-toggle { margin-left: 0; }
+  body.rail:not(.nav-open) .nav-group > button,
+  body.rail:not(.nav-open) .nav-pinned .nav-items a { position: relative; justify-content: center; padding: 10px 0; gap: 0; }
+  body.rail:not(.nav-open) .nav-group > button .nav-group-label,
+  body.rail:not(.nav-open) .nav-pinned .lbl {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  body.rail:not(.nav-open) .nav-group > button .gi,
+  body.rail:not(.nav-open) .nav-pinned .ni { width: 18px; height: 18px; opacity: .85; }
+  body.rail:not(.nav-open) .nav-pinned .nav-count { position: absolute; top: 1px; right: 4px; margin: 0; }
+  /* Menu lengkap di atas isi (tablet, atau grup pintasan di rel desktop). */
+  body.rail.nav-open .nav {
+    position: fixed; inset: var(--header-h) auto 0 0; z-index: 50;
+    width: var(--drawer-w); box-shadow: var(--shadow-lg);
+  }
+  body.rail.nav-open::after {
+    content: ""; position: fixed; inset: var(--header-h) 0 0 0; z-index: 40;
+    background: rgba(12, 17, 23, .45);
+  }
+}
+
+/* ================================================ palet UX-D.7 */
+/* Baris berjenis: ikon modul dokumen / ikon aksi di depan kode. align-self center karena
+   baris memakai align-items: baseline, dan sebuah svg tidak punya garis dasar teks. */
+.search-hit .search-kind { flex: none; align-self: center; margin-right: calc(var(--space-2) - var(--space-4)); color: var(--muted); }
+.search-hit.action .cell-main { font-weight: var(--fw-medium); }
+.search-hit.action .search-kind { color: var(--primary); }

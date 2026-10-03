@@ -2,12 +2,14 @@
 
 import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
-import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth, confirmDialog, drawer } from './ui.js';
+import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth, confirmDialog, drawer, menuButton } from './ui.js';
 import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath, setLeaveGuard, clearLeaveGuard } from './router.js';
 import { setCrumbs } from './crumbs.js';
 import { prefs } from './prefs.js';
+import { loadInbox, inboxSummary } from './inbox.js';
+import { createEntries, creatable, startCreate } from './create.js';
 import { renderModuleHome } from './views/module.js';
 import { renderHome } from './views/home.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
@@ -113,13 +115,55 @@ function applyTheme(theme) {
   else delete document.documentElement.dataset.theme;
 }
 
-function cycleTheme() {
-  const order = ['system', 'light', 'dark'];
+const THEMES = { system: 'Ikuti perangkat', light: 'Terang', dark: 'Gelap' };
+
+/*
+ * Tema pindah ke dialog Akun (UX-D.4, handoff README Fase D): tiga pilihan yang
+ * terlihat sekaligus, seperti Kepadatan, alih-alih tombol matahari/bulan yang
+ * berputar tiga langkah tanpa memperlihatkan langkah berikutnya. Tetap preferensi
+ * PERAMBAN (localStorage), bukan server: terang/gelap mengikuti perangkat dan cahaya
+ * di sekitarnya, bukan orangnya. Slot bilah atas yang dikosongkan dipakai Buat ▾.
+ */
+function themeControl() {
   const current = localStorage.getItem(THEME_KEY) || 'system';
-  const next = order[(order.indexOf(current) + 1) % order.length];
-  localStorage.setItem(THEME_KEY, next);
-  applyTheme(next);
-  toast(`Tema: ${{ system: 'mengikuti sistem', light: 'terang', dark: 'gelap' }[next]}`, { timeout: 2200 });
+  return el('fieldset.theme-pick', [
+    el('legend', { text: 'Tema' }),
+    ...Object.entries(THEMES).map(([value, label]) => {
+      const input = el('input', { type: 'radio', name: 'theme', value });
+      input.checked = value === current;
+      input.addEventListener('change', () => {
+        if (!input.checked) return;
+        localStorage.setItem(THEME_KEY, value);
+        applyTheme(value);
+      });
+      return el('label.check-row', [input, el('span', { text: label })]);
+    }),
+  ]);
+}
+
+/*
+ * Buat ▾ (UX-D.4): tombol Tambah yang sudah ada, dikumpulkan — js/create.js. Daftarnya
+ * dihitung SAAT DIBUKA (rute dan "Terakhir dibuka" berubah), dan tombolnya tidak
+ * digambar sama sekali bagi pembaca yang tidak boleh membuat apa pun.
+ */
+function createMenuItems() {
+  const { here, module, recent } = createEntries(currentPath().split('?')[0]);
+  const toItem = (entry) => ({ label: entry.def.label, onClick: () => startCreate(entry) });
+  const group = here ? NAV.find((one) => one.prefix === here) : null;
+  return [
+    module.length ? { heading: group ? group.label : 'Modul ini' } : null,
+    ...module.map(toItem),
+    module.length && recent.length ? { divider: true } : null,
+    recent.length ? { heading: module.length ? 'Terakhir dipakai' : 'Buat baru' } : null,
+    ...recent.map(toItem),
+  ];
+}
+
+function createMenu() {
+  const wrap = menuButton('Buat', createMenuItems, { iconName: 'plus', variant: 'primary', title: 'Buat dokumen atau data baru' });
+  wrap.classList.add('create-menu');
+  wrap.hidden = creatable().length === 0;
+  return wrap;
 }
 
 applyTheme(localStorage.getItem(THEME_KEY) || 'system');
@@ -489,6 +533,60 @@ function storedOpenGroups() {
   return raw === null ? null : new Set(JSON.parse(raw));
 }
 
+/*
+ * Rel ikon (UX-D.6, handoff README Fase D; ERRATA E-4): sidebar 248 px menciut menjadi
+ * rel 64 px — atas pilihan di ≥ 1024 px, SELALU di 761–1023 px (tablet), tempat 248 px
+ * memakan seperempat layar. Keadaannya milik PERANGKAT, disimpan di localStorage di
+ * samping lipatan grup (nusantara_erp_nav) — bukan preferensi server: rel yang dipilih
+ * di monitor kantor tidak boleh menciutkan sidebar laptop lapangan. UserPreferences
+ * tidak berubah. Di rel, label tetap ada untuk pembaca layar dan sebagai tooltip;
+ * ikon grup membuka beranda modulnya (daftar lengkap layarnya), dan menu lengkap
+ * dibuka DI ATAS isi lewat laci yang sama dengan ponsel (ui.drawer()).
+ */
+const RAIL_KEY = 'nusantara_erp_nav_rail';
+const tabletQuery = window.matchMedia('(min-width: 761px) and (max-width: 1023px)');
+const wideQuery = window.matchMedia('(min-width: 1024px)');
+
+function railChosen() {
+  try { return localStorage.getItem(RAIL_KEY) === '1'; } catch { return false; }
+}
+
+function railActive() {
+  return tabletQuery.matches || (wideQuery.matches && railChosen());
+}
+
+function applyRail() {
+  document.body.classList.toggle('rail', railActive());
+  updateRailToggle();
+}
+
+function updateRailToggle() {
+  const node = document.querySelector('.rail-toggle');
+  if (!node) return;
+  const rail = document.body.classList.contains('rail');
+  const open = document.body.classList.contains('nav-open');
+  const label = tabletQuery.matches
+    ? (open ? 'Tutup menu' : 'Buka menu lengkap')
+    : (rail ? 'Lebarkan menu' : 'Ciutkan menu');
+  if (node.title === label && node.dataset.state === `${rail}:${open}`) return;
+  node.title = label;
+  node.dataset.state = `${rail}:${open}`;
+  node.setAttribute('aria-label', label);
+  if (tabletQuery.matches) node.setAttribute('aria-expanded', String(open)); else node.removeAttribute('aria-expanded');
+  clear(node).appendChild(svgIcon(rail && !open ? 'chevrons-right' : 'chevrons-left', { size: 15 }));
+}
+
+function toggleRail() {
+  if (tabletQuery.matches) { shellDrawer.toggle(); return; }
+  try { localStorage.setItem(RAIL_KEY, railChosen() ? '0' : '1'); } catch { /* peramban menolak: tetap berlaku di sesi ini */ }
+  if (shellDrawer.isOpen()) shellDrawer.close();
+  applyRail();
+}
+
+tabletQuery.addEventListener('change', applyRail);
+wideQuery.addEventListener('change', applyRail);
+new MutationObserver(updateRailToggle).observe(document.body, { attributeFilter: ['class'] });
+
 function groupOpenByDefault(group, stored) {
   if (stored) return stored.has(group.label);
   return group.kind === 'shortcut' || group.label === 'Ringkasan';
@@ -562,10 +660,21 @@ function starButton(route, on) {
   return star;
 }
 
+// <svg>.className adalah SVGAnimatedString yang hanya-baca: menetapkannya melempar
+// TypeError di modul (strict), dan shell berhenti di pemutar boot. classList, bukan className.
+function navIcon(name) {
+  const node = svgIcon(name, { size: 15 });
+  node.classList.add('ni');
+  return node;
+}
+
 function navItemNode(item, favorites) {
   const link = el('a', { href: `#/${item.route}`, dataset: { route: item.route }, title: item.sub || null }, [
     el('span.tick'),
+    item.icon ? navIcon(item.icon) : null,
     el('span.lbl', { text: item.label }),
+    // Lencana jumlah (UX-D.2): diisi paintInboxCounts() dari js/inbox.js; kosong = belum ditanyakan.
+    item.count ? el('span.nav-count', { dataset: { count: item.count }, hidden: true }) : null,
   ]);
   // Baris kroma aplikasi (schema.js `chrome: true` — hari ini hanya Beranda):
   // ada di menu, tetapi bukan salah satu LAYAR modulnya. Ditandai di DOM supaya
@@ -577,10 +686,40 @@ function navItemNode(item, favorites) {
   return node;
 }
 
+/*
+ * Plafon tautan per grup (UX-D.2, ERRATA E-4). Grup yang rutenya lebih dari
+ * CAP_GROUP menampilkan CAP_SHOW rute pertama lalu satu baris "Semua layar
+ * <modul> →" ke beranda modulnya; sisanya tetap ADA di DOM (kelas beyond-cap,
+ * disembunyikan app.css) supaya kotak saring, pembaca luar (S21 membandingkan
+ * kartu beranda modul dengan tautan sidebar) dan rute aktif tetap menemukannya —
+ * setActiveNav menandai rute aktif di balik plafon dengan cap-active, jadi ia
+ * selalu tergambar. Pemisah di dalam irisan yang terlihat dipertahankan; yang
+ * bloknya seluruhnya di balik plafon ikut tersembunyi. Terukur 3 Okt 2026:
+ * Penjualan 13, Pengadaan 14, Persediaan 11, Proyek 20, Keuangan 22 rute.
+ */
+const CAP_GROUP = 10;
+const CAP_SHOW = 8;
+
 function navGroupNode(nav, group, favorites, stored) {
-  const items = el('.nav-items', group.items.map((item) => (item.divider
-    ? el('.nav-divider', { text: item.divider })
-    : navItemNode(item, favorites))));
+  const routes = group.items.filter((item) => item.route).length;
+  const capped = Boolean(group.prefix) && routes > CAP_GROUP;
+  let shown = 0;
+  const items = el('.nav-items', group.items.map((item) => {
+    const node = item.divider ? el('.nav-divider', { text: item.divider }) : navItemNode(item, favorites);
+    if (capped) {
+      if (item.divider ? shown >= CAP_SHOW : shown >= CAP_SHOW) node.classList.add('beyond-cap');
+      if (item.route) shown += 1;
+    }
+    return node;
+  }));
+  if (capped) {
+    items.appendChild(el('.nav-item.nav-more', [
+      el('a.nav-more-link', { href: `#/m/${group.prefix}`, dataset: { route: `m/${group.prefix}`, chrome: '1' } }, [
+        el('span.tick'),
+        el('span.lbl', { text: `Semua layar ${group.label} →` }),
+      ]),
+    ]));
+  }
 
   // Class 'chev' dipasang di sini, bukan di icon(): selector rotasi
   // `.nav-group[data-open="false"] > button .chev` di app.css tidak pernah
@@ -624,7 +763,18 @@ function navGroupNode(nav, group, favorites, stored) {
     groupNode.dataset.accent = String(module.accent);
   }
 
+  // Tooltip untuk rel ikon (UX-D.6): labelnya tersembunyi secara visual di sana.
+  groupNode.querySelector('button').title = group.label;
   groupNode.querySelector('button').addEventListener('click', () => {
+    // Di rel (dan menu lengkap tidak sedang terbuka di atasnya) grup tidak bisa
+    // "dibuka" di tempat: modulnya membuka berandanya — kartu SEMUA layarnya — dan
+    // grup pintasan (Favorit, Terakhir dibuka) membuka menu lengkap di atas isi.
+    if (document.body.classList.contains('rail') && !document.body.classList.contains('nav-open')) {
+      if (group.prefix) { navigate(`m/${group.prefix}`); return; }
+      groupNode.dataset.open = 'true';
+      shellDrawer.open();
+      return;
+    }
     const next = groupNode.dataset.open !== 'true';
     groupNode.dataset.open = String(next);
     const open = [...nav.querySelectorAll('.nav-group')]
@@ -735,11 +885,14 @@ function navFilterNode(nav) {
       applyNavFilter(nav, '');
     }
   });
+  const railButton = el('button.rail-toggle', { type: 'button', 'aria-controls': 'nav-utama' });
+  railButton.addEventListener('click', toggleRail);
   return el('.nav-filter', [
     svgIcon('search', { size: 14 }),
     input,
     // Hitungan dibacakan pembaca layar; ia tidak menggeser tata letak.
     el('span.nav-filter-status.sr-only', { role: 'status', 'aria-live': 'polite' }),
+    railButton,
   ]);
 }
 
@@ -750,9 +903,26 @@ function renderNav(nav) {
   const groups = navForSession();
   const favorites = prefs.favorites();
   const stored = storedOpenGroups();
-  for (const group of [...shortcutGroups(groups), ...groups]) {
+  /* Lapis 1 (UX-D.2): baris tetap dari NAV (`pinned: true`), digambar di atas
+     Favorit dan dilewatkan di grupnya. Izinnya sudah disaring visibleNav(). Bukan
+     .nav-group: ia tidak punya kepala yang bisa dilipat, dan pembaca luar yang
+     membaca `.nav-group > button` (S5) tidak boleh menemukan grup tanpa tombol. */
+  const pinned = groups.flatMap((group) => group.items.filter((item) => item.pinned).map((item) => ({ ...item, prefix: group.prefix })));
+  if (pinned.length) {
+    nav.appendChild(el('.nav-pinned', { 'aria-label': 'Ruang kerja saya' }, [
+      el('.nav-items', pinned.map((item) => {
+        const node = navItemNode({ ...item, starrable: false }, favorites);
+        node.querySelector('a').dataset.prefix = item.prefix;
+        node.querySelector('a').title = item.label; // tooltip di rel ikon (UX-D.6)
+        return node;
+      })),
+    ]));
+  }
+  const unpinned = groups.map((group) => ({ ...group, items: group.items.filter((item) => !item.pinned) }));
+  for (const group of [...shortcutGroups(groups), ...unpinned]) {
     nav.appendChild(navGroupNode(nav, group, favorites, stored));
   }
+  paintInboxCounts();
   // Sidebar dibangun ulang tiap bintang dan tiap dokumen yang dibuka. Kalau
   // sebuah saringan sedang aktif, ia harus selamat dari pembangunan itu —
   // kalau tidak, memberi bintang saat menyaring akan menumpahkan 149 tautan
@@ -761,6 +931,7 @@ function renderNav(nav) {
     NAV_FILTER_STATE.before = null;
     applyNavFilter(nav, NAV_FILTER_STATE.q);
   }
+  updateRailToggle();
 }
 
 /* Bangun ulang seluruh sidebar (121 tautan, sekali gambar) alih-alih menambal
@@ -771,7 +942,93 @@ function refreshNav() {
   if (!nav) return;
   renderNav(nav);
   setActiveNav(currentPath().split('?')[0]);
+  // Izin bisa berubah sesudah refreshMe(): Buat ▾ dan bilah bawah ikut, tanpa membangun ulang bilah atas.
+  const create = document.querySelector('.header .create-menu');
+  if (create) create.hidden = creatable().length === 0;
+  renderBottomNav();
 }
+
+/*
+ * Lencana jumlah persetujuan (UX-D.2, ERRATA E-4): setiap [data-count="inbox"]
+ * di shell (sidebar, bilah bawah). Belum ditanyakan → tersembunyi; 0 → tersembunyi
+ * (tidak ada yang menunggu, tidak perlu lencana); meta.failed tidak kosong →
+ * angkanya BUKAN jumlah sebenarnya, jadi ia tidak boleh tampil telanjang:
+ * "N+" dengan kalimat tugas.js ("Daftar ini belum lengkap") sebagai title.
+ */
+function paintInboxCounts() {
+  const summary = inboxSummary();
+  for (const node of document.querySelectorAll('[data-count="inbox"]')) {
+    if (!summary) { node.hidden = true; continue; }
+    const incomplete = summary.failed.length > 0;
+    node.hidden = summary.total === 0 && !incomplete;
+    node.textContent = incomplete ? `${summary.total}+` : String(summary.total);
+    node.classList.toggle('incomplete', incomplete);
+    node.title = incomplete
+      ? `Gagal dimuat: ${summary.failed.join(', ')}. Daftar ini belum lengkap — sekurang-kurangnya ${summary.total} menunggu.`
+      : `${summary.total} dokumen menunggu keputusan Anda`;
+    node.setAttribute('aria-label', node.title);
+  }
+}
+window.addEventListener('erp:inbox-changed', paintInboxCounts);
+
+/*
+ * Bilah bawah ≤ 760 px (UX-D.5, ERRATA E-4): Beranda · Persetujuan · Cari · Menu.
+ *
+ * Di ponsel sidebar adalah laci, jadi sebelum ini setiap perpindahan dimulai dengan
+ * hamburger di pojok atas — sasaran yang paling jauh dari ibu jari. Isinya DATA, bukan
+ * daftar kedua: dua slot pertama adalah baris tetap NAV (`pinned`) yang lolos
+ * visibleNav() — Beranda, lalu Persetujuan bagi pemegang hak approve. ERRATA E-4
+ * memberi slot itu kepada Pekerjaan Saya bagi yang lain; layar itu baru lahir di UX-F2,
+ * dan begitu barisnya masuk NAV dengan `pinned: true` ia mengisi slot ini tanpa satu
+ * baris pun berubah di sini. Sampai saat itu bilahnya tiga tombol bagi non-penyetuju.
+ * Menu membuka laci yang SAMA dengan hamburger (ui.drawer()).
+ */
+const shellDrawer = drawer();
+
+function bottomNavItems() {
+  const pinned = navForSession().flatMap((group) => group.items.filter((item) => item.pinned));
+  const home = pinned.find((item) => item.route === 'home');
+  const second = pinned.find((item) => item.route !== 'home');
+  const link = (item) => el('a.bn-item', { href: `#/${item.route}`, dataset: { route: item.route } }, [
+    svgIcon(item.icon || 'home', { size: 20 }),
+    el('span.bn-label', { text: item.label }),
+    item.count ? el('span.nav-count', { dataset: { count: item.count }, hidden: true }) : null,
+  ]);
+  const action = (label, iconName, onClick, attrs = {}) => {
+    const node = el('button.bn-item', { type: 'button', ...attrs }, [svgIcon(iconName, { size: 20 }), el('span.bn-label', { text: label })]);
+    node.addEventListener('click', onClick);
+    return node;
+  };
+  return [
+    home ? link(home) : null,
+    second ? link(second) : null,
+    action('Cari', 'search', () => openSearch(), { title: 'Pencarian global' }),
+    action('Menu', 'menu', () => shellDrawer.toggle(), {
+      'aria-controls': 'nav-utama', 'aria-expanded': String(shellDrawer.isOpen()), 'data-drawer-toggle': '',
+    }),
+  ].filter(Boolean);
+}
+
+function renderBottomNav() {
+  const host = document.querySelector('.bottom-nav');
+  if (!host) return;
+  clear(host);
+  bottomNavItems().forEach((node) => host.appendChild(node));
+  paintInboxCounts();
+  markBottomNav(currentPath().split('?')[0]);
+}
+
+function markBottomNav(path) {
+  document.querySelectorAll('.bottom-nav a[data-route]').forEach((link) => {
+    const on = link.dataset.route === path;
+    link.classList.toggle('active', on);
+    if (on) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  });
+}
+// Sesudah pindah halaman angka yang berumur lebih dari satu menit ditanyakan lagi —
+// keputusan di layar dokumen mengubahnya, dan lencana yang berbohong sejam lebih
+// buruk daripada satu permintaan ringan. loadInbox() diam tanpa izin approve.
+window.addEventListener('hashchange', () => { loadInbox().catch(() => {}); });
 
 /*
  * Tombol pencarian header, dan bentuk medannya di layar lebar (UI-3b).
@@ -874,7 +1131,9 @@ function buildShell() {
     if (event.key !== 'Escape' || !document.body.classList.contains('nav-open')) return;
     if (modalDepth && modalDepth()) return;
     setDrawer(false);
-    menuToggle.focus();
+    // Hamburger di ponsel, tombol rel di tablet/desktop: fokus kembali ke yang tergambar.
+    const back = [menuToggle, document.querySelector('.rail-toggle')].find((node) => node && node.offsetParent !== null);
+    if (back) back.focus();
   });
 
   document.addEventListener('pointerdown', (event) => {
@@ -882,7 +1141,7 @@ function buildShell() {
     // pengalihnya sendiri, dan tanpa pengecualian ini keduanya saling
     // membatalkan sehingga laci tidak pernah terbuka.
     if (!document.body.classList.contains('nav-open')) return;
-    if (event.target.closest('nav.nav') || event.target.closest('.menu-toggle')) return;
+    if (event.target.closest('nav.nav') || event.target.closest('.menu-toggle, [data-drawer-toggle]')) return;
     setDrawer(false);
   });
 
@@ -921,22 +1180,16 @@ function buildShell() {
       // dimampatkan 377 → 149 px. Karena itu medan ini hanya muncul ≥ 1200 px;
       // di bawah itu tombolnya persis seperti sebelumnya.
       commandField(),
-      button('', {
-        variant: 'ghost',
-        iconName: (localStorage.getItem(THEME_KEY) || 'system') === 'dark' ? 'moon' : 'sun',
-        title: 'Ganti tema',
-        onClick: (event) => {
-          cycleTheme();
-          const next = (localStorage.getItem(THEME_KEY) || 'system') === 'dark' ? 'moon' : 'sun';
-          clear(event.currentTarget).appendChild(icon(next, 15));
-        },
-      }),
+      createMenu(),
       notificationBell(),
       userButton,
     ]),
     nav,
     main,
+    el('nav.bottom-nav', { 'aria-label': 'Navigasi bawah' }),
   ]));
+  renderBottomNav();
+  applyRail();
 
   return main;
 }
@@ -959,6 +1212,7 @@ function openUserMenu(user) {
         el('dt', { text: 'Hak akses' }),
         el('dd', { text: `${(user.permissions || []).length} izin` }),
       ]),
+      themeControl(),
       densityControl(),
       installRow(),
     ]),
@@ -1023,6 +1277,7 @@ function densityControl() {
 }
 
 function setActiveNav(path) {
+  markBottomNav(path);
   document.querySelectorAll('.nav-group.has-active').forEach((group) => group.classList.remove('has-active'));
   document.querySelectorAll('.nav-items a').forEach((link) => {
     const target = link.dataset.route;
@@ -1030,6 +1285,9 @@ function setActiveNav(path) {
       (target.startsWith('r/') && path.startsWith(`d/${target.slice(2)}/`)) ||
       (target === 'r/projects' && /^d\/projects\/\d+$/.test(path));
     link.classList.toggle('active', active);
+    // Rute aktif di balik plafon tautan (UX-D.2) selalu tergambar.
+    const item = link.closest('.nav-item');
+    if (item) item.classList.toggle('cap-active', active && item.classList.contains('beyond-cap'));
     if (active) {
       const group = link.closest('.nav-group');
       // Grup rute aktif dibuka (tidak disimpan) — inilah pengecualian bawaan
@@ -1465,7 +1723,7 @@ function registerRoutes() {
   });
 
   route('tugas', () => {
-    setCrumbs(['Ringkasan', 'Tugas Saya']);
+    setCrumbs(['Ringkasan', 'Persetujuan']);
     setActiveNav('tugas');
     const host = view();
     // Tanpa gerbang izin: core/inbox menyaring per {modul}.approve pemanggil.
@@ -1853,6 +2111,9 @@ async function boot() {
   applyDensity(readDensity());
   startNotificationPolling();
   buildShell();
+  // Lencana Persetujuan (UX-D.2): satu permintaan, dibagi dengan widget dasbor
+  // lewat js/inbox.js; tidak ada permintaan tanpa izin approve.
+  loadInbox().catch(() => {});
 
   if (!routesRegistered) {
     registerRoutes();
@@ -1897,31 +2158,13 @@ async function boot() {
 }
 
 /*
- * Landing sesudah masuk (keputusan pemilik #3, ROADMAP-HASHMICRO §5): dasbor di
- * atas 760 px, app launcher #/home pada 760 px ke bawah. 760 px bukan angka
- * baru — itulah titik potong yang SUDAH dipakai app.css untuk melipat sidebar
- * menjadi laci, dan di bawahnya menu tidak terlihat sampai seseorang menekan
- * hamburger: mendarat di dasbor berarti mendarat di halaman tanpa jalan keluar
- * yang terlihat. Itu SENDIRI sudah cukup, dan sejak P1-D itulah satu-satunya
- * alasan yang masih berdiri.
- *
- * Alasan KEDUA yang dulu ditulis di sini — "DUA dari 12 peran demo bahkan
- * mendarat di dasbor KOSONG: procurement dan hr" — sudah tidak benar, dan yang
- * membatalkannya adalah paket P1-D itu sendiri: susunan bawaan per peran
- * memberi setiap peran demo widget-nya sendiri. Diukur ulang 6 Sep 2026 dengan
- * masuk sebagai kedua belas akun demo (S22_roles_with_tiles):
- * roles_without_dashboard_stat = [] — hr 0 → 5 ubin, procurement 0 → 6,
- * direktur 6 → 16, admin 6 → 16, project-manager 1 → 14. Kalimat lama
- * dibiarkan hidup di sini sampai verifikasi kedua P1-D, sementara berkas bukti
- * yang dirujuknya masih memuat angka sebelum paket ini.
- *
- * PEMBANDINGNYA `>`, BUKAN `>=`. `@media (max-width: 760px)` INKLUSIF: pada
- * lebar 760 px tepat, sidebar sudah menjadi laci. Aturan ini dulu memakai
- * `>= 760` — juga inklusif — jadi 760 px adalah satu-satunya lebar yang
- * mendapat KEDUANYA: laci DAN dasbor, persis gabungan yang aturan ini ditulis
- * untuk mencegah (terukur 6 Sep 2026 sebagai admin@: 759 → #/home,
- * 760 → #/dashboard dengan matchMedia('(max-width: 760px)') true dan nav di
- * luar layar, 761 → #/dashboard dengan sidebar terlihat).
+ * Landing sesudah masuk: #/home di SETIAP lebar (ERRATA D-2, ledger baris 18 —
+ * UX-D.1). Keputusan pemilik #3 ("dasbor di meja, launcher di ponsel") dicabut:
+ * alasannya satu-satunya adalah bahwa di ≤ 760 px dasbor tidak punya jalan keluar
+ * yang terlihat sampai hamburger ditekan, dan bilah bawah UX-D menghapus alasan
+ * itu. #/dashboard tetap satu klik: baris "Dasbor" di Ringkasan dan tombol
+ * "Dasbor" di kepala Beranda. 760 px tetap titik lipat sidebar (app.css) dan tetap
+ * dipaku LauncherWiringTest; ia hanya tidak lagi memilih halaman.
  *
  * Hanya berlaku ketika TIDAK ADA hash: tautan-dalam (notifikasi ke
  * `#/d/finance/ap-bills/12`, tab yang dipulihkan peramban, tombol Kembali)
@@ -1931,7 +2174,7 @@ async function boot() {
 function landOnDefault() {
   const hash = location.hash;
   if (hash && hash !== '#' && hash !== '#/') return;
-  navigate(window.innerWidth > 760 ? 'dashboard' : 'home', { replace: true });
+  navigate('home', { replace: true });
 }
 
 /*

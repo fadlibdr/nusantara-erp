@@ -422,9 +422,10 @@ function mountDock(guide, { auto }) {
    * memindah siapa pun, moved === false, dan lembarnya tetap terbuka.
    */
   function tour() {
-    const opening = MOBILE.matches
-      ? { group: 'Ringkasan', label: 'Beranda', route: 'home', raw: 'Ringkasan › Beranda' }
-      : { group: 'Ringkasan', label: 'Dasbor', route: 'dashboard', raw: 'Ringkasan › Dasbor' };
+    // Halaman pembuka = halaman landing, dan sejak UX-D.1 (ERRATA D-2) itu
+    // #/home di setiap lebar. tour() yang menyebut halaman lain membuat visit()
+    // mengira orangnya pindah pada langkah pertama (lihat LauncherWiringTest).
+    const opening = { group: 'Ringkasan', label: 'Beranda', route: 'home', raw: 'Ringkasan › Beranda' };
     if (index === 0 || index === 5) { visit(opening); return; }
     if (index === 1) { visit(opening, { sidebar: true }); return; }
     if (index === 3) return; // kalimat penolakan — tidak ada satu layar untuknya
