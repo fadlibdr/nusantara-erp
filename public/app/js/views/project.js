@@ -43,8 +43,8 @@ const PROJECT_TABS = [
  *
  * Yang BERUBAH, dan disengaja:
  *  • Warna datang dari token kategorikal `--chart-n`, bukan `--muted/--primary/
- *    --text-2`. "Aktual" tetap biru yang sama persis (`--chart-1` = `--primary`
- *    = #1a56db); dua garis rencana yang dulu abu-abu tua dan abu-abu muda —
+ *    --text-2`. "Aktual" tetap biru yang sama persis (`--chart-1` #1a56db — sampai
+ *    UX-C.1 juga = `--primary`); dua garis rencana yang dulu abu-abu tua dan abu-abu muda —
  *    hampir tak terbedakan kecuali dari pola putusnya — kini hijau dan batu
  *    tulis, pola putusnya dipertahankan ('5 3' mingguan, '2 4' baseline).
  *  • Nilai di LUAR 0–100 tidak lagi dijepit diam-diam. Kode lama menulis
