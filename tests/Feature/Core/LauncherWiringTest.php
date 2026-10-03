@@ -15,10 +15,9 @@ use Tests\ErpTestCase;
  * dibaca seorang peninjau) dipakai di sini.
  *
  * Yang dijaga, dan kegagalan yang dicegahnya:
- *  - landing ponsel. Tanpa aturan 760 px, orang di ponsel mendarat di dasbor
- *    yang bagi DUA dari 12 peran demo KOSONG (procurement dan hr — diukur
- *    dengan masuk sebagai kedua belas akun demo, S22_roles_with_tiles), dengan
- *    menu tersembunyi di laci.
+ *  - landing. Sampai UX-D.1 aturannya bercabang pada 760 px (dasbor di meja,
+ *    launcher di ponsel); sejak ERRATA D-2 landing adalah #/home di setiap
+ *    lebar, dan yang dijaga adalah bahwa cabangnya tidak kembali diam-diam.
  *  - tautan-dalam. Aturan landing yang membaca currentPath() alih-alih
  *    location.hash akan membajak setiap notifikasi yang menaut ke dokumen:
  *    currentPath() mengarang 'dashboard' saat hash kosong, jadi keduanya tampak
@@ -58,29 +57,27 @@ class LauncherWiringTest extends ErpTestCase
         $this->assertArrayHasKey('home', $this->spriteSymbols(), 'Sprite Lucide tidak punya simbol "home"; tombolnya menggambar kotak kosong.');
     }
 
-    public function test_the_landing_rule_uses_the_760px_breakpoint_and_only_when_there_is_no_hash(): void
+    public function test_the_landing_rule_lands_on_home_at_every_width_and_only_when_there_is_no_hash(): void
     {
         $app = $this->file('app/js/app.js');
         $rule = $this->landingRule($app);
 
-        $this->assertNotNull($rule, 'landOnDefault() tidak ditemukan di app.js — aturan landing (keputusan pemilik #3) hilang.');
-        $this->assertStringContainsString("'home'", $rule);
-        $this->assertStringContainsString("'dashboard'", $rule);
+        $this->assertNotNull($rule, 'landOnDefault() tidak ditemukan di app.js — aturan landing hilang.');
 
         /*
-         * `>`, bukan `>=`. `@media (max-width: 760px)` inklusif: pada 760 px
-         * tepat sidebar SUDAH menjadi laci. Aturan landing yang juga inklusif
-         * memberi lebar itu laci DAN dasbor — gabungan yang aturan ini ada
-         * untuk mencegah (terukur 6 Sep 2026: 760 px → #/dashboard dengan nav
-         * di luar layar). Kedua sisi diuji di sini karena keduanya berada di
-         * berkas berbeda dan tidak ada yang gagal berisik saat salah satunya
-         * bergeser.
+         * UX-D.1 (ERRATA D-2): #/home di SETIAP lebar. Keputusan pemilik #3
+         * ("dasbor di meja, launcher di ponsel") dicabut karena bilah bawah
+         * menghapus satu-satunya alasannya. Yang dipaku: tujuannya 'home', dan
+         * TIDAK ADA lagi cabang lebar di dalamnya — cabang yang kembali diam-diam
+         * mengembalikan dua halaman pembuka untuk satu aplikasi.
          */
-        $this->assertStringContainsString('window.innerWidth > 760', $rule);
-        $this->assertStringNotContainsString('>= 760', $rule,
-            'Aturan landing inklusif pada 760 px, sama seperti @media (max-width: 760px): lebar itu mendapat laci DAN dasbor.');
+        $this->assertStringContainsString("navigate('home', { replace: true })", $rule);
+        $this->assertStringNotContainsString("'dashboard'", $rule, 'Aturan landing menyebut dasbor lagi; D-2 memilih #/home di setiap lebar.');
+        $this->assertStringNotContainsString('innerWidth', $rule, 'Aturan landing bercabang pada lebar layar lagi.');
+
+        // 760 px tetap titik lipat sidebar — ia hanya tidak lagi memilih halaman.
         $this->assertStringContainsString('@media (max-width: 760px)', $this->file('app/app.css'),
-            'app.css tidak lagi melipat sidebar pada 760 px; aturan landing memakai angka yang tidak berarti apa-apa lagi.');
+            'app.css tidak lagi melipat sidebar pada 760 px.');
 
         // location.hash, BUKAN currentPath(): yang kedua mengarang 'dashboard'
         // saat hash kosong, jadi setiap tautan-dalam akan dibajak ke launcher.
@@ -106,14 +103,15 @@ class LauncherWiringTest extends ErpTestCase
         $tour = $this->functionBody($onboarding, 'function tour()');
 
         $this->assertNotNull($tour, 'tour() tidak ditemukan di views/onboarding.js.');
-        $this->assertStringContainsString('MOBILE.matches', $tour,
-            'tour() tidak menanyakan lebar layar, jadi langkah 1 di ponsel memindah orangnya keluar dari launcher dan melipat lembar panduannya.');
+        // Sejak UX-D.1 halaman pembuka adalah #/home di setiap lebar; tour() yang
+        // menyebut dasbor membuat visit() memindah orangnya keluar dari launcher
+        // pada langkah pertama dan melipat lembar panduannya (terukur 6 Sep 2026).
         $this->assertStringContainsString("route: 'home'", $tour);
-        $this->assertStringContainsString("route: 'dashboard'", $tour);
+        $this->assertStringNotContainsString("route: 'dashboard'", $tour,
+            'tour() membuka dasbor lagi sementara aturan landing memilih #/home: langkah 1 memindah orangnya.');
 
-        // …dan lebar yang ditanyakannya adalah titik potong yang sama dengan
-        // aturan landing: dua angka yang berselisih di sini berarti satu lebar
-        // layar yang mendarat di launcher tetapi dituntun ke dasbor.
+        // Lembar bawah vs panel berlabuh masih diputuskan pada titik lipat yang
+        // sama dengan sidebar.
         $this->assertStringContainsString("matchMedia('(max-width: 760px)')", $onboarding);
     }
 

@@ -5782,13 +5782,13 @@ def launcher_for(pg, email, tag, theme_probe=False):
 def landing_boundary(pg):
     """Aturan landing DI TITIK POTONGNYA, bukan hanya di 1440 dan 390.
 
-    `@media (max-width: 760px)` inklusif, jadi 760 px tepat sudah memakai laci;
-    aturan landing yang juga inklusif (`>= 760`) memberi lebar itu laci DAN
-    dasbor — gabungan yang aturan itu ada untuk mencegah (terukur 6 Sep 2026,
-    admin@ 760 px: #/dashboard dengan nav di luar layar). Yang diperiksa di sini
-    bukan angkanya melainkan KESEPAKATANNYA: setiap lebar yang melipat sidebar
-    menjadi laci harus mendarat di launcher. Diukur dengan mengubah ukuran
-    viewport pada sesi yang sudah masuk — tanpa login tambahan (10/menit/IP)."""
+    Sampai UX-D.1 aturan landing bercabang pada 760 px dan yang diperiksa adalah
+    kesepakatannya dengan laci (`@media (max-width: 760px)` inklusif; terukur
+    6 Sep 2026 admin@ 760 px: #/dashboard dengan nav di luar layar). Sejak
+    ERRATA D-2 landing adalah #/home di SETIAP lebar, jadi ketiga lebar harus
+    menjawab #/home; `drawer` dan `nav_offscreen` tetap dicatat supaya laci
+    yang berhenti melipat pada 760 px tetap terlihat di sini. Diukur dengan
+    mengubah ukuran viewport pada sesi yang sudah masuk — tanpa login tambahan."""
     original = dict(pg.viewport_size)
     out = {}
     for width in (759, 760, 761):
@@ -5801,8 +5801,8 @@ def landing_boundary(pg):
             nav_offscreen: document.querySelector('nav.nav').getBoundingClientRect().right <= 0,
             menu_toggle: getComputedStyle(document.querySelector('.header .menu-toggle')).display })""")
     pg.set_viewport_size(original)
-    out["ok"] = all(v["hash"] == ("#/home" if v["drawer"] else "#/dashboard") for v in
-                    (out["759"], out["760"], out["761"]))
+    # UX-D.1 (ERRATA D-2): #/home di SETIAP lebar — tidak ada lagi lebar yang mendarat di dasbor.
+    out["ok"] = all(v["hash"] == "#/home" for v in (out["759"], out["760"], out["761"]))
     out["drawer_and_dashboard"] = [w for w in ("759", "760", "761") if out[w]["drawer"] and out[w]["hash"] == "#/dashboard"]
     return out
 
@@ -5886,7 +5886,8 @@ def launcher_truth(pg, tag):
     # --------------------------------------------------------- aturan landing
     # Diukur di viewport skenario ini; pasangannya diukur skenario kembarannya.
     out["landing"] = {"viewport_w": pg.viewport_size["width"],
-                      "expected": "#/dashboard" if not mobile else "#/home",
+                      # UX-D.1 (ERRATA D-2): #/home di setiap lebar; `mobile` tetap dicatat di viewport_w.
+                      "expected": "#/home",
                       "measured": out["roles"]["teknisi"]["landing_after_login"]}
     out["landing"]["ok"] = out["landing"]["measured"] == out["landing"]["expected"]
     # Titik potongnya sendiri — sekali, di skenario desktop (mengubah ukuran

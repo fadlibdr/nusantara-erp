@@ -1897,31 +1897,13 @@ async function boot() {
 }
 
 /*
- * Landing sesudah masuk (keputusan pemilik #3, ROADMAP-HASHMICRO §5): dasbor di
- * atas 760 px, app launcher #/home pada 760 px ke bawah. 760 px bukan angka
- * baru — itulah titik potong yang SUDAH dipakai app.css untuk melipat sidebar
- * menjadi laci, dan di bawahnya menu tidak terlihat sampai seseorang menekan
- * hamburger: mendarat di dasbor berarti mendarat di halaman tanpa jalan keluar
- * yang terlihat. Itu SENDIRI sudah cukup, dan sejak P1-D itulah satu-satunya
- * alasan yang masih berdiri.
- *
- * Alasan KEDUA yang dulu ditulis di sini — "DUA dari 12 peran demo bahkan
- * mendarat di dasbor KOSONG: procurement dan hr" — sudah tidak benar, dan yang
- * membatalkannya adalah paket P1-D itu sendiri: susunan bawaan per peran
- * memberi setiap peran demo widget-nya sendiri. Diukur ulang 6 Sep 2026 dengan
- * masuk sebagai kedua belas akun demo (S22_roles_with_tiles):
- * roles_without_dashboard_stat = [] — hr 0 → 5 ubin, procurement 0 → 6,
- * direktur 6 → 16, admin 6 → 16, project-manager 1 → 14. Kalimat lama
- * dibiarkan hidup di sini sampai verifikasi kedua P1-D, sementara berkas bukti
- * yang dirujuknya masih memuat angka sebelum paket ini.
- *
- * PEMBANDINGNYA `>`, BUKAN `>=`. `@media (max-width: 760px)` INKLUSIF: pada
- * lebar 760 px tepat, sidebar sudah menjadi laci. Aturan ini dulu memakai
- * `>= 760` — juga inklusif — jadi 760 px adalah satu-satunya lebar yang
- * mendapat KEDUANYA: laci DAN dasbor, persis gabungan yang aturan ini ditulis
- * untuk mencegah (terukur 6 Sep 2026 sebagai admin@: 759 → #/home,
- * 760 → #/dashboard dengan matchMedia('(max-width: 760px)') true dan nav di
- * luar layar, 761 → #/dashboard dengan sidebar terlihat).
+ * Landing sesudah masuk: #/home di SETIAP lebar (ERRATA D-2, ledger baris 18 —
+ * UX-D.1). Keputusan pemilik #3 ("dasbor di meja, launcher di ponsel") dicabut:
+ * alasannya satu-satunya adalah bahwa di ≤ 760 px dasbor tidak punya jalan keluar
+ * yang terlihat sampai hamburger ditekan, dan bilah bawah UX-D menghapus alasan
+ * itu. #/dashboard tetap satu klik: baris "Dasbor" di Ringkasan dan tombol
+ * "Dasbor" di kepala Beranda. 760 px tetap titik lipat sidebar (app.css) dan tetap
+ * dipaku LauncherWiringTest; ia hanya tidak lagi memilih halaman.
  *
  * Hanya berlaku ketika TIDAK ADA hash: tautan-dalam (notifikasi ke
  * `#/d/finance/ap-bills/12`, tab yang dipulihkan peramban, tombol Kembali)
@@ -1931,7 +1913,7 @@ async function boot() {
 function landOnDefault() {
   const hash = location.hash;
   if (hash && hash !== '#' && hash !== '#/') return;
-  navigate(window.innerWidth > 760 ? 'dashboard' : 'home', { replace: true });
+  navigate('home', { replace: true });
 }
 
 /*
