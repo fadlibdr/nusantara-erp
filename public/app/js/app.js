@@ -533,6 +533,60 @@ function storedOpenGroups() {
   return raw === null ? null : new Set(JSON.parse(raw));
 }
 
+/*
+ * Rel ikon (UX-D.6, handoff README Fase D; ERRATA E-4): sidebar 248 px menciut menjadi
+ * rel 64 px — atas pilihan di ≥ 1024 px, SELALU di 761–1023 px (tablet), tempat 248 px
+ * memakan seperempat layar. Keadaannya milik PERANGKAT, disimpan di localStorage di
+ * samping lipatan grup (nusantara_erp_nav) — bukan preferensi server: rel yang dipilih
+ * di monitor kantor tidak boleh menciutkan sidebar laptop lapangan. UserPreferences
+ * tidak berubah. Di rel, label tetap ada untuk pembaca layar dan sebagai tooltip;
+ * ikon grup membuka beranda modulnya (daftar lengkap layarnya), dan menu lengkap
+ * dibuka DI ATAS isi lewat laci yang sama dengan ponsel (ui.drawer()).
+ */
+const RAIL_KEY = 'nusantara_erp_nav_rail';
+const tabletQuery = window.matchMedia('(min-width: 761px) and (max-width: 1023px)');
+const wideQuery = window.matchMedia('(min-width: 1024px)');
+
+function railChosen() {
+  try { return localStorage.getItem(RAIL_KEY) === '1'; } catch { return false; }
+}
+
+function railActive() {
+  return tabletQuery.matches || (wideQuery.matches && railChosen());
+}
+
+function applyRail() {
+  document.body.classList.toggle('rail', railActive());
+  updateRailToggle();
+}
+
+function updateRailToggle() {
+  const node = document.querySelector('.rail-toggle');
+  if (!node) return;
+  const rail = document.body.classList.contains('rail');
+  const open = document.body.classList.contains('nav-open');
+  const label = tabletQuery.matches
+    ? (open ? 'Tutup menu' : 'Buka menu lengkap')
+    : (rail ? 'Lebarkan menu' : 'Ciutkan menu');
+  if (node.title === label && node.dataset.state === `${rail}:${open}`) return;
+  node.title = label;
+  node.dataset.state = `${rail}:${open}`;
+  node.setAttribute('aria-label', label);
+  if (tabletQuery.matches) node.setAttribute('aria-expanded', String(open)); else node.removeAttribute('aria-expanded');
+  clear(node).appendChild(svgIcon(rail && !open ? 'chevrons-right' : 'chevrons-left', { size: 15 }));
+}
+
+function toggleRail() {
+  if (tabletQuery.matches) { shellDrawer.toggle(); return; }
+  try { localStorage.setItem(RAIL_KEY, railChosen() ? '0' : '1'); } catch { /* peramban menolak: tetap berlaku di sesi ini */ }
+  if (shellDrawer.isOpen()) shellDrawer.close();
+  applyRail();
+}
+
+tabletQuery.addEventListener('change', applyRail);
+wideQuery.addEventListener('change', applyRail);
+new MutationObserver(updateRailToggle).observe(document.body, { attributeFilter: ['class'] });
+
 function groupOpenByDefault(group, stored) {
   if (stored) return stored.has(group.label);
   return group.kind === 'shortcut' || group.label === 'Ringkasan';
@@ -709,7 +763,18 @@ function navGroupNode(nav, group, favorites, stored) {
     groupNode.dataset.accent = String(module.accent);
   }
 
+  // Tooltip untuk rel ikon (UX-D.6): labelnya tersembunyi secara visual di sana.
+  groupNode.querySelector('button').title = group.label;
   groupNode.querySelector('button').addEventListener('click', () => {
+    // Di rel (dan menu lengkap tidak sedang terbuka di atasnya) grup tidak bisa
+    // "dibuka" di tempat: modulnya membuka berandanya — kartu SEMUA layarnya — dan
+    // grup pintasan (Favorit, Terakhir dibuka) membuka menu lengkap di atas isi.
+    if (document.body.classList.contains('rail') && !document.body.classList.contains('nav-open')) {
+      if (group.prefix) { navigate(`m/${group.prefix}`); return; }
+      groupNode.dataset.open = 'true';
+      shellDrawer.open();
+      return;
+    }
     const next = groupNode.dataset.open !== 'true';
     groupNode.dataset.open = String(next);
     const open = [...nav.querySelectorAll('.nav-group')]
@@ -820,11 +885,14 @@ function navFilterNode(nav) {
       applyNavFilter(nav, '');
     }
   });
+  const railButton = el('button.rail-toggle', { type: 'button', 'aria-controls': 'nav-utama' });
+  railButton.addEventListener('click', toggleRail);
   return el('.nav-filter', [
     svgIcon('search', { size: 14 }),
     input,
     // Hitungan dibacakan pembaca layar; ia tidak menggeser tata letak.
     el('span.nav-filter-status.sr-only', { role: 'status', 'aria-live': 'polite' }),
+    railButton,
   ]);
 }
 
@@ -845,6 +913,7 @@ function renderNav(nav) {
       el('.nav-items', pinned.map((item) => {
         const node = navItemNode({ ...item, starrable: false }, favorites);
         node.querySelector('a').dataset.prefix = item.prefix;
+        node.querySelector('a').title = item.label; // tooltip di rel ikon (UX-D.6)
         return node;
       })),
     ]));
@@ -862,6 +931,7 @@ function renderNav(nav) {
     NAV_FILTER_STATE.before = null;
     applyNavFilter(nav, NAV_FILTER_STATE.q);
   }
+  updateRailToggle();
 }
 
 /* Bangun ulang seluruh sidebar (121 tautan, sekali gambar) alih-alih menambal
@@ -913,7 +983,7 @@ window.addEventListener('erp:inbox-changed', paintInboxCounts);
  * baris pun berubah di sini. Sampai saat itu bilahnya tiga tombol bagi non-penyetuju.
  * Menu membuka laci yang SAMA dengan hamburger (ui.drawer()).
  */
-const bottomDrawer = drawer();
+const shellDrawer = drawer();
 
 function bottomNavItems() {
   const pinned = navForSession().flatMap((group) => group.items.filter((item) => item.pinned));
@@ -933,8 +1003,8 @@ function bottomNavItems() {
     home ? link(home) : null,
     second ? link(second) : null,
     action('Cari', 'search', () => openSearch(), { title: 'Pencarian global' }),
-    action('Menu', 'menu', () => bottomDrawer.toggle(), {
-      'aria-controls': 'nav-utama', 'aria-expanded': String(bottomDrawer.isOpen()), 'data-drawer-toggle': '',
+    action('Menu', 'menu', () => shellDrawer.toggle(), {
+      'aria-controls': 'nav-utama', 'aria-expanded': String(shellDrawer.isOpen()), 'data-drawer-toggle': '',
     }),
   ].filter(Boolean);
 }
@@ -1061,7 +1131,9 @@ function buildShell() {
     if (event.key !== 'Escape' || !document.body.classList.contains('nav-open')) return;
     if (modalDepth && modalDepth()) return;
     setDrawer(false);
-    menuToggle.focus();
+    // Hamburger di ponsel, tombol rel di tablet/desktop: fokus kembali ke yang tergambar.
+    const back = [menuToggle, document.querySelector('.rail-toggle')].find((node) => node && node.offsetParent !== null);
+    if (back) back.focus();
   });
 
   document.addEventListener('pointerdown', (event) => {
@@ -1117,6 +1189,7 @@ function buildShell() {
     el('nav.bottom-nav', { 'aria-label': 'Navigasi bawah' }),
   ]));
   renderBottomNav();
+  applyRail();
 
   return main;
 }

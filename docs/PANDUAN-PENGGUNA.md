@@ -176,6 +176,13 @@ layar (Penjualan, Pengadaan, Persediaan, Proyek, Keuangan) menampilkan delapan l
 dan baris **Semua layar <kelompok> →** ke beranda modulnya; layar yang sedang Anda buka selalu
 tampil walau letaknya di luar delapan itu, dan kotak **Saring menu** tetap menemukan semuanya.
 
+**Rel ikon.** Tombol **«** di ujung kotak Saring menu menciutkan sidebar menjadi rel selebar ikon
+(64 px), dan **»** melebarkannya lagi; pilihan itu diingat **peramban ini**, bukan akun Anda. Pada
+tablet (761–1023 px) sidebar selalu berupa rel. Di rel, arahkan kursor ke ikon untuk melihat
+namanya; klik ikon sebuah kelompok membuka **beranda modulnya** — kartu semua layar modul itu —
+dan ikon Favorit atau Terakhir dibuka membuka menu lengkap di atas halaman (begitu pula tombol
+» di tablet). Klik di luar menu atau tekan Esc untuk menutupnya.
+
 | Kelompok | Isinya |
 |---|---|
 | Ringkasan | Beranda · Dasbor · Persetujuan · Tenggat · Kalender · Laporan Bebas (Beranda dan Persetujuan tergambar sebagai baris tetap di puncak sidebar) |

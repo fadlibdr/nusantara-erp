@@ -162,7 +162,7 @@ class ShellWiringTest extends ErpTestCase
         $this->assertStringContainsString('navForSession().flatMap((group) => group.items.filter((item) => item.pinned))', $items,
             'Bilah bawah tidak lagi membaca baris tetap NAV: ia menulis daftar (dan izin) sendiri.');
         $this->assertStringNotContainsString('ANY_APPROVE', $items);
-        $this->assertStringContainsString("bottomDrawer.toggle()", $items, 'Menu bilah bawah membuka laci lain dari hamburger.');
+        $this->assertStringContainsString("shellDrawer.toggle()", $items, 'Menu bilah bawah membuka laci lain dari hamburger.');
         $this->assertStringContainsString("'data-drawer-toggle': ''", $items);
         $this->assertStringContainsString("closest('.menu-toggle, [data-drawer-toggle]')", $app,
             'Sentuhan pada tombol Menu bilah bawah dianggap "di luar laci" dan menutupnya lagi.');
@@ -181,6 +181,40 @@ class ShellWiringTest extends ErpTestCase
             'Lembar onboarding tidak lagi berdiri di atas bilah bawah: salah satunya menutupi yang lain.');
         $this->assertStringContainsString('.toasts { bottom: calc(var(--bottom-nav-h) + 12px + env(safe-area-inset-bottom)); }', $block);
         $this->assertStringContainsString('@media print { .bottom-nav { display: none !important; } }', $block);
+    }
+
+    /* --------------------------------------------------------------- (g) */
+
+    /** Rel ikon (UX-D.6, ERRATA E-4): milik perangkat, tablet selalu rel, label tidak pernah hilang. */
+    public function test_the_icon_rail_is_per_device_always_on_tablets_and_keeps_every_label_accessible(): void
+    {
+        $app = $this->spa('app.js');
+        $this->assertStringContainsString("const RAIL_KEY = 'nusantara_erp_nav_rail';", $app);
+        $this->assertStringContainsString("localStorage.setItem(RAIL_KEY,", $app);
+        $this->assertStringNotContainsString("prefs.set('nav.rail'", $app, 'Keadaan rel menjadi preferensi server; E-4 menuntut per perangkat.');
+        $this->assertStringNotContainsString("'nav.rail'", (string) file_get_contents(base_path('Modules/Core/Support/UserPreferences.php')),
+            'UserPreferences::keys() mendapat kunci rel — E-4: tidak ada perubahan pada daftar kunci server.');
+        $this->assertStringContainsString("window.matchMedia('(min-width: 761px) and (max-width: 1023px)')", $app);
+        $this->assertStringContainsString('return tabletQuery.matches || (wideQuery.matches && railChosen());', $app,
+            'Tablet tidak lagi selalu rel, atau desktop menjadi rel tanpa dipilih.');
+
+        // Di rel, ikon grup modul membuka beranda modulnya; grup pintasan membuka menu lengkap.
+        $group = $this->functionBody($app, 'function navGroupNode(nav, group, favorites, stored) {');
+        $this->assertNotNull($group);
+        $this->assertStringContainsString("if (group.prefix) { navigate(`m/\${group.prefix}`); return; }", $group);
+        $this->assertStringContainsString('shellDrawer.open();', $group);
+
+        $css = $this->css();
+        $start = strpos($css, '/* ===================================================== rel ikon UX-D.6 */');
+        $this->assertNotFalse($start, 'Blok CSS rel ikon hilang.');
+        $rail = substr($css, $start);
+        $this->assertStringContainsString('body.rail .shell { grid-template-columns: var(--rail-w) minmax(0, 1fr); }', $rail);
+        // Label disembunyikan SECARA VISUAL (klip), tidak pernah display:none: ia nama aksesibelnya.
+        $this->assertMatchesRegularExpression('/\.nav-group-label,\s*body\.rail:not\(\.nav-open\) \.nav-pinned \.lbl \{\s*position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect\(0 0 0 0\);/', $rail);
+        $this->assertDoesNotMatchRegularExpression('/(\.nav-group-label|\.lbl)[^{]*\{[^}]*display: none/', $rail,
+            'Rel ikon menyembunyikan label dengan display:none: tautannya kehilangan nama aksesibel.');
+        $this->assertStringContainsString("node.querySelector('a').title = item.label;", $app, 'Baris tetap di rel tanpa tooltip.');
+        $this->assertStringContainsString("groupNode.querySelector('button').title = group.label;", $app, 'Ikon grup di rel tanpa tooltip.');
     }
 
     /** Separuh penolakan. */

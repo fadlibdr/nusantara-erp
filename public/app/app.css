@@ -61,8 +61,8 @@
   --shadow-lg: 0 18px 48px rgba(16, 24, 40, .18);
   --radius: 10px;   /* bersama --radius-sm/-lg juga ditulis di keempat blok tema dan kedua blok cetak (ERRATA E-1 butir 4), nilai sama */
   --radius-sm: 8px;
-  --sidebar-w: 250px;
-  --header-h: 56px;
+  --sidebar-w: 248px;   /* 248 / rel 64 / header 60 — quick sheet handoff (UX-D.6); dulu 250 dan 56 */
+  --header-h: 60px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
@@ -716,7 +716,9 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .nav-filter-input::placeholder { color: var(--muted); }
 /* Fokus dipasang pada PEMBUNGKUS, bukan pada input tanpa tepi: cincin di sekitar
    kotak terbaca sebagai satu medan, cincin di sekitar teks terbaca sebagai cacat. */
-.nav-filter:focus-within { color: var(--text-2); box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+/* :has(input:focus), bukan :focus-within — sejak UX-D.6 tombol rel ikut duduk di baris ini, dan cincin
+   kotak saring yang muncul saat TOMBOL itu yang difokus menunjuk ke hal yang salah. */
+.nav-filter:has(.nav-filter-input:focus) { color: var(--text-2); box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
 .nav-filter-input:focus { outline: none; }
 /* Saat menyaring, penanda grup aktif tidak lagi berarti "tempat Anda berada"
    melainkan "grup yang kebetulan cocok" — jadi ia diredam. */
@@ -3536,3 +3538,49 @@ button.linkish:hover b { text-decoration: underline; }
   .onboarding-dock[data-mode="mobile"] { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom)); padding-bottom: 0; }
 }
 @media print { .bottom-nav { display: none !important; } }
+
+/* ===================================================== rel ikon UX-D.6 */
+/* body.rail dipasang app.js: SELALU di 761–1023 px, atas pilihan di ≥ 1024 px (tombol di baris
+   saring sidebar, disimpan per perangkat). Label TIDAK pernah display:none di sini — ia nama
+   aksesibel tautan dan tombol grupnya; disembunyikan secara visual saja, dan muncul sebagai
+   tooltip (title). Menu lengkap dibuka DI ATAS isi lewat laci yang sama dengan ponsel. */
+:root { --rail-w: 64px; }
+.rail-toggle { display: none; }
+@media (min-width: 761px) {
+  .rail-toggle {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 28px; height: 28px; margin-left: auto; padding: 0;
+    border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer;
+  }
+  .rail-toggle:hover { background: var(--surface-3); color: var(--text); }
+  body.rail .shell { grid-template-columns: var(--rail-w) minmax(0, 1fr); }
+  body.rail .brand { padding: 0; justify-content: center; }
+  body.rail .brand-text { display: none; }
+  body.rail:not(.nav-open) .nav { padding: 8px 8px 28px; overflow-x: hidden; }
+  body.rail:not(.nav-open) .nav-filter { justify-content: center; margin: -8px -8px 8px; padding: 10px 0; }
+  body.rail:not(.nav-open) .nav-filter > .lucide,
+  body.rail:not(.nav-open) .nav-filter-input,
+  body.rail:not(.nav-open) .nav-filter-empty,
+  body.rail:not(.nav-open) .nav-group > .nav-items,
+  body.rail:not(.nav-open) .nav-group > button .chev,
+  body.rail:not(.nav-open) .nav-item .star { display: none; }
+  body.rail:not(.nav-open) .rail-toggle { margin-left: 0; }
+  body.rail:not(.nav-open) .nav-group > button,
+  body.rail:not(.nav-open) .nav-pinned .nav-items a { position: relative; justify-content: center; padding: 10px 0; gap: 0; }
+  body.rail:not(.nav-open) .nav-group > button .nav-group-label,
+  body.rail:not(.nav-open) .nav-pinned .lbl {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  body.rail:not(.nav-open) .nav-group > button .gi,
+  body.rail:not(.nav-open) .nav-pinned .ni { width: 18px; height: 18px; opacity: .85; }
+  body.rail:not(.nav-open) .nav-pinned .nav-count { position: absolute; top: 1px; right: 4px; margin: 0; }
+  /* Menu lengkap di atas isi (tablet, atau grup pintasan di rel desktop). */
+  body.rail.nav-open .nav {
+    position: fixed; inset: var(--header-h) auto 0 0; z-index: 50;
+    width: var(--drawer-w); box-shadow: var(--shadow-lg);
+  }
+  body.rail.nav-open::after {
+    content: ""; position: fixed; inset: var(--header-h) 0 0 0; z-index: 40;
+    background: rgba(12, 17, 23, .45);
+  }
+}
