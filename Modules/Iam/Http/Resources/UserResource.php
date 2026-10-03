@@ -53,7 +53,7 @@ class UserResource extends JsonResource
              * tidak melewati Gate::before, jadi ability yang dipinjamkan sebuah
              * delegasi tidak pernah ada di dalamnya. Layar menggerbangi setiap
              * tombol pada daftar itu, sehingga seorang delegat murni — persis
-             * orang yang fitur ini ada untuknya — tidak melihat "Tugas Saya" di
+             * orang yang fitur ini ada untuknya — tidak melihat "Persetujuan" di
              * bilah samping dan tidak melihat Setujui pada satu dokumen pun.
              *
              * DILEBURKAN KE `permissions` AKAN MENJADI KEBOHONGAN: daftar itu

@@ -4040,7 +4040,7 @@ ke draf) dan minta pengajunya mengajukan ulang.
 
 ### Delegasi persetujuan
 
-Tabel `core_approval_delegations`. Dikelola pengguna sendiri di Tugas Saya ›
+Tabel `core_approval_delegations`. Dikelola pengguna sendiri di Persetujuan ›
 Delegasi Persetujuan; pemegang `iam.update` dapat membuat dan mencabut delegasi
 untuk orang lain.
 
@@ -4063,7 +4063,7 @@ Yang perlu Anda ketahui sebagai administrator:
   tersembunyi di dalam sebuah baris cuti.
 - **Penerimanya benar-benar melihatnya.** Sejak putaran verifikasi F-1 kedua,
   sesi penerima delegasi membawa daftar hak yang DIPINJAMNYA (terpisah dari hak
-  yang dipegangnya), jadi "Tugas Saya" muncul di bilah sampingnya, kartu
+  yang dipegangnya), jadi "Persetujuan" (dulu "Tugas Saya") muncul di bilah sampingnya, kartu
   "Menunggu persetujuan Anda" dapat dipasang di dasbornya, dan tombol
   Setujui/Tolak muncul pada dokumen yang boleh diputuskannya — dengan keterangan
   atas nama siapa. Sebelum itu servernya mengizinkan dan layarnya tidak pernah

@@ -166,12 +166,19 @@ di komputer kantor berlaku juga di tablet lapangan. Di layar sentuh tombol baris
 sasaran jempol 36 px, jadi petunjuknya di sana menyebut baris bertombol 43 / 55 / 55 px
 (Lega = Normal untuk baris bertombol).
 
-**Sidebar** berisi empat belas kelompok. Setiap judul kelompok bisa diklik untuk melipat
-isinya, dan keadaan lipatan itu diingat peramban Anda.
+**Sidebar** dibuka dengan **baris tetap**: **Beranda**, lalu **Persetujuan** bila Anda memegang
+hak menyetujui sesuatu — dengan angka dokumen yang menunggu keputusan Anda di ujungnya. Angka
+yang diberi tanda `+` dan berwarna kuning berarti sebagian jenis dokumen gagal dimuat: daftarnya
+belum lengkap, dan angkanya batas bawah, bukan jumlah sebenarnya. Di bawahnya **Favorit**,
+**Terakhir dibuka**, dan empat belas kelompok. Setiap judul kelompok bisa diklik untuk melipat
+isinya, dan keadaan lipatan itu diingat peramban Anda. Kelompok yang berisi lebih dari sepuluh
+layar (Penjualan, Pengadaan, Persediaan, Proyek, Keuangan) menampilkan delapan layar pertamanya
+dan baris **Semua layar <kelompok> →** ke beranda modulnya; layar yang sedang Anda buka selalu
+tampil walau letaknya di luar delapan itu, dan kotak **Saring menu** tetap menemukan semuanya.
 
 | Kelompok | Isinya |
 |---|---|
-| Ringkasan | Beranda · Dasbor · Tugas Saya · Tenggat · Kalender · Laporan Bebas |
+| Ringkasan | Beranda · Dasbor · Persetujuan · Tenggat · Kalender · Laporan Bebas (Beranda dan Persetujuan tergambar sebagai baris tetap di puncak sidebar) |
 | Penjualan | Pelanggan · Prospek · **Papan Pipeline** · **Aktivitas CRM** · Paket Tender · Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
@@ -245,14 +252,12 @@ sekadar bahwa ada yang tidak diketahui. Angka `0` selalu berarti benar-benar nol
 Di atas ubin ada **kotak cari** yang menyaring modul DAN layar sekaligus (Enter membuka
 hasil pertama), lalu baris **Favorit** dan **Terakhir dibuka** bila Anda punya isinya.
 
-**Kapan Beranda yang terbuka lebih dulu.** Di layar lebar (**lebih dari 760 px**, yaitu lebar
-yang sidebar-nya masih terlihat) masuk membawa Anda ke **Dasbor** seperti sebelumnya; pada
-760 px ke bawah — ponsel dan tablet sempit, di mana sidebar sudah menjadi laci — masuk
-membawa Anda ke **Beranda**, karena di sana menu tersembunyi dan peluncur adalah jalan
-tercepat ke mana pun. Panduan onboarding pada masuk pertama juga membuka di halaman itu:
-di ponsel ia menunjuk Beranda, bukan Dasbor. Tautan langsung (dari e-mail, pemberitahuan, atau tab yang dipulihkan peramban)
-selalu menang atas aturan ini. Kapan pun, ikon rumah di bilah atas dan baris **Beranda** di
-kelompok Ringkasan membawa Anda ke sana. Dari Beranda, Lapangan hanya **dua ketukan**:
+**Halaman pertama sesudah masuk adalah Beranda, di setiap lebar layar.** (Sampai Oktober 2026
+layar lebar membuka Dasbor dan hanya ponsel yang membuka Beranda.) Dasbor tetap satu klik: baris
+**Dasbor** di kelompok Ringkasan, atau tombol **Dasbor** di kepala Beranda. Panduan onboarding
+pada masuk pertama juga membuka di Beranda. Tautan langsung (dari e-mail, pemberitahuan, atau
+tab yang dipulihkan peramban) selalu menang atas aturan ini. Kapan pun, ikon rumah di bilah atas
+dan baris **Beranda** di puncak sidebar membawa Anda ke sana. Dari Beranda, Lapangan hanya **dua ketukan**:
 ubin **Proyek** → kartu **Lapangan (mobile)**.
 
 **Beranda modul** (`#/m/<modul>`, dibuka dari ubin atau dari remah roti pertama) kini juga
@@ -530,7 +535,8 @@ Ketiganya menjawab pertanyaan yang berbeda. Pakailah ketiganya.
 **a. Dasbor → widget "Menunggu persetujuan Anda"** — kotak masuk persetujuan. Berisi
 dokumen berstatus **Diajukan** yang boleh Anda setujui, yang paling lama menunggu di atas.
 Widget menampilkan **lima baris** dengan tombol **`Lihat semua (n)`** di bawahnya; daftar
-penuhnya ada di **Ringkasan › Tugas Saya**. Klik baris untuk membukanya.
+penuhnya ada di **Persetujuan**, baris tetap di puncak sidebar (sampai Oktober 2026 bernama
+"Tugas Saya"). Klik baris untuk membukanya.
 
 Kartu ini mencakup **seluruh 29 jenis dokumen** yang punya alur persetujuan — termasuk
 pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK, baseline proyek, pengajuan cuti,
@@ -8949,7 +8955,7 @@ administratif, rujukannya `docs/PANDUAN-ADMINISTRATOR.md`.*
 
 ### Apa yang dilihat seorang direktur
 
-Dokumen yang menunggu keputusan Anda ada di **Tugas Saya**, paling lama menunggu
+Dokumen yang menunggu keputusan Anda ada di **Persetujuan**, paling lama menunggu
 di atas. Sebagian jenis dokumen punya **ambang**: di atas nilai tertentu, dokumen
 itu hanya boleh disetujui pemegang hak "persetujuan direktur". Kalau Anda ditolak
 dengan kalimat yang menyebut sebuah izin berakhiran `-director`, itulah yang
@@ -8977,7 +8983,7 @@ menyerahkan hak persetujuannya kepada Budi untuk sebuah jendela waktu
 
 Yang perlu Anda tahu sebagai delegat:
 
-- **Anda diberi tahu.** Sebuah spanduk di Tugas Saya menyebut dari siapa Anda
+- **Anda diberi tahu.** Sebuah spanduk di Persetujuan menyebut dari siapa Anda
   memegang delegasi, untuk lingkup apa, dan sampai kapan — sebelum Anda menekan
   apa pun.
 - **Jejaknya tidak menyembunyikan apa pun.** Setiap persetujuan yang Anda berikan
@@ -8994,7 +9000,7 @@ Yang perlu Anda tahu sebagai delegat:
 
 ### Memberikan dan mencabut delegasi
 
-Di **Tugas Saya › Delegasi Persetujuan**. Anda hanya dapat mendelegasikan hak
+Di **Persetujuan › Delegasi Persetujuan**. Anda hanya dapat mendelegasikan hak
 **milik Anda sendiri** (administrator dengan hak pengelolaan pengguna dapat
 melakukannya untuk orang lain). Isi penerima, lingkup (kosong = semua persetujuan
 Anda), tanggal mulai, tanggal selesai (boleh kosong = sampai dicabut) dan
@@ -9009,7 +9015,7 @@ disimpan** alih-alih diam.
 
 ### Setujui massal
 
-Kalau perusahaan Anda mengaktifkannya, Tugas Saya menampilkan kotak centang dan
+Kalau perusahaan Anda mengaktifkannya, Persetujuan menampilkan kotak centang dan
 tombol **"Setujui terpilih"**. Bilahnya mencetak berapa banyak dokumen boleh
 dipilih sekaligus.
 

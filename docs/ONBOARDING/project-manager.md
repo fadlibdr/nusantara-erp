@@ -345,7 +345,7 @@ sekaligus. Bila yang hilang adalah tombolnya, sebutkan itu: tombol yang tidak ad
 selalu berarti izin, bukan kerusakan.
 
 > **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** yang mengumpulkan semua dokumen
+> `ux/p0-measured`, belum digabung): layar **Persetujuan** (dulu bernama Tugas Saya) yang mengumpulkan semua dokumen
 > menunggu persetujuan Anda dalam satu permintaan (termasuk yang hari ini hanya lewat
 > lonceng); draf formulir yang bertahan di peramban saat sesi habis; catatan persetujuan
 > inline tanpa dialog; dan ganti kata sandi sendiri. Sampai rilis itu tayang, halaman ini

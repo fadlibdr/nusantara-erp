@@ -10,7 +10,7 @@ use Spatie\Permission\PermissionRegistrar;
 use Tests\ErpTestCase;
 
 /**
- * T2.11 — kartu "Menunggu persetujuan Anda" dan tautan Tugas Saya hanya bagi
+ * T2.11 — kartu "Menunggu persetujuan Anda" dan tautan Persetujuan (dulu Tugas Saya) hanya bagi
  * pemegang izin `.approve` mana pun.
  *
  * Diukur 2 Sep 2026 (HASIL-UJI §1, S5 › cards): kartu tergambar untuk 11 dari
@@ -33,7 +33,7 @@ use Tests\ErpTestCase;
  * yang paling lama salah: gerbang klien membaca `user.permissions` dari
  * auth/me — getAllPermissions() milik Spatie, yang TIDAK melewati Gate::before
  * — jadi hak yang dipinjamkan sebuah delegasi tidak pernah sampai ke layar.
- * Seorang delegat murni karena itu tidak melihat tautan Tugas Saya dan tidak
+ * Seorang delegat murni karena itu tidak melihat tautan Persetujuan dan tidak
  * melihat satu pun tombol Setujui, sementara ApprovalQueue::pending memanggil
  * grants() dan mengisi kotak masuknya. Yang dipaku di bawah adalah bahwa
  * kedua sisi kini memakai bentuk yang sama — hak pinjaman dihitung, TETAPI
@@ -127,7 +127,7 @@ class ApprovalInboxGateTest extends ErpTestCase
             "if (typeof permission === 'function') return permission(held, lent);",
             $api,
             'session.can harus memanggil predikat fungsi dengan daftar izin YANG DIPEGANG dan YANG DIPINJAM; '
-                .'tanpa argumen kedua, seorang delegat murni tidak mendapat tautan Tugas Saya sama sekali.',
+                .'tanpa argumen kedua, seorang delegat murni tidak mendapat tautan Persetujuan sama sekali.',
         );
 
         /*
