@@ -1,7 +1,7 @@
 /* Generic list screen: search, filters, table, pagination, row actions. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck } from '../ui.js';
+import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -124,9 +124,17 @@ export async function renderList(host, { key, def }) {
   const canCreate = canCreateResource(def);
 
   const tableHost = el('.card');
-  const head = el('.page-head', [
-    el('div', [el('h1', { text: def.label }), def.description ? el('.desc', { text: def.description }) : null]),
-    el('.actions', [
+  /* Kepala halaman lewat pageHeader() (UX-E1.1, README E1): markup yang sama
+     persis dengan yang dulu dirakit tangan di sini — h1, .desc, .actions — dari
+     satu pembangun. `def.description` adalah kunci skema opsional; kalimatnya
+     juga menjadi petunjuk kartu layar di beranda modulnya (module.js).
+     Aksi koleksi SENGAJA tanpa `variant`: Tambah harus tetap satu-satunya
+     .btn.primary di bilah ini — onboarding menyorotnya lewat selektor itu, dan
+     servicedesk/preventive-schedules mendeklarasikan variant 'primary'. */
+  const head = pageHeader({
+    title: def.label,
+    description: def.description,
+    actions: [
       ...(def.collectionActions || [])
         // canAct(): lihat session.canAct — aksi koleksi tidak pernah berbentuk
         // pintu keputusan dokumen, jadi ia menjawab sama dengan can().
@@ -143,8 +151,8 @@ export async function renderList(host, { key, def }) {
           onClick: () => startForm({ def, key, onSaved: afterCreate }),
         })
         : null,
-    ]),
-  ]);
+    ],
+  });
 
   clear(host);
   host.append(head, tableHost);

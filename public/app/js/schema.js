@@ -15,6 +15,10 @@
            satu textarea opsional yang dilipat di bilah aksi (actions.js
            inlineNote) dan ikut terkirim tanpa dialog.
 
+   resource (kunci opsional untuk layar daftar generik, views/list.js — UX-E1)
+           description  satu kalimat di bawah judul daftar; juga petunjuk kartu
+                        layar itu di beranda modulnya (module.js).
+
    types — text | code | textarea | number | currency | qty | percent | date |
            datetime | time | bool | select | lookup | status | enum | rel |
            json | tags | progress | password | multiselect
@@ -2598,6 +2602,7 @@ export const RESOURCES = {
   'procurement/purchase-orders': {
     module: 'prc', api: 'procurement/purchase-orders', label: 'Pesanan Pembelian (PO)', labelOne: 'PO',
     lookupSource: 'purchaseOrders',
+    description: 'Pesanan resmi ke vendor. Setelah disetujui, barang diterima lewat Penerimaan Barang (GRN) dan tagihan vendor mengacu ke sini.',
     printable: { path: 'core/print/purchase-orders/{id}', prefix: 'po' },
     columns: [
       codeColumn,

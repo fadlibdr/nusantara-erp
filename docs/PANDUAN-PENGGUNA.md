@@ -650,9 +650,10 @@ Bab ini berlaku di hampir semua layar. Bab-bab berikutnya hanya menyebut yang be
 
 Susunannya dari atas ke bawah:
 
-1. **Judul** = nama di sidebar. Di kanan atas: tombol aksi tingkat halaman (bila ada),
-   ikon **Muat ulang**, dan **`Tambah <nama dokumen>`** — yang terakhir hanya muncul
-   bila Anda memegang izin membuat.
+1. **Judul** = nama di sidebar, kadang dengan satu kalimat abu-abu di bawahnya yang
+   menjelaskan layar itu (hari ini pada Pesanan Pembelian). Di kanan atas: tombol aksi
+   tingkat halaman (bila ada), ikon **Muat ulang**, dan **`Tambah <nama dokumen>`** — yang
+   terakhir hanya muncul bila Anda memegang izin membuat.
 2. **Bilah saring**: kotak **Cari** (bekerja 320 milidetik setelah Anda berhenti
    mengetik), saringan khusus layar itu, sepasang **Dari tanggal** / **Sampai tanggal**
    (hanya pada layar yang punya kolom tanggal dokumen — tidak semua punya), tombol
