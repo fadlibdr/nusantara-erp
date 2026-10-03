@@ -244,8 +244,8 @@ used (match Laravel skeleton style). Tests are optional; correctness of business
 ## 10. Pustaka vendor SPA (`public/app/vendor/`)
 
 Aturan (ROADMAP-HASHMICRO §5 keputusan #2): **tanpa CDN, tanpa npm saat runtime, tanpa pustaka
-lain tanpa keputusan pemilik**. Yang di-vendor hanya SortableJS 1.15 dan sprite ikon Lucide subset,
-masing-masing di `public/app/vendor/<lib>@<ver>/` bersama LICENSE-nya; grafik ditulis sendiri
+lain tanpa keputusan pemilik**. Yang di-vendor hanya SortableJS 1.15, sprite ikon Lucide subset, dan
+IBM Plex Mono 400/600 subset Latin1 untuk `--mono` (UX-C.2, ledger baris 17), masing-masing di `public/app/vendor/<lib>@<ver>/` bersama LICENSE-nya; grafik ditulis sendiri
 (`js/charts.js`, §11). Manifestnya `public/app/vendor/VENDOR.md` — per pustaka: versi, URL sumber,
 sha256 tarball, lisensi, gzip terukur, untuk apa, cara memperbarui (perintah persis); per berkas:
 sha256. Uji `tests/Feature/Core/VendorManifestTest` memaku semuanya: setiap berkas vendor ada di

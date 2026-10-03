@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '35';
+const SHELL_VERSION = '36';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -211,6 +211,9 @@ const SHELL = [
   'js/views/widgets/stok-minimum.js',
   'js/views/widgets/tenggat.js',
   'manifest.webmanifest',
+  // UX-C.2 — dua bobot IBM Plex Mono untuk --mono; LICENSE tidak dimuat peramban.
+  'vendor/ibm-plex-mono@2.5.0/IBMPlexMono-Regular-Latin1.woff2',
+  'vendor/ibm-plex-mono@2.5.0/IBMPlexMono-SemiBold-Latin1.woff2',
   'vendor/lucide@1.41.0/sprite.svg',
   'vendor/sortablejs@1.15.7/Sortable.min.js',
 ];

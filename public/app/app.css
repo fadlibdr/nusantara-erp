@@ -2,6 +2,29 @@
    No build step: plain CSS with custom properties, light + dark via
    prefers-color-scheme plus a data-theme override on <html>. */
 
+/* ------------------------------------------------------------------ fonts */
+/* IBM Plex Mono 400 dan 600 (UX-C.2, ERRATA D-1 bawaan): HANYA untuk --mono — nomor dokumen,
+   rupiah, angka KPI. --font tetap tumpukan sistem; Instrument Sans tidak di-vendor karena
+   keempat berkasnya 96.611 B gzip melampaui plafon VendorManifestTest 61.440 B (terukur
+   3 Okt 2026). Subset Latin1 dari paket @ibm/plex-mono@2.5.0 (public/app/vendor/VENDOR.md,
+   lisensi OFL di folder yang sama); bobot 500 jatuh ke 400 lewat pencocokan CSS biasa.
+   `swap`: teks mono tergambar dulu dengan ui-monospace, lalu berganti — di tablet lapangan
+   berkuota, angka yang terbaca 200 ms lebih awal lebih berharga daripada tidak berkedip. */
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("vendor/ibm-plex-mono@2.5.0/IBMPlexMono-Regular-Latin1.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("vendor/ibm-plex-mono@2.5.0/IBMPlexMono-SemiBold-Latin1.woff2") format("woff2");
+}
+
 /* ---------------------------------------------------------------- tokens */
 :root {
   --bg: #f4f5f7;
@@ -41,7 +64,7 @@
   --sidebar-w: 250px;
   --header-h: 56px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   /* ================================================== SKALA (UI-1)
      Tiga skala yang selama ini tidak ada, sehingga 873 literal px dan 15
