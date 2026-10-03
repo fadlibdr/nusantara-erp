@@ -204,6 +204,13 @@ berisi satu baris **Impor Dokumen**, dan seorang site manager melihat kelompok "
 yang hanya berisi **Log BBM & Jam Alat** — masing-masing memang satu-satunya baris
 kelompok itu yang boleh mereka buka.
 
+**Bilah bawah di ponsel.** Pada lebar 760 px ke bawah, tempat sidebar menjadi laci, bagian
+bawah layar membawa empat tombol dalam jangkauan ibu jari: **Beranda**, **Persetujuan** (hanya
+bila Anda memegang hak menyetujui sesuatu, dengan angka yang sama seperti di sidebar), **Cari**
+(palet pencarian yang sama dengan Ctrl+K), dan **Menu** (laci yang sama dengan ikon Menu di
+bilah atas). Tanpa hak menyetujui, bilahnya tiga tombol. Panduan onboarding berdiri di atas
+bilah ini, bukan di belakangnya, dan laci yang terbuka menutupinya.
+
 **Buat.** Tombol **`Buat`** di bilah atas membuka daftar formulir buat-baru — tombol
 **`Tambah …`** dari daftar-daftar yang boleh Anda buka, dikumpulkan di satu tempat. Saat Anda
 berada di sebuah modul, formulir modul itu yang tampil lebih dulu (paling banyak delapan);

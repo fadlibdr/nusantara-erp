@@ -1318,7 +1318,8 @@ export function drawer() {
   const isOpen = () => document.body.classList.contains('nav-open');
   const set = (open) => {
     document.body.classList.toggle('nav-open', open);
-    document.querySelectorAll('.menu-toggle').forEach((node) => node.setAttribute('aria-expanded', String(open)));
+    // Hamburger bilah atas DAN tombol Menu bilah bawah (UX-D.5): dua pemicu, satu keadaan.
+    document.querySelectorAll('.menu-toggle, [data-drawer-toggle]').forEach((node) => node.setAttribute('aria-expanded', String(open)));
   };
   return { open: () => set(true), close: () => set(false), toggle: () => set(!isOpen()), isOpen };
 }

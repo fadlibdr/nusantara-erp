@@ -3498,3 +3498,41 @@ button.linkish:hover b { text-decoration: underline; }
   padding: 8px 10px 4px; font-size: var(--fs-caption); font-weight: var(--fw-semi);
   letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
 }
+
+/* ================================================== bilah bawah UX-D.5 */
+/* Beranda · Persetujuan · Cari · Menu, hanya ≤ 760 px (tempat sidebar menjadi laci).
+   z-index 20: di atas isi halaman (≤ 2), DI BAWAH semua yang melayang — popup menu (25),
+   kain laci (40), lembar onboarding (45), laci nav (50), panel onboarding (55), sorotan
+   (58), dialog (60), combobox (200), toast (90). Jadi ia tidak pernah menutupi laci
+   maupun lembar panduan (gerbang UX-D), dan kain laci yang terbuka meredupkannya. */
+:root { --bottom-nav-h: 62px; }
+.bottom-nav { display: none; }
+@media (max-width: 760px) {
+  .bottom-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    display: flex; align-items: stretch;
+    height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  /* padding 0: <button> membawa padding UA (1px 6px), <a> tidak — tanpa ini tombol Cari/Menu
+     12 px lebih lebar dari tautannya dan barisnya 392 px di layar 390 px (terukur 3 Okt 2026). */
+  .bn-item {
+    position: relative; flex: 1 1 0; min-width: 0; padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    border: 0; background: transparent; color: var(--muted); text-decoration: none;
+    font: inherit; font-size: var(--fs-caption); font-weight: var(--fw-medium); cursor: pointer;
+  }
+  .bn-item:hover { color: var(--text); text-decoration: none; }
+  .bn-item.active { color: var(--primary); font-weight: var(--fw-semi); }
+  .bn-item:focus-visible { outline-offset: -4px; }
+  .bn-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+  .bn-item .nav-count { position: absolute; top: 6px; left: calc(50% + 6px); margin: 0; }
+  /* Isi halaman, toast, dan lembar onboarding berdiri DI ATAS bilah, bukan di belakangnya. */
+  .main { padding-bottom: calc(var(--bottom-nav-h) + 24px + env(safe-area-inset-bottom)); }
+  body.onboarding-sheet .main { padding-bottom: calc(var(--bottom-nav-h) + 72px + env(safe-area-inset-bottom)); }
+  .toasts { bottom: calc(var(--bottom-nav-h) + 12px + env(safe-area-inset-bottom)); }
+  .onboarding-dock[data-mode="mobile"] { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom)); padding-bottom: 0; }
+}
+@media print { .bottom-nav { display: none !important; } }

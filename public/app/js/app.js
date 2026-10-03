@@ -872,9 +872,10 @@ function refreshNav() {
   if (!nav) return;
   renderNav(nav);
   setActiveNav(currentPath().split('?')[0]);
-  // Izin bisa berubah sesudah refreshMe(): Buat ▾ ikut, tanpa membangun ulang bilah atas.
+  // Izin bisa berubah sesudah refreshMe(): Buat ▾ dan bilah bawah ikut, tanpa membangun ulang bilah atas.
   const create = document.querySelector('.header .create-menu');
   if (create) create.hidden = creatable().length === 0;
+  renderBottomNav();
 }
 
 /*
@@ -899,6 +900,61 @@ function paintInboxCounts() {
   }
 }
 window.addEventListener('erp:inbox-changed', paintInboxCounts);
+
+/*
+ * Bilah bawah ≤ 760 px (UX-D.5, ERRATA E-4): Beranda · Persetujuan · Cari · Menu.
+ *
+ * Di ponsel sidebar adalah laci, jadi sebelum ini setiap perpindahan dimulai dengan
+ * hamburger di pojok atas — sasaran yang paling jauh dari ibu jari. Isinya DATA, bukan
+ * daftar kedua: dua slot pertama adalah baris tetap NAV (`pinned`) yang lolos
+ * visibleNav() — Beranda, lalu Persetujuan bagi pemegang hak approve. ERRATA E-4
+ * memberi slot itu kepada Pekerjaan Saya bagi yang lain; layar itu baru lahir di UX-F2,
+ * dan begitu barisnya masuk NAV dengan `pinned: true` ia mengisi slot ini tanpa satu
+ * baris pun berubah di sini. Sampai saat itu bilahnya tiga tombol bagi non-penyetuju.
+ * Menu membuka laci yang SAMA dengan hamburger (ui.drawer()).
+ */
+const bottomDrawer = drawer();
+
+function bottomNavItems() {
+  const pinned = navForSession().flatMap((group) => group.items.filter((item) => item.pinned));
+  const home = pinned.find((item) => item.route === 'home');
+  const second = pinned.find((item) => item.route !== 'home');
+  const link = (item) => el('a.bn-item', { href: `#/${item.route}`, dataset: { route: item.route } }, [
+    svgIcon(item.icon || 'home', { size: 20 }),
+    el('span.bn-label', { text: item.label }),
+    item.count ? el('span.nav-count', { dataset: { count: item.count }, hidden: true }) : null,
+  ]);
+  const action = (label, iconName, onClick, attrs = {}) => {
+    const node = el('button.bn-item', { type: 'button', ...attrs }, [svgIcon(iconName, { size: 20 }), el('span.bn-label', { text: label })]);
+    node.addEventListener('click', onClick);
+    return node;
+  };
+  return [
+    home ? link(home) : null,
+    second ? link(second) : null,
+    action('Cari', 'search', () => openSearch(), { title: 'Pencarian global' }),
+    action('Menu', 'menu', () => bottomDrawer.toggle(), {
+      'aria-controls': 'nav-utama', 'aria-expanded': String(bottomDrawer.isOpen()), 'data-drawer-toggle': '',
+    }),
+  ].filter(Boolean);
+}
+
+function renderBottomNav() {
+  const host = document.querySelector('.bottom-nav');
+  if (!host) return;
+  clear(host);
+  bottomNavItems().forEach((node) => host.appendChild(node));
+  paintInboxCounts();
+  markBottomNav(currentPath().split('?')[0]);
+}
+
+function markBottomNav(path) {
+  document.querySelectorAll('.bottom-nav a[data-route]').forEach((link) => {
+    const on = link.dataset.route === path;
+    link.classList.toggle('active', on);
+    if (on) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  });
+}
 // Sesudah pindah halaman angka yang berumur lebih dari satu menit ditanyakan lagi —
 // keputusan di layar dokumen mengubahnya, dan lencana yang berbohong sejam lebih
 // buruk daripada satu permintaan ringan. loadInbox() diam tanpa izin approve.
@@ -1013,7 +1069,7 @@ function buildShell() {
     // pengalihnya sendiri, dan tanpa pengecualian ini keduanya saling
     // membatalkan sehingga laci tidak pernah terbuka.
     if (!document.body.classList.contains('nav-open')) return;
-    if (event.target.closest('nav.nav') || event.target.closest('.menu-toggle')) return;
+    if (event.target.closest('nav.nav') || event.target.closest('.menu-toggle, [data-drawer-toggle]')) return;
     setDrawer(false);
   });
 
@@ -1058,7 +1114,9 @@ function buildShell() {
     ]),
     nav,
     main,
+    el('nav.bottom-nav', { 'aria-label': 'Navigasi bawah' }),
   ]));
+  renderBottomNav();
 
   return main;
 }
@@ -1146,6 +1204,7 @@ function densityControl() {
 }
 
 function setActiveNav(path) {
+  markBottomNav(path);
   document.querySelectorAll('.nav-group.has-active').forEach((group) => group.classList.remove('has-active'));
   document.querySelectorAll('.nav-items a').forEach((link) => {
     const target = link.dataset.route;

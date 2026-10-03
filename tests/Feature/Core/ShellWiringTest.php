@@ -151,6 +151,38 @@ class ShellWiringTest extends ErpTestCase
             'Pilihan tema tidak berbagi bentuk (dan sasaran sentuh 40 px) dengan Kepadatan.');
     }
 
+    /* --------------------------------------------------------------- (f) */
+
+    /** Bilah bawah (UX-D.5): dari baris tetap NAV, laci yang sama, di bawah lembar dan laci. */
+    public function test_the_bottom_bar_is_built_from_nav_and_never_covers_the_drawer_or_the_sheet(): void
+    {
+        $app = $this->spa('app.js');
+        $items = $this->functionBody($app, 'function bottomNavItems() {');
+        $this->assertNotNull($items, 'bottomNavItems() hilang dari app.js.');
+        $this->assertStringContainsString('navForSession().flatMap((group) => group.items.filter((item) => item.pinned))', $items,
+            'Bilah bawah tidak lagi membaca baris tetap NAV: ia menulis daftar (dan izin) sendiri.');
+        $this->assertStringNotContainsString('ANY_APPROVE', $items);
+        $this->assertStringContainsString("bottomDrawer.toggle()", $items, 'Menu bilah bawah membuka laci lain dari hamburger.');
+        $this->assertStringContainsString("'data-drawer-toggle': ''", $items);
+        $this->assertStringContainsString("closest('.menu-toggle, [data-drawer-toggle]')", $app,
+            'Sentuhan pada tombol Menu bilah bawah dianggap "di luar laci" dan menutupnya lagi.');
+        $this->assertStringContainsString("document.querySelectorAll('.menu-toggle, [data-drawer-toggle]')", $this->spa('ui.js'));
+
+        $css = $this->css();
+        $start = strpos($css, '/* ================================================== bilah bawah UX-D.5 */');
+        $this->assertNotFalse($start);
+        $block = substr($css, $start);
+        $this->assertMatchesRegularExpression('/\.bottom-nav \{\s*position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;/', $block);
+        // 20 < kain laci 40 < lembar onboarding 45 < laci 50 — angka-angka itu dibaca dari aturannya sendiri.
+        $this->assertStringContainsString('content: ""; position: fixed; inset: var(--header-h) 0 0 0; z-index: 40;', $css);
+        $this->assertMatchesRegularExpression('/\.onboarding-dock\[data-mode="mobile"\] \{\s*top: auto; left: 0; right: 0; bottom: 0; z-index: 45;/', $css);
+        $this->assertStringContainsString('position: fixed; inset: var(--header-h) auto 0 0; z-index: 50;', $css);
+        $this->assertStringContainsString('.onboarding-dock[data-mode="mobile"] { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom)); padding-bottom: 0; }', $block,
+            'Lembar onboarding tidak lagi berdiri di atas bilah bawah: salah satunya menutupi yang lain.');
+        $this->assertStringContainsString('.toasts { bottom: calc(var(--bottom-nav-h) + 12px + env(safe-area-inset-bottom)); }', $block);
+        $this->assertStringContainsString('@media print { .bottom-nav { display: none !important; } }', $block);
+    }
+
     /** Separuh penolakan. */
     public function test_the_readers_can_still_say_no(): void
     {
