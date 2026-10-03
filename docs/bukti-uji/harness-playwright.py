@@ -339,7 +339,12 @@ def po_action_bar(pg):
 
 @scenario("S3_create_po")
 def s3(pg):
-    """Procurement creates a 2-line PO through the real form; captures validation text and submit toast."""
+    """Procurement creates a 2-line PO through the real form; captures validation text and submit toast.
+
+    Formulir PO adalah HALAMAN (#/f/procurement/purchase-orders, UI-4d 1067682), bukan dialog: wadahnya `.form-page`,
+    Simpan duduk di `.page-head .actions`, dan halaman tidak punya wadah gulir dalam. Sampai UX-0 (3 Okt 2026) skenario ini
+    masih menunggu `.modal` dan merah sejak UI-4d — bukan aplikasinya, melainkan selektornya (PROGRESS-UIUX OQ-2). Bagian
+    sesudah simpan (Ajukan di halaman detail dan dialog konfirmasinya) memang dialog dan tidak diubah."""
     reqs = []
     pg.on("request", lambda r: reqs.append(r.url.split("/api/")[-1]) if "/api/" in r.url else None)
     login(pg, "procurement@nusantara.test")
@@ -348,24 +353,24 @@ def s3(pg):
     pg.wait_for_timeout(1200)
     t0 = time.time()
     click(pg, ".page-head .actions button:has-text('Tambah')")
-    pg.wait_for_selector(".modal", timeout=10000)
+    pg.wait_for_selector(".form-page", timeout=10000)
     pg.wait_for_timeout(1500)
-    form = pg.evaluate("""() => { const m=document.querySelector('.modal'); return {
+    form = pg.evaluate("""() => { const m=document.querySelector('.form-page'); return {
         fields: [...m.querySelectorAll('.field > label')].map(l=>l.innerText.trim()),
         lineCols: [...m.querySelectorAll('table.lines th')].map(t=>t.innerText.trim()),
-        width: m.getBoundingClientRect().width, bodyScroll: m.querySelector('.modal-body').scrollHeight,
-        bodyClient: m.querySelector('.modal-body').clientHeight,
+        width: m.getBoundingClientRect().width, bodyScroll: m.scrollHeight,
+        bodyClient: m.clientHeight,
         linesTop: (m.querySelector('table.lines')||{getBoundingClientRect:()=>({top:null})}).getBoundingClientRect().top,
-        foot: [...m.querySelectorAll('.modal-foot button')].map(b=>b.innerText.trim()) } }""")
+        foot: [...m.querySelectorAll('.page-head .actions button')].map(b=>b.innerText.trim()) } }""")
     pg.screenshot(path=f"{OUT}/s3-form-empty.png")
     # 1) Save empty -> client-side validation
-    click(pg, ".modal .modal-foot button:has-text('Simpan')")
+    click(pg, ".page-head .actions button:has-text('Simpan')")
     pg.wait_for_timeout(700)
-    client_errors = pg.evaluate("() => [...document.querySelectorAll('.modal .field .err, .modal td .err')].map(e=>e.innerText.trim()).filter(Boolean)")
+    client_errors = pg.evaluate("() => [...document.querySelectorAll('.form-page .field .err, .form-page td .err')].map(e=>e.innerText.trim()).filter(Boolean)")
     pg.screenshot(path=f"{OUT}/s3-client-errors.png")
     # 2) Fill header: vendor via combobox, date, then lines
     def pick_combo(label_text, typed):
-        f = pg.locator(".modal .field", has=pg.locator("label", has_text=label_text)).first
+        f = pg.locator(".form-page .field", has=pg.locator("label", has_text=label_text)).first
         inp = f.locator("input.combo-input, select").first
         tag = inp.evaluate("e => e.tagName")
         if tag == "SELECT":
@@ -379,7 +384,7 @@ def s3(pg):
     pick_combo("Proyek", "Gedung")
     # dates
     for lab in ["Tanggal pesanan", "Tanggal", "Tanggal kirim", "Tanggal terima"]:
-        loc = pg.locator(".modal .field", has=pg.locator("label", has_text=lab))
+        loc = pg.locator(".form-page .field", has=pg.locator("label", has_text=lab))
         if loc.count():
             d = loc.first.locator("input[type=date]")
             if d.count() and not d.first.input_value():
@@ -387,18 +392,18 @@ def s3(pg):
     # "Perkiraan kirim" wajib sejak T3.5 (ANALISIS-PROSES D1) — tanpa isian ini Simpan berhenti di klien. Diisi
     # 14 hari dari hari ini, bukan 2026-09-02: Tanggal PO defaultToday dan server memeriksa after_or_equal begitu
     # tanggalnya ada (4 Sep 2026: "Perkiraan kirim harus pada atau setelah Tanggal PO." dengan tanggal tetap).
-    pg.locator(".modal .field", has=pg.locator("label", has_text="Perkiraan kirim")).first.locator("input[type=date]").first.fill(
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Perkiraan kirim")).first.locator("input[type=date]").first.fill(
         time.strftime("%Y-%m-%d", time.localtime(time.time() + 14 * 86400)))
     # "Alasan tanpa PR" wajib sejak T3.8 (ANALISIS-PROSES E3): skenario ini tidak memilih PR, jadi field-nya tampil
     # (visibleWhen) dan Simpan berhenti di klien tanpa isian ini. Sebuah isian, bukan klik.
-    pg.locator(".modal .field", has=pg.locator("label", has_text="Alasan tanpa PR")).first.locator("textarea").first.fill(
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Alasan tanpa PR")).first.locator("textarea").first.fill(
         "UJI-UX — pembelian langsung tanpa PR")
     # lines: add 2 rows
-    rows = pg.locator(".modal table.lines tbody tr")
+    rows = pg.locator(".form-page table.lines tbody tr")
     while rows.count() < 2:
-        click(pg, ".modal button:has-text('Tambah baris')")
+        click(pg, ".form-page button:has-text('Tambah baris')")
         pg.wait_for_timeout(200)
-    line_inputs = pg.evaluate("() => [...document.querySelectorAll('.modal table.lines tbody tr:first-child td')].map(td => { const i=td.querySelector('input,select,textarea'); return i ? (i.className||i.tagName)+':'+(i.type||'') : 'na' })")
+    line_inputs = pg.evaluate("() => [...document.querySelectorAll('.form-page table.lines tbody tr:first-child td')].map(td => { const i=td.querySelector('input,select,textarea'); return i ? (i.className||i.tagName)+':'+(i.type||'') : 'na' })")
     def fill_line(row, i, qty):
         combo = row.locator("td:nth-child(1) input.combo-input")
         if combo.count():
@@ -417,16 +422,16 @@ def s3(pg):
         fill_line(rows.nth(i), i, "0" if i == 0 else "10")
     pg.screenshot(path=f"{OUT}/s3-form-filled.png")
     # 3) Save with qty 0 on line 1 -> server 422 text as rendered
-    click(pg, ".modal .modal-foot button:has-text('Simpan')")
+    click(pg, ".page-head .actions button:has-text('Simpan')")
     pg.wait_for_timeout(1500)
-    server_errors = pg.evaluate("() => [...document.querySelectorAll('.modal .field .err, .modal td .err')].map(e=>e.innerText.trim()).filter(Boolean)")
+    server_errors = pg.evaluate("() => [...document.querySelectorAll('.form-page .field .err, .form-page td .err')].map(e=>e.innerText.trim()).filter(Boolean)")
     toast_422 = toasts(pg)
     pg.screenshot(path=f"{OUT}/s3-server-errors.png")
     # 4) Fix qty and save
     rows.nth(0).locator("td:nth-child(3) input").first.fill("5")
-    click(pg, ".modal .modal-foot button:has-text('Simpan')")
+    click(pg, ".page-head .actions button:has-text('Simpan')")
     try:
-        pg.wait_for_selector(".modal", state="detached", timeout=15000)
+        pg.wait_for_selector(".form-page", state="detached", timeout=15000)
         saved = True
     except Exception:
         saved = False
@@ -468,39 +473,42 @@ def s3(pg):
 
 @scenario("S4_session_loss")
 def s4(pg):
-    """Type into a PO form, revoke the token server-side, attempt save: what does the user see, what survives?"""
+    """Type into a PO form, revoke the token server-side, attempt save: what does the user see, what survives?
+
+    Mengetik ke formulir HALAMAN (`.form-page`, UI-4d) — lihat catatan S3. Yang sesudah token dicabut (prompt Buang,
+    masuk ulang, toast Pulihkan, dialog Pulihkan) tetap `.modal`: pemulihan draf memang dibuka sebagai dialog."""
     login(pg, "procurement@nusantara.test")
     pg.goto(BASE + "#/r/procurement/purchase-orders")
     pg.wait_for_selector(".page-head .actions button:has-text('Tambah')", timeout=15000)
     click(pg, ".page-head .actions button:has-text('Tambah')")
-    pg.wait_for_selector(".modal", timeout=10000)
+    pg.wait_for_selector(".form-page", timeout=10000)
     pg.wait_for_timeout(1000)
-    ta = pg.locator(".modal textarea").first
+    ta = pg.locator(".form-page textarea").first
     if ta.count():
         ta.fill("UJI-UX — isian yang akan hilang bila sesi berakhir.")
-    vf = pg.locator(".modal .field", has=pg.locator("label", has_text="Vendor")).first.locator("input.combo-input").first
+    vf = pg.locator(".form-page .field", has=pg.locator("label", has_text="Vendor")).first.locator("input.combo-input").first
     vf.click(); CLICKS[0] += 1; vf.type("PT", delay=20)
     pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000); pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
-    rows = pg.locator(".modal table.lines tbody tr")
+    rows = pg.locator(".form-page table.lines tbody tr")
     while rows.count() < 3:
-        click(pg, ".modal button:has-text('Tambah baris')"); pg.wait_for_timeout(150)
+        click(pg, ".form-page button:has-text('Tambah baris')"); pg.wait_for_timeout(150)
     # Perkiraan kirim wajib sejak T3.5: tanpa isian ini Simpan berhenti di klien dan 401-nya tidak pernah terjadi.
-    pg.locator(".modal .field", has=pg.locator("label", has_text="Perkiraan kirim")).first.locator("input[type=date]").first.fill(
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Perkiraan kirim")).first.locator("input[type=date]").first.fill(
         time.strftime("%Y-%m-%d", time.localtime(time.time() + 14 * 86400)))
     # Alasan tanpa PR wajib sejak T3.8: tanpa isian ini Simpan berhenti di klien dan 401-nya tidak pernah terjadi.
-    pg.locator(".modal .field", has=pg.locator("label", has_text="Alasan tanpa PR")).first.locator("textarea").first.fill(
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Alasan tanpa PR")).first.locator("textarea").first.fill(
         "UJI-UX — pembelian langsung tanpa PR")
     for i in range(3):
         r = rows.nth(i)
         r.locator("td:nth-child(2) input").first.fill(f"UJI-UX baris {i+1}")
         r.locator("td:nth-child(3) input").first.fill("1")
         r.locator("td:nth-child(5) input").first.fill("1000")
-    typed = pg.evaluate("() => [...document.querySelectorAll('.modal input, .modal textarea')].filter(e=>e.value).length")
+    typed = pg.evaluate("() => [...document.querySelectorAll('.form-page input, .form-page textarea')].filter(e=>e.value).length")
     # revoke the token: delete personal access tokens of this user
     con = sqlite3.connect(DB)
     n = con.execute("DELETE FROM personal_access_tokens WHERE tokenable_id IN (SELECT id FROM users WHERE email='procurement@nusantara.test')").rowcount
     con.commit(); con.close()
-    click(pg, ".modal .modal-foot button:has-text('Simpan')")
+    click(pg, ".page-head .actions button:has-text('Simpan')")
     pg.wait_for_timeout(2500)
     state = pg.evaluate("""() => ({ loginVisible: !!document.querySelector('.login'), modalVisible: !!document.querySelector('.modal'),
         banner: (document.querySelector('.login .alert')||{}).innerText || null, toasts: [...document.querySelectorAll('.toast')].map(t=>t.innerText),
