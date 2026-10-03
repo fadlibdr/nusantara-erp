@@ -103,8 +103,8 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertStringContainsString('clear(listBody);', $render);
         $this->assertStringNotContainsString('function filterBar(', $list);
 
-        // Dipasang SEKALI, di luar renderAll.
-        $this->assertStringContainsString('tableHost.append(toolbar, viewRow, chipRow, listBody);', $list);
+        // Dipasang SEKALI, di luar renderAll. (UX-E1.5: baris chip pindah ke DALAM bilah alat.)
+        $this->assertStringContainsString('tableHost.append(toolbar, viewRow, listBody);', $list);
         $this->assertStringNotContainsString('tableHost.append(toolbar', $render);
 
         $sync = $this->functionBody($list, 'function syncToolbar() {');
@@ -151,16 +151,46 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertStringContainsString('.list-toolbar .btn[hidden], .filter-wrap[hidden] { display: none; }', $css);
         // Satu literal 11 px untuk dua bilah, bukan salinan kedua (CONVENTIONS §13a).
         $this->assertStringContainsString(".filters, .list-toolbar {\n  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;\n  padding: 11px 12px;", $css);
-        // Kertas: bilah alat adalah kontrol.
-        $this->assertStringContainsString('.list-toolbar { display: none !important; }', $css);
+        // Kertas: kontrol bilah alat tidak tercetak. (UX-E1.5: chip saringan di dalamnya tercetak, jadi
+        // yang disembunyikan adalah anak-anak bilah selain baris chip.)
+        $this->assertStringContainsString('.list-toolbar > :not(.chips) { display: none !important; }', $css);
         // Teks kotak Cari mulai sesudah ikonnya — aturan umum input[type=text] tidak lagi menang.
         $this->assertStringContainsString('.search input[type=text] { width: 100%; padding-left: 32px; }', $css);
+    }
+
+    /* ------------------------------------------------------------ E1.5 */
+
+    /** Chip saringan aktif di dalam bilah alat lewat filterChip(); "Hapus semua" menggantikan Reset. */
+    public function test_active_filters_are_filter_chips_inside_the_toolbar(): void
+    {
+        $list = $this->spa('views/list.js');
+        $chips = $this->functionBody($list, 'function paintChips() {');
+        $this->assertNotNull($chips, 'paintChips() hilang dari list.js.');
+        $this->assertStringContainsString('filterChip({ label: chip.label, value: chip.text, onRemove: chip.clear })', $chips);
+        // Baris tersembunyi hanya bila TIDAK ADA yang menyaring: nilai seed tanpa chip tetap punya jalan keluar.
+        $this->assertStringContainsString('chipRow.hidden = !isFiltered();', $chips);
+        $this->assertStringContainsString("button('Hapus semua', { size: 'sm', variant: 'ghost', onClick: resetFilters })", $chips);
+        $this->assertSame(1, substr_count($chips, 'button('), 'Baris chip memuat tombol .btn selain "Hapus semua".');
+        $this->assertStringNotContainsString("button('Reset'", $list, 'Tombol Reset kembali ke bilah alat.');
+
+        // Urutan di bilah alat: Cari, Filter, chip, lalu Ekspor CSV di ujung kanan.
+        $this->assertMatchesRegularExpression(
+            "/el\\('\\.list-toolbar', \\[\\s*el\\('\\.search'[^\\n]*\\n\\s*filterWrap,\\n\\s*chipRow,\\n\\s*el\\('span\\.spacer'\\),\\n\\s*csvButton,/",
+            $list,
+        );
+
+        $css = $this->css();
+        $this->assertStringContainsString('.list-toolbar .chips { padding: 0; min-width: 0; }', $css);
+        // Kertas: chip tercetak sebagai keterangan, kontrolnya tidak.
+        $this->assertStringContainsString('.list-toolbar > :not(.chips) { display: none !important; }', $css);
+        $this->assertStringContainsString('.chips .chip-x, .chips .btn { display: none !important; }', $css);
+        $this->assertStringContainsString('.list-toolbar:not(:has(> .chips:not([hidden]))) { display: none !important; }', $css);
     }
 
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(49, (int) $version[1],
+        $this->assertGreaterThanOrEqual(50, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 

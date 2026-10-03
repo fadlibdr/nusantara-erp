@@ -107,7 +107,8 @@ public/app/
                         including the ceilings, which are announced not memorised
       list.js           generic list: a toolbar built once per screen (search that keeps
                         focus across reloads, Filter popover holding the screen's filter
-                        controls, Reset, CSV), saved views, filter chips, table, pagination
+                        controls, active-filter chips with Hapus semua, CSV), saved views,
+                        table, pagination
       form.js           generic create/edit modal incl. repeatable line items
       detail.js         generic document detail: fields, lines, approvals
       actions.js        lifecycle actions (submit/approve/post/…)

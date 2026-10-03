@@ -1017,7 +1017,8 @@ def s44(pg):
     pg.wait_for_timeout(1600)
     out["buang_satu"] = {**pg.evaluate(CHIPS), "url": pg.url.split("?")[-1]}
 
-    # "Hapus semua" memakai resetFilters() yang sama dengan tombol Reset.
+    # "Hapus semua" memakai resetFilters() — sejak UX-E1.5 satu-satunya tombol "berhenti menyaring"
+    # selain "Hapus filter" di keadaan kosong (tombol Reset di bilah alat sudah tidak ada).
     click(pg, ".chips.active-filters button.btn")
     pg.wait_for_timeout(1600)
     out["hapus_semua"] = {**pg.evaluate(CHIPS), "url": pg.url.split("#")[-1]}
@@ -1860,6 +1861,34 @@ S54_FILTER_STATE = """() => {
 }"""
 
 
+S54_CHIP_STATE = """() => {
+  const row = document.querySelector('.chips.active-filters');
+  if (!row) return { in_toolbar: false, hidden: null, chips: [], buttons: [] };
+  return {
+    in_toolbar: !!row.closest('.list-toolbar'),
+    hidden: row.hidden,
+    chips: [...row.querySelectorAll('.chip')].map((c) => ({
+      key: ((c.querySelector('.chip-key') || {}).textContent || '').trim(),
+      value: ((c.querySelector('b') || {}).textContent || '').trim(),
+      x_px: (() => { const s = c.querySelector('.chip-x svg'); return s ? +s.getAttribute('width') : null; })(),
+    })),
+    buttons: [...row.querySelectorAll('button.btn')].map((b) => b.innerText.trim()),
+  };
+}"""
+
+S54_CHIP_PRINT = """() => {
+  const shown = (n) => !!n && getComputedStyle(n).display !== 'none';
+  const bar = document.querySelector('.list-toolbar');
+  const controls = bar ? [...bar.children].filter((n) => !n.matches('.chips') && shown(n)).map((n) => n.className) : [];
+  const row = bar && bar.querySelector('.chips.active-filters');
+  return {
+    toolbar_shown: shown(bar),
+    chips_shown: row && shown(row) ? [...row.querySelectorAll('.chip')].filter(shown).length : 0,
+    controls_shown: controls.concat(row ? [...row.querySelectorAll('.chip-x, .btn')].filter(shown).map((n) => n.className) : []),
+  };
+}"""
+
+
 @scenario("S54_bilah_daftar")
 def s54(pg):
     """UX-E1: bilah daftar generik — balapan muat (E1.2) dan blok-blok tugas berikutnya."""
@@ -2072,6 +2101,56 @@ def s54(pg):
     finally:
         ctx390.close()
     out["saringan"] = sar
+
+    # ------------------------------------------------------------ keping (E1.5)
+    # Chip saringan aktif duduk DI DALAM bilah alat (filterChip), "Hapus semua" satu-satunya tombol
+    # barisnya; nilai seed yang tidak menggambar chip tetap punya jalan keluar; kertas mencetak chip
+    # tanpa kontrolnya, dan daftar polos tidak mencetak bilah kosong.
+    kep = {}
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=PO&status=draft")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    kep["dua"] = pg.evaluate(S54_CHIP_STATE)
+    k = kep["dua"]
+    if not k["in_toolbar"] or k["hidden"]:
+        checks.append(f"keping: baris chip tidak terlihat di dalam .list-toolbar ({k!r})")
+    if [c["key"] for c in k["chips"]] != ["Cari:", "Status:"] or [c["value"] for c in k["chips"]] != ["PO", "Draf"]:
+        checks.append(f"keping: chip q+status bukan [Cari: PO, Status: Draf] — {k['chips']!r}")
+    if k["buttons"] != ["Hapus semua"]:
+        checks.append(f"keping: tombol baris chip {k['buttons']!r}, harus hanya 'Hapus semua'")
+    if any(c["x_px"] != 12 for c in k["chips"]):
+        checks.append(f"keping: ikon × bukan 12 px (filterChip): {[c['x_px'] for c in k['chips']]!r}")
+
+    pg.emulate_media(media="print")
+    kep["cetak"] = pg.evaluate(S54_CHIP_PRINT)
+    pg.emulate_media(media="screen")
+    c = kep["cetak"]
+    if not c["toolbar_shown"] or c["chips_shown"] != 2:
+        checks.append(f"keping: cetak — bilah {c['toolbar_shown']}, chip tercetak {c['chips_shown']} (harus 2)")
+    if c["controls_shown"]:
+        checks.append(f"keping: cetak — kontrol bilah alat ikut tercetak: {c['controls_shown']!r}")
+
+    pg.goto(BASE + "#/r/procurement/purchase-orders?status=bogus")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    kep["basi"] = pg.evaluate(S54_CHIP_STATE)
+    b = kep["basi"]
+    if b["hidden"] or b["chips"] or b["buttons"] != ["Hapus semua"]:
+        checks.append(f"keping: ?status=bogus — baris tersembunyi={b['hidden']}, chip {b['chips']!r}, tombol {b['buttons']!r} "
+                      "(harus terlihat, tanpa chip, dengan 'Hapus semua')")
+    else:
+        click(pg, ".list-toolbar .chips.active-filters button.btn")
+        pg.wait_for_timeout(1500)
+        kep["basi_dihapus"] = pg.evaluate("() => ({ hash: location.hash, hidden: document.querySelector('.chips.active-filters').hidden })")
+        if kep["basi_dihapus"]["hash"] != "#/r/procurement/purchase-orders" or not kep["basi_dihapus"]["hidden"]:
+            checks.append(f"keping: 'Hapus semua' tidak membuang nilai basi: {kep['basi_dihapus']!r}")
+
+    pg.emulate_media(media="print")
+    kep["cetak_polos"] = pg.evaluate(S54_CHIP_PRINT)
+    pg.emulate_media(media="screen")
+    if kep["cetak_polos"]["toolbar_shown"]:
+        checks.append("keping: cetak daftar polos — bilah alat kosong ikut tercetak")
+    out["keping"] = kep
 
     out["console_errors"] = errors
     if errors:

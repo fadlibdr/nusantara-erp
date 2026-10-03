@@ -656,8 +656,12 @@ Susunannya dari atas ke bawah:
    terakhir hanya muncul bila Anda memegang izin membuat.
 2. **Bilah alat**: kotak **Cari** (bekerja 320 milidetik setelah Anda berhenti
    mengetik; Anda boleh terus mengetik selama daftarnya dimuat ulang), tombol
-   **`Filter`**, tombol **`Reset`** (muncul hanya bila ada saringan aktif), dan di ujung
-   kanan **`Ekspor CSV`**. **`Filter`** membuka panel kecil berisi saringan khusus layar
+   **`Filter`**, saringan yang sedang aktif, dan di ujung kanan **`Ekspor CSV`**.
+   Setiap saringan aktif tampil sebagai chip kecil sesudah tombol **`Filter`** —
+   *Disaring: Status: Disetujui ×* — dan × pada chip membuang saringan itu saja.
+   **`Hapus semua`** di ujung chip membuang semuanya sekaligus, termasuk isi kotak Cari,
+   tetapi mempertahankan urutan kolom yang Anda pilih. Saat dicetak, chip-chip ini ikut
+   tercetak (tanpa × dan tanpa tombolnya) sebagai keterangan saringan lembar itu. **`Filter`** membuka panel kecil berisi saringan khusus layar
    itu — mis. Status, Vendor, Proyek — dan sepasang **Dari tanggal** / **Sampai tanggal**
    (hanya pada layar yang punya kolom tanggal dokumen — tidak semua punya). Angka di
    tombol **`Filter`** menyebut berapa saringan di panel itu yang sedang aktif; kotak Cari
@@ -709,7 +713,7 @@ tetapi lima layar mengabaikannya — mengetik di sana tidak menyaring apa pun:
 nampan) dengan tombol Tambah bila Anda boleh membuat. Tersaring habis → *"Tidak ada <label>
 yang lolos filter yang dipasang."* (gambar corong) dengan tombol **`Hapus filter`**, atau — bila
 hanya kotak cari yang terisi — *"Tidak ada <label> yang cocok dengan \"<kata>\"."* (gambar kaca
-pembesar) dengan **`Hapus pencarian`**; keduanya sama dengan **`Reset`** di bilah filter.
+pembesar) dengan **`Hapus pencarian`**; keduanya sama dengan **`Hapus semua`** di ujung chip saringan.
 
 ### 2.2 Ekspor CSV
 

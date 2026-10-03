@@ -1,7 +1,7 @@
 /* Generic list screen: search, filters, table, pagination, row actions. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader, field, modalDepth } from '../ui.js';
+import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader, field, modalDepth, filterChip } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -358,8 +358,9 @@ export async function renderList(host, { key, def }) {
   }
 
   /* Satu definisi "sedang disaring" dan satu jalan menghapusnya, dipakai
-     tombol Reset di bilah filter DAN tombol "Hapus filter" di keadaan kosong
-     (P1-B) — dua tombol dengan dua salinan logika akan hanyut. */
+     "Hapus semua" di baris chip DAN tombol "Hapus filter" di keadaan kosong
+     (P1-B) — dua tombol dengan dua salinan logika akan hanyut. (Tombol Reset
+     di bilah alat adalah pemakai ketiganya sampai UX-E1.5 menggantinya.) */
   function isFiltered() {
     return Boolean(ui.q || ui.dateFrom || ui.dateTo || Object.values(ui.filters).some(Boolean));
   }
@@ -701,7 +702,7 @@ export async function renderList(host, { key, def }) {
      *
      * Begitu sebuah tampilan ada, keadaan POLOS justru layak dinamai: ia jalan
      * kembali dari tampilan tersaring, dan "Semua PO" adalah nama yang lebih
-     * jelas daripada mengingat bahwa Reset melakukannya.
+     * jelas daripada mengingat bahwa "Hapus semua" melakukannya.
      */
     if (!active && (worthSaving || views.length)) {
       viewRow.appendChild(button('Simpan tampilan ini', {
@@ -716,8 +717,13 @@ export async function renderList(host, { key, def }) {
    * Ia MENGGAMBAR keadaan yang sudah ada — ui.q, ui.filters, ui.dateFrom/To —
    * dan tidak menyimpan apa pun sendiri. Yang ditambahkannya dua hal yang bilah
    * kontrol tidak punya: ringkasan "daftar ini sedang dipersempit oleh APA" di
-   * satu tempat, dan cara membuang SATU filter dengan satu klik. Tombol Reset
-   * yang sudah ada hanya bisa membuang semuanya sekaligus.
+   * satu tempat, dan cara membuang SATU filter dengan satu klik. "Hapus semua"
+   * di ujung barisnya membuang semuanya sekaligus — sejak UX-E1.5 itulah
+   * satu-satunya tombol itu; tombol Reset di bilah alat sudah tidak ada.
+   *
+   * Barisnya duduk DI DALAM bilah alat (UX-E1.5, README E1), sesudah tombol
+   * Filter, dan tiap chip digambar filterChip() dari ui.js — markup yang sama
+   * (span.chip > span.chip-key + b + button.chip-x) dari satu pembangun.
    *
    * Label nilainya TIDAK dihitung ulang di sini. Tiap kontrol sudah tahu
    * labelnya sendiri — <select> punya <option> terpilih, combobox lookup punya
@@ -730,7 +736,8 @@ export async function renderList(host, { key, def }) {
   let activeFilters = [];
   /* `.chips.active-filters`, bukan `.chips` telanjang: sejak UI-4c ADA DUA
      baris chip di layar ini, dan `querySelector('.chips')` memulangkan yang
-     pertama — baris tampilan. Dibangun sekali, seperti viewRow. */
+     pertama — baris tampilan. Dibangun sekali, seperti viewRow, dan dipasang
+     di dalam bilah alat. */
   const chipRow = el('.chips.active-filters', { hidden: true });
 
   function paintChips() {
@@ -751,32 +758,29 @@ export async function renderList(host, { key, def }) {
       chips.push({ label: 'Sampai', text: date(ui.dateTo), clear: () => { ui.dateTo = ''; ui.page = 1; load(); } });
     }
 
-    chipRow.hidden = chips.length === 0;
-    if (!chips.length) return;
+    /* Tersembunyi hanya bila TIDAK ADA yang menyaring — bukan bila tidak ada
+       chip. Nilai seed yang tidak menggambar chip (enum basi di URL, lihat
+       buildFilter) tetap menyaring daftarnya, dan "Hapus semua" adalah jalan
+       keluarnya; dulu tugas itu milik tombol Reset. */
+    chipRow.hidden = !isFiltered();
+    if (chipRow.hidden) return;
 
     chipRow.appendChild(el('span.chips-label', { text: 'Disaring:' }));
     for (const chip of chips) {
-      const drop = el('button.chip-x', {
-        type: 'button',
-        'aria-label': `Hapus filter ${chip.label.toLowerCase()}`,
-        title: `Hapus filter ${chip.label.toLowerCase()}`,
-      }, icon('close', 11));
-      drop.addEventListener('click', chip.clear);
-      chipRow.appendChild(el('span.chip', [
-        el('span.chip-key', { text: `${chip.label}: ` }),
-        el('b', { text: chip.text }),
-        drop,
-      ]));
+      chipRow.appendChild(filterChip({ label: chip.label, value: chip.text, onRemove: chip.clear }));
     }
     // "Hapus semua" memakai resetFilters() yang sudah ada — satu definisi
-    // "berhenti menyaring", dipakai tombol Reset, keadaan kosong, dan di sini.
+    // "berhenti menyaring", dipakai keadaan kosong dan di sini. Ia
+    // mempertahankan urutan: berhenti menyaring bukan kembali ke urutan bawaan.
     chipRow.appendChild(button('Hapus semua', { size: 'sm', variant: 'ghost', onClick: resetFilters }));
   }
 
   /*
    * ============================ BILAH ALAT (UX-E1.4) ==========================
    *
-   * Cari · Filter · Reset · Ekspor CSV — DIBANGUN SEKALI per gambar layar.
+   * Cari · Filter · chip saringan aktif · Ekspor CSV — DIBANGUN SEKALI per
+   * gambar layar. (Tombol Reset ada di sini sampai UX-E1.5; "Hapus semua" di
+   * ujung baris chip menggantikannya.)
    *
    * Sampai paket ini renderAll() membuang dan membangun ulang seluruh bilah di
    * setiap muatan, termasuk kotak Cari yang sedang diketik: jeda 320 ms memicu
@@ -923,10 +927,6 @@ export async function renderList(host, { key, def }) {
     onClose: () => filterCombos.forEach((combo) => combo.closePopup()),
   });
 
-  // Tetap ada sampai UX-E1.5 menggantinya dengan "Hapus semua" di baris chip.
-  const resetButton = button('Reset', { size: 'sm', variant: 'ghost', onClick: () => resetFilters() });
-  resetButton.hidden = true;
-
   /* Ekspor memakai endpoint dan parameter yang sama dengan daftar itu sendiri,
      jadi hak aksesnya identik dengan melihatnya. Tombolnya sekarang hidup lebih
      lama dari satu muatan: selama ekspor berjalan withBusy() memegangnya dan
@@ -958,7 +958,7 @@ export async function renderList(host, { key, def }) {
   const toolbar = el('.list-toolbar', [
     el('.search', [icon('search', 14), searchInput]),
     filterWrap,
-    resetButton,
+    chipRow,
     el('span.spacer'),
     csvButton,
   ]);
@@ -1058,7 +1058,6 @@ export async function renderList(host, { key, def }) {
       + (ui.dateFrom ? 1 : 0) + (ui.dateTo ? 1 : 0);
     filterCount.hidden = set === 0;
     filterCount.replaceChildren(String(set), el('span.sr-only', { text: ' saringan aktif' }));
-    resetButton.hidden = !isFiltered();
     syncCsv();
   }
 
@@ -1734,6 +1733,10 @@ export async function renderList(host, { key, def }) {
     renderRows();
   }
 
-  tableHost.append(toolbar, viewRow, chipRow, listBody);
+  /* Baris tampilan tersimpan di BAWAH bilah alat, chip saringan di DALAMNYA
+     (UX-E1.5): kotak Cari tidak pernah bergeser saat baris tampilan muncul.
+     UI-4c menaruh tampilan di atas chip; urutan itu dibalik dengan sengaja —
+     dicatat sebagai penyimpangan di PROGRESS-UIUX. */
+  tableHost.append(toolbar, viewRow, listBody);
   await load();
 }
