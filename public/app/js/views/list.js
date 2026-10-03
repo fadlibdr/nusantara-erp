@@ -7,6 +7,7 @@ import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
 import { combobox } from '../combobox.js';
 import { openForm, promptFields, startForm } from './form.js';
+import { canCreateResource } from '../create.js';
 import { runAction, postAction, isBulkAction } from './actions.js';
 import { prefs } from '../prefs.js';
 import { navigate, replacePath } from '../router.js';
@@ -119,7 +120,8 @@ export async function renderList(host, { key, def }) {
   // menulis log BBM (assets/equipment-logs) digerbangi prj.update — memberi
   // site manager ast.create hanya demi tombol ini berarti memberinya hak
   // MENCETAK ASET, kuasa yang jauh lebih lebar. Cermin gerbang POST servernya.
-  const canCreate = def.canCreate !== false && Boolean(def.form) && session.can(def.createPerm || `${def.module}.create`);
+  // Predikat yang SAMA dengan Buat ▾ di bilah atas (js/create.js, UX-D.4): dua pintu, satu jawaban.
+  const canCreate = canCreateResource(def);
 
   const tableHost = el('.card');
   const head = el('.page-head', [

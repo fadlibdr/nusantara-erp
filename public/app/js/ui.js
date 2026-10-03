@@ -277,7 +277,10 @@ export function spotlightClear() {
  * dan pergantian rute menutup tanpa memindah fokus. Panah atas/bawah
  * berpindah item, Home/End ke ujung, panah pada tombolnya membuka.
  *
- * items: [{ label, iconName, title, onClick(event, trigger) }] — trigger
+ * items: [{ label, iconName, title, onClick(event, trigger) }] — atau FUNGSI yang
+ * mengembalikan daftar itu saat menu dibuka (Buat ▾, UX-D.4: isinya tergantung rute
+ * sekarang dan "Terakhir dibuka"). `{ heading }` menulis judul seksi yang tidak bisa
+ * difokus; `{ divider: true }` dan `danger: true` seperti di bawah. trigger
  * adalah tombol menunya, untuk withBusy: item yang dipilih sudah dibuang
  * bersama popup-nya, jadi spinner harus duduk di tombol yang masih terlihat.
  * onClick dipanggil SEBELUM popup ditutup dan tanpa await: openPrintable
@@ -351,7 +354,11 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
     if (pop) return;
     if (openMenu) openMenu.close();
     pop = el('.menu-pop', { id, role: 'menu', 'aria-labelledby': trigger.id });
-    items.filter(Boolean).forEach((item) => {
+    (typeof items === 'function' ? items() : items).filter(Boolean).forEach((item) => {
+      if (item.heading) {
+        pop.appendChild(el('.menu-heading', { role: 'presentation', text: item.heading }));
+        return;
+      }
       /* `{ divider: true }` memisahkan item destruktif dari yang lain (README C3: Hapus…
          sesudah garis, dalam --danger). Ia bukan item menu — tidak bisa difokus, tidak
          dihitung panah atas/bawah (itemsIn hanya membaca .menu-item). */

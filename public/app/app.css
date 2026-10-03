@@ -1083,9 +1083,10 @@ select.filter-w { width: auto; min-width: 138px; max-width: 230px; }
 .check-row label { margin: 0; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
 
 /* Kontrol Kepadatan di dialog Akun (app.js densityControl, P1-B). */
-.density-pick { margin: 14px 0 0; padding: 10px 12px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
-.density-pick legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
-.density-pick .check-row { height: 30px; font-size: 13px; cursor: pointer; }
+/* .theme-pick (UX-D.4) memakai bentuk yang sama: dua pilihan tampilan, satu rupa. */
+.density-pick, .theme-pick { margin: 14px 0 0; padding: 10px 12px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.density-pick legend, .theme-pick legend { padding: 0 4px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.density-pick .check-row, .theme-pick .check-row { height: 30px; font-size: 13px; cursor: pointer; }
 .density-pick .check-row .muted { font-size: 12px; margin-left: auto; text-align: right; }
 .density-pick .density-note { margin: 4px 0 6px; font-size: 12px; line-height: 1.4; }
 
@@ -2827,8 +2828,8 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
      SEMUA profil (normal 31,5 → 36 di layar sentuh, terukur; desktop tetap
      27,5/31,5/35,5) dan baris radio ≥ 40 px dengan radio 18 px. */
   .nav-items a { min-height: 36px; }
-  .density-pick .check-row { height: auto; min-height: 40px; }
-  .density-pick input[type="radio"] { width: 18px; height: 18px; }
+  .density-pick .check-row, .theme-pick .check-row { height: auto; min-height: 40px; }
+  .density-pick input[type="radio"], .theme-pick input[type="radio"] { width: 18px; height: 18px; }
   /* Ikon aksi baris hanya membawa `title`, dan tooltip tidak ada di layar
      sentuh (ASESMEN-UX §1.5): kata kerjanya (data-label, list.js) ditulis di
      samping ikon. Lebar tetap ikut isinya, bukan 36 px kotak ikon. */
@@ -3475,3 +3476,25 @@ button.linkish:hover b { text-decoration: underline; }
 .nav:not([data-filtering="true"]) .nav-divider.beyond-cap { display: none; }
 .nav-item.nav-more .lbl { color: var(--primary); font-weight: var(--fw-medium); }
 .nav-items a.nav-more-link .tick { display: none; }
+
+/* ================================================ bilah atas UX-D.4 */
+/* Buat ▾: tombol utama di bilah atas. Labelnya hanya tergambar ≥ 1200 px — ruang bebas
+   header diukur 0 px pada 1024/820/768 (UI-3b, catatan .global-search), jadi di bawah itu
+   ia ikon saja dengan nama aksesibel yang tetap "Buat" (span disembunyikan secara VISUAL). */
+.header .create-menu .menu-trigger > span {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+.header .create-menu .menu-trigger { padding: 0 9px; }
+.header .create-menu .menu-trigger svg:last-child { display: none; }
+@media (min-width: 1200px) {
+  .header .create-menu .menu-trigger > span { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+  .header .create-menu .menu-trigger { padding: 0 11px 0 12px; }
+  .header .create-menu .menu-trigger svg:last-child { display: inline-block; }
+}
+.create-menu[hidden] { display: none; }
+/* Daftar Buat bisa sepanjang 15 baris; popup menggulung sendiri, bukan halamannya. */
+.header .create-menu .menu-pop { max-height: min(70vh, 520px); overflow-y: auto; }
+.menu-heading {
+  padding: 8px 10px 4px; font-size: var(--fs-caption); font-weight: var(--fw-semi);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
+}

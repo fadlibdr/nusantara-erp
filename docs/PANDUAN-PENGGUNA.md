@@ -149,7 +149,7 @@ ada tombol "keluarkan saya dari semua perangkat"; itu pekerjaan administrator
 **Bilah atas**, dari kiri ke kanan: ikon **Menu** (hanya berguna di layar sempit —
 membuka/menutup sidebar), ikon **rumah** (**Beranda** — halaman peluncur, lihat §1.4a),
 remah roti (mis. `Keuangan › Invoice Termin (AR) › INV/…`), tombol **`Cari`**, tombol
-tema, ikon lonceng, dan kotak akun berisi inisial, nama, dan peran Anda (atau "tanpa
+**`Buat`**, ikon lonceng, dan kotak akun berisi inisial, nama, dan peran Anda (atau "tanpa
 peran").
 
 **Remah roti dan beranda modul.** Remah pertama adalah nama modul dengan titik warna
@@ -204,15 +204,24 @@ berisi satu baris **Impor Dokumen**, dan seorang site manager melihat kelompok "
 yang hanya berisi **Log BBM & Jam Alat** — masing-masing memang satu-satunya baris
 kelompok itu yang boleh mereka buka.
 
-**Tema.** Tombol matahari/bulan berputar antara *mengikuti sistem* → *terang* → *gelap*,
-dan memberi tahu pilihannya lewat notifikasi kecil. Pilihan tema, lipatan sidebar, dan
+**Buat.** Tombol **`Buat`** di bilah atas membuka daftar formulir buat-baru — tombol
+**`Tambah …`** dari daftar-daftar yang boleh Anda buka, dikumpulkan di satu tempat. Saat Anda
+berada di sebuah modul, formulir modul itu yang tampil lebih dulu (paling banyak delapan);
+di luar modul, yang tampil adalah jenis dokumen yang baru-baru ini Anda buka. Formulir
+berbaris (PO, PR, dan sejenisnya) terbuka sebagai halaman, yang pendek sebagai dialog —
+sama persis dengan tombol Tambah di daftarnya. Di bawah 1200 px tombol ini hanya ikon `+`.
+Kalau Anda tidak boleh membuat apa pun, tombolnya tidak ada.
+
+**Tema** dipilih di **dialog Akun**: *Ikuti perangkat*, *Terang*, atau *Gelap* — berlaku
+seketika. (Sampai Oktober 2026 pilihan ini sebuah tombol matahari/bulan di bilah atas.)
+Pilihan tema, lipatan sidebar, dan
 jumlah baris per halaman **disimpan di peramban ini**, bukan di akun Anda — komputer lain
 mulai dari bawaan lagi. Yang sebaliknya, **disimpan pada akun Anda dan ikut ke perangkat
 mana pun**: Favorit, Terakhir dibuka, Kepadatan, dan **susunan dasbor** (§1.4b).
 
 **Dialog Akun** (klik kotak nama): memperlihatkan nama, email, **Peran**, dan
-**Hak akses** sebagai *jumlahnya saja* (mis. `31 izin`), lalu pilihan **Kepadatan**
-(Padat · Normal · Lega). Daftar izinnya tidak diperlihatkan di mana pun. Tombolnya
+**Hak akses** sebagai *jumlahnya saja* (mis. `31 izin`), lalu pilihan **Tema** (Ikuti
+perangkat · Terang · Gelap) dan **Kepadatan** (Padat · Normal · Lega). Daftar izinnya tidak diperlihatkan di mana pun. Tombolnya
 **`Tutup`**, **`Ganti kata sandi`**, **`Panduan onboarding`**, dan **`Keluar`** — tidak ada
 ganti email, foto, atau pengaturan pemberitahuan.
 

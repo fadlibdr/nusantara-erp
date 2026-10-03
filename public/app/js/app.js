@@ -2,13 +2,14 @@
 
 import { api, session, login, logout, refreshMe, setUnauthorizedHandler } from './api.js';
 import { notificationBell, startNotificationPolling, stopNotificationPolling } from './notifications.js';
-import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth, confirmDialog, drawer } from './ui.js';
+import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth, confirmDialog, drawer, menuButton } from './ui.js';
 import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
 import { route, fallback, navigate, start, currentPath, setLeaveGuard, clearLeaveGuard } from './router.js';
 import { setCrumbs } from './crumbs.js';
 import { prefs } from './prefs.js';
 import { loadInbox, inboxSummary } from './inbox.js';
+import { createEntries, creatable, startCreate } from './create.js';
 import { renderModuleHome } from './views/module.js';
 import { renderHome } from './views/home.js';
 import { loadPrintForms, invalidatePrintForms } from './printcatalog.js';
@@ -114,13 +115,55 @@ function applyTheme(theme) {
   else delete document.documentElement.dataset.theme;
 }
 
-function cycleTheme() {
-  const order = ['system', 'light', 'dark'];
+const THEMES = { system: 'Ikuti perangkat', light: 'Terang', dark: 'Gelap' };
+
+/*
+ * Tema pindah ke dialog Akun (UX-D.4, handoff README Fase D): tiga pilihan yang
+ * terlihat sekaligus, seperti Kepadatan, alih-alih tombol matahari/bulan yang
+ * berputar tiga langkah tanpa memperlihatkan langkah berikutnya. Tetap preferensi
+ * PERAMBAN (localStorage), bukan server: terang/gelap mengikuti perangkat dan cahaya
+ * di sekitarnya, bukan orangnya. Slot bilah atas yang dikosongkan dipakai Buat ▾.
+ */
+function themeControl() {
   const current = localStorage.getItem(THEME_KEY) || 'system';
-  const next = order[(order.indexOf(current) + 1) % order.length];
-  localStorage.setItem(THEME_KEY, next);
-  applyTheme(next);
-  toast(`Tema: ${{ system: 'mengikuti sistem', light: 'terang', dark: 'gelap' }[next]}`, { timeout: 2200 });
+  return el('fieldset.theme-pick', [
+    el('legend', { text: 'Tema' }),
+    ...Object.entries(THEMES).map(([value, label]) => {
+      const input = el('input', { type: 'radio', name: 'theme', value });
+      input.checked = value === current;
+      input.addEventListener('change', () => {
+        if (!input.checked) return;
+        localStorage.setItem(THEME_KEY, value);
+        applyTheme(value);
+      });
+      return el('label.check-row', [input, el('span', { text: label })]);
+    }),
+  ]);
+}
+
+/*
+ * Buat ▾ (UX-D.4): tombol Tambah yang sudah ada, dikumpulkan — js/create.js. Daftarnya
+ * dihitung SAAT DIBUKA (rute dan "Terakhir dibuka" berubah), dan tombolnya tidak
+ * digambar sama sekali bagi pembaca yang tidak boleh membuat apa pun.
+ */
+function createMenuItems() {
+  const { here, module, recent } = createEntries(currentPath().split('?')[0]);
+  const toItem = (entry) => ({ label: entry.def.label, onClick: () => startCreate(entry) });
+  const group = here ? NAV.find((one) => one.prefix === here) : null;
+  return [
+    module.length ? { heading: group ? group.label : 'Modul ini' } : null,
+    ...module.map(toItem),
+    module.length && recent.length ? { divider: true } : null,
+    recent.length ? { heading: module.length ? 'Terakhir dipakai' : 'Buat baru' } : null,
+    ...recent.map(toItem),
+  ];
+}
+
+function createMenu() {
+  const wrap = menuButton('Buat', createMenuItems, { iconName: 'plus', variant: 'primary', title: 'Buat dokumen atau data baru' });
+  wrap.classList.add('create-menu');
+  wrap.hidden = creatable().length === 0;
+  return wrap;
 }
 
 applyTheme(localStorage.getItem(THEME_KEY) || 'system');
@@ -829,6 +872,9 @@ function refreshNav() {
   if (!nav) return;
   renderNav(nav);
   setActiveNav(currentPath().split('?')[0]);
+  // Izin bisa berubah sesudah refreshMe(): Buat ▾ ikut, tanpa membangun ulang bilah atas.
+  const create = document.querySelector('.header .create-menu');
+  if (create) create.hidden = creatable().length === 0;
 }
 
 /*
@@ -1006,16 +1052,7 @@ function buildShell() {
       // dimampatkan 377 → 149 px. Karena itu medan ini hanya muncul ≥ 1200 px;
       // di bawah itu tombolnya persis seperti sebelumnya.
       commandField(),
-      button('', {
-        variant: 'ghost',
-        iconName: (localStorage.getItem(THEME_KEY) || 'system') === 'dark' ? 'moon' : 'sun',
-        title: 'Ganti tema',
-        onClick: (event) => {
-          cycleTheme();
-          const next = (localStorage.getItem(THEME_KEY) || 'system') === 'dark' ? 'moon' : 'sun';
-          clear(event.currentTarget).appendChild(icon(next, 15));
-        },
-      }),
+      createMenu(),
       notificationBell(),
       userButton,
     ]),
@@ -1044,6 +1081,7 @@ function openUserMenu(user) {
         el('dt', { text: 'Hak akses' }),
         el('dd', { text: `${(user.permissions || []).length} izin` }),
       ]),
+      themeControl(),
       densityControl(),
       installRow(),
     ]),

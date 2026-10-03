@@ -113,6 +113,44 @@ class ShellWiringTest extends ErpTestCase
         $this->assertStringContainsString('.nav-count.incomplete', $this->css());
     }
 
+    /* --------------------------------------------------------------- (e) */
+
+    /** Buat ▾ (UX-D.4): tombol Tambah yang dikumpulkan — predikatnya SATU dengan daftar. */
+    public function test_the_create_menu_and_the_list_share_one_create_predicate(): void
+    {
+        $create = $this->spa('create.js');
+        $this->assertStringContainsString('export function canCreateResource(def) {', $create);
+        $this->assertStringContainsString("session.can(def.createPerm || `\${def.module}.create`)", $create);
+        $this->assertStringContainsString(".filter(([, def]) => canCreateResource(def) && canView(def))", $create,
+            'Buat ▾ menawarkan formulir untuk daftar yang tidak boleh dibuka pembacanya.');
+
+        $list = $this->spa('views/list.js');
+        $this->assertStringContainsString('const canCreate = canCreateResource(def);', $list,
+            'list.js menulis predikat Tambah-nya sendiri lagi: Buat ▾ dan tombol Tambah bisa berselisih.');
+        $this->assertStringNotContainsString('def.canCreate !== false && Boolean(def.form)', $list);
+
+        $app = $this->spa('app.js');
+        $this->assertStringContainsString("menuButton('Buat', createMenuItems,", $app);
+        $this->assertStringContainsString('wrap.hidden = creatable().length === 0;', $app,
+            'Buat ▾ tergambar bagi pembaca yang tidak boleh membuat apa pun.');
+        $this->assertStringContainsString('startCreate', $app);
+        $this->assertStringContainsString("return startForm({", $this->functionBody($create, 'export function startCreate(') ?? '',
+            'Buat ▾ membuka formulirnya lewat jalur lain dari tombol Tambah (halaman vs dialog bisa berselisih).');
+    }
+
+    /** Tema pindah ke dialog Akun (UX-D.4); bilah atas tidak lagi membawa tombolnya. */
+    public function test_the_theme_lives_in_the_account_dialog(): void
+    {
+        $app = $this->spa('app.js');
+        $this->assertStringNotContainsString("title: 'Ganti tema'", $app);
+        $this->assertStringNotContainsString('function cycleTheme(', $app);
+        $menu = $this->functionBody($app, 'function openUserMenu(user) {');
+        $this->assertNotNull($menu);
+        $this->assertStringContainsString('themeControl(),', $menu);
+        $this->assertStringContainsString('.theme-pick .check-row', $this->css(),
+            'Pilihan tema tidak berbagi bentuk (dan sasaran sentuh 40 px) dengan Kepadatan.');
+    }
+
     /** Separuh penolakan. */
     public function test_the_readers_can_still_say_no(): void
     {
