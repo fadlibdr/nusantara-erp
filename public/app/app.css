@@ -891,6 +891,8 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .menu-pop {
   position: absolute; top: calc(100% + 4px); right: 0; z-index: 25;
   min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px));
+  /* Popup mewarisi perataan tuannya: menu ⋯ baris tinggal di td.right (UX-E1.10). */
+  text-align: left;
   display: flex; flex-direction: column; gap: 1px; padding: 4px;
   background: var(--surface); border: 1px solid var(--border-strong);
   border-radius: var(--radius); box-shadow: var(--shadow-md);
@@ -906,6 +908,23 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .menu-item svg { flex: none; color: var(--muted); }
 /* Sasaran jempol, seperti .combo-opt dan .btn.sm di bawah. */
 @media (pointer: coarse) { .menu-item { min-height: 42px; } }
+/* Menu mengambang (menuButton `floating`, UX-E1.9 — menu ⋯ baris): fixed, jadi lolos
+   dari .table-wrap (overflow: auto) yang memotong popup absolut. ANDAIAN: tidak ada
+   leluhur yang memasang transform, filter, contain, atau will-change — salah satunya
+   menjadikan leluhur itu blok penampung, dan popup terperangkap lagi. left/top ditulis
+   menuButton dari kotak tombolnya; min-width 100% di sini berarti selebar LAYAR, maka
+   0. z-index 48, bukan 25 milik popup biasa: menu yang BARU dibuka orangnya berdiri di
+   atas lembar onboarding ponsel (45) — di bawahnya, "Hapus…" yang tertutup lembar itu
+   diketuk dan yang terbuka justru lembarnya (tinjauan E1.9) — tetapi di bawah laci nav
+   (50), sorotan (58) dan dialog (60). Membuka laci atau lembar itu sendiri butuh satu
+   ketukan di luar menu, dan ketukan itu menutupnya lebih dulu. */
+.menu-pop.floating {
+  position: fixed; top: 0; left: 0; right: auto; z-index: 48;
+  min-width: 0; max-height: calc(100dvh - 16px); overflow-y: auto;
+}
+/* Elipsis sendirian (overflowMenu, tanpa chevron): aturan chevron .menu-trigger di atas
+   membuat svg TERAKHIR — yaitu elipsis itu sendiri — bergeser −2 px dan redup. */
+.overflow-menu .menu-trigger svg:last-child { margin-left: 0; opacity: 1; }
 
 /* --------------------------------------------------------------- buttons */
 .btn {
@@ -3582,7 +3601,7 @@ button.linkish:hover b { text-decoration: underline; }
 /* ================================================== bilah bawah UX-D.5 */
 /* Beranda · Persetujuan · Cari · Menu, hanya ≤ 760 px (tempat sidebar menjadi laci).
    z-index 20: di atas isi halaman (≤ 2), DI BAWAH semua yang melayang — popup menu (25),
-   kain laci (40), lembar onboarding (45), laci nav (50), panel onboarding (55), sorotan
+   kain laci (40), lembar onboarding (45), menu ⋯ baris mengambang (48), laci nav (50), panel onboarding (55), sorotan
    (58), dialog (60), combobox (200), toast (90). Jadi ia tidak pernah menutupi laci
    maupun lembar panduan (gerbang UX-D), dan kain laci yang terbuka meredupkannya. */
 :root { --bottom-nav-h: 62px; }

@@ -289,7 +289,17 @@ export function spotlightClear() {
 let openMenu = null;
 let menuSeq = 0;
 
-export function menuButton(label, items, { iconName, title, variant = '', size = '', chevron = true } = {}) {
+/*
+ * `floating` (UX-E1.9): popup position: fixed, ditempatkan dari kotak tombolnya —
+ * untuk menu ⋯ BARIS, yang duduk di dalam .table-wrap (overflow: auto). Popup
+ * absolut biasa terpotong di tepi wadah itu: menu baris terakhir hilang di bawah
+ * pager. Popup fixed lolos dari pemotongan selama tidak ada leluhur yang memasang
+ * transform/filter/contain (app.css .menu-pop.floating). Karena ia tidak ikut
+ * bergulir bersama barisnya, gulir apa pun di luar popup — dan resize — MENUTUPNYA,
+ * bukan menggesernya: menu yang melayang terlepas dari barisnya lebih buruk
+ * daripada menu yang tertutup. Buat ▾ dan Cetak ▾ tidak memakainya.
+ */
+export function menuButton(label, items, { iconName, title, variant = '', size = '', chevron = true, floating = false } = {}) {
   const id = `menu-${++menuSeq}`;
   const trigger = button(label, { iconName, title, variant, size });
   trigger.id = `${id}-trigger`;
@@ -314,8 +324,50 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
     document.removeEventListener('pointerdown', onOutside, true);
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('hashchange', onRoute);
+    window.removeEventListener('scroll', onScroll, true);
+    window.removeEventListener('resize', onResize);
     if (openMenu === handle) openMenu = null;
-    if (refocus || held) trigger.focus();
+    if (refocus || held) trigger.focus({ preventScroll: floating });
+  }
+
+  // Hanya menu `floating`: gulir di DALAM popup (daftar panjang) bukan alasan menutup.
+  function onScroll(event) {
+    if (pop && event.target instanceof Node && pop.contains(event.target)) return;
+    close();
+  }
+
+  function onResize() {
+    close();
+  }
+
+  /* Popup fixed tidak boleh menggulir leluhurnya saat item difokus (gulirnya akan
+     langsung menutup menu ini); item di luar tinggi popup digeser di dalam popup sendiri. */
+  function focusItem(node) {
+    if (!floating) {
+      node.focus();
+      return;
+    }
+    node.focus({ preventScroll: true });
+    const top = node.offsetTop;
+    const bottom = top + node.offsetHeight;
+    if (top < pop.scrollTop) pop.scrollTop = top;
+    else if (bottom > pop.scrollTop + pop.clientHeight) pop.scrollTop = bottom - pop.clientHeight;
+  }
+
+  /* Rapat kanan pada tombolnya, 4 px di bawahnya; dibalik ke atas bila ruang di bawah
+     tidak cukup DAN ruang di atas lebih lapang; dijepit 8 px dari tepi layar. */
+  function place() {
+    const rect = trigger.getBoundingClientRect();
+    const box = pop.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const left = Math.max(8, Math.min(rect.right - box.width, vw - 8 - box.width));
+    const below = vh - 8 - (rect.bottom + 4);
+    const above = rect.top - 4 - 8;
+    let top = box.height > below && above > below ? rect.top - 4 - box.height : rect.bottom + 4;
+    top = Math.max(8, Math.min(top, vh - 8 - box.height));
+    pop.style.left = `${Math.round(left)}px`;
+    pop.style.top = `${Math.round(top)}px`;
   }
 
   function onOutside(event) {
@@ -337,16 +389,16 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
       close({ refocus: true });
     } else if (event.key === 'ArrowDown') {
       event.preventDefault();
-      (list[at + 1] || list[0]).focus();
+      focusItem(list[at + 1] || list[0]);
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      (at > 0 ? list[at - 1] : list[list.length - 1]).focus();
+      focusItem(at > 0 ? list[at - 1] : list[list.length - 1]);
     } else if (event.key === 'Home') {
       event.preventDefault();
-      list[0].focus();
+      focusItem(list[0]);
     } else if (event.key === 'End') {
       event.preventDefault();
-      list[list.length - 1].focus();
+      focusItem(list[list.length - 1]);
     }
   }
 
@@ -375,22 +427,31 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
       });
       pop.appendChild(node);
     });
+    if (floating) pop.classList.add('floating');
     wrap.appendChild(pop);
-    /* Rapat kanan pada tombolnya (app.css .menu-pop). Bila tepi kirinya keluar
-       layar — ponsel 390 px: bilah aksi di 84–376 px, popup 358 px, terukur
-       4 Sep 2026 left −162 — geser ke kanan secukupnya, tidak lebih dari sisa
-       ruang di kanan; max-width popup < lebar layar, jadi selalu muat. */
-    const box = pop.getBoundingClientRect();
-    const shove = Math.min(Math.max(0, 8 - box.left), Math.max(0, window.innerWidth - 8 - box.right));
-    if (shove) pop.style.right = `${-shove}px`;
+    if (floating) {
+      place();
+    } else {
+      /* Rapat kanan pada tombolnya (app.css .menu-pop). Bila tepi kirinya keluar
+         layar — ponsel 390 px: bilah aksi di 84–376 px, popup 358 px, terukur
+         4 Sep 2026 left −162 — geser ke kanan secukupnya, tidak lebih dari sisa
+         ruang di kanan; max-width popup < lebar layar, jadi selalu muat. */
+      const box = pop.getBoundingClientRect();
+      const shove = Math.min(Math.max(0, 8 - box.left), Math.max(0, window.innerWidth - 8 - box.right));
+      if (shove) pop.style.right = `${-shove}px`;
+    }
     trigger.setAttribute('aria-expanded', 'true');
     trigger.setAttribute('aria-controls', id);
     document.addEventListener('pointerdown', onOutside, true);
     document.addEventListener('keydown', onKey);
     window.addEventListener('hashchange', onRoute);
+    if (floating) {
+      window.addEventListener('scroll', onScroll, true);
+      window.addEventListener('resize', onResize);
+    }
     openMenu = handle;
     const list = itemsIn();
-    if (list.length) (focusLast ? list[list.length - 1] : list[0]).focus();
+    if (list.length) focusItem(focusLast ? list[list.length - 1] : list[0]);
   }
 
   const handle = { close };
@@ -1298,8 +1359,9 @@ export function filterChip({ label, value, onRemove } = {}) {
  * kedua. Item destruktif ditulis pemanggil sesudah `{ divider: true }` dengan
  * `danger: true`. Esc, klik di luar, panah, dan satu-menu-terbuka ikut gratis.
  */
-export function overflowMenu(items, { title = 'Lainnya', size = 'sm', variant = 'ghost' } = {}) {
-  const wrap = menuButton('', items, { iconName: 'ellipsis', title, size, variant, chevron: false });
+export function overflowMenu(items, { title = 'Lainnya', size = 'sm', variant = 'ghost', floating = true } = {}) {
+  // Mengambang secara bawaan: rumah utamanya sel baris di dalam .table-wrap (menuButton `floating`).
+  const wrap = menuButton('', items, { iconName: 'ellipsis', title, size, variant, chevron: false, floating });
   wrap.classList.add('overflow-menu');
   return wrap;
 }

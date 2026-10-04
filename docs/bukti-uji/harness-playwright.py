@@ -2631,6 +2631,261 @@ def s55(pg):
     return out
 
 
+S56_PLANT_MENU = """async ({ floating, where, many }) => {
+  // Menu uji dari ui.js milik halaman ini (preseden EMPTY_KINDS): empat item, item destruktif
+  // sesudah garis. where='wrap' = di ujung .table-wrap (wadah overflow: auto yang memotong popup
+  // absolut); where='corner' = pojok kanan bawah layar (ruang di bawahnya habis → harus dibalik).
+  const { overflowMenu, menuButton } = await import('/app/js/ui.js');
+  document.querySelectorAll('.s56-host').forEach((n) => n.remove());
+  const items = many
+    ? Array.from({ length: many }, (_, i) => ({ label: `Butir ${i + 1}`, onClick: () => {} }))
+    : [
+      { label: 'Satu', iconName: 'eye', onClick: () => {} },
+      { label: 'Dua', iconName: 'edit', onClick: () => {} },
+      { label: 'Tiga', iconName: 'print', onClick: () => {} },
+      { divider: true },
+      { label: 'Empat…', iconName: 'trash', danger: true, onClick: () => {} },
+    ];
+  const menu = floating
+    ? overflowMenu(items, { title: 'Uji S56' })
+    : menuButton('', items, { iconName: 'ellipsis', title: 'Uji S56', size: 'sm', variant: 'ghost', chevron: false });
+  const host = document.createElement('div');
+  host.className = 's56-host';
+  host.style.cssText = where === 'corner'
+    ? 'position:fixed;right:12px;bottom:12px;z-index:30'
+    : 'display:flex;justify-content:flex-end;padding:4px 8px';
+  host.appendChild(menu);
+  if (where === 'corner') document.body.appendChild(host);
+  else document.querySelector('#view .table-wrap').appendChild(host);
+  return true;
+}"""
+
+S56_MENU_STATE = """() => {
+  const trigger = document.querySelector('.s56-host .menu-trigger');
+  const pop = document.querySelector('.s56-host .menu-pop');
+  if (!pop) return { open: false, expanded: trigger ? trigger.getAttribute('aria-expanded') : null };
+  const r = pop.getBoundingClientRect();
+  const t = trigger.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+  const items = [...pop.querySelectorAll('.menu-item')].map((n) => {
+    const b = n.getBoundingClientRect();
+    const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return { label: n.innerText.trim(), hit: !!hit && n.contains(hit) };
+  });
+  return {
+    open: true, floating: pop.classList.contains('floating'), position: getComputedStyle(pop).position,
+    expanded: trigger.getAttribute('aria-expanded'),
+    inside: r.left >= 0 && r.top >= 0 && r.right <= vw && r.bottom <= vh,
+    above: r.bottom <= t.top + 0.5, below: r.top >= t.bottom - 0.5,
+    right_gap: Math.round(t.right - r.right),
+    items, active: document.activeElement && document.activeElement.classList.contains('menu-item') ? document.activeElement.innerText.trim() : null,
+    pop: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)], vw, vh,
+  };
+}"""
+
+S56_SCROLL_PAGE = """() => {
+  // Gulir NYATA di wadah gulir halaman: .main di meja, dokumen di ponsel. Pengganjal menjamin
+  // halamannya memang bisa digulir.
+  const spacer = document.createElement('div');
+  spacer.className = 's56-spacer';
+  spacer.style.height = '1600px';
+  document.querySelector('#view').appendChild(spacer);
+  const main = document.querySelector('.main');
+  const scroller = main && main.scrollHeight > main.clientHeight + 4 && getComputedStyle(main).overflowY !== 'visible'
+    ? main : document.scrollingElement;
+  const before = scroller.scrollTop;
+  scroller.scrollTop = before + 60;
+  return { scroller: scroller === main ? '.main' : 'document', moved: scroller.scrollTop - before };
+}"""
+
+
+def s56_floating_round(p, label, checks, out):
+    """Satu putaran 'mengambang' di satu ukuran layar; hasilnya ke out[label]."""
+    res = {}
+    p.goto(BASE + "#/r/servicedesk/field-reports")
+    p.wait_for_selector("#view .table-wrap", timeout=20000)
+    p.wait_for_timeout(700)
+
+    # Separuh penolakan: menu ABSOLUT di ujung .table-wrap terpotong — buktinya uji tembaknya bisa gagal.
+    p.evaluate(S56_PLANT_MENU, {"floating": False, "where": "wrap", "many": 0})
+    p.click(".s56-host .menu-trigger")
+    p.wait_for_timeout(250)
+    res["absolut"] = a = p.evaluate(S56_MENU_STATE)
+    if not a["open"] or all(i["hit"] for i in a["items"]):
+        checks.append(f"mengambang {label}: menu ABSOLUT di ujung .table-wrap tidak terpotong — uji tembak ini tidak bisa gagal ({a!r})")
+    p.keyboard.press("Escape")
+
+    p.evaluate(S56_PLANT_MENU, {"floating": True, "where": "wrap", "many": 0})
+    p.click(".s56-host .menu-trigger")
+    p.wait_for_timeout(250)
+    res["buka"] = m = p.evaluate(S56_MENU_STATE)
+    missed = [i["label"] for i in m.get("items", []) if not i["hit"]]
+    if not m["open"] or not m["floating"] or m["position"] != "fixed":
+        checks.append(f"mengambang {label}: overflowMenu tidak mengambang ({m!r})")
+    elif missed or not m["inside"] or len(m["items"]) != 4:
+        checks.append(f"mengambang {label}: item tertutup/terpotong {missed!r}, di dalam layar={m['inside']} ({m['pop']} di {m['vw']}×{m['vh']})")
+    elif abs(m["right_gap"]) > 1 and m["pop"][0] > 8:
+        checks.append(f"mengambang {label}: popup tidak rapat kanan pada tombolnya (selisih {m['right_gap']} px)")
+    if m.get("active") != "Satu":
+        checks.append(f"mengambang {label}: fokus awal {m.get('active')!r}, harus item pertama")
+
+    # Papan ketik: End/Home memindah fokus TANPA menggulir leluhur (gulir itu akan menutupnya).
+    p.keyboard.press("End")
+    p.wait_for_timeout(150)
+    res["end"] = e = p.evaluate(S56_MENU_STATE)
+    if not e["open"] or e.get("active") != "Empat…":
+        checks.append(f"mengambang {label}: End menutup menu atau tidak sampai item terakhir ({e!r})")
+
+    res["gulir"] = p.evaluate(S56_SCROLL_PAGE)
+    p.wait_for_timeout(250)
+    res["sesudah_gulir"] = g = p.evaluate(S56_MENU_STATE)
+    if res["gulir"]["moved"] <= 0:
+        checks.append(f"mengambang {label}: halaman tidak tergulir ({res['gulir']!r}) — penutupan-oleh-gulir tidak teruji")
+    elif g["open"] or g["expanded"] != "false":
+        checks.append(f"mengambang {label}: menggulir {res['gulir']['scroller']} tidak menutup menu ({g!r})")
+    p.evaluate("document.querySelectorAll('.s56-spacer').forEach((n) => n.remove())")
+
+    # Pojok kanan bawah: ruang di bawah habis → popup dibalik ke ATAS tombolnya, tetap di layar.
+    p.evaluate(S56_PLANT_MENU, {"floating": True, "where": "corner", "many": 0})
+    p.click(".s56-host .menu-trigger")
+    p.wait_for_timeout(250)
+    res["pojok"] = c = p.evaluate(S56_MENU_STATE)
+    if not c["open"] or not c["above"] or not c["inside"] or not all(i["hit"] for i in c["items"]):
+        checks.append(f"mengambang {label}: di pojok bawah popup tidak dibalik ke atas / keluar layar ({c!r})")
+    p.keyboard.press("Escape")
+    p.wait_for_timeout(150)
+    res["esc"] = p.evaluate("() => ({ active: document.activeElement && document.activeElement.classList.contains('menu-trigger'), open: !!document.querySelector('.s56-host .menu-pop') })")
+    if res["esc"]["open"] or not res["esc"]["active"]:
+        checks.append(f"mengambang {label}: Escape tidak menutup dan mengembalikan fokus ke tombol ({res['esc']!r})")
+    p.evaluate("document.querySelectorAll('.s56-host').forEach((n) => n.remove())")
+
+    # Menu PANJANG (30 butir, melampaui max-height): End menggulir popup itu SENDIRI dan menu tetap
+    # terbuka — gulir di dalam popup bukan alasan menutup (onScroll), fokus tanpa menggulir leluhur.
+    p.evaluate(S56_PLANT_MENU, {"floating": True, "where": "wrap", "many": 30})
+    p.click(".s56-host .menu-trigger")
+    p.wait_for_timeout(250)
+    p.keyboard.press("End")
+    p.wait_for_timeout(250)
+    res["panjang"] = lp = p.evaluate("""() => { const pop = document.querySelector('.s56-host .menu-pop');
+      if (!pop) return { open: false };
+      const a = document.activeElement;
+      return { open: true, scrollable: pop.scrollHeight > pop.clientHeight, scrolled: pop.scrollTop,
+               active: a && a.classList.contains('menu-item') ? a.innerText.trim() : null }; }""")
+    if not lp["open"] or lp.get("active") != "Butir 30" or (lp.get("scrollable") and lp.get("scrolled", 0) <= 0):
+        checks.append(f"mengambang {label}: menu 30 butir — End menutupnya atau tidak menggulir popup ke butir terakhir ({lp!r})")
+    elif not lp.get("scrollable"):
+        checks.append(f"mengambang {label}: menu 30 butir tidak melampaui tinggi popup — uji gulir-dalam tidak menguji apa pun")
+    else:
+        p.evaluate("document.querySelector('.s56-host .menu-pop').scrollTop = 0")
+        p.wait_for_timeout(200)
+        if not p.evaluate("!!document.querySelector('.s56-host .menu-pop')"):
+            checks.append(f"mengambang {label}: menggulir DI DALAM popup menutupnya")
+    p.keyboard.press("Escape")
+    p.evaluate("document.querySelectorAll('.s56-host').forEach((n) => n.remove())")
+
+    # Lembar onboarding ponsel (z-index 45, fixed di atas bilah bawah): menu yang baru dibuka berdiri
+    # DI ATASNYA. Lembarnya ditanam dengan kelas aslinya, jadi tangga z-index yang diuji adalah milik app.css.
+    if label == "390":
+        # Menu dibuka DULU, lembarnya ditanam sesudahnya (tanpa pointerdown): lembar yang terbuka penuh
+        # menutupi tombolnya sendiri, jadi yang diuji adalah popup yang menjorok ke wilayah lembar.
+        p.evaluate(S56_PLANT_MENU, {"floating": True, "where": "wrap", "many": 0})
+        p.click(".s56-host .menu-trigger")
+        p.wait_for_timeout(250)
+        p.evaluate("""() => { const d = document.createElement('div'); d.className = 'onboarding-dock s56-dock';
+          d.dataset.mode = 'mobile'; d.style.position = 'fixed'; document.body.appendChild(d); }""")
+        p.wait_for_timeout(100)
+        res["lembar"] = lb = p.evaluate(S56_MENU_STATE)
+        lb["dock"] = p.evaluate("() => { const r = document.querySelector('.s56-dock').getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom), getComputedStyle(document.querySelector('.s56-dock')).zIndex]; }")
+        under = lb.get("pop") and lb["pop"][3] > lb["dock"][0]
+        if not under:
+            checks.append(f"mengambang {label}: menu tidak menumpuk lembar onboarding ({lb.get('pop')} vs lembar {lb['dock']}) — uji tumpukan tidak menguji apa pun")
+        elif not all(i["hit"] for i in lb.get("items", [])):
+            checks.append(f"mengambang {label}: butir menu tertutup lembar onboarding (z {lb['dock'][2]}): {[i['label'] for i in lb['items'] if not i['hit']]!r}")
+        p.keyboard.press("Escape")
+        p.evaluate("document.querySelectorAll('.s56-host, .s56-dock').forEach((n) => n.remove())")
+    out[label] = res
+
+
+@scenario("S56_menu_baris")
+def s56(pg):
+    """UX-E1.9…E1.11: menu ⋯ baris — popup mengambang (E1.9) dan blok-blok tugas berikutnya."""
+    out, checks, errors = {}, [], []
+    pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+
+    # ------------------------------------------------------------ mengambang (E1.9)
+    ambang = {}
+    s56_floating_round(pg, "1440", checks, ambang)
+
+    # Resize menutupnya juga.
+    pg.goto(BASE + "#/r/servicedesk/field-reports")
+    pg.wait_for_selector("#view .table-wrap", timeout=20000)
+    pg.wait_for_timeout(500)
+    pg.evaluate(S56_PLANT_MENU, {"floating": True, "where": "wrap", "many": 0})
+    pg.click(".s56-host .menu-trigger")
+    pg.wait_for_timeout(200)
+    vp = pg.viewport_size
+    pg.set_viewport_size({"width": vp["width"] - 40, "height": vp["height"]})
+    pg.wait_for_timeout(300)
+    ambang["resize"] = pg.evaluate(S56_MENU_STATE)
+    pg.set_viewport_size(vp)
+    if ambang["resize"]["open"]:
+        checks.append("mengambang: mengubah ukuran jendela tidak menutup menu")
+    pg.evaluate("document.querySelectorAll('.s56-host').forEach((n) => n.remove())")
+
+    # Cetak ▾ di detail PO dan Buat ▾ di bilah atas TIDAK mengambang: perilaku lama.
+    po = pg.evaluate("""async () => { const { api } = await import('/app/js/api.js');
+      const r = await api.list('procurement/purchase-orders', { per_page: 1, page: 1 }); return r.data && r.data[0] ? r.data[0].id : null; }""")
+    if not po:
+        checks.append("mengambang: subjek hilang — tidak ada PO untuk menguji Cetak ▾")
+    else:
+        pg.goto(BASE + f"#/d/procurement/purchase-orders/{po}")
+        pg.wait_for_selector(".page-head .actions .menu-trigger:has-text('Cetak')", timeout=20000)
+        pg.wait_for_timeout(500)
+        pg.click(".page-head .actions .menu-trigger:has-text('Cetak')")
+        pg.wait_for_timeout(250)
+        ambang["cetak"] = c = pg.evaluate("""() => { const t = document.querySelector('.page-head .actions .menu-trigger[aria-expanded=true]');
+          const pop = t && t.parentElement.querySelector('.menu-pop'); if (!pop) return null;
+          const r = pop.getBoundingClientRect(), b = t.getBoundingClientRect();
+          return { floating: pop.classList.contains('floating'), position: getComputedStyle(pop).position, below: r.top >= b.bottom - 0.5, gap: Math.round(r.top - b.bottom) }; }""")
+        if not c or c["floating"] or c["position"] != "absolute" or not c["below"]:
+            checks.append(f"mengambang: Cetak ▾ di detail PO berubah ({c!r}) — harus absolut, tepat di bawah tombolnya")
+        pg.keyboard.press("Escape")
+
+    pg.click(".header .create-menu .menu-trigger")
+    pg.wait_for_selector(".header .create-menu .menu-pop", timeout=5000)
+    pg.keyboard.press("End")
+    pg.wait_for_timeout(200)
+    ambang["buat"] = b = pg.evaluate("""() => { const pop = document.querySelector('.header .create-menu .menu-pop');
+      return { floating: pop.classList.contains('floating'), position: getComputedStyle(pop).position,
+               scrollable: pop.scrollHeight > pop.clientHeight, scrolled: pop.scrollTop,
+               last: document.activeElement === [...pop.querySelectorAll('.menu-item')].pop() }; }""")
+    if b["floating"] or b["position"] != "absolute" or not b["last"] or (b["scrollable"] and b["scrolled"] <= 0):
+        checks.append(f"mengambang: Buat ▾ berubah ({b!r}) — harus absolut, End menggulir daftarnya sendiri ke item terakhir")
+    pg.keyboard.press("Escape")
+
+    # 390 × 844, pointer kasar.
+    ctx390 = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        p390 = ctx390.new_page()
+        p390.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+        p390.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(p390, "admin@nusantara.test")
+        s56_floating_round(p390, "390", checks, ambang)
+        p390.screenshot(path=f"{OUT}/s56-mengambang-390.png")
+    finally:
+        ctx390.close()
+    out["mengambang"] = ambang
+
+    out["console_errors"] = errors
+    if errors:
+        checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
 @scenario("S53_satu_ukuran_per_baris_ubin")
 def s53(pg):
     """UI-6d: satu baris ubin tingkat atas memakai SATU ukuran angka.
@@ -15140,7 +15395,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

@@ -40,7 +40,7 @@ class UiPrimitivesTest extends ErpTestCase
         'actionPanel' => ['.action-panel {', '.action-panel.attn {', '.action-panel.success {', '.action-panel.danger {'],
         'tabs' => ['.tabs {', '.tab-count {'],
         'filterChip' => ['.chip {', '.chip-x {'],
-        'overflowMenu' => ['.menu-pop {', '.menu-divider {', '.menu-item.danger {'],
+        'overflowMenu' => ['.menu-pop {', '.menu-divider {', '.menu-item.danger {', '.menu-pop.floating {'],
         'keyValueTile' => ['.kv-tile {', '.kv-tile-value {'],
         'stepper' => ['.stepper {', '.step-link {'],
         'errorSummary' => ['.error-summary {', 'button.linkish {'],
@@ -99,6 +99,24 @@ class UiPrimitivesTest extends ErpTestCase
         $menu = $this->functionBody($this->spa('ui.js'), 'export function menuButton(');
         $this->assertStringContainsString("el('hr.menu-divider', { role: 'separator' })", $menu);
         $this->assertStringContainsString("item.danger ? '.danger' : ''", $menu);
+
+        // UX-E1.9: menu ⋯ baris MENGAMBANG (lolos dari .table-wrap), dan hanya ia —
+        // Buat ▾ dan Cetak ▾ tidak meneruskan opsi itu, jadi bawaan menuButton tetap false.
+        $this->assertStringContainsString("chevron = true, floating = false } = {}) {", $menu);
+        $this->assertStringContainsString("if (floating) pop.classList.add('floating');", $menu);
+        $this->assertStringContainsString("window.addEventListener('scroll', onScroll, true);", $menu);
+        $from = (int) strpos($menu, '  function close(');
+        $close = substr($menu, $from, (int) strpos($menu, "\n  }\n", $from) - $from);
+        $this->assertStringContainsString('function close(', $close);
+        $this->assertStringContainsString("window.removeEventListener('scroll', onScroll, true);", $close,
+            'close() tidak melepas pendengar gulir: setiap menu baris yang pernah dibuka menutup ulang dirinya selamanya.');
+        $this->assertStringContainsString("window.removeEventListener('resize', onResize);", $close);
+        $this->assertStringContainsString("floating = true } = {}) {", $body);
+        // Di atas lembar onboarding ponsel (45), di bawah laci nav (50) — tinjauan E1.9: di bawah lembar,
+        // "Hapus…" yang tertutup diketuk dan yang terbuka justru lembarnya.
+        $this->assertMatchesRegularExpression('/\.menu-pop\.floating \{[^}]*z-index: 48;/', $this->css());
+        $this->assertMatchesRegularExpression('/\.menu-pop \{[^}]*text-align: left;/', $this->css());
+        $this->assertStringContainsString('chevron: false, floating });', $body, 'overflowMenu tidak meneruskan `floating` ke menuButton.');
     }
 
     /** E-3 butir 6: status tidak pernah hanya warna. */
