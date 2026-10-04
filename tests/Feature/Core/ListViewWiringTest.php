@@ -82,6 +82,13 @@ class ListViewWiringTest extends ErpTestCase
 
         $css = $this->css();
         $this->assertStringContainsString('table.data th .th-sort .lucide { flex: none; }', $css);
+        // Panah tidak menambah lebar kolom (ikon 12 + gap 4): tanpa ini baris ISI daftar yang sempit
+        // membungkus di kepadatan padat (weekly-progress 32 → 46 px, gerbang UX-E1). Kolom terakhir
+        // menyimpan panahnya di alur, atau luapannya menjadi gulir mendatar .table-wrap.
+        $this->assertStringContainsString('table.data th .th-sort .lucide { margin-right: -16px; }', $css);
+        $this->assertStringContainsString('table.data th:last-child .th-sort .lucide { margin-right: 0; }', $css);
+        $this->assertStringContainsString("display: inline-flex; align-items: center; gap: 4px;", substr($css, (int) strpos($css, 'table.data th .th-sort {'), 200),
+            'Gap tombol urut berubah tanpa margin negatif panahnya ikut berubah (−(12 + gap)).');
         $this->assertStringContainsString('table.data th:not([aria-sort]) button.th-sort .lucide { display: none; }', $css);
         $print = strrpos(substr($css, 0, (int) strpos($css, 'table.data th:not([aria-sort]) button.th-sort .lucide')), '@media print {');
         $between = substr($css, (int) $print, (int) strpos($css, 'table.data th:not([aria-sort]) button.th-sort .lucide') - (int) $print);
@@ -551,7 +558,7 @@ class ListViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(59, (int) $version[1],
+        $this->assertGreaterThanOrEqual(60, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 

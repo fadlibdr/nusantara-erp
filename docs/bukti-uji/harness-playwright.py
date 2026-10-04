@@ -2084,6 +2084,28 @@ def s54(pg):
                 checks.append(f"urut: cetak — halaman meluber {printed['overflow_x']} px ke samping")
     out["urut"]["langkah"] = steps
 
+    # Panah tidak menambah lebar kolom: baris ISI daftar yang sempit tidak boleh membungkus karena
+    # judulnya berpanah. Gerbang UX-E1 menemukan #/r/projects/weekly-progress di kepadatan padat
+    # naik 32 → 46 px. Diukur di halaman yang SAMA dengan dan tanpa panah, di ketiga kepadatan.
+    pg.goto(BASE + "#/r/projects/weekly-progress")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(900)
+    lebar = {}
+    for dens in ("compact", "normal", "comfortable"):
+        pg.evaluate("(d) => { document.documentElement.dataset.density = d; }", dens)
+        pg.wait_for_timeout(250)
+        rows = "() => [...document.querySelectorAll('#view table.data tbody tr')].map((tr) => Math.round(tr.getBoundingClientRect().height * 2) / 2)"
+        with_ = pg.evaluate(rows)
+        tag = pg.add_style_tag(content="table.data th .th-sort .lucide { display: none !important; }")
+        pg.wait_for_timeout(250)
+        without = pg.evaluate(rows)
+        pg.evaluate("(n) => n.remove()", tag)
+        lebar[dens] = {"dengan": with_, "tanpa": without}
+        if with_ != without:
+            checks.append(f"urut: weekly-progress {dens} — panah judul mengubah tinggi baris isi {without} → {with_}")
+    pg.evaluate("() => { delete document.documentElement.dataset.density; }")
+    out["urut"]["lebar_kolom"] = lebar
+
     # ------------------------------------------------------------ saringan (E1.4)
     # Bilah alat dibangun SEKALI: popover Filter memegang kontrol saringan (tetap di DOM selagi
     # tertutup), kotak Cari tidak kehilangan kursor saat daftarnya dimuat ulang, dan Escape

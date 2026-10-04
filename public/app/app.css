@@ -3039,6 +3039,15 @@ table.data th[aria-sort] .th-sort { color: var(--text); }
    yang aktif lewat aturan di atas — kontrasnya selalu sama dengan labelnya.
    flex: none supaya label yang membungkus dua baris tidak memipihkan ikonnya. */
 table.data th .th-sort .lucide { flex: none; }
+/* Panahnya TIDAK menambah lebar kolom (gerbang UX-E1): margin kanan negatif selebar ikon +
+   gap (12 + 4) membuatnya menyumbang nol ke lebar max-content judulnya, dan ia tergambar di
+   padding kanan th sendiri (10/12/14 px per kepadatan) — paling jauh 6 px melewati tepi th,
+   masih 4 px dari label tetangganya. Tanpa ini, enam judul berpanah menaikkan lebar minimum
+   tabel #/r/projects/weekly-progress dan baris ISI-nya membungkus di kepadatan padat: 32 →
+   46 px (probe gerbang, 4 Okt 2026) — kepadatan beku CONVENTIONS §13. Kolom terakhir tetap
+   menyimpan panahnya di dalam alur: luapan di sana akan menjadi gulir mendatar .table-wrap. */
+table.data th .th-sort .lucide { margin-right: -16px; }
+table.data th:last-child .th-sort .lucide { margin-right: 0; }
 
 /* --------------------------------------- tabel baris: galat per sel (422) */
 
