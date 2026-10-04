@@ -109,7 +109,7 @@ public/app/
                         focus across reloads, Filter popover holding the screen's filter
                         controls, active-filter chips with Hapus semua, CSV), saved views,
                         table, pagination
-      form.js           generic create/edit modal incl. repeatable line items
+      form.js           generic create/edit form — dialog or page (#/f/, sticky .form-foot), repeatable line items, Simpan & ajukan on the page (route-passed `submit`)
       detail.js         generic document detail: head, status panel, Informasi (label: form → LABELS → "Bidang lainnya"), lines, approvals
       actions.js        lifecycle actions (submit/approve/post/…); withConfirmResubmit() is the one confirm-resubmit engine (runAction and the page form's Simpan & ajukan), toastActionDone() the one success sentence
       dashboard.js      cross-module dashboard + approval inbox

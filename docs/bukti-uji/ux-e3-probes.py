@@ -71,7 +71,8 @@ MEASURE = """() => {
   const root = page || modal;
   const head = q('#view .page-head');
   const onScreen = (n) => { if (!n) return null; const r = n.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; };
-  const btns = root ? qa(page ? '#view .page-head .actions .btn, #view .page-head .actions button' : '.modal .modal-foot button', document) : [];
+  // UX-E3.2: tombol halaman pindah ke kaki formulir (.form-foot); kepala dibaca dulu untuk kode lama.
+  const btns = root ? qa(page ? '#view .form-page .form-foot button, #view .page-head .actions .btn, #view .page-head .actions button' : '.modal .modal-foot button', document) : [];
   const simpan = btns.find((b) => b.innerText.trim().startsWith('Simpan'));
   const firstInput = root && q('input:not([type=hidden]):not([type=checkbox]), select, textarea', root);
   const lineInput = root && q('table.lines tbody input, table.lines tbody select', root);
@@ -97,6 +98,7 @@ MEASURE = """() => {
     primary_btn: (btns.find((b) => b.classList.contains('primary')) || {}).innerText || null,
     error_summary: qa('.error-summary').length, section_nav: qa('.form-nav, nav[aria-label="Bagian formulir"]').length,
     sticky_foot: qa('.form-foot').length,
+    foot_position: q('.form-foot') ? getComputedStyle(q('.form-foot')).position : null, foot_h: h(q('.form-foot')),
     inline_styled: root ? qa('[style]', root).length : null,
     doc_h: Math.round(Math.max(document.documentElement.scrollHeight, (q('.main') || {}).scrollHeight || 0)),
     main_scroll: q('.main') ? q('.main').scrollHeight - q('.main').clientHeight : null,

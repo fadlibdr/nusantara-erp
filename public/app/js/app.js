@@ -33,6 +33,7 @@ import { renderUsulanRekap } from './views/usulanrekap.js';
 import { renderTimesheet, renderTimesheetSaya } from './views/timesheet.js';
 import { renderReorder } from './views/reorder.js';
 import { renderPindai } from './views/pindai.js';
+import { postAction, toastActionDone, withConfirmResubmit } from './views/actions.js';
 import { renderK3 } from './views/k3.js';
 import { renderEvm } from './views/evm.js';
 import { renderDefects } from './views/defect.js';
@@ -1404,11 +1405,15 @@ function formPagePresenter(host, { def, backTo }) {
     setLeaveGuard(leaving);
 
     clear(host);
-    host.appendChild(el('.page-head', [
-      el('div', [el('h1', { text: spec.title })]),
-      el('.actions', el('.zone', spec.footer)),
-    ]));
-    host.appendChild(el(`.form-page${spec.width === 'wide' ? '.wide' : ''}`, spec.body));
+    /*
+     * Kaki formulir lengket (UX-E3.2, README E3), bukan tombol di kepala: diukur 4 Okt 2026
+     * (ux-e3-probe-base.json) halaman PO 1143 px tinggi di 1440 (1622 di 390) dan jendelanya
+     * yang menggulir — begitu pembaca sampai di tabel baris, Simpan di kepala sudah lewat
+     * layar (PO/GRN/Penawaran di 390, PO di 1440). Kaki adalah anak TERAKHIR .form-page
+     * supaya pembaca `.form-page …` harness tetap menemukannya; .page-head tinggal judul.
+     */
+    host.appendChild(el('.page-head', [el('div', [el('h1', { text: spec.title })])]));
+    host.appendChild(el(`.form-page${spec.width === 'wide' ? '.wide' : ''}`, [spec.body, el('.form-foot', spec.footer)]));
 
     return {
       requestClose: async () => { if (await leaving()) navigate(backTo); },
@@ -1947,6 +1952,22 @@ function registerRoutes() {
     setActiveNav(`r/${key}`);
 
     const backTo = id ? `d/${key}/${id}` : `r/${key}`;
+    /*
+     * Simpan & ajukan (UX-E3.2): aksi submit sumber daya ini, disaring seperti bilah aksi
+     * menyaringnya (session.canAct) dan tanpa aksi yang membawa dialognya sendiri
+     * (fields/confirm/inlineNote — PPK, subkontrak, kontrak mandor tetap lewat Ajukan).
+     * Dirakit di sini dari actions.js supaya form.js tidak perlu mengimpornya.
+     */
+    const submitAction = (def.actions || []).find((action) => action.key === 'submit'
+      && !action.fields && !action.confirm && !action.inlineNote);
+    const submit = submitAction && session.canAct(submitAction) ? {
+      action: submitAction,
+      run: (saved) => {
+        const payload = {};
+        return withConfirmResubmit(submitAction, payload, () => postAction(submitAction, saved, def, payload));
+      },
+      done: (code, result) => toastActionDone(submitAction, code, result),
+    } : null;
     guard(host, async () => {
       const row = id ? await api.get(`${def.api}/${id}`) : null;
       await openForm({
@@ -1955,6 +1976,7 @@ function registerRoutes() {
         row,
         present: formPagePresenter(host, { def, backTo }),
         onSaved: (saved) => navigate(saved && saved.id ? `d/${key}/${saved.id}` : backTo, { replace: true }),
+        submit,
       });
     });
   });

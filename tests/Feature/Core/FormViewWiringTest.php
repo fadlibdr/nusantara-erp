@@ -69,8 +69,101 @@ class FormViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_form(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(66, (int) $version[1],
+        $this->assertGreaterThanOrEqual(67, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa formulir UX-E3: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
+    }
+
+    /* ------------------------------------------------------------ E3.2 */
+
+    /** Simpan & ajukan hanya lewat `submit` yang diberi rute halaman; form.js tidak mengimpor actions.js dan tidak menulis ulang putarannya. */
+    public function test_simpan_dan_ajukan_exists_only_on_the_page_and_reuses_the_one_loop(): void
+    {
+        $form = $this->spa('views/form.js');
+        $this->assertStringNotContainsString("from './actions.js'", $form, 'form.js mengimpor actions.js — siklus modul (actions.js mengimpor form.js).');
+        $this->assertStringNotContainsString('for (let attempt', $form, 'form.js menulis ulang putaran konfirmasi-lanjut aksi.');
+        $open = $this->functionBody($form, 'export async function openForm(');
+        $this->assertNotNull($open);
+        foreach ([
+            'present = presentModal, submit = null }',
+            'const canSubmit = Boolean(submit && submit.action) && !prefill && !endpoint',
+            "button('Simpan & ajukan', { variant: 'primary', type: 'submit', iconName: 'send' })",
+            'const result = await submit.run(saved);',
+            'submit.done(code, result);',
+        ] as $needle) {
+            $this->assertStringContainsString($needle, $open);
+        }
+        $app = $this->spa('app.js');
+        $this->assertStringContainsString("import { postAction, toastActionDone, withConfirmResubmit } from './views/actions.js';", $app);
+        $route = $this->functionBody($app, "route('f/*'");
+        $this->assertNotNull($route);
+        $this->assertStringContainsString("action.key === 'submit'", $route);
+        $this->assertStringContainsString('!action.fields && !action.confirm && !action.inlineNote', $route);
+        $this->assertStringContainsString('session.canAct(submitAction)', $route);
+        $this->assertStringContainsString('withConfirmResubmit(submitAction, payload, () => postAction(submitAction, saved, def, payload))', $route);
+        $this->assertStringContainsString("        submit,\n      });", $route);
+        $this->assertStringNotContainsString('submit', (string) $this->functionBody($app, 'function offerDrafts('),
+            'offerDrafts memberi opsi submit ke openForm — Simpan & ajukan di luar rute f/*.');
+    }
+
+    /** Pengajuan yang ditolak mengatakannya dengan kalimat server, mendarat di halaman dokumen, dan tidak pernah mengulang POST pembuatan. */
+    public function test_a_refused_submit_says_so_and_never_repeats_the_create(): void
+    {
+        $open = (string) $this->functionBody($this->spa('views/form.js'), 'export async function openForm(');
+        $this->assertStringContainsString('tersimpan sebagai draf — belum diajukan: ${reason}', $open);
+        $this->assertStringContainsString('tersimpan sebagai draf — belum diajukan: pengajuan dibatalkan.', $open);
+        $this->assertSame(1, substr_count($open, 'api.post('), 'POST pembuatan kedua lahir di openForm — Simpan & ajukan bisa mencetak dua dokumen.');
+        $this->assertStringContainsString(".map((messages) => [].concat(messages)[0]).join(' ')", $open);
+        $after = strpos($open, 'async function submitAfterSave(');
+        $sentence = strpos($open, 'tersimpan sebagai draf — belum diajukan: ${reason}', $after);
+        $close = strpos($open, 'dialog.close();', $sentence);
+        $saved = strpos($open, 'if (onSaved) onSaved(saved);', $close);
+        $this->assertTrue($after !== false && $sentence !== false && $close !== false && $saved !== false,
+            'Sesudah penolakan, formulir tidak ditutup lalu onSaved(saved) dipanggil — pembaca tertinggal di formulir yang dokumennya sudah ada.');
+        $this->assertStringContainsString("{ tone: 'warn', timeout: 0 }", $open);
+    }
+
+    /** Pemanggil dialog tidak mengenal opsi baru; label Simpan tetap kecuali di samping Simpan & ajukan. */
+    public function test_the_modal_callers_do_not_know_the_new_options(): void
+    {
+        foreach (['views/list.js', 'views/detail.js', 'views/actions.js', 'create.js', 'views/custom.js', 'views/rfq.js'] as $file) {
+            $source = $this->spa($file);
+            $offset = 0;
+            while (($at = strpos($source, 'openForm({', $offset)) !== false) {
+                $call = substr($source, $at, 400);
+                $this->assertDoesNotMatchRegularExpression('/\bsubmit\s*[,:]/', $call, "{$file} memberi opsi submit ke openForm.");
+                $offset = $at + 10;
+            }
+        }
+        $open = (string) $this->functionBody($this->spa('views/form.js'), 'export async function openForm(');
+        $this->assertStringContainsString("const saveLabel = canSubmit && isDraftLike ? 'Simpan draf' : (isEdit ? 'Simpan Perubahan' : 'Simpan');", $open);
+        $this->assertStringContainsString("const siblings = [save, saveSubmit].filter((node) => node && node !== trigger);", $open,
+            'Tombol kembaran tidak dinonaktifkan selama simpan berjalan — dua POST pembuatan mungkin.');
+    }
+
+    /** Kaki formulir lengket adalah anak terakhir .form-page; kepala halaman tinggal judul; CSS-nya hanya token. */
+    public function test_the_form_footer_is_the_last_child_of_the_page(): void
+    {
+        $presenter = (string) $this->functionBody($this->spa('app.js'), 'function formPagePresenter(');
+        $this->assertStringContainsString("host.appendChild(el('.page-head', [el('div', [el('h1', { text: spec.title })])]));", $presenter);
+        $this->assertStringContainsString("[spec.body, el('.form-foot', spec.footer)]", $presenter);
+        $this->assertStringNotContainsString("el('.zone', spec.footer)", $presenter);
+        $css = $this->css();
+        $this->assertStringContainsString('.form-foot {', $css);
+        $this->assertMatchesRegularExpression('/\.form-foot \{[^}]*position: fixed; left: var\(--sidebar-w\); right: 0; bottom: 0;/', $css,
+            'Kaki formulir tidak lagi fixed terhadap jendela — sticky di dalam .main (overflow-y:auto tanpa tinggi) jatuh ke dasar dokumen (S58, 4 Okt 2026).');
+        $this->assertStringContainsString('body.rail .form-foot { left: var(--rail-w); }', $css);
+        $this->assertStringContainsString('.form-page { padding-bottom: calc(var(--btn-h) + 2 * var(--space-3) + var(--space-4)); }', $css);
+        $this->assertStringContainsString('.overflow-menu, .form-foot { display: none !important; }', $css, 'Kaki formulir ikut tercetak.');
+        $this->assertMatchesRegularExpression('/\.form-foot \{ left: 0; bottom: calc\(var\(--bottom-nav-h\) \+ env\(safe-area-inset-bottom\)\);/', $css,
+            'Di ≤ 760 px kaki formulir tidak berdiri di atas bilah bawah.');
+    }
+
+    /** Tidak ada nama izin yang ditulis di formulir. */
+    public function test_no_permission_is_spelled_in_the_form(): void
+    {
+        $form = $this->spa('views/form.js');
+        $this->assertDoesNotMatchRegularExpression("/can\('[a-z]+\.[a-z]+'\)/", $form);
+        $this->assertStringNotContainsString("'prc.update'", $form);
     }
 
     /** Separuh penolakan. */

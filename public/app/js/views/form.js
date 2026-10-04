@@ -715,7 +715,15 @@ export function startForm({ def, key, row, prefill, onSaved, endpoint = null }) 
   return openForm({ def, key, row, prefill, onSaved, endpoint });
 }
 
-export async function openForm({ def, key, row, prefill, onSaved, endpoint = null, present = presentModal }) {
+/*
+ * `submit` (UX-E3.2, README E3 / ERRATA E-6): hanya rute halaman f/* yang memberinya —
+ * { action, run(saved), done(code, result) } yang dirakit app.js dari actions.js
+ * (withConfirmResubmit + postAction + toastActionDone). form.js TIDAK mengimpor
+ * actions.js: actions.js mengimpor form.js, dan sebuah siklus modul adalah utang yang
+ * tidak perlu dibayar. Pemanggil dialog (prefill/endpoint/onSaved, S16/S17) tidak
+ * mengenal opsi ini, jadi dialognya sebyte pun tidak berubah.
+ */
+export async function openForm({ def, key, row, prefill, onSaved, endpoint = null, present = presentModal, submit = null }) {
   const isEdit = Boolean(row);
   const sections = def.form.sections || [];
   const lineDefs = def.form.lines || [];
@@ -927,7 +935,24 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     body.appendChild(el('.alert.info', { style: { marginTop: '16px' } }, def.form.note));
   }
 
-  const save = button(isEdit ? 'Simpan Perubahan' : 'Simpan', { variant: 'primary', type: 'submit' });
+  /*
+   * Simpan & ajukan (README E3). Diukur 4 Okt 2026 (results-ux-e3-base.json S3): 12 klik
+   * buat→ajukan, dua yang terakhir Simpan lalu Ajukan di halaman dokumen — satu keputusan
+   * yang dibayar dua klik dan satu perpindahan layar. Tombolnya ada hanya bila rute
+   * memberi `submit` (halaman), dokumennya baru atau statusnya masih mengizinkan
+   * (action.when), dan pembacanya boleh menjalankan aksinya (session.canAct di app.js —
+   * tidak ada nama izin yang ditulis di sini, aturan dasar 2). Aksi submit yang membawa
+   * `fields`/`confirm`/`inlineNote` butuh dialognya sendiri dan tetap lewat Ajukan di
+   * halaman dokumen (app.js menyaringnya). Label Simpan menjadi "Simpan draf" hanya bila
+   * ada Simpan & ajukan di sampingnya dan dokumennya memang (akan) berstatus draf —
+   * PO yang ditolak lalu disimpan ulang bukan draf, labelnya tetap "Simpan Perubahan".
+   */
+  const canSubmit = Boolean(submit && submit.action) && !prefill && !endpoint
+    && (!isEdit || !submit.action.when || submit.action.when(record));
+  const isDraftLike = !isEdit || !record || record.status === 'draft';
+  const saveLabel = canSubmit && isDraftLike ? 'Simpan draf' : (isEdit ? 'Simpan Perubahan' : 'Simpan');
+  const save = button(saveLabel, { variant: canSubmit ? '' : 'primary', type: 'submit' });
+  const saveSubmit = canSubmit ? button('Simpan & ajukan', { variant: 'primary', type: 'submit', iconName: 'send' }) : null;
 
   /*
    * Unsaved-data guard: one snapshot of every control at open, compared on
@@ -989,7 +1014,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     body,
     // Batal sits right beside Simpan in .modal-foot; a mis-aimed click there
     // loses the same 15 lines a mis-aimed Escape does.
-    footer: [button('Batal', { onClick: () => dialog.requestClose() }), save],
+    footer: [button('Batal', { onClick: () => dialog.requestClose() }), save, saveSubmit].filter(Boolean),
     dirty: () => snapshot() !== pristine,
     onClose: () => {
       clearTimeout(draftTimer);
@@ -1022,7 +1047,56 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     return true;
   }
 
-  save.addEventListener('click', async () => {
+  /*
+   * Satu jalan simpan untuk dua tombol: `trigger` yang sibuk, `afterSave` yang (bila ada)
+   * menggantikan finish() sesudah dokumen tersimpan. Tombol kembarannya dinonaktifkan
+   * selama berjalan — withBusy hanya mengunci tombol yang diklik (ui.js), dan dua POST
+   * pembuatan berarti dua dokumen bernomor (tidak ada idempotensi di server).
+   */
+  const attempt = async (trigger, afterSave) => {
+    const siblings = [save, saveSubmit].filter((node) => node && node !== trigger);
+    siblings.forEach((node) => { node.disabled = true; });
+    try {
+      await attemptSave(trigger, afterSave);
+    } finally {
+      siblings.forEach((node) => { node.disabled = false; });
+    }
+  };
+  save.addEventListener('click', () => attempt(save, null));
+  if (saveSubmit) saveSubmit.addEventListener('click', () => attempt(saveSubmit, submitAfterSave));
+
+  /*
+   * Simpan & ajukan, babak kedua (ERRATA E-6): dokumen SUDAH tersimpan — `saved` ada —
+   * lalu aksi submit lewat mesin jawaban yang sama dengan Ajukan (withConfirmResubmit:
+   * prakualifikasi, kendali harga, gate anggaran). Ditolak server, atau dialognya
+   * dibatalkan: pergi ke halaman dokumennya dan katakan dengan kalimat server —
+   * "<kode> tersimpan sebagai draf — belum diajukan: <alasan>" — dan JANGAN pernah
+   * mengulang POST pembuatan. Alasan disusun dari pesan pertama tiap kunci (seperti
+   * actions.js), bukan error.message yang Laravel beri ekor "(and N more errors)"
+   * berbahasa Inggris (S10).
+   */
+  async function submitAfterSave(saved) {
+    invalidateByPath(def.api);
+    removeDraft(key, draftRowId);
+    const code = (saved && saved.code) || def.labelOne;
+    try {
+      const result = await submit.run(saved);
+      if (result === undefined) {
+        toast(`${code} tersimpan sebagai draf — belum diajukan: pengajuan dibatalkan.`, { tone: 'warn', timeout: 0 });
+      } else {
+        submit.done(code, result);
+      }
+    } catch (error) {
+      const reason = error.errors
+        ? Object.values(error.errors).map((messages) => [].concat(messages)[0]).join(' ')
+        : (error.message || 'server menolak pengajuan.');
+      toast(`${code} tersimpan sebagai draf — belum diajukan: ${reason}`, { tone: 'warn', timeout: 0 });
+    }
+    dialog.close();
+    if (onSaved) onSaved(saved);
+  }
+
+  async function attemptSave(trigger, afterSave) {
     // Bersihkan penanda putaran sebelumnya dulu — kegagalan lama tidak boleh
     // menumpuk dengan hasil putaran ini.
     body.querySelectorAll('.field.invalid').forEach((node) => {
@@ -1084,10 +1158,11 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       payload[lineDef.key] = control.read();
     }
 
-    await withBusy(save, async () => {
-      const submit = () => (isEdit
+    await withBusy(trigger, async () => {
+      const send = () => (isEdit
         ? api.put(`${def.api}/${record.id}`, payload)
         : api.post(endpoint || def.api, payload));
+      const settle = (saved) => (afterSave ? afterSave(saved) : finish(saved));
 
       const finish = (saved) => {
         invalidateByPath(def.api);
@@ -1143,7 +1218,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       };
 
       try {
-        finish(await submit());
+        await settle(await send());
       } catch (error) {
         /*
          * Alur konfirmasi-lanjut (def.form.confirmResubmit — GRN harga 0
@@ -1165,7 +1240,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
           if (!ok) return;
           payload[rule.flag] = true;
           try {
-            finish(await submit());
+            await settle(await send());
           } catch (retryError) {
             paintErrors(retryError);
           }
@@ -1174,7 +1249,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
         paintErrors(error);
       }
     });
-  });
+  }
 }
 
 /**

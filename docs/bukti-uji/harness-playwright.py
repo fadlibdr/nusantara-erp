@@ -384,10 +384,13 @@ def s3(pg):
         width: m.getBoundingClientRect().width, bodyScroll: m.scrollHeight,
         bodyClient: m.clientHeight,
         linesTop: (m.querySelector('table.lines')||{getBoundingClientRect:()=>({top:null})}).getBoundingClientRect().top,
-        foot: [...m.querySelectorAll('.page-head .actions button')].map(b=>b.innerText.trim()) } }""")
+        foot: [...m.querySelectorAll('.form-foot button')].map(b=>b.innerText.trim()) } }""")
     pg.screenshot(path=f"{OUT}/s3-form-empty.png")
-    # 1) Save empty -> client-side validation
-    click(pg, ".page-head .actions button:has-text('Simpan')")
+    # 1) Save empty -> client-side validation. UX-E3.2: tombol simpan ada di kaki formulir
+    # (.form-foot, anak terakhir .form-page), berlabel "Simpan draf" karena PO bisa diajukan;
+    # has-text dengan label penuh ("Simpan draf" / "Simpan & ajukan"): "Simpan" saja cocok keduanya,
+    # dan :text-is tidak cocok karena teks tombol berada di <span> di samping ikonnya.
+    click(pg, ".form-page .form-foot button:has-text('Simpan draf')")
     pg.wait_for_timeout(700)
     client_errors = pg.evaluate("() => [...document.querySelectorAll('.form-page .field .err, .form-page td .err')].map(e=>e.innerText.trim()).filter(Boolean)")
     pg.screenshot(path=f"{OUT}/s3-client-errors.png")
@@ -445,14 +448,15 @@ def s3(pg):
         fill_line(rows.nth(i), i, "0" if i == 0 else "10")
     pg.screenshot(path=f"{OUT}/s3-form-filled.png")
     # 3) Save with qty 0 on line 1 -> server 422 text as rendered
-    click(pg, ".page-head .actions button:has-text('Simpan')")
+    click(pg, ".form-page .form-foot button:has-text('Simpan draf')")
     pg.wait_for_timeout(1500)
     server_errors = pg.evaluate("() => [...document.querySelectorAll('.form-page .field .err, .form-page td .err')].map(e=>e.innerText.trim()).filter(Boolean)")
     toast_422 = toasts(pg)
     pg.screenshot(path=f"{OUT}/s3-server-errors.png")
-    # 4) Fix qty and save
+    # 4) Fix qty and SAVE & SUBMIT in one click (UX-E3.2): buat 201 lalu aksi submit 200 — klik
+    # Ajukan di halaman dokumen (langkah 5 lama) tidak ada lagi; bilahnya hanya dibaca.
     rows.nth(0).locator("td:nth-child(3) input").first.fill("5")
-    click(pg, ".page-head .actions button:has-text('Simpan')")
+    click(pg, ".form-page .form-foot button:has-text('Simpan & ajukan')")
     try:
         pg.wait_for_selector(".form-page", state="detached", timeout=15000)
         saved = True
@@ -477,7 +481,9 @@ def s3(pg):
     bar = pg.evaluate("() => [...document.querySelectorAll('.page-head .actions button')].map(b => (b.innerText.trim() || b.title))")
     code = pg.evaluate("() => (document.querySelector('.page-head h1')||{}).innerText")
     pg.screenshot(path=f"{OUT}/s3-po-detail.png")
+    result["submit_via"] = "Simpan & ajukan"
     if "Ajukan" in bar:
+        # Jalur lama (bila dokumen mendarat masih draf): Ajukan dari halaman dokumen.
         click(pg, ".page-head .actions button:has-text('Ajukan')")
         pg.wait_for_timeout(1200)
         if pg.locator(".modal").count():
@@ -485,10 +491,11 @@ def s3(pg):
             click(pg, ".modal .modal-foot button.primary, .modal .modal-foot button:has-text('Ajukan')")
         pg.wait_for_selector(".toast", timeout=15000)
         pg.wait_for_timeout(600)
-        result["toast_after_submit"] = toasts(pg)
-        result["status_after_submit"] = pg.evaluate("() => (document.querySelector('.page-head .badge')||{}).innerText")
-        result["bar_after_submit"] = pg.evaluate("() => [...document.querySelectorAll('.page-head .actions button')].map(b => (b.innerText.trim() || b.title))")
-        pg.screenshot(path=f"{OUT}/s3-after-submit.png")
+        result["submit_via"] = "Ajukan di halaman dokumen"
+    result["toast_after_submit"] = toasts(pg)
+    result["status_after_submit"] = pg.evaluate("() => (document.querySelector('.page-head .badge')||{}).innerText")
+    result["bar_after_submit"] = pg.evaluate("() => [...document.querySelectorAll('.page-head .actions button')].map(b => (b.innerText.trim() || b.title))")
+    pg.screenshot(path=f"{OUT}/s3-after-submit.png")
     result["po_code"] = code
     result["detail_action_bar"] = bar
     result["total_ms_create_to_submit"] = int((time.time() - t0) * 1000)
@@ -531,7 +538,7 @@ def s4(pg):
     con = sqlite3.connect(DB)
     n = con.execute("DELETE FROM personal_access_tokens WHERE tokenable_id IN (SELECT id FROM users WHERE email='procurement@nusantara.test')").rowcount
     con.commit(); con.close()
-    click(pg, ".page-head .actions button:has-text('Simpan')")
+    click(pg, ".form-page .form-foot button:has-text('Simpan draf')")  # UX-E3.2: kaki formulir
     pg.wait_for_timeout(2500)
     state = pg.evaluate("""() => ({ loginVisible: !!document.querySelector('.login'), modalVisible: !!document.querySelector('.modal'),
         banner: (document.querySelector('.login .alert')||{}).innerText || null, toasts: [...document.querySelectorAll('.toast')].map(t=>t.innerText),
@@ -1091,7 +1098,7 @@ def s47(pg):
       hash: location.hash,
       crumbs: [...document.querySelectorAll('#crumbs > *')].map(n => (n.innerText || '').trim()).filter(Boolean),
       judul: ((document.querySelector('.page-head h1') || {}).innerText || '').trim(),
-      tombol: [...document.querySelectorAll('.page-head .actions .btn')].map(b => b.innerText.trim()),
+      tombol: [...document.querySelectorAll('.form-page .form-foot .btn')].map(b => b.innerText.trim()),  // UX-E3.2: kaki formulir
       gulir_dalam: (() => { const m = document.querySelector('.modal-body');
                             return m ? m.scrollHeight - m.clientHeight : 0; })(),
     })"""
@@ -16147,6 +16154,82 @@ def s57(pg):
     return out
 
 
+@scenario("S58_simpan_ajukan")
+def s58(pg):
+    """UX-E3.2: Simpan & ajukan di kaki formulir halaman PO — SATU klik: POST pembuatan lalu POST
+    pengajuan lewat mesin konfirmasi-lanjut yang sama dengan Ajukan; mendarat di halaman dokumen
+    berstatus Diajukan. Dihitung dari permintaan jaringan: tepat satu POST pembuatan, satu POST submit."""
+    out, checks, posts = {}, [], []
+    pg.on("request", lambda r: posts.append(r.url) if r.method == "POST" else None)
+    login(pg, "procurement@nusantara.test")
+    pg.goto(BASE + "#/f/procurement/purchase-orders")
+    pg.wait_for_selector(".form-page .form-foot", timeout=15000)
+    pg.wait_for_timeout(800)
+    out["tombol"] = pg.evaluate("() => [...document.querySelectorAll('.form-page .form-foot .btn')].map(b => b.innerText.trim())")
+    out["primary"] = pg.evaluate("() => ((document.querySelector('.form-page .form-foot .btn.primary') || {}).innerText || '').trim()")
+    out["kaki"] = pg.evaluate("""() => { const f = document.querySelector('.form-page .form-foot'); const r = f.getBoundingClientRect();
+        return { position: getComputedStyle(f).position, on_screen: r.top >= 0 && r.bottom <= innerHeight, h: Math.round(r.height) }; }""")
+    if out["tombol"] != ["Batal", "Simpan draf", "Simpan & ajukan"]:
+        checks.append(f"kaki formulir bukan Batal · Simpan draf · Simpan & ajukan: {out['tombol']!r}")
+    if out["primary"] != "Simpan & ajukan":
+        checks.append(f"tombol utama bukan Simpan & ajukan: {out['primary']!r}")
+    if out["kaki"]["position"] != "fixed" or not out["kaki"]["on_screen"]:
+        checks.append(f"kaki formulir tidak lengket/terlihat: {out['kaki']!r}")
+
+    def pick_combo(label_text, typed):
+        f = pg.locator(".form-page .field", has=pg.locator("label", has_text=label_text)).first
+        inp = f.locator("input.combo-input").first
+        click(pg, f"{'.form-page .field:has(label:has-text(' + repr(label_text) + ')) input.combo-input'}")
+        inp.type(typed, delay=20)
+        pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000)
+        pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
+    pick_combo("Vendor", "PT")
+    pick_combo("Proyek", "Gedung")
+    from datetime import date, timedelta
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Perkiraan kirim")).first.locator("input[type=date]").fill((date.today() + timedelta(days=14)).isoformat())
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Alasan tanpa PR")).first.locator("textarea").fill("UJI-UX — Simpan & ajukan (S58)")
+    row = pg.locator(".form-page table.lines tbody tr").first
+    combo = row.locator("td:nth-child(1) input.combo-input")
+    if combo.count():
+        combo.first.click(); CLICKS[0] += 1; CLICK_LOG.append("S58 item combo row 1")
+        combo.first.type("kabel", delay=20)
+        try:
+            pg.wait_for_selector(".combo-pop .combo-opt", timeout=5000); pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
+        except Exception:
+            pg.keyboard.press("Escape")
+    row.locator("td:nth-child(2) input").first.fill("UJI-UX baris S58")
+    row.locator("td:nth-child(3) input").first.fill("2")
+    row.locator("td:nth-child(4) input").first.fill("roll")
+    row.locator("td:nth-child(5) input").first.fill("1500000")
+    before = len(posts)
+    click(pg, ".form-page .form-foot button:has-text('Simpan & ajukan')")
+    try:
+        pg.wait_for_selector(".form-page", state="detached", timeout=15000)
+    except Exception:
+        checks.append("formulir tidak tertutup dalam 15 s sesudah Simpan & ajukan")
+    pg.wait_for_timeout(1500)
+    new_posts = posts[before:]
+    out["posts"] = [u.split("/api/")[-1] for u in new_posts]
+    out["after"] = pg.evaluate("() => ({ hash: location.hash, badge: ((document.querySelector('.page-head .badge') || {}).innerText || '').trim(), h1: ((document.querySelector('.page-head h1') || {}).innerText || '').trim() })")
+    out["toasts"] = toasts(pg)
+    creates = [u for u in new_posts if re.search(r"/purchase-orders$", u)]
+    submits = [u for u in new_posts if re.search(r"/purchase-orders/\d+/submit$", u)]
+    if len(creates) != 1:
+        checks.append(f"POST pembuatan dikirim {len(creates)} kali (harus 1): {out['posts']!r}")
+    if len(submits) != 1:
+        checks.append(f"POST pengajuan dikirim {len(submits)} kali (harus 1): {out['posts']!r}")
+    if not out["after"]["hash"].startswith("#/d/procurement/purchase-orders/"):
+        checks.append(f"tidak mendarat di halaman dokumen: {out['after']!r}")
+    if out["after"]["badge"] != "Diajukan":
+        checks.append(f"status sesudah Simpan & ajukan bukan Diajukan: {out['after']!r} toasts {out['toasts']!r}")
+    if not any("diajukan" in t for t in out["toasts"]):
+        checks.append(f"toast tidak menyebut pengajuan: {out['toasts']!r}")
+    pg.screenshot(path=f"{OUT}/s58-sesudah-simpan-ajukan.png")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -16157,7 +16240,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None),("S58",s58,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

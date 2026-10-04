@@ -190,8 +190,9 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    atau pembelian tanpa PR lewat `Pengadaan › Pesanan (PO)` → **`Tambah PO`** (**Vendor**,
    **Tanggal PO**, **Perkiraan kirim**, Termin bayar, baris **Item pesanan**: Uraian ·
    Qty · **Harga satuan**). Nomor: `PO/2026/IX/0001`. PPN dihitung, tidak diketik.
-   **`Ajukan`** selalu membuka dialog *Alasan override prakualifikasi* dulu, lalu
-   memeriksa berurutan: vendor terhapus → prakualifikasi → harga di atas BOQ (dialog
+   **`Ajukan`** (atau **`Simpan & ajukan`** di kaki formulir) mengajukan tanpa dialog pembuka;
+   kotak *Alasan override prakualifikasi* hanya muncul bila gerbang prakualifikasi menolak. Yang
+   diperiksa berurutan: vendor terhapus → prakualifikasi → harga di atas BOQ (dialog
    **`Ya, harga sudah dinegosiasi`**) → sisa anggaran RAP (dialog **`Ya, tetap
    ajukan`**). Penyetuju: **direktur** — wajib direktur pada Rp 100 juta ke atas. Setelah
    Disetujui, gudang menerima barangnya; kolom **Diterima** di baris PO terisi hanya dari
@@ -346,8 +347,8 @@ lampiran, bukan di tabel; delapan baris CV Mandor diisi tangan.
       lahir darinya membawa catatan *"Dibuat dari {kode PR}"*.
 - [ ] Saya sudah membuat satu RFQ, mengetik harga dua vendor, menekan `Simpan harga`, dan
       memilih pemenang — **tanpa** menekan `Ubah` sesudahnya.
-- [ ] Saya sudah membaca dialog `Ajukan` PO (*Alasan override prakualifikasi*) dan tahu
-      alasan untuk vendor sehat dibuang.
+- [ ] Saya tahu dialog *Alasan override prakualifikasi* hanya muncul bila `Ajukan` (atau
+      `Simpan & ajukan`) ditolak gerbang prakualifikasi — vendor sehat tidak ditanya.
 - [ ] Saya sudah melihat dialog "Harga di atas harga BOQ — tetap ajukan?" sekali, atau
       tahu mengapa PO saya tidak memicunya (baris tanpa tautan BOQ, atau RAP masih Draf).
 - [ ] Saya sudah membuka `Baris PO Terbuka` dan tahu PO mana yang kolom Perkiraan

@@ -2245,7 +2245,7 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      Bilah tanpa chip DAN tanpa angka tidak dicetak sebagai bilah kosong. */
   .list-toolbar:not(:has(> .chips:not([hidden]))):not(:has(> .list-count:not(:empty))) { display: none !important; }
   /* UX-C.3: tombol keputusan dan ringkasan galat adalah kontrol, bukan isi dokumen. */
-  .action-panel-actions, .error-summary, .overflow-menu { display: none !important; }
+  .action-panel-actions, .error-summary, .overflow-menu, .form-foot { display: none !important; }
   /* Seleksi adalah keadaan LAYAR: bilahnya dan kolom centangnya tidak punya
      arti di kertas, dan kolom kosong selebar 16 px menggeser seluruh tabel. */
   .selbar, table.data th.pick, table.data td.pick { display: none !important; }
@@ -2557,6 +2557,22 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
    modal (y = 887 lawan 843) karena tiap kartu membayar kepala dan paddingnya
    sendiri sementara 800 px lebar dibiarkan kosong. */
 .form-page > .form-grid { margin-bottom: var(--space-5); }
+/* Kaki formulir lengket (UX-E3.2, README E3): anak terakhir .form-page, berdiri di dasar
+   jendela selama halamannya terbuka. `fixed`, bukan `sticky`: .main memakai overflow-y:auto
+   tanpa tinggi yang dibatasi, jadi sticky dihitung terhadap kotak .main — yang tumbuh
+   bersama isinya — dan kakinya ikut turun ke dasar dokumen (terukur 4 Okt 2026, S58:
+   position sticky, on_screen false pada PO 1440). Kiri = lebar bilah sisi (rel 64 bila
+   body.rail); di ≤ 760 px lebar penuh, di atas bilah bawah. .form-page memberi ruang di
+   dasarnya setinggi kaki supaya baris terakhir tidak tertutup. Tombol rapat kanan; di bawah
+   760 px membesar ke lebar penuh satu baris (sasaran sentuh). */
+.form-page { padding-bottom: calc(var(--btn-h) + 2 * var(--space-3) + var(--space-4)); }
+.form-foot {
+  position: fixed; left: var(--sidebar-w); right: 0; bottom: 0; z-index: 5;
+  display: flex; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap;
+  padding: var(--space-3) var(--space-6);
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+body.rail .form-foot { left: var(--rail-w); }
 
 /* Chip filter aktif (UI-4a). Ia meringkas apa yang MEMPERSEMPIT daftar dan
    memberi jalan membuang satu filter dengan satu klik; "Hapus semua" di
@@ -3712,6 +3728,8 @@ button.linkish:hover b { text-decoration: underline; }
   .bn-item .nav-count { position: absolute; top: 6px; left: calc(50% + 6px); margin: 0; }
   /* Isi halaman, toast, dan lembar onboarding berdiri DI ATAS bilah, bukan di belakangnya. */
   .main { padding-bottom: calc(var(--bottom-nav-h) + 24px + env(safe-area-inset-bottom)); }
+  .form-foot { left: 0; bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom)); padding: var(--space-3) var(--space-4); }
+  .form-foot .btn { flex: 1 1 auto; }
   body.onboarding-sheet .main { padding-bottom: calc(var(--bottom-nav-h) + 72px + env(safe-area-inset-bottom)); }
   .toasts { bottom: calc(var(--bottom-nav-h) + 12px + env(safe-area-inset-bottom)); }
   .onboarding-dock[data-mode="mobile"] { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom)); padding-bottom: 0; }

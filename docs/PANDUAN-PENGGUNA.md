@@ -794,7 +794,15 @@ dibagi menjadi beberapa bagian berjudul. Kolom wajib bertanda `*` merah; keteran
 di bawah kolom adalah bantuan resmi layar itu — bacalah, ia sering menyimpan aturan yang
 tidak ada di tempat lain.
 
-Tombolnya **`Batal`** dan **`Simpan`** (**`Simpan Perubahan`** saat mengubah).
+Tombolnya **`Batal`** dan **`Simpan`** (**`Simpan Perubahan`** saat mengubah). Pada formulir
+**halaman**, tombol-tombol itu ada di **kaki formulir yang menempel di dasar layar** — tetap
+terlihat saat Anda menggulir ke tabel baris. Bila dokumennya bisa diajukan, kakinya berbunyi
+**`Batal`** · **`Simpan draf`** · **`Simpan & ajukan`**: yang terakhir menyimpan lebih dulu, lalu
+mengajukan lewat jalur **`Ajukan`** yang sama — dialog konfirmasi harga, anggaran, atau alasan
+override prakualifikasi tetap muncul bila server memintanya. Bila pengajuannya ditolak server atau
+Anda membatalkan dialognya, dokumen **tetap tersimpan sebagai draf**: Anda dibawa ke halaman
+dokumennya dengan pesan *"`<kode>` tersimpan sebagai draf — belum diajukan: `<alasan server>`"*.
+Simpan tidak pernah diulang.
 
 **Yang diperiksa peramban sebelum mengirim**: hanya kolom wajib yang kosong. Masing-masing
 ditandai `Wajib diisi.`, muncul pesan **"Periksa isian yang ditandai."**, dan layar
@@ -3005,7 +3013,7 @@ Dibutuhkan · Status. Bisa diubah/dihapus hanya saat Draf atau Ditolak.
    (dikosongkan berarti Anda sendiri), Keperluan, Catatan.
 3. Isi tabel **Item yang diminta** (minimal 1): Item · Uraian · **Qty** (wajib) · Satuan ·
    Estimasi harga. **Uraian menjadi wajib bila kolom Item dikosongkan.**
-4. **`Simpan`**, lalu **`Ajukan`**.
+4. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**.
 
 Setelah direktur menekan **`Setujui`**, tombol **`Buat PO`** muncul.
 
@@ -3179,10 +3187,9 @@ perusahaan **hanya bila vendor PKP**, selain itu 0; total = DPP + PPN.
 > harganya sedang dinegosiasi ulang — persis PO yang gerbang itu ada untuknya. Bila
 > harganya berubah, pertimbangkan membuat PO baru dari PR-nya alih-alih mengubah.
 
-**Mengajukan PO.** Tombol **`Ajukan`** **selalu membuka dialog lebih dulu**, berisi satu
-kotak **Alasan override prakualifikasi** (*"Kosongkan bila vendor sehat. Isi hanya bila
-pengajuan ditolak gate prakualifikasi dan tetap harus jalan (mis. pembelian darurat ke
-pemegang lisensi tunggal)."*).
+**Mengajukan PO.** **`Ajukan`** di halaman dokumen — atau **`Simpan & ajukan`** langsung dari
+kaki formulirnya — mengajukan **tanpa dialog pembuka**; kotak **Alasan override prakualifikasi**
+hanya muncul bila server menolak pada gerbang prakualifikasi (langkah 2 di bawah).
 
 Yang diperiksa `Ajukan`, berurutan:
 
@@ -4244,7 +4251,7 @@ Gudang · Alasan · Diposting · Status. Bisa diubah/dihapus saat Draf atau Dito
    Barang Rusak / Barang Hilang), Catatan.
 3. Isi **Hasil hitung fisik**: Item · **Qty terhitung**. **Anda hanya memasukkan hasil
    hitungan Anda — tidak pernah selisihnya.**
-4. **`Simpan`**, **`Ajukan`**, lalu direktur/admin menekan **`Setujui`**.
+4. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), **`Ajukan`**, lalu direktur/admin menekan **`Setujui`**.
 
 Halaman opname memperlihatkan **Hasil opname**: Item · Qty sistem · Qty fisik ·
 **Selisih** (bertanda) · HPP satuan.
@@ -5535,7 +5542,7 @@ Status. Saringan: Proyek, Status. Bisa diubah/dihapus hanya saat Draf atau Ditol
 3. Tabel baris **Volume terukur per item BOQ**, minimal satu: **ID item BOQ** (wajib) ·
    Lokasi/zona (opsional, **harus lokasi proyek ini**) · **Volume periode ini** (wajib) ·
    Keterangan.
-4. **`Simpan`** → **`Ajukan`** → **`Setujui`** / **`Tolak`**.
+4. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya) → **`Ajukan`** → **`Setujui`** / **`Tolak`**.
 
 > **Anda hanya mengisi volume PERIODE INI.** Volume lalu dan kumulatif dihitung server
 > dari opname yang **sudah disetujui** pada kontrak yang sama. Bantuan di layar
@@ -5851,7 +5858,7 @@ dari selisih terhadap progres sebelumnya."*
 3. Isi tabel **Progres per baris pekerjaan**: **ID baris SPK** (wajib — **angka mentah**,
    salin dari kolom **ID** pada tabel Rincian pekerjaan di halaman SPK) dan **Progres
    kumulatif (%)** (wajib).
-4. **`Simpan`**, lalu **`Ajukan`**, lalu direktur **`Setujui`**.
+4. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**, lalu direktur **`Setujui`**.
 
 **Anda memasukkan progres KUMULATIF, bukan progres periode ini.** Nilai periodenya
 dihitung sistem sebagai selisih terhadap progres yang tercatat sebelumnya.
@@ -6143,7 +6150,7 @@ Potongan kasbon tidak boleh melebihi sisa kasbon maupun upah yang terbayarkan."*
 4. Bila ada kasbon yang mau dipotong dari upah periode ini: isi **ID kasbon dipotong**
    (bantuan: *"Kasbon berstatus cair milik proyek SP3 ini."* — angkanya dari layar
    Kasir Kas Kecil, §10.7) dan **Potongan kasbon**.
-5. **`Simpan`**, lalu **`Ajukan`**, lalu **`Setujui`**.
+5. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**, lalu **`Setujui`**.
 
 Matematikanya, semuanya kolom tersimpan yang dihitung server:
 
@@ -8712,7 +8719,7 @@ dokumen Engineering yang memakai siklus `Ajukan` → `Setujui`/`Tolak` biasa.
    tapak** (§16.7), **Paket pekerjaan (WBS)**, **Uraian pekerjaan**.
 2. Isi baris **bahan** (item, qty, satuan), **alat**, **gambar** (menunjuk submittal SDS),
    dan **material** (menunjuk submittal SMS).
-3. **`Simpan`**, lalu **`Ajukan`**.
+3. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**.
 
 **Paket pekerjaan (WBS) di IPP menetes ke bon.** Bila diisi, ia harus paket **daun** ber-BOQ
 pada proyek yang sama (tiga penolakan sama persis dengan pemilih WBS pada bon, §6.5) —
@@ -8856,7 +8863,7 @@ pada satu tanggal. Kolom daftar: Kode · Paket · Tahap · Tgl Inspeksi · Lulus
 2. Tekan **`Muat butir dari template`** untuk menarik seluruh butir checklist ke bawah
    formulir. Butir dan kriteria terkunci (milik template); Anda mengisi **Hasil** tiap butir
    — **Sesuai / Tidak sesuai / Tidak berlaku** — dan **Catatan** bila perlu.
-3. **`Simpan`**, lalu **`Ajukan`**.
+3. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**.
 
 **Hasil keseluruhan dihitung, bukan diketik.** Satu butir **Tidak sesuai** menggagalkan
 lembar (kolom Lulus menjadi tidak); **Tidak berlaku** tak pernah menggagalkan — butir yang
