@@ -69,7 +69,7 @@ class FormViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_form(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(67, (int) $version[1],
+        $this->assertGreaterThanOrEqual(68, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa formulir UX-E3: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -164,6 +164,34 @@ class FormViewWiringTest extends ErpTestCase
         $form = $this->spa('views/form.js');
         $this->assertDoesNotMatchRegularExpression("/can\('[a-z]+\.[a-z]+'\)/", $form);
         $this->assertStringNotContainsString("'prc.update'", $form);
+    }
+
+    /* ------------------------------------------------------------ E3.3 */
+
+    /** Baris kosong berikutnya mengikuti baris terakhir yang terisi; isFilled didefinisikan sebelum dipakai. */
+    public function test_an_empty_row_follows_the_last_filled_row(): void
+    {
+        $lines = (string) $this->functionBody($this->spa('views/form.js'), 'function buildLines(');
+        $this->assertStringContainsString('if (controls[controls.length - 1] === entry && isFilled(entry)) addRow();', $lines);
+        // Baris yang baru lahir membawa `default` (qty: 1) — hanya baris yang disentuh orang yang terisi.
+        $this->assertStringContainsString('const isFilled = (entry) => entry.touched && hasValue(entry.read());', $lines);
+        $this->assertStringContainsString("row.addEventListener('input', touch, true);", $lines);
+        $this->assertStringContainsString("touched: Object.values(data || {}).some((value) => value !== null && value !== undefined && value !== ''),", $lines);
+        $this->assertStringContainsString("row.addEventListener('input', appendIfLast);", $lines);
+        $this->assertStringContainsString("row.addEventListener('change', appendIfLast);", $lines);
+        $this->assertTrue(strpos($lines, 'const isFilled =') < strpos($lines, 'function addRow('), 'isFilled dipakai sebelum didefinisikan.');
+    }
+
+    /** Baris kosong tetap tidak pernah sampai ke server; Tambah baris dan min baris tetap. */
+    public function test_empty_rows_still_never_reach_the_server(): void
+    {
+        $form = $this->spa('views/form.js');
+        $lines = (string) $this->functionBody($form, 'function buildLines(');
+        $this->assertStringContainsString('const entries = () => controls.filter((entry) => isFilled(entry));', $lines);
+        $this->assertStringContainsString('read: () => entries().map((entry) => entry.read()),', $lines);
+        $this->assertStringContainsString("button('Tambah baris', { size: 'sm', iconName: 'plus', onClick: () => addRow() })", $lines);
+        $this->assertStringContainsString('Array.from({ length: lineDef.min || 1 })', $lines);
+        $this->assertStringContainsString('for (const entry of control.entries())', $form);
     }
 
     /** Separuh penolakan. */

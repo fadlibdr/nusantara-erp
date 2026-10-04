@@ -847,7 +847,8 @@ bereaksi terhadap roda tetikus, dan Anda boleh menempel `Rp 15.000.000.000` lang
 portal bank.
 
 **Tabel baris** (item, termin, entri jurnal): tombol **`Tambah baris`**, ikon tong sampah
-per baris, dan **Subtotal** hidup di bawah tabel. Pada jurnal, kakinya menampilkan
+per baris, dan **Subtotal** hidup di bawah tabel. Begitu baris terakhir terisi, satu baris
+kosong baru muncul di bawahnya — **`Tambah baris`** tetap ada. Pada jurnal, kakinya menampilkan
 **Debit / Kredit / Seimbang ✓** atau **Selisih Rp …**. Baris yang seluruhnya kosong tidak
 ikut dikirim.
 

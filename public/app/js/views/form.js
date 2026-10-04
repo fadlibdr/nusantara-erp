@@ -453,6 +453,17 @@ function buildLines(lineDef, initialRows, headerValues, record) {
     }
   }
 
+  /*
+   * Baris TERISI = baris yang pernah disentuh orang (atau datang membawa data), DAN
+   * punya nilai. Kolom dengan `default` (qty: 1 pada PO, penawaran, PR) membuat baris
+   * yang baru lahir langsung "bernilai" — sebelum UX-E3.3 baris kosong dengan qty 1
+   * ikut terkirim dan ditolak "Wajib diisi." pada uraian/harganya (terukur 4 Okt 2026,
+   * S3/S4 pada baris otomatis). `touched` dipasang pada 'input'/'change' di fase
+   * tangkap, sebelum pendengar lain pada baris yang sama membacanya.
+   */
+  const hasValue = (values) => Object.values(values).some((value) => value !== null && value !== '' && value !== false);
+  const isFilled = (entry) => entry.touched && hasValue(entry.read());
+
   function addRow(data = {}) {
     const inputs = {};
     const hiddenNodes = [];
@@ -494,7 +505,11 @@ function buildLines(lineDef, initialRows, headerValues, record) {
       read: () => Object.fromEntries(Object.entries(inputs).map(([key, control]) => [key, control.read()])),
       row,
       inputs,
+      touched: Object.values(data || {}).some((value) => value !== null && value !== undefined && value !== ''),
     };
+    const touch = () => { entry.touched = true; };
+    row.addEventListener('input', touch, true);
+    row.addEventListener('change', touch, true);
 
     if (hasTotal) {
       const cell = row.querySelector('.row-total');
@@ -503,6 +518,21 @@ function buildLines(lineDef, initialRows, headerValues, record) {
       row.addEventListener('change', update);
       update();
     }
+
+    /*
+     * Baris kosong berikutnya lahir sendiri begitu baris TERAKHIR terisi (UX-E3.3) —
+     * diukur 4 Okt 2026 (results-ux-e3-base.json S3): satu klik "Tambah baris" per
+     * baris kedua pada setiap dokumen dua baris. Baris kosong tidak pernah ikut
+     * terkirim, diperiksa, atau dipetakan 422: entries() menyaringnya (isFilled).
+     * "Tambah baris" tetap ada untuk yang mengetik dari bawah; baris baru tidak
+     * merebut fokus. Kotak pilihan mengirim 'change' saat Enter, teks 'input'
+     * pada huruf pertama.
+     */
+    const appendIfLast = () => {
+      if (controls[controls.length - 1] === entry && isFilled(entry)) addRow();
+    };
+    row.addEventListener('input', appendIfLast);
+    row.addEventListener('change', appendIfLast);
 
     controls.push(entry);
     body.appendChild(row);
@@ -624,15 +654,13 @@ function buildLines(lineDef, initialRows, headerValues, record) {
     totalsRow,
   ]);
 
-  const isFilled = (values) => Object.values(values).some((value) => value !== null && value !== '' && value !== false);
-
   /*
    * Baris TERISI, dalam urutan tampil — filternya SAMA PERSIS dengan read(),
    * sehingga indeks server == indeks payload == indeks entries(). Itulah yang
    * membuat 'items.6.qty' dari 422 selalu jatuh ke baris terlihat ke-7, bukan
    * ke baris kosong yang tidak ikut terkirim.
    */
-  const entries = () => controls.filter((entry) => isFilled(entry.read()));
+  const entries = () => controls.filter((entry) => isFilled(entry));
 
   return {
     node,

@@ -424,11 +424,8 @@ def s3(pg):
     # (visibleWhen) dan Simpan berhenti di klien tanpa isian ini. Sebuah isian, bukan klik.
     pg.locator(".form-page .field", has=pg.locator("label", has_text="Alasan tanpa PR")).first.locator("textarea").first.fill(
         "UJI-UX — pembelian langsung tanpa PR")
-    # lines: add 2 rows
+    # lines: baris kedua LAHIR SENDIRI begitu baris pertama terisi (UX-E3.3) — bukan lagi klik orang.
     rows = pg.locator(".form-page table.lines tbody tr")
-    while rows.count() < 2:
-        click(pg, ".form-page button:has-text('Tambah baris')")
-        pg.wait_for_timeout(200)
     line_inputs = pg.evaluate("() => [...document.querySelectorAll('.form-page table.lines tbody tr:first-child td')].map(td => { const i=td.querySelector('input,select,textarea'); return i ? (i.className||i.tagName)+':'+(i.type||'') : 'na' })")
     def fill_line(row, i, qty):
         combo = row.locator("td:nth-child(1) input.combo-input")
@@ -444,8 +441,10 @@ def s3(pg):
         row.locator("td:nth-child(3) input").first.fill(qty)
         row.locator("td:nth-child(4) input").first.fill("unit")
         row.locator("td:nth-child(5) input").first.fill("1500000")
-    for i in range(2):
-        fill_line(rows.nth(i), i, "0" if i == 0 else "10")
+    fill_line(rows.nth(0), 0, "0")
+    pg.wait_for_function("() => document.querySelectorAll('.form-page table.lines tbody tr').length >= 2", timeout=5000)
+    rows_after_first = rows.count()
+    fill_line(rows.nth(1), 1, "10")
     pg.screenshot(path=f"{OUT}/s3-form-filled.png")
     # 3) Save with qty 0 on line 1 -> server 422 text as rendered
     click(pg, ".form-page .form-foot button:has-text('Simpan draf')")
@@ -470,7 +469,7 @@ def s3(pg):
     result = {"form": form, "client_errors": client_errors, "line_inputs_row1": line_inputs,
               "server_errors_rendered": server_errors, "toast_on_422": toast_422, "saved": saved,
               "toast_after_save": toast_save, "landing_after_save": where, "create_ms": t_saved, "api_calls": len(reqs),
-              "nav_group_opened": nav_group_opened}
+              "nav_group_opened": nav_group_opened, "rows_after_first_line": rows_after_first}
     if not saved:
         return result
     # 5) Submit (Ajukan) from wherever we landed
@@ -16198,6 +16197,13 @@ def s58(pg):
         except Exception:
             pg.keyboard.press("Escape")
     row.locator("td:nth-child(2) input").first.fill("UJI-UX baris S58")
+    pg.wait_for_timeout(300)
+    out["baris_otomatis"] = pg.evaluate("""() => { const rows = [...document.querySelectorAll('.form-page table.lines tbody tr')];
+        const last = rows[rows.length - 1];
+        // Kosong = belum disentuh: kolom ber-`default` (qty: 1) memang bernilai pada baris baru; yang dibaca uraian dan harga.
+        return { rows: rows.length, last_empty: [...last.querySelectorAll('td:nth-child(2) input, td:nth-child(5) input')].every((i) => !i.value) }; }""")
+    if out["baris_otomatis"]["rows"] < 2 or not out["baris_otomatis"]["last_empty"]:
+        checks.append(f"baris kosong tidak lahir sesudah baris pertama terisi: {out['baris_otomatis']!r}")
     row.locator("td:nth-child(3) input").first.fill("2")
     row.locator("td:nth-child(4) input").first.fill("roll")
     row.locator("td:nth-child(5) input").first.fill("1500000")
