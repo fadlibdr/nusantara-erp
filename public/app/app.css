@@ -1263,6 +1263,8 @@ table.data th.pick, table.data td.pick { width: 1%; padding-right: 0; }
 table.data tbody tr.clickable td.pick { cursor: default; }
 /* Sel ⋯ baris (UX-E1.10): seperti td.pick, kliknya bukan "buka dokumen" — list.js menahannya. */
 table.data tbody tr.clickable td.row-menu { cursor: default; }
+/* Baris lipat kolom utama: hanya ponsel (lihat blok ≤ 760 px). */
+.cell-fold { display: none; }
 
 /* Bilah seleksi — muncul HANYA bila ada baris tercentang, jadi ia tidak pernah
    menempati ruang untuk mengumumkan bahwa nol baris terpilih. Ia duduk di dalam
@@ -2152,9 +2154,31 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      tabel 7-10 kolom hanya bisa digeser-geser, dan menyetujui PO dari ponsel
      cukup kode-nilai-status. */
   table.data .hide-narrow { display: none; }
+  /* Kolom utama (list.js def.primaryColumn, UX-E1.11): nilai kolom yang baru saja
+     disembunyikan, sebagai baris redup di bawah nilainya sendiri. Teks biasa, bukan
+     mono/nowrap milik td.code (kolom utama PO adalah kodenya). min-width 10em: di ponsel
+     tabel sudah lebih lebar dari layarnya, jadi setiap kolom menyusut ke lebar minimumnya,
+     dan lipatan di kolom yang terlalu sempit hanya menyisakan "Proyek: …" (kolom vendor,
+     82 px — percobaan pertama, S56 4 Okt 2026). Kolom kode sudah selebar ini, jadi
+     lipatannya tidak mendorong Total keluar layar. */
+  table.data .cell-fold {
+    display: block; min-width: 10em; margin-top: 2px;
+    font-family: var(--font); font-size: var(--fs-secondary); color: var(--muted); white-space: normal;
+  }
+  /* Setiap nilai paling banyak DUA garis, lalu elipsis. Satu garis tidak cukup di 390 px:
+     "Proyek: PRJ-2026-002" butuh ±132 px, dan kolom yang selebar itu mendorong Total keluar
+     layar (terukur S56). Dua garis memuat kode proyeknya utuh walau terbelah di tanda
+     hubungnya ("Proyek: PRJ-2026-" / "002 — Instalasi…", terukur 390 px), dan kolomnya
+     tidak melebar: lebar minimumnya potongan kata terpanjang, bukan seluruh nilai. */
+  table.data .cell-fold > span {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  }
 }
 
 @media print {
+  /* Lipatan kolom utama (UX-E1.11): kertas A4 tegak (±718 px) jatuh di blok ≤ 760 px, jadi
+     lipatannya tercetak — tanpa jepit dua garis: di kertas tidak ada title untuk sisanya. */
+  table.data .cell-fold > span { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; }
   /* Cetak adalah satu-satunya jalur keluar laporan keuangan, dan pengguna
      bertema gelap mencetak --text #e7ebf0 (abu sangat terang) di kertas putih
      — hasilnya nyaris kosong. Token terang dipaksa di sini; selector kedua

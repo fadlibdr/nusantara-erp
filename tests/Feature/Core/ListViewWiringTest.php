@@ -445,10 +445,60 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertFalse($this->offersDuplicate("// duplikat dan duplicate dalam komentar huruf kecil bukan aksi"));
     }
 
+    /* ------------------------------------------------------------ E1.11 */
+
+    /** primaryColumn: opt-in, kolom utama tidak pernah disembunyikan dan membawa nilai hideOnNarrow sebagai .cell-fold. */
+    public function test_the_primary_column_folds_the_narrow_columns_on_phones(): void
+    {
+        $list = $this->spa('views/list.js');
+        $this->assertStringContainsString('const foldedColumns = def.primaryColumn', $list);
+        $this->assertStringContainsString("const narrowOf = (column) => (column.hideOnNarrow && column.key !== def.primaryColumn ? '.hide-narrow' : '');", $list);
+        $cell = (string) $this->functionBody($list, 'function bodyCell(row, column) {');
+        $this->assertStringContainsString('renderCell(row, column2).textContent.trim()', $cell, 'Lipatan tidak memakai renderCell yang sama — nilai kosong tidak lagi berbunyi "—".');
+        $this->assertStringContainsString("el('span.cell-fold', { title: lines.join(' · ') }, lines.map((text) => el('span', { text })))", $cell);
+        $this->assertStringNotContainsString('cell-sub', $cell, 'Lipatan memakai .cell-sub: sensus S21 membuang baris yang memuatnya.');
+        // th, td, dan tfoot sepakat soal kelas hide-narrow (jumlah sel per baris tetap segaris di ponsel).
+        $this->assertStringNotContainsString("column.hideOnNarrow ? '.hide-narrow'", $list);
+        $this->assertSame(3, substr_count($list, 'narrowOf(column)'), 'th, td, dan tfoot tidak lagi memakai satu penentu hide-narrow.');
+
+        // Skema: setiap primaryColumn menunjuk kolom di bloknya sendiri yang BUKAN hideOnNarrow, dan
+        // bloknya punya setidaknya satu kolom hideOnNarrow (tanpa itu tidak ada yang dilipat).
+        $schema = $this->spa('schema.js');
+        $this->assertStringContainsString('primaryColumn kunci kolom', $schema);
+        $count = preg_match_all("/^    primaryColumn: '([^']+)',$/m", $schema, $found, PREG_OFFSET_CAPTURE);
+        $this->assertGreaterThanOrEqual(1, $count);
+        $this->assertSame($count, substr_count($schema, 'primaryColumn:'));
+        $owners = [];
+        foreach ($found[1] as [$key, $offset]) {
+            $open = strrpos(substr($schema, 0, $offset), "\n  '");
+            $close = strpos($schema, "\n  '", $offset);
+            $block = substr($schema, $open, ($close === false ? strlen($schema) : $close) - $open);
+            preg_match("/^\n  '([^']+)'/", $block, $name);
+            $owners[] = $name[1];
+            $columns = substr($block, (int) strpos($block, "\n    columns: ["), (int) strpos($block, "\n    ],", (int) strpos($block, "\n    columns: [")) - (int) strpos($block, "\n    columns: ["));
+            // Kolom bersama dari kepala schema.js (codeColumn = { key: 'code', … }) ditulis sebagai konstantanya.
+            $shared = ['code' => 'codeColumn,'];
+            $hit = preg_match("/^.*\\{ key: '".preg_quote($key, '/')."'.*$/m", $columns, $line)
+                || (isset($shared[$key]) && preg_match('/^\\s*'.preg_quote($shared[$key], '/').'$/m', $columns, $line));
+            $this->assertTrue((bool) $hit, "{$name[1]}: primaryColumn '{$key}' bukan kolom di blok ini.");
+            $this->assertStringNotContainsString('hideOnNarrow', $line[0], "{$name[1]}: kolom utama sendiri hideOnNarrow.");
+            $this->assertStringContainsString('hideOnNarrow: true', $columns, "{$name[1]}: tidak ada kolom hideOnNarrow untuk dilipat.");
+        }
+        $this->assertContains('procurement/purchase-orders', $owners);
+        // Daftar kepadatan beku S21 tidak memakainya.
+        $this->assertNotContains('inventory/item-categories', $owners);
+        $this->assertNotContains('finance/accounts', $owners);
+
+        $css = $this->css();
+        $this->assertStringContainsString('.cell-fold { display: none; }', $css);
+        $narrow = substr($css, (int) strpos($css, '  table.data .hide-narrow { display: none; }'), 1500);
+        $this->assertMatchesRegularExpression('/table\.data \.cell-fold \{\s*display: block;/', $narrow, 'Lipatan tidak tampil di blok ≤ 760 px tempat kolomnya disembunyikan.');
+    }
+
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(57, (int) $version[1],
+        $this->assertGreaterThanOrEqual(58, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 

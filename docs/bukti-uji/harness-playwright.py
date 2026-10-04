@@ -2886,7 +2886,7 @@ def s56_floating_round(p, label, checks, out):
 
 @scenario("S56_menu_baris")
 def s56(pg):
-    """UX-E1.9…E1.11: menu ⋯ baris — popup mengambang (E1.9) dan blok-blok tugas berikutnya."""
+    """UX-E1.9…E1.11: menu ⋯ baris — popup mengambang (E1.9), menu baris (E1.10), lipatan kolom utama (E1.11)."""
     out, checks, errors = {}, [], []
     pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
     pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
@@ -3191,6 +3191,99 @@ def s56(pg):
             checks.append(f"menu: Hapus… — baris masih ada={menu['hapus']['row']}, toast {menu['hapus']['toasts']!r}")
         pg.screenshot(path=f"{OUT}/s56-menu-1440.png")
     out["menu"] = menu
+
+    # ------------------------------------------------------------ lipat (E1.11)
+    # Kolom utama PO (kode): di ponsel Proyek dan Tgl PO disembunyikan, dan nilainya pindah ke baris
+    # redup di bawah kodenya — teks yang SAMA dengan sel aslinya di meja, satu garis per nilai. Di meja
+    # lipatannya tidak tampil dan sel kodenya tidak berubah. Total tetap di layar ponsel: kolom kode
+    # sudah selebar lipatannya (percobaan pertama di kolom vendor mendorong Total keluar layar).
+    lipat = {}
+    FOLD = """() => {
+      const ths = [...document.querySelectorAll('#view table.data thead th')];
+      const idx = (label) => ths.findIndex((th) => th.innerText.trim().toLowerCase() === label.toLowerCase());
+      const shown = (n) => !!n && getComputedStyle(n).display !== 'none';
+      const iv = idx('Kode'), ip = idx('Proyek'), it = idx('Tgl PO'), im = idx('Total');
+      const vw = document.documentElement.clientWidth;
+      const rows = [...document.querySelectorAll('#view table.data tbody tr')].map((tr) => {
+        const td = tr.children;
+        const fold = td[iv] ? td[iv].querySelector('.cell-fold') : null;
+        const total = td[im] ? td[im].getBoundingClientRect() : null;
+        return { vendor: td[iv] ? td[iv].innerText.trim() : null, fold: fold ? [...fold.children].map((n) => n.textContent).join(' · ') : null, fold_shown: shown(fold),
+                 fold_lines: fold && shown(fold) ? [...fold.children].map((n) => Math.round(n.getBoundingClientRect().height)) : null,
+                 fold_cut: fold && shown(fold) ? [...fold.children].map((n) => n.scrollWidth > n.clientWidth + 1) : null,
+                 // Kode proyek TERLIHAT utuh di dalam kotak yang dijepit dua garis: kotak klien rentang
+                 // teks "PRJ-xxxx-xxx" berada di dalam kotak garisnya (tidak tersembunyi elipsis).
+                 code_fits: fold && shown(fold) && fold.children[0] ? (() => { const n = fold.children[0];
+                   const t = n.firstChild; const m = t && t.textContent.match(/PRJ-\\d{4}-\\d{3}/); if (!m) return null;
+                   const range = document.createRange(); range.setStart(t, m.index); range.setEnd(t, m.index + m[0].length);
+                   const box = n.getBoundingClientRect();
+                   return [...range.getClientRects()].every((r) => r.bottom <= box.bottom + 0.5 && r.right <= box.right + 0.5); })() : null,
+                 fold_h: fold && shown(fold) ? [...fold.children].map((n) => Math.round(n.getBoundingClientRect().height)) : null,
+                 total_on_screen: !!total && total.right <= vw + 1 && total.left >= 0,
+                 vendor_w: td[iv] ? Math.round(td[iv].getBoundingClientRect().width) : null, tr_h: Math.round(tr.getBoundingClientRect().height),
+                 proyek: td[ip] ? td[ip].innerText.trim() : null, tgl: td[it] ? td[it].innerText.trim() : null,
+                 proyek_shown: shown(td[ip]), tgl_shown: shown(td[it]),
+                 cells: td.length, heads: ths.length };
+      });
+      return { rows, th_proyek: shown(ths[ip]), th_tgl: shown(ths[it]),
+               overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    }"""
+    pg.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(1500)
+    lipat["1440"] = d = pg.evaluate(FOLD)
+    if not d["rows"]:
+        checks.append("lipat: daftar PO tanpa baris — subjek hilang")
+    for r in d["rows"]:
+        want = f"Proyek: {r['proyek']} · Tgl PO: {r['tgl']}"
+        if r["fold_shown"] or "Proyek:" in (r["vendor"] or ""):
+            checks.append(f"lipat: 1440 — lipatan tampil di meja ({r['vendor']!r})")
+        if r["fold"] != want:
+            checks.append(f"lipat: teks lipatan {r['fold']!r} ≠ sel aslinya {want!r}")
+        if r["cells"] != r["heads"]:
+            checks.append(f"lipat: 1440 — {r['cells']} sel untuk {r['heads']} judul kolom")
+    ctx_l = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        pl = ctx_l.new_page()
+        pl.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(pl, "admin@nusantara.test")
+        pl.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+        pl.wait_for_selector("#view table.data tbody tr", timeout=20000)
+        pl.wait_for_timeout(1500)
+        lipat["390"] = m = pl.evaluate(FOLD)
+        if m["th_proyek"] or m["th_tgl"] or any(r["proyek_shown"] or r["tgl_shown"] for r in m["rows"]):
+            checks.append("lipat: 390 — kolom Proyek/Tgl PO masih tampil")
+        bad = [r["vendor"] for r in m["rows"] if not r["fold_shown"] or "Proyek:" not in (r["vendor"] or "") or "Tgl PO:" not in (r["vendor"] or "")]
+        if bad or not m["rows"]:
+            checks.append(f"lipat: 390 — sel kode tanpa 'Proyek:'/'Tgl PO:' {bad!r}")
+        offscreen = [r["vendor"] for r in m["rows"] if not r["total_on_screen"]]
+        if offscreen:
+            checks.append(f"lipat: 390 — kolom Total terdorong keluar layar pada {len(offscreen)} baris (kode-nilai-status adalah inti PO di ponsel)")
+        # Kode proyek harus terbaca utuh (yang membedakan dua PO ke vendor yang sama) — nama proyek
+        # sesudahnya boleh berelipsis; tanggal (nilai pendek) utuh.
+        # Hanya baris yang PUNYA proyek: PO tanpa proyek (sah — S2, S12 dan S49 membuatnya) melipat
+        # menjadi "Proyek: —", dan itu yang diperiksa untuk mereka.
+        no_code = [r["fold"] for r in m["rows"] if re.search(r"PRJ-\d{4}-\d{3}", r["proyek"] or "") and not r.get("code_fits")]
+        if no_code:
+            checks.append(f"lipat: 390 — lipatan tanpa kode proyek utuh: {no_code!r}")
+        dash = [r["fold"] for r in m["rows"] if (r["proyek"] or "") == "—" and not (r["fold"] or "").startswith("Proyek: — · ")]
+        if dash:
+            checks.append(f"lipat: 390 — PO tanpa proyek tidak melipat menjadi 'Proyek: —': {dash!r}")
+        lipat["tanpa_proyek"] = sum(1 for r in m["rows"] if (r["proyek"] or "") == "—")
+        cut_dates = [r["vendor"] for r in m["rows"] if r["fold_cut"] and r["fold_cut"][-1]]
+        if cut_dates:
+            checks.append(f"lipat: 390 — Tgl PO di lipatan terpotong pada {len(cut_dates)} baris")
+        if m["overflow_x"] > 0:
+            checks.append(f"lipat: 390 — halaman meluber {m['overflow_x']} px ke samping")
+        # Paling banyak dua garis per nilai: nama proyek yang panjang tidak boleh membuat satu baris
+        # PO setinggi tujuh garis teks (versi pertama lipatan, terukur 4 Okt 2026).
+        tall = [r["fold_lines"] for r in m["rows"] if r["fold_lines"] and max(r["fold_lines"]) > 40]
+        if tall:
+            checks.append(f"lipat: 390 — nilai lipatan lebih dari dua garis (tinggi {tall!r} px)")
+        pl.screenshot(path=f"{OUT}/s56-lipat-390.png")
+    finally:
+        ctx_l.close()
+    out["lipat"] = lipat
 
     out["console_errors"] = errors
     if errors:

@@ -1632,6 +1632,35 @@ export async function renderList(host, { key, def }) {
     pickAll.indeterminate = on > 0 && on < rows.length;
   }
 
+  /*
+   * Kolom utama (UX-E1.11, README E1 — opt-in lewat `def.primaryColumn`, PO sebagai
+   * percontohan). Di ≤ 760 px kolom hideOnNarrow lenyap (app.css), dan dengannya
+   * Proyek dan Tgl PO sebuah PO — fakta yang membedakan dua PO ke vendor yang sama.
+   * Sel kolom utama tidak pernah ikut disembunyikan, dan membawa nilai-nilai yang
+   * hilang itu sebagai satu baris redup di bawahnya (.cell-fold, hanya tampil di
+   * ponsel), digambar oleh renderCell yang SAMA — jadi nilai kosong berbunyi '—',
+   * bukan sel kosong. Bukan .cell-sub: sensus S21 membuang baris yang memuat
+   * .cell-sub, dan aturan dasarnya dipakai ±60 berkas. Layar tanpa kunci ini
+   * tergambar persis seperti sebelumnya.
+   */
+  const foldedColumns = def.primaryColumn
+    ? def.columns.filter((column) => column.hideOnNarrow && column.key !== def.primaryColumn)
+    : [];
+  const narrowOf = (column) => (column.hideOnNarrow && column.key !== def.primaryColumn ? '.hide-narrow' : '');
+
+  function bodyCell(row, column) {
+    const tag = `td${column.align ? `.${column.align}` : ''}${column.type === 'code' ? '.code' : ''}${narrowOf(column)}`;
+    if (column.key !== def.primaryColumn || !foldedColumns.length) return el(tag, renderCell(row, column));
+    /* Satu blok per nilai, paling banyak dua garis lalu elipsis (app.css): kolom utama di
+       ponsel sempit, dan nama proyek yang dibiarkan membungkus membuat SATU baris PO
+       setinggi tujuh garis teks (terukur S56, 4 Okt 2026). Teks utuhnya di title. */
+    const lines = foldedColumns.map((column2) => `${column2.label}: ${renderCell(row, column2).textContent.trim()}`);
+    return el(tag, [
+      renderCell(row, column),
+      el('span.cell-fold', { title: lines.join(' · ') }, lines.map((text) => el('span', { text }))),
+    ]);
+  }
+
   function renderRows() {
     /*
      * Dipanggil dari tiga tempat, dan dua di antaranya JANJI yang mendarat
@@ -1714,8 +1743,7 @@ export async function renderList(host, { key, def }) {
         const chosen = picking && picked.has(row.id);
         const tr = el(`tr${openable ? '.clickable' : ''}${chosen ? '.selected' : ''}`, [
           picking ? el('td.pick', pickBox(row)) : null,
-          ...def.columns.map((column) =>
-            el(`td${column.align ? `.${column.align}` : ''}${column.type === 'code' ? '.code' : ''}${column.hideOnNarrow ? '.hide-narrow' : ''}`, renderCell(row, column))),
+          ...def.columns.map((column) => bodyCell(row, column)),
           hasActions ? (menus.get(row.id) ? el('td.right.row-menu', menus.get(row.id)) : el('td.right')) : null,
         ]);
         if (openable) {
@@ -1739,7 +1767,7 @@ export async function renderList(host, { key, def }) {
         ? el('tfoot', el('tr', [
           picking ? el('td.pick') : null,
           ...def.columns.map((column, index) => {
-            const narrow = column.hideOnNarrow ? '.hide-narrow' : '';
+            const narrow = narrowOf(column);
             if (column.type === 'currency' || column.type === 'currency2') {
               return el(`td.right${narrow}`, {
                 text: rupiah(sumColumn(rows, column.key), column.type === 'currency2' ? { decimals: 2 } : {}),
@@ -1778,7 +1806,7 @@ export async function renderList(host, { key, def }) {
     // hide-narrow ikut di th: td yang hilang tanpa judulnya membuat seluruh
     // baris bergeser satu kolom di bawah 760px.
     const th = el(
-      `th${column.align ? `.${column.align}` : ''}${column.hideOnNarrow ? '.hide-narrow' : ''}`,
+      `th${column.align ? `.${column.align}` : ''}${narrowOf(column)}`,
       { style: column.width ? { width: column.width } : {} },
     );
 

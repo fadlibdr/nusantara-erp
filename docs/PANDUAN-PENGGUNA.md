@@ -680,7 +680,10 @@ Susunannya dari atas ke bawah:
    tidak ikut dihitung. Panelnya tetap terbuka selama Anda memilih, dan tertutup dengan
    **Esc** (bila daftar pilihan Vendor/Proyek sedang terbuka, Esc pertama menutup daftar
    itu dulu), dengan klik di luar panel, atau dengan menekan **`Filter`** lagi.
-3. **Tabel**. Kolom uang mendapat baris kaki berlabel **"Total halaman ini"**.
+3. **Tabel**. Kolom uang mendapat baris kaki berlabel **"Total halaman ini"**. Di ponsel
+   beberapa kolom disembunyikan supaya tabelnya muat; pada Pesanan Pembelian nilainya
+   tidak hilang — sel Kode membawa baris kecil abu-abu *Proyek: …* dan *Tgl PO: …* di
+   bawah nomor PO-nya (nama proyek yang panjang dipotong sesudah kodenya).
 4. **Pager**: `Menampilkan 1–20 dari 137 data`, pemilih jumlah baris (20 bawaan, lalu
    25/50/100/200), nomor halaman, dan panah maju-mundur.
 
