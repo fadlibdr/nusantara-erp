@@ -18,6 +18,7 @@ DB = os.environ.get("ERP_DB", "/home/claude/nusantara-erp/database/database.sqli
 OUT = os.environ.get("UXTEST_OUT", "/home/claude/uxtest")
 R = {}          # results
 CLICKS = [0]    # click counter for the current scenario
+CLICK_LOG = []  # selector per klik yang dihitung (UX-E3.0: buku besar klik S3 — bukti komposisi angkanya)
 # Skenario yang JATUH (ERROR atau ok:false). Dibaca di akhir: sebuah harness yang selalu
 # keluar dengan status 0 tidak bisa dipakai gerbang apa pun (verifikasi kedua P1-D).
 FAILED = []
@@ -38,6 +39,7 @@ def token_for(email):
 
 def click(page, sel, **kw):
     CLICKS[0] += 1
+    CLICK_LOG.append(sel)
     page.click(sel, **kw)
 
 def login(page, email, onboarding="decide"):
@@ -119,6 +121,7 @@ def scenario(name):
     def deco(fn):
         def wrapper(*a, **k):
             CLICKS[0] = 0
+            CLICK_LOG.clear()
             t0 = time.time()
             try:
                 R[name] = fn(*a, **k) or {}
@@ -126,6 +129,7 @@ def scenario(name):
                 R[name] = {"ERROR": str(e)[:400], "trace": traceback.format_exc()[-600:]}
             R[name]["_ms"] = int((time.time() - t0) * 1000)
             R[name]["_clicks"] = CLICKS[0]
+            R[name]["_ledger"] = list(CLICK_LOG)
             # SKIPPED dicetak apa adanya: sebuah skenario yang tidak menemukan fixture-nya bukan "ok"
             # (verifikasi P1-B putaran 3, 6 Sep 2026 — S16 pada salinan DB hidup).
             #
@@ -393,9 +397,9 @@ def s3(pg):
         inp = f.locator("input.combo-input, select").first
         tag = inp.evaluate("e => e.tagName")
         if tag == "SELECT":
-            inp.select_option(index=1); CLICKS[0] += 1
+            inp.select_option(index=1); CLICKS[0] += 1; CLICK_LOG.append(f"S3 combo-select {label_text}")
         else:
-            inp.click(); CLICKS[0] += 1
+            inp.click(); CLICKS[0] += 1; CLICK_LOG.append(f"S3 combo {label_text}")
             inp.type(typed, delay=20)
             pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000)
             pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
@@ -426,7 +430,7 @@ def s3(pg):
     def fill_line(row, i, qty):
         combo = row.locator("td:nth-child(1) input.combo-input")
         if combo.count():
-            combo.first.click(); CLICKS[0] += 1
+            combo.first.click(); CLICKS[0] += 1; CLICK_LOG.append(f"S3 item combo row {i+1}")
             combo.first.type("kabel" if i == 0 else "cctv", delay=20)
             try:
                 pg.wait_for_selector(".combo-pop .combo-opt", timeout=5000)
@@ -506,7 +510,7 @@ def s4(pg):
     if ta.count():
         ta.fill("UJI-UX — isian yang akan hilang bila sesi berakhir.")
     vf = pg.locator(".form-page .field", has=pg.locator("label", has_text="Vendor")).first.locator("input.combo-input").first
-    vf.click(); CLICKS[0] += 1; vf.type("PT", delay=20)
+    vf.click(); CLICKS[0] += 1; CLICK_LOG.append("S4 combo Vendor"); vf.type("PT", delay=20)
     pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000); pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
     rows = pg.locator(".form-page table.lines tbody tr")
     while rows.count() < 3:

@@ -1,0 +1,2083 @@
+{
+ "base": "http://127.0.0.1:8001/app/",
+ "forms": {
+  "po_new|1440": {
+   "target": "f/procurement/purchase-orders",
+   "paint_ms": 513,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 908.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 31.2,
+     "actions_h": 30,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 32,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1096,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 950.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 36,
+     "actions_h": 36,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1143,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 986.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 42,
+     "actions_h": 42,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1185,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 21,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": false,
+    "scroll_y": 183
+   },
+   "console_errors": []
+  },
+  "po_edit|1440": {
+   "target": "f/procurement/purchase-orders/1",
+   "paint_ms": 699,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 905.8,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 31.2,
+     "actions_h": 30,
+     "buttons": [
+      "Batal",
+      "Simpan Perubahan"
+     ],
+     "simpan_on_screen": false,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 32,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 2,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 209.500.000"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan Perubahan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 12,
+     "doc_h": 1093,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 943.8,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 36,
+     "actions_h": 36,
+     "buttons": [
+      "Batal",
+      "Simpan Perubahan"
+     ],
+     "simpan_on_screen": false,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 2,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 209.500.000"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan Perubahan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 12,
+     "doc_h": 1136,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 976.8,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 42,
+     "actions_h": 42,
+     "buttons": [
+      "Batal",
+      "Simpan Perubahan"
+     ],
+     "simpan_on_screen": false,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 2,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 209.500.000"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan Perubahan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 12,
+     "doc_h": 1175,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 26,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": false,
+    "scroll_y": 176
+   },
+   "console_errors": []
+  },
+  "grn_new|1440": {
+   "target": "f/inventory/goods-receipts",
+   "paint_ms": 541,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 481.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 31.2,
+     "actions_h": 30,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 6,
+     "required": 2,
+     "input_h": 32,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 5,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 5,
+     "doc_h": 900,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 501.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 36,
+     "actions_h": 36,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 6,
+     "required": 2,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 5,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 5,
+     "doc_h": 939,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 519.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 42,
+     "actions_h": 42,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 6,
+     "required": 2,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 5,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 5,
+     "doc_h": 1011,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 14,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": []
+  },
+  "qtn_new|1440": {
+   "target": "f/crm/quotations",
+   "paint_ms": 586,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 649.1,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 31.2,
+     "actions_h": 30,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 9,
+     "required": 3,
+     "input_h": 32,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 901,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 689.1,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 36,
+     "actions_h": 36,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 9,
+     "required": 3,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 973,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 725.1,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 42,
+     "actions_h": 42,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 9,
+     "required": 3,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 1,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1045,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 17,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ]
+  },
+  "cust_new|1440": {
+   "target": "r/crm/customers",
+   "paint_ms": 1169,
+   "density": {
+    "compact": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 35,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [
+      "IDENTITAS",
+      "ALAMAT & KONTAK"
+     ],
+     "fields": 14,
+     "required": 1,
+     "input_h": 32,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 0,
+     "doc_h": 901,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "normal": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 117,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [
+      "IDENTITAS",
+      "ALAMAT & KONTAK"
+     ],
+     "fields": 14,
+     "required": 1,
+     "input_h": 38,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 0,
+     "doc_h": 973,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "comfortable": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 192,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [
+      "IDENTITAS",
+      "ALAMAT & KONTAK"
+     ],
+     "fields": 14,
+     "required": 1,
+     "input_h": 44,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 0,
+     "doc_h": 1045,
+     "main_scroll": 0,
+     "focused": "input"
+    }
+   },
+   "tabstops": {
+    "total": 17,
+    "to_first_input": 1
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": []
+  },
+  "jrn_new|1440": {
+   "target": "f/finance/journals",
+   "paint_ms": 510,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 410.8,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 31.2,
+     "actions_h": 30,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 4,
+     "required": 2,
+     "input_h": 32,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 2,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Debit: Rp 0 Kredit: Rp 0 Selisih Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 13,
+     "doc_h": 974,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 426.8,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 36,
+     "actions_h": 36,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 4,
+     "required": 2,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 2,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Debit: Rp 0 Kredit: Rp 0 Selisih Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 13,
+     "doc_h": 1050,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 1100,
+     "page_h": 441.8,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 42,
+     "actions_h": 42,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 4,
+     "required": 2,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 2,
+     "wrap_max_h": "660px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Debit: Rp 0 Kredit: Rp 0 Selisih Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 13,
+     "doc_h": 1126,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 19,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": []
+  },
+  "inv_new|1440": {
+   "target": "r/finance/ar-invoices",
+   "paint_ms": 1181,
+   "density": {
+    "compact": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 341,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 1,
+     "section_titles": [],
+     "fields": 15,
+     "required": 0,
+     "input_h": 32,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 947,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "normal": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 433,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 1,
+     "section_titles": [],
+     "fields": 15,
+     "required": 0,
+     "input_h": 38,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 1019,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "comfortable": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 517,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 1,
+     "section_titles": [],
+     "fields": 15,
+     "required": 0,
+     "input_h": 44,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 1091,
+     "main_scroll": 0,
+     "focused": "input"
+    }
+   },
+   "tabstops": {
+    "total": 18,
+    "to_first_input": 1
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ]
+  },
+  "emp_new|1440": {
+   "target": "r/hr/employees",
+   "paint_ms": 1057,
+   "density": {
+    "compact": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 440,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 3,
+     "section_titles": [
+      "DATA PRIBADI",
+      "KEPEGAWAIAN",
+      "REMUNERASI & BPJS"
+     ],
+     "fields": 21,
+     "required": 10,
+     "input_h": 32,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 900,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "normal": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 564,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 3,
+     "section_titles": [
+      "DATA PRIBADI",
+      "KEPEGAWAIAN",
+      "REMUNERASI & BPJS"
+     ],
+     "fields": 21,
+     "required": 10,
+     "input_h": 38,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 900,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "comfortable": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 640,
+     "modal_h": 860,
+     "modal_body_scroll": 678,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 3,
+     "section_titles": [
+      "DATA PRIBADI",
+      "KEPEGAWAIAN",
+      "REMUNERASI & BPJS"
+     ],
+     "fields": 21,
+     "required": 10,
+     "input_h": 44,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 911,
+     "main_scroll": 0,
+     "focused": "input"
+    }
+   },
+   "tabstops": {
+    "total": 27,
+    "to_first_input": 1
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": []
+  },
+  "po_new|390": {
+   "target": "f/procurement/purchase-orders",
+   "paint_ms": 613,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 1308.2,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 36,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 69,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1562,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 1368.2,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 69,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1622,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 1449.2,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 82,
+     "actions_h": 46,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 69,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1709,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 21,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": false,
+    "scroll_y": 692
+   },
+   "console_errors": []
+  },
+  "po_edit|390": {
+   "target": "f/procurement/purchase-orders/1",
+   "paint_ms": 420,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 1304.3,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan Perubahan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 36,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 2,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 135,
+     "lines_total": [
+      "Subtotal: Rp 209.500.000"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan Perubahan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 12,
+     "doc_h": 1558,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 1360.3,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan Perubahan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 2,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 135,
+     "lines_total": [
+      "Subtotal: Rp 209.500.000"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan Perubahan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 12,
+     "doc_h": 1614,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 1438.3,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 82,
+     "actions_h": 46,
+     "buttons": [
+      "Batal",
+      "Simpan Perubahan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 12,
+     "required": 4,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 7,
+     "lines_rows": 2,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 135,
+     "lines_total": [
+      "Subtotal: Rp 209.500.000"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan Perubahan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 12,
+     "doc_h": 1698,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 26,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": false,
+    "scroll_y": 684
+   },
+   "console_errors": []
+  },
+  "grn_new|390": {
+   "target": "f/inventory/goods-receipts",
+   "paint_ms": 636,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 769.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 6,
+     "required": 2,
+     "input_h": 36,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 5,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 5,
+     "doc_h": 1024,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 799.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 6,
+     "required": 2,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 5,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 5,
+     "doc_h": 1054,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 844.7,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 82,
+     "actions_h": 46,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 6,
+     "required": 2,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 5,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 0,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 5,
+     "doc_h": 1105,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 14,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": false,
+    "scroll_y": 124
+   },
+   "console_errors": []
+  },
+  "qtn_new|390": {
+   "target": "f/crm/quotations",
+   "paint_ms": 511,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 950.1,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 9,
+     "required": 3,
+     "input_h": 36,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 24,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1204,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 998.1,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 9,
+     "required": 3,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 24,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1252,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 1070.1,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 82,
+     "actions_h": 46,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 9,
+     "required": 3,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 1,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 24,
+     "lines_total": [
+      "Subtotal: Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 6,
+     "doc_h": 1330,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 17,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": false,
+    "scroll_y": 322
+   },
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ]
+  },
+  "cust_new|390": {
+   "target": "r/crm/customers",
+   "paint_ms": 992,
+   "density": {
+    "compact": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 498,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [
+      "IDENTITAS",
+      "ALAMAT & KONTAK"
+     ],
+     "fields": 14,
+     "required": 1,
+     "input_h": 36,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 0,
+     "doc_h": 844,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "normal": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 572,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [
+      "IDENTITAS",
+      "ALAMAT & KONTAK"
+     ],
+     "fields": 14,
+     "required": 1,
+     "input_h": 38,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 0,
+     "doc_h": 844,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "comfortable": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 692,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [
+      "IDENTITAS",
+      "ALAMAT & KONTAK"
+     ],
+     "fields": 14,
+     "required": 1,
+     "input_h": 44,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 0,
+     "doc_h": 844,
+     "main_scroll": 0,
+     "focused": "input"
+    }
+   },
+   "tabstops": {
+    "total": 17,
+    "to_first_input": 1
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": []
+  },
+  "jrn_new|390": {
+   "target": "f/finance/journals",
+   "paint_ms": 505,
+   "density": {
+    "compact": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 592.3,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 4,
+     "required": 2,
+     "input_h": 36,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 2,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 9,
+     "lines_total": [
+      "Debit: Rp 0 Kredit: Rp 0 Selisih Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 13,
+     "doc_h": 846,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "normal": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 612.3,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 76,
+     "actions_h": 40,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 4,
+     "required": 2,
+     "input_h": 38,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 2,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 9,
+     "lines_total": [
+      "Debit: Rp 0 Kredit: Rp 0 Selisih Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 13,
+     "doc_h": 866,
+     "main_scroll": 0,
+     "focused": "body"
+    },
+    "comfortable": {
+     "container": "page",
+     "page_w": 362,
+     "page_h": 645.3,
+     "modal_w": null,
+     "modal_h": null,
+     "modal_body_scroll": null,
+     "head_h": 82,
+     "actions_h": 46,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 2,
+     "section_titles": [],
+     "fields": 4,
+     "required": 2,
+     "input_h": 44,
+     "line_input_h": 31,
+     "lines_tables": 1,
+     "lines_th": 6,
+     "lines_rows": 2,
+     "wrap_max_h": "604px",
+     "wrap_scroll": 9,
+     "lines_total": [
+      "Debit: Rp 0 Kredit: Rp 0 Selisih Rp 0"
+     ],
+     "lines_total_h": 29.5,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 13,
+     "doc_h": 905,
+     "main_scroll": 0,
+     "focused": "body"
+    }
+   },
+   "tabstops": {
+    "total": 19,
+    "to_first_input": 2
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": []
+  },
+  "inv_new|390": {
+   "target": "r/finance/ar-invoices",
+   "paint_ms": 1064,
+   "density": {
+    "compact": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 918,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 1,
+     "section_titles": [],
+     "fields": 15,
+     "required": 0,
+     "input_h": 36,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 844,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "normal": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 1004,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 1,
+     "section_titles": [],
+     "fields": 15,
+     "required": 0,
+     "input_h": 38,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 844,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "comfortable": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 1142,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 1,
+     "section_titles": [],
+     "fields": 15,
+     "required": 0,
+     "input_h": 44,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 844,
+     "main_scroll": 0,
+     "focused": "input"
+    }
+   },
+   "tabstops": {
+    "total": 18,
+    "to_first_input": 1
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ]
+  },
+  "emp_new|390": {
+   "target": "r/hr/employees",
+   "paint_ms": 1068,
+   "density": {
+    "compact": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 1135,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 3,
+     "section_titles": [
+      "DATA PRIBADI",
+      "KEPEGAWAIAN",
+      "REMUNERASI & BPJS"
+     ],
+     "fields": 21,
+     "required": 10,
+     "input_h": 36,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 982,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "normal": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 1249,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 3,
+     "section_titles": [
+      "DATA PRIBADI",
+      "KEPEGAWAIAN",
+      "REMUNERASI & BPJS"
+     ],
+     "fields": 21,
+     "required": 10,
+     "input_h": 38,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 984,
+     "main_scroll": 0,
+     "focused": "input"
+    },
+    "comfortable": {
+     "container": "modal",
+     "page_w": null,
+     "page_h": null,
+     "modal_w": 350,
+     "modal_h": 804,
+     "modal_body_scroll": 1435,
+     "head_h": null,
+     "actions_h": null,
+     "buttons": [
+      "Batal",
+      "Simpan"
+     ],
+     "simpan_on_screen": true,
+     "sections": 3,
+     "section_titles": [
+      "DATA PRIBADI",
+      "KEPEGAWAIAN",
+      "REMUNERASI & BPJS"
+     ],
+     "fields": 21,
+     "required": 10,
+     "input_h": 44,
+     "line_input_h": null,
+     "lines_tables": 0,
+     "lines_th": 0,
+     "lines_rows": 0,
+     "wrap_max_h": null,
+     "wrap_scroll": null,
+     "lines_total": [],
+     "lines_total_h": null,
+     "primary_btn": "Simpan",
+     "error_summary": 0,
+     "section_nav": 0,
+     "sticky_foot": 0,
+     "inline_styled": 2,
+     "doc_h": 1002,
+     "main_scroll": 0,
+     "focused": "input"
+    }
+   },
+   "tabstops": {
+    "total": 27,
+    "to_first_input": 1
+   },
+   "simpan_on_screen_after_scroll": {
+    "on_screen": true,
+    "scroll_y": 0
+   },
+   "console_errors": []
+  }
+ }
+}

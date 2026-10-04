@@ -1,0 +1,1009 @@
+{
+ "summary": {
+  "forms": 92,
+  "with_lines": 35,
+  "long_no_lines": 20,
+  "one_section": 84,
+  "with_submit": 28,
+  "submit_with_fields": 3,
+  "inline_style_objects_form_js": 13
+ },
+ "forms": {
+  "crm/customers": {
+   "fields": 14,
+   "sections": 2,
+   "titled_sections": 2,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "crm/leads": {
+   "fields": 10,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "crm/quotations": {
+   "fields": 9,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "crm.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "crm/contract-change-orders": {
+   "fields": 9,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "crm.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "crm/contracts": {
+   "fields": 13,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "crm/tender-packages": {
+   "fields": 9,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "crm/tkdn-worksheets": {
+   "fields": 3,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "crm/rkk-documents": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "crm/guarantees": {
+   "fields": 11,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "estimation/ahsp": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "estimation/boqs": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "est.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "estimation/cost-budgets": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "est.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "projects": {
+   "fields": 22,
+   "sections": 3,
+   "titled_sections": 3,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "projects/daily-reports": {
+   "fields": 11,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 5,
+   "layout": null,
+   "submit": null
+  },
+  "projects/work-permits": {
+   "fields": 11,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "prj.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "projects/overtime-permits": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "prj.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "projects/gate-passes": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "prj.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "projects/progress-measurements": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "prj.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "projects/zone-certificates": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "projects/contract-variations": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "projects/weekly-progress": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "projects/milestones": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "projects/bast": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "prj.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "projects/defects": {
+   "fields": 10,
+   "sections": 2,
+   "titled_sections": 2,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "projects/safety-incidents": {
+   "fields": 15,
+   "sections": 3,
+   "titled_sections": 3,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "projects/hse-daily": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 2,
+   "layout": null,
+   "submit": null
+  },
+  "projects/risk-register": {
+   "fields": 9,
+   "sections": 2,
+   "titled_sections": 2,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "projects/manpower-assignments": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "procurement/vendors": {
+   "fields": 18,
+   "sections": 2,
+   "titled_sections": 2,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "procurement/vendor-documents": {
+   "fields": 9,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "procurement/purchase-requisitions": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "prc.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "procurement/rfqs": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "procurement/purchase-orders": {
+   "fields": 12,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "prc.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 3
+   }
+  },
+  "procurement/vendor-evaluations": {
+   "fields": 9,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "procurement/negotiation-minutes": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "procurement/award-decisions": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "prc.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "procurement/procurement-plans": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "procurement/work-orders": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "prc.update",
+    "fields": 1,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "procurement/work-order-billings": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/items": {
+   "fields": 9,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/item-categories": {
+   "fields": 3,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/warehouses": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/reorder-rules": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/goods-receipts": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/issues": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/issue-returns": {
+   "fields": 3,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/purchase-returns": {
+   "fields": 3,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/transfers": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "inventory/stock-adjustments": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "inv.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "subcontract/subcontracts": {
+   "fields": 11,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "scm.update",
+    "fields": 1,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 1
+   }
+  },
+  "subcontract/addenda": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "scm.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "subcontract/handovers": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "scm.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "subcontract/progress-claims": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "scm.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "subcontract/labor-contracts": {
+   "fields": 8,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "scm.update",
+    "fields": 1,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "subcontract/labor-claims": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "scm.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "finance/revenue-recognition": {
+   "fields": 2,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "finance/accounts": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "finance/taxes": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "finance/journals": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "finance/ar-invoices": {
+   "fields": 15,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "fin.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "finance/ap-bills": {
+   "fields": 18,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "fin.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "finance/bank-accounts": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "finance/payments": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "finance/overhead-budgets": {
+   "fields": 2,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "fin.create",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "hr/employees": {
+   "fields": 21,
+   "sections": 3,
+   "titled_sections": 3,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "hr/leave-requests": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "hr.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "hr/attendance-recaps": {
+   "fields": 9,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "hr/payroll-runs": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": {
+    "perm": "hr.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "hr/certificates": {
+   "fields": 8,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "servicedesk/contracts": {
+   "fields": 11,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "servicedesk/tickets": {
+   "fields": 11,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "servicedesk/preventive-schedules": {
+   "fields": 8,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "servicedesk/field-reports": {
+   "fields": 8,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "svc.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "assets/assets": {
+   "fields": 20,
+   "sections": 3,
+   "titled_sections": 3,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "assets/categories": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "assets/deployments": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "assets/equipment-logs": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "assets/maintenances": {
+   "fields": 8,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "assets/depreciation-runs": {
+   "fields": 2,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "iam/users": {
+   "fields": 8,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "iam/roles": {
+   "fields": 1,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "engineering/drawings": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "engineering/drawing-submittals": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "engineering/material-submittals": {
+   "fields": 8,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "engineering/transmittals": {
+   "fields": 5,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "engineering/ipp": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 4,
+   "layout": null,
+   "submit": {
+    "perm": "eng.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "core/locations": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "core/method-library": {
+   "fields": 6,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "quality/inspections": {
+   "fields": 7,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": {
+    "perm": "qc.update",
+    "fields": 0,
+    "confirm": false,
+    "inlineNote": false,
+    "confirmResubmit": 0
+   }
+  },
+  "quality/ncr": {
+   "fields": 11,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 0,
+   "layout": null,
+   "submit": null
+  },
+  "quality/concrete-samples": {
+   "fields": 8,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  },
+  "quality/inspection-templates": {
+   "fields": 4,
+   "sections": 1,
+   "titled_sections": 1,
+   "advanced": 0,
+   "lines": 1,
+   "layout": null,
+   "submit": null
+  }
+ }
+}
