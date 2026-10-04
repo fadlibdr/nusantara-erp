@@ -1378,7 +1378,7 @@ Lingkup pekerjaan: **Konstruksi Gedung · Integrasi Sistem (ELV/ICT) · Pemeliha
 
 Hitungannya: `Subtotal` = jumlah baris; `Diskon` dipotong dan **dibatasi tidak melebihi
 subtotal**; `DPP` = subtotal − diskon; `PPN` = DPP × tarif ÷ 100; `Total` = DPP + PPN.
-Keenam angka itu tampil sebagai strip ringkasan di halaman penawaran.
+Keenam angka itu tampil sebagai baris ubin nilai kunci di halaman penawaran.
 
 **Menyimpan penawaran mengganti SELURUH barisnya** dan menomori ulang sesuai urutan di
 layar. Tidak ada penambahan baris "di belakang" — apa yang ada di tabel saat Anda menekan
@@ -2166,7 +2166,7 @@ Kolom: Kode · Pelanggan (dengan kode kontrak) · Tgl invoice · Jatuh tempo · 
 **Sisa** (hijau bila nol) · Status. Kotak cari mencakup kode, keterangan, dan **nomor
 faktur pajak**. Nomor `INV/…`.
 
-Strip ringkasan di halaman invoice: **DPP · PPN · Retensi ditahan · Potongan uang muka ·
+Baris ubin nilai kunci di halaman invoice: **DPP · PPN · Retensi ditahan · Potongan uang muka ·
 Denda · Total · Sudah dibayar · Sisa**.
 
 **Tiga pintu, pilih satu.** Bantuan di formulirnya menyebut ketiganya: *"Tiga pintu, pilih
@@ -3163,7 +3163,7 @@ prakualifikasi**.
 Baris **Item pesanan** (minimal 1): Item · **Uraian** (wajib) · **Qty** (wajib) ·
 Satuan · **Harga satuan** (wajib).
 
-Strip ringkasan halaman PO: subtotal, diskon, DPP, PPN, total. Tabel barisnya
+Baris ubin nilai kunci halaman PO: Subtotal, Diskon, DPP, PPN, Total. Tabel barisnya
 memperlihatkan Qty, **Diterima**, Satuan, Harga satuan, Jumlah.
 
 **PPN dihitung, tidak pernah diketik:** subtotal − diskon = DPP; PPN = DPP × tarif
@@ -5852,7 +5852,7 @@ dari selisih terhadap progres sebelumnya."*
 **Anda memasukkan progres KUMULATIF, bukan progres periode ini.** Nilai periodenya
 dihitung sistem sebagai selisih terhadap progres yang tercatat sebelumnya.
 
-Strip ringkasan di halaman opname memperlihatkan seluruh rantai angkanya: **Bruto ·
+Baris ubin nilai kunci di halaman opname memperlihatkan seluruh rantai angkanya: **Bruto ·
 Retensi · Netto sebelum pajak · PPN · PPh · Potongan uang muka · Netto dibayar**. Tabel
 rinciannya: Uraian · Progres lalu · Progres kini · Periode ini · Nilai.
 
@@ -6106,7 +6106,7 @@ ulang SP3 yang ada. **PPN** mengikuti status PKP mandornya (non-PKP = tanpa PPN,
 yang sama dengan SPK); mandor PKP praktis tidak ada, tetapi aturannya milik master
 vendor, bukan tebakan layar ini.
 
-**Halaman SP3** menampilkan strip Nilai/PPN/PPh dan tabel **Baris upah** dengan kolom
+**Halaman SP3** menampilkan ubin nilai kunci Nilai/PPN/PPh dan tabel **Baris upah** dengan kolom
 **ID**. **Kolom ID itu penting** — angka itulah yang Anda ketik ke kolom "ID baris SP3"
 pada formulir opname mandor (§8.10), sama seperti pasangan ID di halaman SPK (§8.2).
 

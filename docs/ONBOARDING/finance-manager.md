@@ -99,7 +99,7 @@ Klik baris untuk membuka dokumennya.
 Pemicu: `INV/…` berstatus Diajukan. Periksa: kontrak **Disetujui**; termin yang ditagih
 belum bercap Ditagih; kolom **Keterangan** — bila ada teks
 `[Konfirmasi: milestone "…" belum tercapai — tetap ditagih.]`, petugas menagih sebelum
-milestone dan itu tercetak di invoice; strip **DPP · PPN · Retensi ditahan · Potongan
+milestone dan itu tercetak di invoice; ubin nilai kunci **DPP · PPN · Retensi ditahan · Potongan
 uang muka · Denda · Total**; satu pola retensi per kontrak. Tekan **`Setujui`** (catatan
 opsional) atau **`Tolak`** (alasan wajib). **`Setujui` melakukan tiga hal sekaligus**:
 memposting jurnal piutang dan pendapatan, membuat baris piutang retensi, dan mencap

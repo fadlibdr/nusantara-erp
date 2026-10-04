@@ -1,7 +1,7 @@
 /* Generic document detail: header, key/value panel, line tables, approvals. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, statusBadge, actionPanel, icon, errorState, emptyState, pluck, toast, menuButton } from '../ui.js';
+import { el, clear, button, badge, statusBadge, actionPanel, icon, errorState, emptyState, pluck, toast, menuButton, keyValueTile } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
@@ -422,7 +422,9 @@ const LABELS = {
   is_fully_depreciated: 'Habis disusutkan', current_project_id: 'Proyek saat ini',
   item_type: 'Jenis item', tax_type: 'Jenis pajak', object_code: 'Kode objek pajak',
   rate: 'Tarif', daily_rate_internal: 'Tarif harian internal', minutes_spent: 'Menit dikerjakan',
-  terbilang: 'Terbilang', total_terbilang: 'Terbilang', roles: 'Peran', type: 'Jenis', depreciation_run_id: 'Run penyusutan',
+  terbilang: 'Terbilang', total_terbilang: 'Terbilang', roles: 'Peran',
+  // Kunci summary tanpa label formulir (UX-E2.3): ubinnya dulu memperingatkan lewat titleize().
+  ppn_change: 'Perubahan PPN', period_amount: 'Nilai periode ini', cumulative_amount: 'Nilai kumulatif', type: 'Jenis', depreciation_run_id: 'Run penyusutan',
   asset_account_hint: 'Akun aset (petunjuk)', accum_account_hint: 'Akun akumulasi (petunjuk)',
   depreciation_account_hint: 'Akun penyusutan (petunjuk)',
   // Tiga izin lapangan (P0-C): IKL, ILB, IMK.
@@ -630,12 +632,31 @@ function autoValue(record, key) {
   return el('span', { text: String(value) });
 }
 
-/** Money summary strip (dpp / ppn / total …) driven by detail.summary. */
-function summaryStrip(record, keys) {
-  return el('.stat-row', keys.map((key) => el('.stat', [
-    el('.label', { text: titleize(key) }),
-    el('.value.sm', { text: fmt.rupiah(record[key]) }),
-  ])));
+/*
+ * Ubin nilai kunci (UX-E2.3, README E2): `def.detail.headline` — tanpa kunci itu
+ * SELURUH `detail.summary` (bukan lima pertama: PANDUAN menjanjikan Total ·
+ * Sudah dibayar · Sisa pada invoice dan "seluruh rantai angkanya" pada opname).
+ * Nilai diformat per kunci dengan regex yang autoValue pakai — PERCENT sebelum
+ * MONEY karena `ppn_rate` cocok keduanya; strip lama mencetak "Rp 11" untuk PPK.
+ * Kosong → null, dan keyValueTile mencetak '—', bukan Rp 0.
+ */
+function headlineKeys(detail) {
+  return detail.headline || detail.summary || [];
+}
+
+function headlineValue(record, key) {
+  const value = record[key];
+  if (value === null || value === undefined || value === '') return null;
+  if (PERCENT_KEY.test(key)) return fmt.percent(value);
+  if (DATE_KEY.test(key)) return String(value).length > 10 ? fmt.dateTime(value) : fmt.date(value);
+  if (MONEY_KEY.test(key) && !Number.isNaN(Number(value))) return fmt.rupiah(value);
+  return String(value);
+}
+
+function headlineTiles(record, keys, labels) {
+  return keys.length
+    ? el('.kv-tiles', keys.map((key) => keyValueTile({ label: fieldLabel(key, labels) || titleize(key), value: headlineValue(record, key) })))
+    : null;
 }
 
 function linesTable(rows, table, record) {
@@ -1133,7 +1154,10 @@ export async function renderDetail(host, { key, def, id }) {
     ]));
   }
 
-  if (detail.summary) host.appendChild(summaryStrip(record, detail.summary));
+  const tileKeys = headlineKeys(detail);
+  const labels = formLabels(def);
+  const tiles = headlineTiles(record, tileKeys, labels);
+  if (tiles) host.appendChild(tiles);
 
   const main = el('div');
   const side = el('div');
@@ -1151,7 +1175,7 @@ export async function renderDetail(host, { key, def, id }) {
     !HIDDEN_KEYS.has(fieldKey) &&
     !fieldKey.endsWith('_label') &&
     !coveredIds.has(fieldKey) &&
-    !(detail.summary || []).includes(fieldKey) &&
+    !tileKeys.includes(fieldKey) &&
     // Sebuah koleksi kosong tidak punya apa pun untuk ditampilkan; barisnya
     // hanya menyisakan label menggantung ("Retensi" tanpa nilai).
     !(Array.isArray(record[fieldKey]) && record[fieldKey].length === 0) &&
@@ -1202,7 +1226,6 @@ export async function renderDetail(host, { key, def, id }) {
    * lupa diberi label terlihat, bukan lenyap. Diukur 4 Okt 2026 (ux-e2-probes
    * pada 11c19dc): PO/1 13 dt, 0 peringatan titleize; INV/1 3 peringatan.
    */
-  const labels = formLabels(def);
   const unlabelled = ungrouped.filter((fieldKey) => !fieldLabel(fieldKey, labels));
   const rest = ungrouped.filter((fieldKey) => fieldLabel(fieldKey, labels));
 

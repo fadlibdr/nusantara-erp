@@ -269,6 +269,13 @@ so `.card:has(h2 'Informasi') dt` counters and `dl.kv dt` readers keep finding i
 prints "(0)". `DetailViewWiringTest` pins the order, the fold's position and, statically, that
 no key `PurchaseOrderResource` emits can reach the fold.
 
+Below the status panel the document shows its key values as `.kv-tiles` (`keyValueTile`, UX-E2.3):
+`def.detail.headline`, or, when a resource declares none, the WHOLE `detail.summary` — never a
+first-five cut, because the invoice guide promises Total · Sudah dibayar · Sisa. Each value is
+formatted by the same key regexes `autoValue` uses (percent before money, so `ppn_rate` reads
+"11%" and not "Rp 11"), and an empty value prints "—". The keys drawn as tiles are exactly the
+keys the Informasi card leaves out. PO is the pilot of `headline`, identical to its summary.
+
 ### Kanban hooks (`board.api`, `board.card.fields`, `action.body`, `action.boardOnly`, F-3)
 
 `views/board.js` (P1-G) gained three hooks so the pipeline board could stand on it unchanged.

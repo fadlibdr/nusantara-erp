@@ -40,9 +40,8 @@ class DetailViewWiringTest extends ErpTestCase
         $this->assertStringNotContainsString("el('dt', { text: titleize(fieldKey) })", $detail,
             'Label Informasi kembali diambil dari titleize(), bukan form label → LABELS.');
 
-        // titleize( dipanggil tepat di: definisinya, autoValue (objek bersarang), summaryStrip (ubin
-        // ringkasan, sampai E2.3 menggantinya), kv() dan Terkait — dihitung tanpa komentar, yang
-        // menyebut titleize() berkali-kali sebagai peringatan.
+        // titleize( dipanggil tepat di: definisinya, autoValue (objek bersarang), headlineTiles (ubin,
+        // E2.3), kv() dan Terkait — dihitung tanpa komentar, yang menyebut titleize() sebagai peringatan.
         $this->assertSame(5, substr_count($this->withoutComments($detail), 'titleize('),
             'titleize() dipanggil di tempat baru — label auto-Inggris punya jalan lain ke layar.');
     }
@@ -141,8 +140,69 @@ class DetailViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_detail(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(62, (int) $version[1],
+        $this->assertGreaterThanOrEqual(63, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa layar dokumen UX-E2: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
+    }
+
+    /* ------------------------------------------------------------ E2.3 */
+
+    /** Ubin nilai kunci (.kv-tiles, keyValueTile) menggantikan strip uang .stat-row di layar dokumen. */
+    public function test_the_headline_tiles_replace_the_summary_strip(): void
+    {
+        $detail = $this->spa('views/detail.js');
+        $this->assertStringNotContainsString('function summaryStrip(', $detail);
+        $this->assertStringNotContainsString("el('.stat-row'", $detail, 'Strip uang lama kembali.');
+        $this->assertMatchesRegularExpression("/import \{[^}]*\bkeyValueTile\b[^}]*\} from '\.\.\/ui\.js'/", $detail);
+
+        $render = $this->functionBody($detail, 'export async function renderDetail(');
+        $panel = strpos($render, 'actionPanel({');
+        $tiles = strpos($render, 'headlineTiles(record, tileKeys, labels)');
+        $grid = strpos($render, "el('.detail-grid'");
+        $this->assertNotFalse($panel);
+        $this->assertNotFalse($tiles);
+        $this->assertTrue($panel < $tiles && $tiles < $grid, 'Ubin nilai kunci tidak lagi antara panel keadaan dan kisi detail.');
+    }
+
+    /** Nilai ubin diformat per kunci: persen sebelum rupiah; kosong → null (keyValueTile mencetak —). */
+    public function test_tile_values_are_formatted_per_key_not_always_rupiah(): void
+    {
+        $body = $this->functionBody($this->spa('views/detail.js'), 'function headlineValue(');
+        $this->assertNotNull($body);
+        $percent = strpos($body, 'PERCENT_KEY.test(key)');
+        $rupiah = strpos($body, 'fmt.rupiah(');
+        $this->assertNotFalse($percent);
+        $this->assertNotFalse($rupiah);
+        $this->assertTrue($percent < $rupiah, 'ppn_rate kembali tercetak "Rp 11" di PPK dan kontrak mandor.');
+        $this->assertStringContainsString('return null', $body);
+    }
+
+    /** Tanpa headline, SELURUH summary menjadi ubin (bukan lima pertama); Informasi mengecualikan tepat kunci ubin. */
+    public function test_headline_falls_back_to_the_whole_summary(): void
+    {
+        $detail = $this->spa('views/detail.js');
+        $keys = $this->functionBody($detail, 'function headlineKeys(');
+        $this->assertNotNull($keys);
+        $this->assertStringContainsString('detail.headline || detail.summary || []', $keys);
+        $this->assertStringNotContainsString('.slice(0, 5)', $detail, 'Invoice AR kehilangan Total · Sudah dibayar · Sisa dari ubinnya (PANDUAN §3.11).');
+        $render = $this->functionBody($detail, 'export async function renderDetail(');
+        $this->assertStringContainsString('!tileKeys.includes(fieldKey)', $render);
+        $this->assertStringNotContainsString('(detail.summary || []).includes(fieldKey)', $render);
+        foreach (["ppn_change:", "period_amount:", "cumulative_amount:"] as $entry) {
+            $this->assertStringContainsString($entry, $this->labelsBlock($detail), "LABELS kehilangan {$entry}: ubin summary itu kembali berlabel auto-Inggris.");
+        }
+        $this->assertStringContainsString("value === null || value === undefined || value === '' ? '—'", $this->spa('ui.js'),
+            'keyValueTile tidak lagi mencetak — untuk nilai kosong.');
+    }
+
+    /** Kunci `headline` terdokumentasi di kepala schema.js dan PO adalah pilotnya, identik dengan summary-nya. */
+    public function test_the_schema_key_is_documented_and_po_is_the_pilot(): void
+    {
+        $schema = $this->spa('schema.js');
+        $this->assertStringContainsString('headline', substr($schema, 0, 4000), 'Komentar kepala schema.js tidak menyebut detail.headline.');
+        $this->assertMatchesRegularExpression(
+            "/summary: \['subtotal', 'discount_amount', 'dpp', 'ppn_amount', 'total'\],\n(?:\s*\/\/[^\n]*\n)*\s+headline: \['subtotal', 'discount_amount', 'dpp', 'ppn_amount', 'total'\],/",
+            $this->resourceBlock('procurement/purchase-orders'),
+        );
     }
 
     /** Separuh penolakan. */

@@ -652,7 +652,10 @@ Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti mem
 **Satu baris ubin TINGKAT ATAS memakai satu ukuran angka (UI-6d).** Mencampur `.value` (22 px) dan
 `.value.sm` (16 px) dalam satu baris tidak terbaca sebagai hierarki — ia terbaca sebagai kelalaian.
 Di dalam KARTU normanya 16 px (37 ubin lawan 3, diukur 18 Sep 2026) — tetapi aturan satu-ukuran
-berlaku di sana juga; yang berbeda hanya ukuran mana yang wajar.
+berlaku di sana juga; yang berbeda hanya ukuran mana yang wajar. Baris nilai kunci di layar
+dokumen generik (`views/detail.js`) sejak UX-E2.3 adalah `.kv-tiles` (`keyValueTile`), bukan
+`.stat-row` — SpaStatRowSizeTest dan S53 tidak lagi menyensusnya; nilainya diformat per kunci
+(persen, tanggal, rupiah), bukan selalu rupiah.
 
 **Sensus peramban UI-6d menemukan 13 baris dan itu TIDAK lengkap.** Ia menyinggahi 13 rute sementara
 `.stat-row` dibangun di puluhan berkas view, jadi ia melewatkan enam baris campur di layar yang butuh

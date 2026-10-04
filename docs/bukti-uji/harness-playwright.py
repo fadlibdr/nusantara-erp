@@ -16010,6 +16010,11 @@ S57_INFO = """() => {
       dt: [...d.querySelectorAll('dt')].map((x) => x.textContent.trim()),
     })) : null,
     dupl,
+    // E2.3: ubin nilai kunci (.kv-tiles) dan sisa strip uang lama (.stat-row langsung di .main).
+    // Label lewat textContent: .kv-tile-label memakai text-transform uppercase, innerText-nya 'SUBTOTAL'.
+    ubin: [...document.querySelectorAll('.kv-tiles .kv-tile')].map((tile) => [
+      tile.querySelector('.kv-tile-label').textContent.trim(), tile.querySelector('.kv-tile-value').innerText.trim()]),
+    strip_lama: document.querySelectorAll('.main > .stat-row').length,
   };
 }"""
 
@@ -16055,6 +16060,19 @@ def s57(pg):
     for label in ("Gudang tujuan",):
         if label not in po["labels"]:
             checks.append(f"PO/1: label formulir '{label}' tidak dipakai kartu Informasi: {po['labels']!r}")
+
+    # ------------------------------------------------------------ ubin nilai kunci (E2.3)
+    if [u[0] for u in po["ubin"]] != ["Subtotal", "Diskon", "DPP", "PPN", "Total"]:
+        checks.append(f"PO/1: label ubin bukan Subtotal · Diskon · DPP · PPN · Total: {po['ubin']!r}")
+    if any(not u[1].startswith("Rp") for u in po["ubin"]):
+        checks.append(f"PO/1: nilai ubin tidak berformat rupiah: {po['ubin']!r}")
+    if len(inv["ubin"]) != 8 or any(u[1] == "—" for u in inv["ubin"]):
+        checks.append(f"INV/1: ubin bukan 8 nilai terisi (seluruh summary, bukan lima pertama): {inv['ubin']!r}")
+    for key, doc in (("po", po), ("inv", inv)):
+        if doc["strip_lama"]:
+            checks.append(f"{key}: strip uang lama (.stat-row) masih tergambar: {doc['strip_lama']}")
+    if inv["titleize_warnings"]:
+        checks.append(f"INV/1: konsol memperingatkan kunci tanpa label: {inv['titleize_warnings'][:3]!r}")
 
     if errors:
         checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
