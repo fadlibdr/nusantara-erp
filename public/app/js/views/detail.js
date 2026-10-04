@@ -99,6 +99,12 @@ const NAME_SHADOWED = {
   // P7: QuotationResource meratakan metode pelaksanaan yang dikutip penawaran.
   // Tanpa baris ini kartu Informasi menuliskan "Method Library Id: 3".
   method_library_id: 'method_library_title',
+  /* UX-E2.2 (ERRATA E-7): label formulir menang atas LABELS. Formulir kontrak
+     memberi quotation_id label 'Dari penawaran' — persis label LABELS untuk
+     quotation_code, dan ContractResource mengirim KEDUANYA. Tanpa bayangan ini
+     kartu Informasi kontrak memajang dt 'Dari penawaran' dua kali (S17 membaca
+     dl.kv dt per label). Kode penawarannya yang tampil; id mentahnya diam. */
+  quotation_id: 'quotation_code',
   // F-3: pemilik prospek. Nama ratanya TIDAK PERNAH kosong (LeadResource
   // mengirim "Belum ditugaskan"), jadi baris id mentahnya selalu tergantikan —
   // dan prospek tanpa pemilik membaca kalimat itu, bukan "—" yang bisa berarti
@@ -416,7 +422,7 @@ const LABELS = {
   is_fully_depreciated: 'Habis disusutkan', current_project_id: 'Proyek saat ini',
   item_type: 'Jenis item', tax_type: 'Jenis pajak', object_code: 'Kode objek pajak',
   rate: 'Tarif', daily_rate_internal: 'Tarif harian internal', minutes_spent: 'Menit dikerjakan',
-  terbilang: 'Terbilang', roles: 'Peran', type: 'Jenis', depreciation_run_id: 'Run penyusutan',
+  terbilang: 'Terbilang', total_terbilang: 'Terbilang', roles: 'Peran', type: 'Jenis', depreciation_run_id: 'Run penyusutan',
   asset_account_hint: 'Akun aset (petunjuk)', accum_account_hint: 'Akun akumulasi (petunjuk)',
   depreciation_account_hint: 'Akun penyusutan (petunjuk)',
   // Tiga izin lapangan (P0-C): IKL, ILB, IMK.
@@ -470,6 +476,25 @@ function titleize(key) {
     .replace(/_id$/, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+/**
+ * Label kartu Informasi, urutan ERRATA E-7: label medan FORMULIR sumber daya ini
+ * (schema.js def.form.sections[].fields[].label — kata yang sama dengan yang
+ * dilihat orang saat mengetiknya), lalu kamus LABELS (medan hitungan yang tidak
+ * pernah dideklarasikan formulir mana pun: dpp, ppn_amount, required_levels …),
+ * lalu null — pemanggil melipat kunci tanpa label ke "Bidang lainnya (n)" dan
+ * baru di situ titleize() (dengan peringatannya) memberi teks. README E2 ingin
+ * titleize() dicabut sebagai sumber label; E-7 mempertahankannya sebagai
+ * peringatan — keduanya terpenuhi bila ia hanya tampil di dalam lipatan.
+ */
+function formLabels(def) {
+  const sections = (def.form && def.form.sections) || [];
+  return new Map(sections.flatMap((section) => section.fields || []).map((field) => [field.key, field.label]));
+}
+
+function fieldLabel(key, labels) {
+  return labels.get(key) || LABELS[key] || null;
 }
 
 /**
@@ -1121,6 +1146,7 @@ export async function renderDetail(host, { key, def, id }) {
   // panel instead of being repeated as a bare id.
   const coveredIds = new Set(relatedObjects.map((name) => `${name}_id`));
 
+  const drawnBelow = new Set([...(detail.tables || []), ...(detail.lists || [])].map((block) => block.key));
   const fieldKeys = Object.keys(record).filter((fieldKey) =>
     !HIDDEN_KEYS.has(fieldKey) &&
     !fieldKey.endsWith('_label') &&
@@ -1136,7 +1162,11 @@ export async function renderDetail(host, { key, def, id }) {
     // (P0-C — lihat NAME_SHADOWED), dan tidak meninggalkan baris "—" saat kosong.
     !(NAME_SHADOWED[fieldKey] && record[NAME_SHADOWED[fieldKey]]) &&
     !(NAME_KEYS.has(fieldKey) && (record[fieldKey] === null || record[fieldKey] === '')) &&
-    !(typeof record[fieldKey] === 'object' && record[fieldKey] !== null && !Array.isArray(record[fieldKey]) && record[fieldKey].id));
+    !(typeof record[fieldKey] === 'object' && record[fieldKey] !== null && !Array.isArray(record[fieldKey]) && record[fieldKey].id) &&
+    // Kunci yang sudah digambar sebuah kartu tabel/daftar di bawah (detail.tables[].key,
+    // detail.lists[].key) tidak diulang sebagai baris Informasi — sebelum UX-E2.2 WO
+    // memajang "Billings" (array objek) di atas kartu "Tagihan periode yang sudah dibuat".
+    !drawnBelow.has(fieldKey));
 
   /*
    * Pengelompokan panel Informasi lewat kunci schema OPSIONAL `detail.groups`
@@ -1162,10 +1192,30 @@ export async function renderDetail(host, { key, def, id }) {
   const grouped = new Set(groups.flatMap((group) => group.keys));
   const ungrouped = fieldKeys.filter((fieldKey) => !grouped.has(fieldKey));
 
+  /*
+   * Label: formulir → LABELS → "Bidang lainnya (n)" (UX-E2.2, ERRATA E-7).
+   * Kunci yang disebut sebuah kelompok tetap di kelompoknya walau tanpa label
+   * (skema yang menempatkannya); kunci di luar kelompok yang tidak berlabel
+   * di formulir maupun kamus dilipat ke <details> di DASAR kartu yang sama —
+   * tetap di dalam kartu Informasi supaya penghitung dt-nya (S49) dan pembaca
+   * dl.kv (S17, S30) tetap menemukannya, dan tetap ada supaya medan yang
+   * lupa diberi label terlihat, bukan lenyap. Diukur 4 Okt 2026 (ux-e2-probes
+   * pada 11c19dc): PO/1 13 dt, 0 peringatan titleize; INV/1 3 peringatan.
+   */
+  const labels = formLabels(def);
+  const unlabelled = ungrouped.filter((fieldKey) => !fieldLabel(fieldKey, labels));
+  const rest = ungrouped.filter((fieldKey) => fieldLabel(fieldKey, labels));
+
   const kv = (keys) => el('dl.kv', keys.flatMap((fieldKey) => [
-    el('dt', { text: titleize(fieldKey) }),
+    el('dt', { text: fieldLabel(fieldKey, labels) || titleize(fieldKey) }),
     el('dd', autoValue(record, fieldKey)),
   ]));
+  const fold = unlabelled.length
+    ? el('details.kv-more', [
+      el('summary', { text: `Bidang lainnya (${unlabelled.length})` }),
+      kv(unlabelled),
+    ])
+    : null;
 
   main.appendChild(el('.card', [
     el('.card-head', el('h2', { text: 'Informasi' })),
@@ -1178,9 +1228,10 @@ export async function renderDetail(host, { key, def, id }) {
         // Blok sisa tidak berjudul: ia bukan kelompok, ia yang belum
         // dikelompokkan. Memberinya judul ("Lain-lain") akan membuatnya tampak
         // sengaja, dan menyembunyikan bahwa skemanya belum selesai.
-        ungrouped.length ? el('.info-group', kv(ungrouped)) : null,
+        rest.length ? el('.info-group', kv(rest)) : null,
+        fold,
       ]
-      : kv(fieldKeys)),
+      : [kv(rest), fold]),
   ]));
 
   for (const table of detail.tables || []) {
@@ -1217,7 +1268,7 @@ export async function renderDetail(host, { key, def, id }) {
       el('.card-body', el('dl.kv', relatedObjects.flatMap((fieldKey) => {
         const related = record[fieldKey];
         return [
-          el('dt', { text: titleize(fieldKey) }),
+          el('dt', { text: fieldLabel(fieldKey, labels) || titleize(fieldKey) }),
           el('dd', [
             el('div', { text: related.name || related.title || related.site_name || `#${related.id}` }),
             related.code ? el('.cell-sub.mono', { text: related.code }) : null,

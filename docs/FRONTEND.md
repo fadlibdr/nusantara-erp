@@ -110,7 +110,7 @@ public/app/
                         controls, active-filter chips with Hapus semua, CSV), saved views,
                         table, pagination
       form.js           generic create/edit modal incl. repeatable line items
-      detail.js         generic document detail: fields, lines, approvals
+      detail.js         generic document detail: head, status panel, Informasi (label: form → LABELS → "Bidang lainnya"), lines, approvals
       actions.js        lifecycle actions (submit/approve/post/…)
       dashboard.js      cross-module dashboard + approval inbox
       home.js           app launcher #/home: search (same screen index as Ctrl+K), Favorit and
@@ -252,6 +252,22 @@ N rows SAYS SO and takes its totals from `meta` — which is why it calls `api.l
 `api.get`. `api.get` throws the envelope away, so a card using it counts whatever happened to
 load: measured 8 Sep 2026, "100 terbuka." on a document holding 110, next to a board card that
 said 110 (verifikasi F-3).
+
+### Informasi labels (`fieldLabel`, UX-E2.2, ERRATA E-7)
+
+The Informasi card names a field in this order: the label of the resource's own FORM field
+(`def.form.sections[].fields[].label` — the words the person saw when typing it), then the
+`LABELS` dictionary in `views/detail.js` (computed fields no form declares: `dpp`,
+`ppn_amount`, `required_levels` …), then nothing. A key with no label in either is not drawn
+as an auto-English title between the labelled rows; `renderDetail` folds every such key into a
+closed `details.kv-more` — "Bidang lainnya (n)" — as the LAST child of the same card, and only
+there does `titleize()` give it a text, together with its console warning. README E2 asked for
+`titleize()` to go as a label source and ERRATA E-7 asked to keep `LABELS` and the warning;
+both hold when the auto title can only appear inside the fold. A key named by a `detail.groups`
+entry stays in its group even unlabelled: the schema placed it. The fold lives inside the card
+so `.card:has(h2 'Informasi') dt` counters and `dl.kv dt` readers keep finding it, and it never
+prints "(0)". `DetailViewWiringTest` pins the order, the fold's position and, statically, that
+no key `PurchaseOrderResource` emits can reach the fold.
 
 ### Kanban hooks (`board.api`, `board.card.fields`, `action.body`, `action.boardOnly`, F-3)
 

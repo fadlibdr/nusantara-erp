@@ -143,7 +143,8 @@ INFO = """() => {
   const info = [...document.querySelectorAll('.card')]
     .find((c) => { const h = c.querySelector('h2'); return h && h.innerText.trim() === 'Informasi'; });
   if (!info) return null;
-  const dts = [...info.querySelectorAll('dt')].map((d) => d.innerText.trim());
+  // textContent: dt di dalam details.kv-more tertutup tidak tergambar, innerText-nya kosong.
+  const dts = [...info.querySelectorAll('dt')].map((d) => d.textContent.trim());
   const seen = {}; const dupl = [];
   for (const d of dts) { seen[d] = (seen[d] || 0) + 1; if (seen[d] === 2) dupl.push(d); }
   return {
@@ -151,8 +152,8 @@ INFO = """() => {
     groups: info.querySelectorAll('.info-group').length,
     group_labels: [...info.querySelectorAll('.info-group-label')].map((n) => n.innerText.trim()),
     lainnya: [...info.querySelectorAll('details.kv-more')].map((d) => ({
-      summary: ((d.querySelector('summary') || {}).innerText || '').trim(),
-      dt: [...d.querySelectorAll('dt')].map((x) => x.innerText.trim()),
+      summary: ((d.querySelector('summary') || {}).textContent || '').trim(),
+      dt: [...d.querySelectorAll('dt')].map((x) => x.textContent.trim()),
     })),
     dupl,
     cards: [...document.querySelectorAll('#view .card h2')].map((h) => h.innerText.replace(/\\s*\\(\\d+\\)/, '').trim()),

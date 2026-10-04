@@ -860,7 +860,11 @@ seperti `IPP/GSP-T1/2026/0001` berjalan urut **per proyek**. Itu keputusan Penga
 bukan pilihan di formulir; lihat `PANDUAN-ADMINISTRATOR.md` §4.8.
 
 Isi kolom kiri: kartu **Informasi** (semua kolom dokumen), lalu satu kartu per tabel
-baris. Kolom kanan: **Terkait**, **Riwayat Persetujuan**, **Lampiran**, **Metadata**
+baris. Setiap kolom di kartu Informasi berlabel kata yang sama dengan formulirnya
+(mis. "Gudang tujuan", "Dari PR"); kolom hitungan yang tidak ada di formulir (DPP, PPN,
+tingkat persetujuan) memakai kamus label aplikasi. Kolom yang tidak berlabel di
+keduanya tidak hilang: ia dilipat di bawah **Bidang lainnya (n)** di dasar kartu yang
+sama — klik judulnya untuk membuka. Pada PO tidak ada yang terlipat. Kolom kanan: **Terkait**, **Riwayat Persetujuan**, **Lampiran**, **Metadata**
 (ID, Dibuat, Diperbarui).
 
 **Warna lencana status:**

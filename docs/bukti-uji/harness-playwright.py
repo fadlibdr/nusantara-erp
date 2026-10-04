@@ -15991,6 +15991,78 @@ def s46(browser):
     return out
 
 
+S57_INFO = """() => {
+  const info = [...document.querySelectorAll('.card')]
+    .find((c) => { const h = c.querySelector('h2'); return h && h.innerText.trim() === 'Informasi'; });
+  const t = (sel) => { const n = document.querySelector(sel); return n ? n.innerText.replace(/\\s+/g, ' ').trim() : null; };
+  // textContent, bukan innerText: dt di dalam <details> tertutup tidak tergambar, dan
+  // innerText-nya kosong — buktinya harus MENYEBUT kunci yang terlipat (uji mutasi E2.2).
+  const dts = info ? [...info.querySelectorAll('dt')] : [];
+  const texts = dts.map((d) => d.textContent.trim());
+  const seen = {}; const dupl = [];
+  for (const d of texts) { seen[d] = (seen[d] || 0) + 1; if (seen[d] === 2) dupl.push(d); }
+  return {
+    h1: t('.page-head h1'),
+    labels: texts,
+    di_luar_lipatan: dts.filter((d) => !d.closest('details')).map((d) => d.textContent.trim()),
+    lainnya: info ? [...info.querySelectorAll('details.kv-more')].map((d) => ({
+      summary: ((d.querySelector('summary') || {}).textContent || '').trim(),
+      dt: [...d.querySelectorAll('dt')].map((x) => x.textContent.trim()),
+    })) : null,
+    dupl,
+  };
+}"""
+
+@scenario("S57_layar_dokumen")
+def s57(pg):
+    """UX-E2: layar dokumen generik — label Informasi (E2.2: formulir → LABELS → "Bidang lainnya"),
+    dibaca dari DOM yang benar-benar tergambar, dengan pendengar peringatan konsol `titleize:`.
+    Skenario pembaca: tidak satu pun selector S2/S49 diubah untuknya."""
+    out, checks, errors, warnings = {}, [], [], []
+    pg.on("console", lambda m: (warnings.append(m.text[:200]) if m.type == "warning" and m.text.startswith("titleize:")
+                                else errors.append(m.text[:200]) if m.type == "error" else None))
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+
+    def open_doc(route, key):
+        warnings.clear()
+        pg.goto(BASE + f"#/d/{route}")
+        pg.wait_for_selector(".card h2", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out[key] = pg.evaluate(S57_INFO)
+        out[key]["titleize_warnings"] = list(warnings)
+        return out[key]
+
+    # ------------------------------------------------------------ label (E2.2)
+    po = open_doc("procurement/purchase-orders/1", "po")
+    inv = open_doc("finance/ar-invoices/1", "inv")
+    pg.screenshot(path=f"{OUT}/s57-po-informasi.png")
+    if po["titleize_warnings"]:
+        checks.append(f"konsol memperingatkan kunci PO tanpa label: {po['titleize_warnings'][:3]!r}")
+    for key, doc in (("po", po), ("inv", inv)):
+        if doc["lainnya"] is None:
+            checks.append(f"{key}: kartu Informasi tidak ditemukan")
+        elif doc["lainnya"]:
+            checks.append(f"{key}: medan tanpa label Indonesia dilipat ke Bidang lainnya: {doc['lainnya']!r}")
+        if doc["dupl"]:
+            checks.append(f"{key}: label Informasi tampil dua kali: {doc['dupl']!r}")
+    # Kunci yang HANYA LABELS kenal (PurchaseOrderResource mengirimnya, formulir tidak
+    # mendeklarasikannya) tampil dengan teks LABELS-nya, di luar lipatan — gerbang UX-E2.
+    for label in ("Tarif PPN", "Perlu persetujuan direktur", "Ditutup"):
+        if label not in po["di_luar_lipatan"]:
+            checks.append(f"PO/1: '{label}' (kunci LABELS-saja) tidak tampil di kartu Informasi di luar lipatan: {po['labels']!r}")
+    # Label formulir menang atas LABELS (E-7): tiga kunci PO yang kedua sumbernya berbeda kata.
+    for label in ("Gudang tujuan",):
+        if label not in po["labels"]:
+            checks.append(f"PO/1: label formulir '{label}' tidak dipakai kartu Informasi: {po['labels']!r}")
+
+    if errors:
+        checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -16001,7 +16073,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

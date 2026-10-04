@@ -2530,6 +2530,18 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
   letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
 }
 
+/* "Bidang lainnya (n)" (UX-E2.2, ERRATA E-7): kunci tanpa label formulir maupun
+   LABELS dilipat di dasar kartu Informasi, tertutup. Ringkasannya memakai
+   tipografi label kelompok supaya terbaca sebagai bagian kartu, bukan tombol. */
+.kv-more { margin-top: var(--space-3); }
+.kv-more > summary {
+  cursor: pointer; width: fit-content; list-style: none;
+  font-size: var(--fs-caption); font-weight: var(--fw-semi);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
+}
+.kv-more > summary::-webkit-details-marker { display: none; }
+.kv-more[open] > summary { margin-bottom: var(--space-2); }
+
 /* Formulir sebagai halaman (UI-4d). Lebarnya DIBATASI, tidak dibiarkan
    memenuhi layar: medan yang membentang 1400 px membuat mata melompat dari
    label ke kontrolnya. 960 px adalah lebar modal `wide` yang digantikannya,
