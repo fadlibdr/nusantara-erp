@@ -5,6 +5,8 @@
    column  { key, label, type, align, width, sub, lookup, enum, hideOnNarrow }
    field   { key, label, type, required, span, options, enum, lookup, help,
              default, hideWhen(record) }
+   form.layout 'page' | 'modal' — pengganti aturan "berbaris → halaman" (README E3, UX-E3.7);
+           belum ada yang menyatakannya; pemanggil dengan prefill/endpoint tetap dialog.
    section { title, help, fields[], advanced }
            advanced: true → dilipat sebagai <details> "Lanjutan" di formulir (UX-E3.5);
            wajib-isi di dalamnya tetap diperiksa dan lipatannya dibuka saat ada galat.

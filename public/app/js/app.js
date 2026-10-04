@@ -5,7 +5,7 @@ import { notificationBell, startNotificationPolling, stopNotificationPolling } f
 import { el, clear, button, icon, svgIcon, toast, toastError, field, withBusy, setFieldError, modal, closeAllModals, modalDepth, confirmDialog, drawer, menuButton } from './ui.js';
 import { initials } from './format.js';
 import { NAV, RESOURCES, visibleNav, moduleFor } from './schema.js';
-import { route, fallback, navigate, start, currentPath, setLeaveGuard, clearLeaveGuard } from './router.js';
+import { route, fallback, navigate, start, currentPath, setLeaveGuard, clearLeaveGuard, resolve } from './router.js';
 import { setCrumbs } from './crumbs.js';
 import { prefs } from './prefs.js';
 import { loadInbox, inboxSummary } from './inbox.js';
@@ -68,7 +68,7 @@ import { renderRfq } from './views/rfq.js';
 import { renderTugas } from './views/tugas.js';
 import { renderProfil } from './views/profil.js';
 import { renderWebhook } from './views/webhook.js';
-import { openForm } from './views/form.js';
+import { openForm, startForm, formIsPaged } from './views/form.js';
 import { openOnboarding, closeOnboarding } from './views/onboarding.js';
 import { listDrafts, removeDraft, flushAll, suspendDraftRemoval, relativeAge } from './drafts.js';
 
@@ -1384,9 +1384,13 @@ function formPagePresenter(host, { def, backTo }) {
     /* Dipanggil TEPAT SEKALI di tiap jalan keluar — tombol, simpan berhasil,
        atau navigasi yang diizinkan. clearLeaveGuard hanya melepas kalau yang
        terpasang memang milik kita. */
-    const finish = () => {
+    /* keepDraft (UX-E3.7): dialog "Tinggalkan" di bawah BERJANJI isiannya tetap tersimpan
+       sebagai draf, tetapi finish() → onClose() membuangnya (terukur 4 Okt 2026, S47:
+       tidak ada kunci nusantara_erp_draft:… sesudah Tinggalkan). Jalan keluar yang
+       bersih dan simpan berhasil tetap membuang; hanya Tinggalkan yang menyimpan. */
+    const finish = (keepDraft = false) => {
       clearLeaveGuard(leaving);
-      spec.onClose();
+      spec.onClose({ keepDraft });
     };
 
     leaving = async () => {
@@ -1399,7 +1403,7 @@ function formPagePresenter(host, { def, backTo }) {
         tone: 'danger',
       });
       if (!discard) return false;
-      finish();
+      finish(true);
       return true;
     };
     setLeaveGuard(leaving);
@@ -1418,6 +1422,14 @@ function formPagePresenter(host, { def, backTo }) {
       spec.nav || null,
       el('.form-main', [spec.body, el('.form-foot', spec.footer)]),
     ]));
+    /* Fokus awal = aturan dialog (ui.js modal(): input NYATA pertama, 30 ms, readonly
+       dilewati). Terukur 4 Okt 2026 (ux-e3-probe-base.json): activeElement = body dan
+       2 perhentian Tab sebelum medan pertama di halaman, 1 di dialog. Fokus tidak
+       mengotori formulir (penjaga membaca snapshot), jadi S47 bersih_pergi tetap. */
+    setTimeout(() => {
+      const first = host.querySelector('.form-page input:not([type=hidden]):not([disabled]):not([readonly]), .form-page select:not([disabled]), .form-page textarea:not([disabled])');
+      if (first && first.isConnected) first.focus({ preventScroll: true });
+    }, 30);
 
     return {
       requestClose: async () => { if (await leaving()) navigate(backTo); },
@@ -1938,6 +1950,8 @@ function registerRoutes() {
       key = rest.slice(0, cut);
       id = rest.slice(cut + 1);
     }
+    // README E3 / RECAP T4.2 menamai #/f/<sumber daya>/new; kunci sumber daya tidak pernah berakhir /new (UX-E3.7).
+    if (id === 'new') id = null;
     const def = RESOURCES[key];
     const host = view();
 
@@ -1978,6 +1992,7 @@ function registerRoutes() {
         def,
         key,
         row,
+        fetched: Boolean(row), // rute sudah mengambil dokumen lengkap — openForm tidak mengambilnya lagi (UX-E3.7)
         present: formPagePresenter(host, { def, backTo }),
         onSaved: (saved) => navigate(saved && saved.id ? `d/${key}/${saved.id}` : backTo, { replace: true }),
         submit,
@@ -2261,7 +2276,17 @@ function offerDrafts() {
       onClick: () => {
         node.remove();
         const key = d.resourceKey;
-        openForm({
+        // startForm, bukan openForm (UX-E3.7): sumber daya berbaris dipulihkan di HALAMANNYA
+        // (rute f/ mengambil dokumen lalu openForm menemukan drafnya dan bertanya "Pulihkan isian…?").
+        // Sesi yang habis DI halaman formulir meninggalkan hash-nya apa adanya: navigate() ke hash
+        // yang sama tidak memicu hashchange (terukur 4 Okt 2026, S4 — main kosong, tidak ada dialog),
+        // jadi rute yang sama di-resolve ulang.
+        const target = d.rowId ? `f/${key}/${d.rowId}` : `f/${key}`;
+        if (formIsPaged(RESOURCES[key]) && currentPath() === target) {
+          resolve();
+          return;
+        }
+        startForm({
           def: RESOURCES[key], key, row: d.rowId ? { id: d.rowId } : null,
           onSaved: (saved) => navigate(saved && saved.id && !RESOURCES[key].noDetail ? `d/${key}/${saved.id}` : `r/${key}`),
         });

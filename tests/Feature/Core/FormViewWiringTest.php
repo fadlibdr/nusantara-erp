@@ -69,7 +69,7 @@ class FormViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_form(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(71, (int) $version[1],
+        $this->assertGreaterThanOrEqual(72, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa formulir UX-E3: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -84,7 +84,7 @@ class FormViewWiringTest extends ErpTestCase
         $open = $this->functionBody($form, 'export async function openForm(');
         $this->assertNotNull($open);
         foreach ([
-            'present = presentModal, submit = null }',
+            'present = presentModal, submit = null, fetched = false }',
             'const canSubmit = Boolean(submit && submit.action) && !prefill && !endpoint',
             "button('Simpan & ajukan', { variant: 'primary', type: 'submit', iconName: 'send' })",
             'const result = await submit.run(saved);',
@@ -352,6 +352,64 @@ class FormViewWiringTest extends ErpTestCase
         $this->assertStringContainsString('table.lines td[data-label]::before {', $css);
         $this->assertStringContainsString('table.lines thead { display: none; }', $css);
         $this->assertStringContainsString('table.lines input, table.lines select { height: 31px; font-size: 12.5px; }', $css, 'Tinggi input tabel baris meja (beku, S21) berubah.');
+    }
+
+    /* ------------------------------------------------------------ E3.7 */
+
+    /** "Tinggalkan" menyimpan draf yang dijanjikan dialognya; "Buang isian" di dialog tetap membuang. */
+    public function test_tinggalkan_keeps_the_draft_its_dialog_promises(): void
+    {
+        $presenter = (string) $this->functionBody($this->spa('app.js'), 'function formPagePresenter(');
+        $this->assertStringContainsString('Isiannya tetap tersimpan sebagai draf di peramban ini.', $presenter);
+        $this->assertStringContainsString('spec.onClose({ keepDraft });', $presenter);
+        $this->assertStringContainsString('finish(true);', $presenter, 'Dialog berjanji draf bertahan, onClose membuangnya.');
+        $open = (string) $this->functionBody($this->spa('views/form.js'), 'export async function openForm(');
+        $this->assertStringContainsString('onClose: ({ keepDraft = false } = {}) => {', $open);
+        $this->assertStringContainsString('if (keepDraft) { persistDraft(); return; }', $open);
+        $this->assertStringContainsString('if (!draftRemovalSuspended()) removeDraft(key, draftRowId);', $open);
+        $modal = (string) $this->functionBody($this->spa('ui.js'), 'export function modal(');
+        $this->assertMatchesRegularExpression('/\bonClose\(\)/', $modal, 'Dialog "Buang isian" tidak lagi membuang (onClose dipanggil dengan argumen).');
+    }
+
+    /** "Pulihkan" lewat startForm: sumber daya berbaris dipulihkan di halamannya; rute f/ menerima /new dan memberi dokumen yang sudah diambil. */
+    public function test_pulihkan_and_the_f_route_go_through_the_same_doors(): void
+    {
+        $app = $this->spa('app.js');
+        $this->assertMatchesRegularExpression("/import \{ openForm, startForm, formIsPaged \} from '\.\/views\/form\.js';/", $app);
+        $offer = (string) $this->functionBody($app, 'function offerDrafts(');
+        $this->assertStringContainsString('startForm({', $offer);
+        $this->assertStringNotContainsString('openForm({', $offer);
+        // Sesi habis DI halaman formulir: hash sama → navigate() diam; rute di-resolve ulang (S4).
+        $this->assertStringContainsString('if (formIsPaged(RESOURCES[key]) && currentPath() === target) {', $offer);
+        $this->assertStringContainsString('resolve();', $offer);
+        $route = (string) $this->functionBody($app, "route('f/*'");
+        $this->assertStringContainsString("if (id === 'new') id = null;", $route);
+        $this->assertStringContainsString('fetched: Boolean(row),', $route);
+        $form = $this->spa('views/form.js');
+        $this->assertStringContainsString('fetched = false', $form);
+        $this->assertStringContainsString('if (isEdit && lineDefs.length && !fetched) {', $form);
+        foreach (glob(public_path('app/js/views/*.js')) as $file) {
+            $this->assertStringNotContainsString('fetched:', (string) file_get_contents($file), basename($file).' memberi fetched: — hanya rute f/ yang sudah mengambil dokumennya.');
+        }
+    }
+
+    /** form.layout mengalahkan aturan baris, dan belum ada yang memakainya tanpa keputusan pemilik. */
+    public function test_form_layout_overrides_the_lines_rule(): void
+    {
+        $paged = (string) $this->functionBody($this->spa('views/form.js'), 'export function formIsPaged(');
+        $this->assertTrue(strpos($paged, "return def.form.layout === 'page';") < strpos($paged, '(def.form.lines || []).length'));
+        $schema = $this->spa('schema.js');
+        $this->assertStringContainsString('form.layout', substr($schema, 0, 4000));
+        $this->assertSame(0, preg_match_all("/layout: '(page|modal)'/", $schema), 'Sebuah formulir memakai layout tanpa keputusan pemilik.');
+    }
+
+    /** Halaman memfokuskan medan nyata pertamanya seperti dialog. */
+    public function test_the_page_focuses_its_first_real_input_like_the_modal(): void
+    {
+        $presenter = (string) $this->functionBody($this->spa('app.js'), 'function formPagePresenter(');
+        $this->assertStringContainsString('.form-page input:not([type=hidden]):not([disabled]):not([readonly])', $presenter);
+        $this->assertStringContainsString('first.focus({ preventScroll: true })', $presenter);
+        $this->assertStringContainsString('.modal-body input:not([type=hidden]):not([disabled]):not([readonly])', (string) $this->functionBody($this->spa('ui.js'), 'export function modal('));
     }
 
     /** Separuh penolakan. */

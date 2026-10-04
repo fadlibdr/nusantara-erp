@@ -89,8 +89,9 @@ panduan ini milik orang lain.
    *Ganti kata sandi*; sandi lama wajib). "Lupa kata sandi" lewat email hanya ada
    bila server memang mengirim surat — kalau tidak, halaman masuk menyebut nama
    administrator yang harus Anda mintai (bab 14).
-6. **Sesi Anda berumur 12 jam.** Bila habis di tengah formulir, seluruh isian hilang
-   tanpa bisa dipulihkan. Dokumen panjang disimpan bertahap.
+6. **Sesi Anda berumur 12 jam.** Bila habis di tengah formulir, isian yang sedang diketik
+   tersimpan sebagai **draf di peramban ini** dan ditawarkan kembali setelah Anda masuk lagi
+   (paling lama 7 hari).
 
 ---
 
@@ -127,10 +128,11 @@ Begitu sesi berakhir — atau bila administrator mencabut token Anda — layar a
 sedang terbuka **langsung berganti menjadi halaman masuk** dengan banner
 *"Sesi Anda berakhir. Silakan masuk kembali."*
 
-**Apa pun yang sedang Anda ketik pada saat itu hilang.** Tidak ada draf otomatis dan
-tidak ada pemulihan. Bila Anda sedang menyusun BOQ 40 baris atau kontrak dengan sepuluh
-termin, tekan **`Simpan`** setiap kali satu bagian selesai, lalu buka lagi lewat
-**`Ubah`**.
+**Yang sedang Anda ketik tidak hilang.** Formulir menyimpan drafnya di peramban ini setiap
+1–2 detik; sesudah masuk kembali muncul tawaran **Draf tersimpan di peramban ini** dengan
+tombol **`Pulihkan`** / **`Buang`**, dan formulirnya (halaman untuk dokumen berbaris, jendela
+untuk yang pendek) bertanya *"Pulihkan isian yang belum tersimpan?"* (**`Pulihkan`** /
+**`Mulai kosong`**). Draf hidup 7 hari dan hanya di peramban tempat ia diketik.
 
 Bila server tidak terjangkau saat membuka aplikasi, banner-nya berbunyi
 *"Tidak dapat menghubungi server. Coba masuk kembali."*
@@ -826,6 +828,10 @@ digulirkan ke tengah layar. Tanda merah hilang begitu Anda mengetik ulang di sel
 semuanya bertanya lebih dulu: judul **"Tutup tanpa menyimpan?"**, isi *"Formulir ini
 punya isian yang belum tersimpan — termasuk baris yang sudah diketik. Kalau ditutup
 sekarang, semuanya hilang."*, tombol **`Buang isian`** / **`Kembali mengisi`**.
+**Formulir halaman** (dokumen berbaris) dijaga saat Anda berpindah layar: judul
+**"Tinggalkan formulir ini?"**, tombol **`Tinggalkan`** / **`Tetap di sini`**. **`Tinggalkan`**
+menyimpan isian sebagai draf di peramban ini — membuka formulir yang sama lagi menawarkannya
+kembali. Alamat `#/f/<layar>` dan `#/f/<layar>/new` sama-sama membuka formulir buat.
 
 **Kolom pencarian (lookup)** — setiap kolom yang menunjuk data lain (proyek, vendor,
 item, karyawan, akun): ketik untuk menyaring, ↑/↓ berpindah, Enter atau Tab mengambil

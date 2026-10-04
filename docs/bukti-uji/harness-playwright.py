@@ -564,7 +564,9 @@ def s4(pg):
             pg.wait_for_selector(".modal", timeout=10000); pg.wait_for_timeout(800)
             if pg.locator(".modal .modal-foot button:has-text('Pulihkan')").count():
                 click(pg, ".modal .modal-foot button:has-text('Pulihkan')"); pg.wait_for_timeout(1500)
-            state["restored"] = pg.evaluate("() => ({ title: (document.querySelector('.modal-head h2')||{}).innerText, filled: [...document.querySelectorAll('.modal input, .modal textarea')].filter(e=>e.value).length, lines: document.querySelectorAll('.modal table.lines tbody tr').length, vendor: (document.querySelector('.modal .combo-input')||{}).value, textarea: (document.querySelector('.modal textarea')||{}).value })")
+            # UX-E3.7: PO dipulihkan di HALAMANNYA (#/f/) — pembacaan menerima .form-page maupun .modal.
+            pg.wait_for_selector(".form-page, .modal", timeout=10000); pg.wait_for_timeout(500)
+            state["restored"] = pg.evaluate("() => { const root = document.querySelector('.form-page') || document.querySelector('.modal'); return { container: root.classList.contains('form-page') ? 'page' : 'modal', title: (document.querySelector('.form-page') ? (document.querySelector('.page-head h1')||{}) : (document.querySelector('.modal-head h2')||{})).innerText, filled: [...root.querySelectorAll('input, textarea')].filter(e=>e.value).length, lines: root.querySelectorAll('table.lines tbody tr').length, vendor: (root.querySelector('.combo-input')||{}).value, textarea: (root.querySelector('textarea')||{}).value }; }")
             pg.screenshot(path=f"{OUT}/s4-restored.png")
     state["fields_typed_before_expiry"] = typed
     return {"tokens_revoked": n, **state}
@@ -1107,6 +1109,10 @@ def s47(pg):
     # Berbaris -> halaman.
     pg.goto(BASE + "#/f/procurement/purchase-orders"); pg.wait_for_timeout(2600)
     out["berbaris"] = pg.evaluate(SURFACE)
+    # UX-E3.7: fokus awal pada medan nyata pertama; dan alias #/f/<sumber daya>/new membuka formulir buat.
+    out["fokus_awal"] = pg.evaluate("() => !!document.activeElement.closest('.form-page') && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)")
+    pg.goto(BASE + "#/f/procurement/purchase-orders/new"); pg.wait_for_selector(".form-page", timeout=15000); pg.wait_for_timeout(600)
+    out["alias_new"] = pg.evaluate(SURFACE)
     pg.screenshot(path=f"{OUT}/s45-formulir-halaman.png")
 
     # Tanpa baris -> dialog, lewat tombol Tambah daftarnya.
@@ -1144,6 +1150,9 @@ def s47(pg):
         click(pg, ".modal button:has-text('Tinggalkan')")
         pg.wait_for_timeout(1500)
     out["tinggalkan"] = {"hash": pg.evaluate("() => location.hash"), "halaman": pg.locator(".form-page").count()}
+    # UX-E3.7: dialog Tinggalkan berjanji drafnya bertahan di peramban — kuncinya harus ada.
+    out["draf_tertinggal"] = pg.evaluate("() => Object.keys(localStorage).filter((k) => k.startsWith('nusantara_erp_draft:procurement/purchase-orders:'))")
+    pg.evaluate("() => localStorage.removeItem('nusantara_erp_draft:procurement/purchase-orders:new')")
     pg.evaluate("() => { location.hash = '#/tugas'; }"); pg.wait_for_timeout(1300)
     out["penjaga_dilepas"] = {"hash": pg.evaluate("() => location.hash"), "dialog": pg.locator(".modal").count()}
 
@@ -1175,6 +1184,12 @@ def s47(pg):
         checks.append(f"'Tetap di sini' kehilangan isiannya: {out['tetap']['isian']!r}")
     if out["tinggalkan"]["hash"] != "#/dashboard" or out["tinggalkan"]["halaman"]:
         checks.append(f"'Tinggalkan' tidak pergi: {out['tinggalkan']}")
+    if not out.get("draf_tertinggal"):
+        checks.append("'Tinggalkan' membuang draf yang dijanjikan dialognya")
+    if not out.get("alias_new", {}).get("halaman") or (out.get("alias_new", {}).get("crumbs") or [""])[-1] != "PO baru":
+        checks.append(f"#/f/<sumber daya>/new tidak membuka formulir buat: {out.get('alias_new')!r}")
+    if not out.get("fokus_awal"):
+        checks.append("halaman formulir tidak memfokuskan medan pertamanya")
     if out["penjaga_dilepas"]["hash"] != "#/tugas" or out["penjaga_dilepas"]["dialog"]:
         checks.append(f"penjaga tertinggal sesudah halaman formulir ditinggalkan: {out['penjaga_dilepas']}")
 

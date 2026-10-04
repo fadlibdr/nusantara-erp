@@ -736,6 +736,8 @@ export function presentModal(spec) {
  * (ASESMEN-UX §1.2: tabel baris mulai y = 843 di modal 960 px, 754 di halaman).
  */
 export function formIsPaged(def) {
+  // `form.layout: 'page' | 'modal'` (README E3) mengalahkan aturan baris; belum ada yang menyatakannya (OQ).
+  if (def && def.form && def.form.layout) return def.form.layout === 'page';
   return Boolean(def && def.form && (def.form.lines || []).length);
 }
 
@@ -765,7 +767,7 @@ export function startForm({ def, key, row, prefill, onSaved, endpoint = null }) 
  * tidak perlu dibayar. Pemanggil dialog (prefill/endpoint/onSaved, S16/S17) tidak
  * mengenal opsi ini, jadi dialognya sebyte pun tidak berubah.
  */
-export async function openForm({ def, key, row, prefill, onSaved, endpoint = null, present = presentModal, submit = null }) {
+export async function openForm({ def, key, row, prefill, onSaved, endpoint = null, present = presentModal, submit = null, fetched = false }) {
   const isEdit = Boolean(row);
   const sections = def.form.sections || [];
   const lineDefs = def.form.lines || [];
@@ -774,7 +776,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
   // A create can still arrive with values the caller already knows — "Tagih
   // termin ini" knows the contract, the customer and which termin.
   let record = row || prefill || null;
-  if (isEdit && lineDefs.length) {
+  if (isEdit && lineDefs.length && !fetched) {  // rute f/ memberi dokumen lengkap (UX-E3.7): satu GET, bukan dua
     try {
       record = await api.get(`${def.api}/${row.id}`);
     } catch (error) {
@@ -1140,9 +1142,13 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     footer: [button('Batal', { onClick: () => dialog.requestClose() }), save, saveSubmit].filter(Boolean),
     nav,
     dirty: () => snapshot() !== pristine,
-    onClose: () => {
+    onClose: ({ keepDraft = false } = {}) => {
       clearTimeout(draftTimer);
       unregisterFlush();
+      // Tinggalkan (halaman): simpan isian yang masih tertunda (debounce 1,2 s), dan biarkan
+      // persistDraft membuang drafnya sendiri bila formulirnya ternyata bersih. Dialog "Buang
+      // isian" (ui.js) memanggil onClose() tanpa argumen → membuang, sesuai kalimatnya.
+      if (keepDraft) { persistDraft(); return; }
       if (!draftRemovalSuspended()) removeDraft(key, draftRowId);
     },
   });
