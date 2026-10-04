@@ -9807,9 +9807,15 @@ def s29(pg):
       const input = box.querySelector('input, select');
       return input ? input.className : null;
     }""")
-    # Combobox proyek: ketik kodenya lalu pilih usulan pertama.
-    pg.fill(".modal .field:has(label:text-is('Proyek')) input", "PRJ-2026-001")
-    pg.wait_for_timeout(900)
+    # Combobox proyek: ketik kodenya lalu pilih usulan pertama. Formulir PO adalah HALAMAN
+    # (.form-page) sejak UI-4d, bukan .modal — selector lama menunggu 30 s lalu mati, dan
+    # skenario ini merah sejak itu (OQ-16; diperbaiki UX-E2.1 dengan idiom pick_combo S3).
+    pg.wait_for_selector(".form-page", timeout=10000)
+    proyek = pg.locator(".form-page .field", has=pg.locator("label", has_text="Proyek")).first \
+        .locator("input.combo-input, input, select").first
+    proyek.click()
+    proyek.type("PRJ-2026-001", delay=20)
+    pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000)
     pg.keyboard.press("ArrowDown")
     pg.keyboard.press("Enter")
     pg.wait_for_timeout(2500)
@@ -9826,8 +9832,14 @@ def s29(pg):
         click(pg, ".modal button:has-text('Buang isian')")
         pg.wait_for_timeout(600)
 
-    # (7) RIWAYAT REVISI di layar RAP.
+    # (7) RIWAYAT REVISI di layar RAP. Formulir HALAMAN memasang penjaga tinggalkan
+    # (app.js setLeaveGuard): isian yang kotor membuka "Tinggalkan formulir ini?" pada
+    # navigasi berikutnya dan menahan rute lama — layar RAP tidak pernah tergambar
+    # (terukur UX-E2.1: revision_chain {found: False}). Dijawab "Tinggalkan" di sini.
     pg.goto(BASE + f"#/d/estimation/cost-budgets/{rev_id}")
+    pg.wait_for_timeout(800)
+    if pg.locator(".modal button:has-text('Tinggalkan')").count():
+        click(pg, ".modal button:has-text('Tinggalkan')")
     pg.wait_for_timeout(3000)
     out["revision_chain"] = pg.evaluate(REVISION_CHAIN)
     pg.screenshot(path=f"{OUT}/s29-riwayat-revisi-f2.png", full_page=False)
@@ -9881,7 +9893,9 @@ def s29(pg):
         "the_monthly_budget_is_labelled_derived": (
             "TURUNAN" in (monthly.get("derivation") or "")
             and "RAP/2026/0001" in (monthly.get("derivation") or "")
-            and "BSL/2026/VIII/0001" in (monthly.get("derivation") or "")),
+            # Nomor baseline mengikuti bulan seed dibuat (BSL/2026/VIII/… pada demo September,
+            # BSL/2026/X/… pada seed Oktober) — yang dipaku adalah nomornya disebut, bukan bulannya.
+            and re.search(r"BSL/2026/[IVX]+/0001", monthly.get("derivation") or "") is not None),
         "the_monthly_table_has_a_derived_budget_column": any(
             "turunan" in h.lower() for h in (monthly.get("headers") or [])),
         # Lembar tercetak menyebut proyeknya — diuji di media cetak sungguhan,
