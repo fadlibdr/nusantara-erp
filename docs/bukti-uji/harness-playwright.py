@@ -1277,6 +1277,52 @@ def s49(pg):
     pg.goto(BASE + "#/d/finance/ar-invoices/1"); pg.wait_for_timeout(2600)
     out["rata"] = pg.evaluate(HEAD)
 
+    # Bilah aksi dokumen yang MENUNGGU keputusan, di ponsel. Zona keputusan membawa catatan lipat
+    # (.action-note, T2.3), yang meminta `justify-content: flex-end`; di ≤ 760 px bilah yang sama
+    # nowrap + overflow-x: auto (UI-3c). Luapan flex-end tumpah ke KIRI titik awal gulir — tempat
+    # yang tidak bisa digulir siapa pun: terukur 4 Okt 2026, PO diajukan di 390 px hanya
+    # memperlihatkan "Tambah catatan"; Kembali, Cetak, Setujui dan Tolak di x < 0, tak terjangkau.
+    BAR = """() => {
+      const bar = document.querySelector('.page-head .actions');
+      bar.scrollLeft = 0;
+      const b = bar.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const kids = [...bar.querySelectorAll('button, summary')].filter((n) => n.getClientRects().length).map((n) => {
+        const r = n.getBoundingClientRect();
+        return { label: (n.innerText.trim() || n.title).slice(0, 24), left: Math.round(r.left), right: Math.round(r.right),
+                 stranded: r.right <= b.left + 1, on_screen: r.left >= -1 && r.right <= vw + 1 };
+      });
+      return { bar: [Math.round(b.left), Math.round(b.right), bar.scrollWidth, bar.clientWidth], kids,
+               justify: getComputedStyle(bar).justifyContent };
+    }"""
+    tok = token_for("procurement@nusantara.test")
+    s_, d_ = api("procurement/vendors?status=active&per_page=20", tok)
+    vendor = next((v for v in d_["data"] if v.get("vendor_type") in (None, "supplier")), None)
+    sub = None
+    if vendor:
+        s_, d_ = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
+                     "expected_date": "2026-09-16", "pr_bypass_reason": "UJI-UX — bilah aksi ponsel (S49)",
+                     "items": [{"description": "UJI-UX bilah ponsel", "qty": 1, "unit": "unit", "unit_price": 1000000}]})
+        if s_ in (200, 201):
+            sub = d_["data"]["id"]
+            out["ponsel_submit_http"] = api(f"procurement/purchase-orders/{sub}/submit", tok, "POST", {})[0]
+    if not sub:
+        out["ponsel"] = {"fixture": "gagal"}
+    else:
+        pg.goto(BASE + f"#/d/procurement/purchase-orders/{sub}")
+        pg.wait_for_selector(".page-head .actions .action-note", timeout=15000); pg.wait_for_timeout(600)
+        out["meja"] = pg.evaluate(BAR)
+        ctx = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        try:
+            p390 = ctx.new_page()
+            login(p390, "admin@nusantara.test")
+            p390.goto(BASE + f"#/d/procurement/purchase-orders/{sub}")
+            p390.wait_for_selector(".page-head .actions .action-note", timeout=15000); p390.wait_for_timeout(600)
+            out["ponsel"] = p390.evaluate(BAR)
+            p390.screenshot(path=f"{OUT}/s49-bilah-diajukan-390.png")
+        finally:
+            ctx.close()
+
     checks = []
     g = out["berkelompok"]
     if not g["judul"]:
@@ -1304,6 +1350,21 @@ def s49(pg):
         checks.append(f"blok sisa tidak tergambar: {g['blok']} blok untuk {len(g['kelompok'])} kelompok — medan yang tidak disebut lenyap")
     if g["dt"] <= 9:
         checks.append(f"panel Informasi PO hanya {g['dt']} medan; sembilan di antaranya disebut kelompok, jadi sisanya hilang")
+
+    ph = out.get("ponsel") or {}
+    if ph.get("fixture") == "gagal":
+        checks.append("bilah ponsel: fixture PO diajukan gagal dibuat — galat, bukan SKIPPED")
+    else:
+        stranded = [k["label"] for k in ph["kids"] if k["stranded"]]
+        if stranded:
+            checks.append(f"bilah ponsel: {stranded!r} terdampar di kiri titik awal gulir bilah aksi (tak terjangkau) — {ph['bar']}")
+        need = [k for k in ph["kids"] if k["label"] in ("Setujui", "Tolak")]
+        if len(need) != 2 or not all(k["on_screen"] for k in need):
+            checks.append(f"bilah ponsel: Setujui/Tolak tidak terlihat tanpa menggulir: {need!r}")
+        desk = out["meja"]
+        last = max(desk["kids"], key=lambda k: k["right"]) if desk["kids"] else None
+        if not last or abs(last["right"] - desk["bar"][1]) > 2:
+            checks.append(f"bilah meja: kontrol terakhir tidak lagi rapat kanan ({last!r} vs bilah {desk['bar']})")
 
     # Sumber daya yang TIDAK menyatakannya tidak berubah.
     f = out["rata"]

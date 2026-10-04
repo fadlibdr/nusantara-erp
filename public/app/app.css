@@ -866,8 +866,14 @@ table.data tr.emphasis td { background: var(--surface-2); }
    panel tetap menyumbang satu `gap` (8 px) ke lebar max-content .actions —
    terukur 4 Sep 2026: tombol berhenti 8 px sebelum tepi kanan. Sekali dibuka,
    .actions perlu lebar untuk kotak catatannya. Peramban tanpa :has() hanya
-   kehilangan dua rapian ini. */
-.page-head .actions:has(.action-note) { justify-content: flex-end; }
+   kehilangan dua rapian ini.
+   `safe`: di ≤ 760 px bilah yang sama nowrap + overflow-x: auto (UI-3c), dan luapan
+   flex-end biasa tumpah ke KIRI titik awal gulir — tempat yang tidak bisa digulir.
+   Terukur 4 Okt 2026 (S49), PO diajukan di 390 px: hanya "Tambah catatan" yang
+   tampak; Kembali, Cetak, Setujui dan Tolak di x < 0, tak terjangkau. safe kembali ke
+   awal hanya saat meluap, jadi bilah meja tetap rapat kanan. Baris pertama untuk
+   peramban yang belum mengenal `safe`. */
+.page-head .actions:has(.action-note) { justify-content: flex-end; justify-content: safe flex-end; }
 .page-head .actions:has(.action-note[open]) { min-width: min(100%, 440px); }
 @media (pointer: coarse) { .action-note > summary { min-height: 36px; } }
 
