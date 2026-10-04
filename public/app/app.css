@@ -1070,13 +1070,13 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .search input[type=text] { width: 100%; padding-left: 32px; }
 .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: .45; pointer-events: none; }
 
-/* Bilah alat daftar (views/list.js, UX-E1.4): Cari · Filter · Reset · Ekspor CSV,
-   dibangun sekali per layar. Popover Filter berlabuh pada bilahnya, bukan pada
+/* Bilah alat daftar (views/list.js, UX-E1.4): Cari · Filter · chip saringan · Ekspor CSV ·
+   Atur kolom · jumlah, dibangun sekali per layar (Reset digantikan "Hapus semua", UX-E1.5). Popover Filter berlabuh pada bilahnya, bukan pada
    tombolnya, supaya tepi kirinya sejajar kotak Cari di setiap lebar. */
 .list-toolbar { position: relative; }
 /* `.btn` dan `.filter-wrap` menulis `display` sendiri, yang MENGALAHKAN
-   `[hidden] { display: none }` milik peramban — tanpa dua aturan ini Reset dan
-   tombol Filter tetap tampil saat disembunyikan. */
+   `[hidden] { display: none }` milik peramban — tanpa dua aturan ini tombol Filter
+   (dan dulu Reset) tetap tampil saat disembunyikan. */
 .list-toolbar .btn[hidden], .filter-wrap[hidden] { display: none; }
 .filter-wrap { display: inline-flex; }
 .filter-pop {
