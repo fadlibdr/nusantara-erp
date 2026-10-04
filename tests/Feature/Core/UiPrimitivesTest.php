@@ -100,8 +100,8 @@ class UiPrimitivesTest extends ErpTestCase
         $this->assertStringContainsString("el('hr.menu-divider', { role: 'separator' })", $menu);
         $this->assertStringContainsString("item.danger ? '.danger' : ''", $menu);
 
-        // UX-E1.9: menu ⋯ baris MENGAMBANG (lolos dari .table-wrap), dan hanya ia —
-        // Buat ▾ dan Cetak ▾ tidak meneruskan opsi itu, jadi bawaan menuButton tetap false.
+        // UX-E1.9: menu ⋯ baris MENGAMBANG (lolos dari .table-wrap), dan Cetak ▾ di detail juga
+        // (bilah aksi berzona menggulir di ≤ 760 px). Buat ▾ tidak — bawaan menuButton tetap false.
         $this->assertStringContainsString("chevron = true, floating = false } = {}) {", $menu);
         $this->assertStringContainsString("if (floating) pop.classList.add('floating');", $menu);
         $this->assertStringContainsString("window.addEventListener('scroll', onScroll, true);", $menu);
@@ -116,6 +116,12 @@ class UiPrimitivesTest extends ErpTestCase
         // "Hapus…" yang tertutup diketuk dan yang terbuka justru lembarnya.
         $this->assertMatchesRegularExpression('/\.menu-pop\.floating \{[^}]*z-index: 48;/', $this->css());
         $this->assertMatchesRegularExpression('/\.menu-pop \{[^}]*text-align: left;/', $this->css());
+
+        $detail = (string) file_get_contents(public_path('app/js/views/detail.js'));
+        $this->assertStringContainsString("menuButton('Cetak', items, { iconName: 'print', title: 'Cetak atau unduh dokumen ini', floating: true });", $detail,
+            'Cetak ▾ tidak lagi mengambang: di ≤ 760 px bilah aksi berzona memotongnya, dan tiga dari empat keluarannya tidak bisa diketuk.');
+        $app = (string) file_get_contents(public_path('app/js/app.js'));
+        $this->assertStringNotContainsString('floating', (string) substr($app, (int) strpos($app, "menuButton('Buat'"), 200));
         $this->assertStringContainsString('chevron: false, floating });', $body, 'overflowMenu tidak meneruskan `floating` ke menuButton.');
     }
 

@@ -2848,9 +2848,12 @@ def s56(pg):
         ambang["cetak"] = c = pg.evaluate("""() => { const t = document.querySelector('.page-head .actions .menu-trigger[aria-expanded=true]');
           const pop = t && t.parentElement.querySelector('.menu-pop'); if (!pop) return null;
           const r = pop.getBoundingClientRect(), b = t.getBoundingClientRect();
-          return { floating: pop.classList.contains('floating'), position: getComputedStyle(pop).position, below: r.top >= b.bottom - 0.5, gap: Math.round(r.top - b.bottom) }; }""")
-        if not c or c["floating"] or c["position"] != "absolute" or not c["below"]:
-            checks.append(f"mengambang: Cetak ▾ di detail PO berubah ({c!r}) — harus absolut, tepat di bawah tombolnya")
+          return { floating: pop.classList.contains('floating'), position: getComputedStyle(pop).position, below: r.top >= b.bottom - 0.5,
+                   gap: Math.round(r.top - b.bottom), right_gap: Math.round(b.right - r.right) }; }""")
+        # Cetak ▾ mengambang juga (ia terpotong di ≤ 760 px, lihat blok 390 di bawah) — di meja ia
+        # tetap tepat di bawah tombolnya, rapat kanan, seperti dulu.
+        if not c or not c["floating"] or c["position"] != "fixed" or not c["below"] or c["gap"] > 5 or abs(c["right_gap"]) > 1:
+            checks.append(f"mengambang: Cetak ▾ di detail PO ({c!r}) — harus mengambang, tepat di bawah tombolnya, rapat kanan")
         pg.keyboard.press("Escape")
 
     pg.click(".header .create-menu .menu-trigger")
@@ -2874,6 +2877,32 @@ def s56(pg):
         login(p390, "admin@nusantara.test")
         s56_floating_round(p390, "390", checks, ambang)
         p390.screenshot(path=f"{OUT}/s56-mengambang-390.png")
+
+        # Cetak ▾ di detail PO DISETUJUI, 390 px: bilah aksi berzona menggulir mendatar (≤ 760 px, UI-3c),
+        # jadi popup ABSOLUT di dalamnya terpotong setinggi bilah itu — terukur 4 Okt 2026: hanya
+        # "Cetak halaman" yang terlihat. Setiap butir harus bisa diketuk.
+        approved = p390.evaluate("""async () => { const { api } = await import('/app/js/api.js');
+          const r = await api.list('procurement/purchase-orders', { status: 'approved', per_page: 1, page: 1 }); return r.data && r.data[0] ? r.data[0].id : null; }""")
+        if not approved:
+            checks.append("mengambang: subjek hilang — tidak ada PO disetujui untuk Cetak ▾ 390 px")
+        else:
+            p390.goto(BASE + f"#/d/procurement/purchase-orders/{approved}")
+            p390.wait_for_selector(".page-head .actions .menu-trigger:has-text('Cetak')", timeout=20000)
+            p390.wait_for_timeout(600)
+            p390.click(".page-head .actions .menu-trigger:has-text('Cetak')")
+            p390.wait_for_timeout(300)
+            ambang["cetak_390"] = c = p390.evaluate("""() => { const t = document.querySelector('.page-head .actions .menu-trigger[aria-expanded=true]');
+              const pop = t && t.parentElement.querySelector('.menu-pop'); if (!pop) return null;
+              const vw = document.documentElement.clientWidth, vh = window.innerHeight, r = pop.getBoundingClientRect();
+              return { floating: pop.classList.contains('floating'), inside: r.left >= 0 && r.top >= 0 && r.right <= vw && r.bottom <= vh,
+                items: [...pop.querySelectorAll('.menu-item')].map((n) => { const b = n.getBoundingClientRect();
+                  const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+                  return { label: n.innerText.trim(), hit: !!hit && n.contains(hit) }; }) }; }""")
+            if not c or not c["items"]:
+                checks.append(f"mengambang: Cetak ▾ di detail PO 390 px tidak terbuka ({c!r})")
+            elif not all(i["hit"] for i in c["items"]) or not c["inside"]:
+                checks.append(f"mengambang: Cetak ▾ di detail PO 390 px — butir terpotong {[i['label'] for i in c['items'] if not i['hit']]!r} (di layar={c['inside']})")
+            p390.screenshot(path=f"{OUT}/s56-cetak-390.png")
     finally:
         ctx390.close()
     out["mengambang"] = ambang

@@ -908,8 +908,9 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .menu-item svg { flex: none; color: var(--muted); }
 /* Sasaran jempol, seperti .combo-opt dan .btn.sm di bawah. */
 @media (pointer: coarse) { .menu-item { min-height: 42px; } }
-/* Menu mengambang (menuButton `floating`, UX-E1.9 — menu ⋯ baris): fixed, jadi lolos
-   dari .table-wrap (overflow: auto) yang memotong popup absolut. ANDAIAN: tidak ada
+/* Menu mengambang (menuButton `floating`, UX-E1.9 — menu ⋯ baris, dan Cetak ▾ di bilah
+   aksi berzona yang menggulir di ≤ 760 px): fixed, jadi lolos dari .table-wrap
+   (overflow: auto) dan wadah gulir lain yang memotong popup absolut. ANDAIAN: tidak ada
    leluhur yang memasang transform, filter, contain, atau will-change — salah satunya
    menjadikan leluhur itu blok penampung, dan popup terperangkap lagi. left/top ditulis
    menuButton dari kotak tombolnya; min-width 100% di sini berarti selebar LAYAR, maka

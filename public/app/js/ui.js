@@ -297,7 +297,8 @@ let menuSeq = 0;
  * transform/filter/contain (app.css .menu-pop.floating). Karena ia tidak ikut
  * bergulir bersama barisnya, gulir apa pun di luar popup — dan resize — MENUTUPNYA,
  * bukan menggesernya: menu yang melayang terlepas dari barisnya lebih buruk
- * daripada menu yang tertutup. Buat ▾ dan Cetak ▾ tidak memakainya.
+ * daripada menu yang tertutup. Cetak ▾ di detail memakainya juga — di ≤ 760 px bilah
+ * aksinya sendiri wadah gulir (detail.js printMenu); Buat ▾ di bilah atas tidak.
  */
 export function menuButton(label, items, { iconName, title, variant = '', size = '', chevron = true, floating = false } = {}) {
   const id = `menu-${++menuSeq}`;
