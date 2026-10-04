@@ -278,7 +278,7 @@ formatted by the same key regexes `autoValue` uses (percent before money, so `pp
 keys the Informasi card leaves out. PO is the pilot of `headline`, identical to its summary.
 Routes: `#/f/<resource>` and `#/f/<resource>/new` both open the create page, `#/f/<resource>/<id>`
 the edit page (the route fetches the record once and passes `fetched: true` to `openForm`);
-`def.form.layout: 'page' | 'modal'` overrides the lines rule in `formIsPaged()` (UX-E3.7). On the
+`formIsPaged()` = `form.layout` if declared, else lines OR more than eight fields (README E3; UX-E3.8 moved the 20 long forms to the page — the static census pin in FormViewWiringTest lists them). On the
 page, "Tinggalkan" keeps the browser draft (`onClose({ keepDraft: true })`); the dialog's
 "Buang isian" still discards; `offerDrafts` reopens through `startForm`, so line resources come
 back as their page. The page focuses its first real input like the modal.

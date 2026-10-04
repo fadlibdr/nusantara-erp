@@ -736,9 +736,18 @@ export function presentModal(spec) {
  * (ASESMEN-UX §1.2: tabel baris mulai y = 843 di modal 960 px, 754 di halaman).
  */
 export function formIsPaged(def) {
-  // `form.layout: 'page' | 'modal'` (README E3) mengalahkan aturan baris; belum ada yang menyatakannya (OQ).
-  if (def && def.form && def.form.layout) return def.form.layout === 'page';
-  return Boolean(def && def.form && (def.form.lines || []).length);
+  /*
+   * Aturan README E3 (UX-E3.8): `form.layout` bila dinyatakan; selain itu halaman bila
+   * berbaris ATAU punya lebih dari delapan medan. Sensus 4 Okt 2026 (ux-e3-form-census.json):
+   * 35 formulir berbaris (halaman sejak UI-4d) + 20 formulir panjang tanpa baris — di dialog
+   * 640 px badannya menggulir 572 px (pelanggan, 14 medan) sampai 1 249 px (karyawan, 21)
+   * pada 390 px. Pemanggil dengan prefill/endpoint tetap dialog (startForm, ERRATA E-6).
+   */
+  const form = def && def.form;
+  if (!form) return false;
+  if (form.layout) return form.layout === 'page';
+  const fields = (form.sections || []).reduce((n, section) => n + (section.fields || []).length, 0);
+  return (form.lines || []).length > 0 || fields > 8;
 }
 
 /*

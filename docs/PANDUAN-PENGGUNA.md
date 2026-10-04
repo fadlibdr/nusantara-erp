@@ -224,7 +224,8 @@ bilah ini, bukan di belakangnya, dan laci yang terbuka menutupinya.
 **`Tambah …`** dari daftar-daftar yang boleh Anda buka, dikumpulkan di satu tempat. Saat Anda
 berada di sebuah modul, formulir modul itu yang tampil lebih dulu (paling banyak delapan);
 di luar modul, yang tampil adalah jenis dokumen yang baru-baru ini Anda buka. Formulir
-berbaris (PO, PR, dan sejenisnya) terbuka sebagai halaman, yang pendek sebagai dialog —
+berbaris (PO, PR, dan sejenisnya) dan formulir panjang (lebih dari delapan kolom — pelanggan,
+vendor, karyawan, proyek, aset, tiket, NCR, …) terbuka sebagai halaman, yang pendek sebagai dialog —
 sama persis dengan tombol Tambah di daftarnya. Di bawah 1200 px tombol ini hanya ikon `+`.
 Kalau Anda tidak boleh membuat apa pun, tombolnya tidak ada.
 
@@ -791,8 +792,10 @@ setelan wilayah Windows Anda.
 
 ### 2.3 Formulir
 
-Formulir terbuka sebagai jendela berjudul **Tambah <dokumen>** atau **Ubah <dokumen>**,
-dibagi menjadi beberapa bagian berjudul. Kolom wajib bertanda `*` merah; keterangan abu
+Formulir berbaris dan formulir panjang (lebih dari delapan kolom) terbuka sebagai **halaman**
+dengan remah `<Modul> › <Daftar> › <Dokumen> baru` (atau `Ubah #<nomor>`); formulir pendek
+sebagai jendela berjudul **Tambah <dokumen>** atau **Ubah <dokumen>**. Keduanya dibagi
+menjadi beberapa bagian berjudul. Kolom wajib bertanda `*` merah; keterangan abu
 di bawah kolom adalah bantuan resmi layar itu — bacalah, ia sering menyimpan aturan yang
 tidak ada di tempat lain.
 

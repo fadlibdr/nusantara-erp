@@ -69,7 +69,7 @@ class FormViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_form(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(72, (int) $version[1],
+        $this->assertGreaterThanOrEqual(73, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa formulir UX-E3: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -397,7 +397,7 @@ class FormViewWiringTest extends ErpTestCase
     public function test_form_layout_overrides_the_lines_rule(): void
     {
         $paged = (string) $this->functionBody($this->spa('views/form.js'), 'export function formIsPaged(');
-        $this->assertTrue(strpos($paged, "return def.form.layout === 'page';") < strpos($paged, '(def.form.lines || []).length'));
+        $this->assertTrue(strpos($paged, "return form.layout === 'page';") < strpos($paged, '(form.lines || []).length > 0 || fields > 8'));
         $schema = $this->spa('schema.js');
         $this->assertStringContainsString('form.layout', substr($schema, 0, 4000));
         $this->assertSame(0, preg_match_all("/layout: '(page|modal)'/", $schema), 'Sebuah formulir memakai layout tanpa keputusan pemilik.');
@@ -410,6 +410,46 @@ class FormViewWiringTest extends ErpTestCase
         $this->assertStringContainsString('.form-page input:not([type=hidden]):not([disabled]):not([readonly])', $presenter);
         $this->assertStringContainsString('first.focus({ preventScroll: true })', $presenter);
         $this->assertStringContainsString('.modal-body input:not([type=hidden]):not([disabled]):not([readonly])', (string) $this->functionBody($this->spa('ui.js'), 'export function modal('));
+    }
+
+    /* ------------------------------------------------------------ E3.8 */
+
+    /** Aturan tata letak README E3: layout → berbaris → lebih dari delapan medan; prefill/endpoint tetap dialog. */
+    public function test_form_is_paged_follows_the_handoff_rule_and_start_form_keeps_the_dialog_callers(): void
+    {
+        $form = $this->spa('views/form.js');
+        $paged = (string) $this->functionBody($form, 'export function formIsPaged(');
+        $this->assertStringContainsString("if (form.layout) return form.layout === 'page';", $paged);
+        $this->assertStringContainsString('return (form.lines || []).length > 0 || fields > 8;', $paged);
+        $start = (string) $this->functionBody($form, 'export function startForm(');
+        $this->assertStringContainsString('if (!prefill && !endpoint && formIsPaged(def)) {', $start);
+    }
+
+    /** Aturan "> 8 medan" memindahkan TEPAT 20 formulir tanpa baris ke halaman — sensus statis schema.js = ux-e3-form-census.json. */
+    public function test_the_rule_moves_exactly_the_census_forms(): void
+    {
+        $schema = $this->spa('schema.js');
+        $long = [];
+        foreach (array_slice(preg_split("/\n  '/", $schema), 1) as $chunk) {
+            $key = substr($chunk, 0, (int) strpos($chunk, "'"));
+            $formAt = strpos($chunk, "\n    form: {");
+            if ($formAt === false) {
+                continue;
+            }
+            $formEnd = strpos($chunk, "\n    },", $formAt);
+            $block = substr($chunk, $formAt, $formEnd === false ? null : $formEnd - $formAt);
+            $linesAt = strpos($block, 'lines: [');
+            $head = $linesAt === false ? $block : substr($block, 0, $linesAt);
+            $fields = preg_match_all("/\bkey: '/", $head); // sama dengan sensus ux-e3-form-census.json untuk 92/92 formulir
+            if ($linesAt === false && $fields > 8) {
+                $long[] = $key;
+            }
+        }
+        sort($long);
+        $expected = ['assets/assets', 'crm/contract-change-orders', 'crm/customers', 'crm/guarantees', 'crm/leads', 'finance/ap-bills', 'finance/ar-invoices',
+            'hr/attendance-recaps', 'hr/employees', 'inventory/items', 'procurement/vendor-documents', 'procurement/vendor-evaluations', 'procurement/vendors',
+            'projects', 'projects/defects', 'projects/risk-register', 'projects/safety-incidents', 'projects/work-permits', 'quality/ncr', 'servicedesk/tickets'];
+        $this->assertSame($expected, $long, 'Daftar formulir panjang berubah — medan ke-9 pada formulir dialog memindahkannya ke halaman; perbarui pin ini dengan sadar.');
     }
 
     /** Separuh penolakan. */

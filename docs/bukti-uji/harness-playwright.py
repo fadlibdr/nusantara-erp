@@ -1116,7 +1116,9 @@ def s47(pg):
     pg.screenshot(path=f"{OUT}/s45-formulir-halaman.png")
 
     # Tanpa baris -> dialog, lewat tombol Tambah daftarnya.
-    pg.goto(BASE + "#/r/crm/customers"); pg.wait_for_timeout(2200)
+    # UX-E3.8: pelanggan (14 medan) menjadi HALAMAN oleh aturan "> 8 medan"; sumber daya pendek yang
+    # tetap dialog adalah Kategori Item (3 medan). Makna pemeriksaannya tetap: formulir pendek = dialog.
+    pg.goto(BASE + "#/r/inventory/item-categories"); pg.wait_for_timeout(2200)
     if pg.locator(".page-head .btn.primary").count():
         click(pg, ".page-head .btn.primary")
         pg.wait_for_timeout(2400)
@@ -16359,6 +16361,25 @@ def s58(pg):
             checks.append(f"isian kartu tidak bisa diketik / terlalu rendah: {k!r}")
     finally:
         ctx.close()
+    # ------------------------------------------------------------ formulir panjang tanpa baris (E3.8): pelanggan sebagai sales
+    ctx2 = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        ps = ctx2.new_page()
+        login(ps, "sales@nusantara.test")
+        ps.goto(BASE + "#/r/crm/customers"); ps.wait_for_selector("#view .page-head .btn.primary", timeout=15000); ps.wait_for_timeout(500)
+        click(ps, "#view .page-head .btn.primary")
+        ps.wait_for_selector(".overlay .modal, #view .form-page", timeout=15000); ps.wait_for_timeout(800)
+        out["pelanggan"] = ps.evaluate("""() => ({ halaman: !!document.querySelector('#view .form-page'), modal: !!document.querySelector('.overlay .modal'), hash: location.hash,
+            tombol: [...document.querySelectorAll('.form-page .form-foot .btn')].map((b) => b.innerText.trim()),
+            langkah: [...document.querySelectorAll('.form-page .form-nav .step-label')].map((n) => n.innerText.trim()),
+            crumbs: [...document.querySelectorAll('#crumbs > *')].map((n) => (n.innerText || '').trim()).filter(Boolean).length })""")
+        pl = out["pelanggan"]
+        if not pl["halaman"] or pl["modal"] or not pl["hash"].startswith("#/f/crm/customers"):
+            checks.append(f"formulir pelanggan (14 medan) bukan halaman: {pl!r}")
+        if pl["tombol"] != ["Batal", "Simpan"] or pl["langkah"] != ["Identitas", "Alamat & kontak"] or pl["crumbs"] < 3:
+            checks.append(f"halaman pelanggan: kaki/langkah/remah tidak seperti dugaan: {pl!r}")
+    finally:
+        ctx2.close()
     out["failed_checks"] = checks
     out["ok"] = not checks
     return out
