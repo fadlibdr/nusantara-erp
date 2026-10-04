@@ -2216,6 +2216,88 @@ def s54(pg):
     pg.emulate_media(media="screen")
     if not jml["cetak"]["shown"]:
         checks.append("jumlah: angka tidak tercetak — pager disembunyikan di kertas, jadi lembarnya tidak menyebut totalnya")
+
+    # UX-E1.7 — log permintaan: M datang dari SATU permintaan per_page=1 per pengguna, layar dan
+    # menit. Konteks baru = modul list.js baru = cache M kosong; harness sendiri tidak memanggil
+    # api.list di konteks ini, jadi setiap per_page=1 yang tercatat milik layarnya.
+    def whole_requests(log):
+        return [u for u in log if "/api/procurement/purchase-orders?" in u and "per_page=1&" in u + "&"
+                and not any(p in u for p in ("status=", "q=", "vendor_id=", "project_id=", "date_from=", "date_to=", "sort="))]
+    ctx_log = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        pl = ctx_log.new_page()
+        sent = []
+        pl.on("request", lambda r: sent.append(r.url) if r.method == "GET" else None)
+        pl.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(pl, "admin@nusantara.test")
+        pl.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+        pl.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        pl.wait_for_timeout(1500)
+        polos = whole_requests(sent)
+        buka_saringan(pl)
+        pl.select_option(".filters select[aria-label='Status']", "approved")
+        pl.wait_for_timeout(1500)
+        pl.select_option(".filters select[aria-label='Status']", "draft")
+        pl.wait_for_timeout(1500)
+        pl.keyboard.press("Escape")
+        pl.wait_for_timeout(200)
+        pl.click(".list-toolbar input[aria-label='Cari']")
+        pl.keyboard.type("PO", delay=60)
+        pl.wait_for_timeout(1800)
+        tiga = whole_requests(sent)
+        jml["log"] = {
+            "polos": len(polos),
+            "tiga_ganti": len(tiga),
+            "hash": pl.evaluate("location.hash"),
+            "text": pl.evaluate("() => document.querySelector('.list-toolbar .list-count').textContent"),
+            "urls": tiga[:4],
+        }
+        lg = jml["log"]
+        if lg["polos"] != 0:
+            checks.append(f"jumlah: daftar polos mengirim {lg['polos']} permintaan per_page=1 — M hanya untuk daftar tersaring")
+        if not ("status=draft" in lg["hash"] and "q=PO" in lg["hash"]):
+            checks.append(f"jumlah: log — tiga ganti saringan tidak pernah sampai ({lg['hash']!r}); hitungan permintaannya tidak teruji")
+        if lg["tiga_ganti"] != 1:
+            checks.append(f"jumlah: tiga ganti saringan dalam semenit mengirim {lg['tiga_ganti']} permintaan per_page=1 (harus tepat 1): {lg['urls']!r}")
+        if " dari " not in (lg["text"] or ""):
+            checks.append(f"jumlah: log — sesudah tiga ganti angkanya {lg['text']!r}, tanpa 'dari M'")
+    finally:
+        ctx_log.close()
+
+    # UX-E1.7 — permintaan M gagal (429, batas laju): diam. Angkanya "N PO · tersaring" tanpa "dari",
+    # tanpa toast. Konteks terpisah dan DI LUAR gerbang konsol: Chromium mencatat 429 itu sebagai
+    # "Failed to load resource" — itu catatan peramban, bukan galat aplikasi.
+    ctx_429 = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        p4 = ctx_429.new_page()
+        hits = []
+        def refuse(route):
+            if route.request.method == "GET" and whole_requests([route.request.url]):
+                hits.append(route.request.url)
+                route.fulfill(status=429, content_type="application/json",
+                              body='{"message":"Terlalu banyak permintaan — coba lagi sebentar lagi."}')
+            else:
+                route.continue_()
+        login(p4, "admin@nusantara.test")
+        p4.route(re.compile(r"/api/procurement/purchase-orders\?"), refuse)
+        p4.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        p4.goto(BASE + "#/r/procurement/purchase-orders?status=draft")
+        p4.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        p4.wait_for_timeout(1500)
+        jml["gagal"] = p4.evaluate("""() => ({
+          text: document.querySelector('.list-toolbar .list-count').textContent,
+          toasts: [...document.querySelectorAll('.toast')].map((t) => t.innerText.trim()).filter(Boolean),
+        })""")
+        jml["gagal"]["hits"] = len(hits)
+        g = jml["gagal"]
+        if g["hits"] < 1:
+            checks.append("jumlah: 429 — permintaan per_page=1 tidak pernah dikirim; kegagalannya tidak teruji")
+        if not re.fullmatch(r"[\d.]+ PO · tersaring", g["text"] or ""):
+            checks.append(f"jumlah: 429 pada M — angkanya {g['text']!r}, harus 'N PO · tersaring' tanpa 'dari'")
+        if g["toasts"]:
+            checks.append(f"jumlah: 429 pada M bersuara — toast {g['toasts']!r}")
+    finally:
+        ctx_429.close()
     out["jumlah"] = jml
 
     out["console_errors"] = errors
