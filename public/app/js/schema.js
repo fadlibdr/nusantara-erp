@@ -33,6 +33,9 @@
                      seluruhnya juga menjadi ubin nilai kunci.
            headline  kunci nilai utama yang tampil sebagai ubin (.kv-tiles) di bawah
                      panel keadaan (UX-E2.3); tanpa kunci ini seluruh summary.
+           next      { label, route } tautan tampilan-saja ke layar lanjutan (UX-E2.5):
+                     hanya di panel dokumen terkunci dan hanya bila layar itu ada di menu
+                     pembaca (visibleNav); TIDAK menyatakan apakah dokumen lanjutannya ada.
            tables    [{ key | endpoint, label, columns[], nested }] satu kartu per tabel.
            lists     [{ key, label }] satu kartu per daftar teks.
 
@@ -2703,6 +2706,9 @@ export const RESOURCES = {
       // "subtotal, diskon, DPP, PPN, total" — tidak ada nilai yang pindah. Sumber daya lain
       // mewarisi seluruh summary-nya sebagai ubin sampai menyatakan headline sendiri.
       headline: ['subtotal', 'discount_amount', 'dpp', 'ppn_amount', 'total'],
+      // Tautan lanjutan tampilan-saja (UX-E2.5): hanya di panel PO terkunci, hanya bagi
+      // pembaca yang menunya memuat Penerimaan (GRN). Tidak menyatakan GRN-nya sudah ada.
+      next: { label: 'Penerimaan Barang (GRN)', route: 'r/inventory/goods-receipts' },
       tables: [{
         key: 'items', label: 'Item pesanan',
         columns: [

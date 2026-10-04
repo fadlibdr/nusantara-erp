@@ -140,7 +140,7 @@ class DetailViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_detail(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(64, (int) $version[1],
+        $this->assertGreaterThanOrEqual(65, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa layar dokumen UX-E2: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -273,6 +273,50 @@ class DetailViewWiringTest extends ErpTestCase
         $sorted = $positions;
         sort($sorted);
         $this->assertSame($sorted, $positions, 'Urutan zona bilah aksi berubah.');
+    }
+
+    /* ------------------------------------------------------------ E2.5 */
+
+    /** detail.next: tautan tampilan-saja, hanya di panel success, disaring visibleNav (saringan bilah sisi). */
+    public function test_detail_next_is_display_only_and_gated_by_the_sidebar_filter(): void
+    {
+        $detail = $this->spa('views/detail.js');
+        $this->assertMatchesRegularExpression("/import \{[^}]*\bvisibleNav\b[^}]*\} from '\.\.\/schema\.js'/", $detail);
+        $gate = $this->functionBody($detail, 'function canOpenRoute(');
+        $this->assertNotNull($gate);
+        $this->assertStringContainsString('visibleNav((perm) => session.can(perm))', $gate);
+        $this->assertDoesNotMatchRegularExpression("/\.view'/", $gate, 'Izin dikarang di view, bukan visibleNav (aturan dasar 2).');
+        $this->assertStringNotContainsString('RESOURCES[', $gate);
+        $link = $this->functionBody($detail, 'function nextLink(');
+        $this->assertNotNull($link);
+        foreach (["strip.tone !== 'success'", "el('a.btn'", 'href: `#/${next.route}`', 'Buka ${next.label}', "icon('arrow-right'"] as $needle) {
+            $this->assertStringContainsString($needle, $link);
+        }
+        foreach (['api.post', 'runAction(', 'postAction('] as $needle) {
+            $this->assertStringNotContainsString($needle, $link, 'Tautan lanjutan bukan lagi tampilan-saja.');
+        }
+    }
+
+    /** Tautan lanjutan tidak pernah mengklaim dokumen lanjutannya belum ada; PO adalah satu-satunya pemakai. */
+    public function test_the_follow_up_link_never_claims_the_document_is_missing(): void
+    {
+        $link = (string) $this->functionBody($this->spa('views/detail.js'), 'function nextLink(');
+        foreach (['belum ada', 'belum dibuat', 'belum diterima'] as $claim) {
+            $this->assertStringNotContainsString($claim, $link);
+        }
+        $schema = $this->spa('schema.js');
+        $this->assertMatchesRegularExpression("/next: \{ label: 'Penerimaan Barang \(GRN\)', route: 'r\/inventory\/goods-receipts' \},/", $this->resourceBlock('procurement/purchase-orders'));
+        $this->assertSame(1, substr_count($schema, 'next: { label:'));
+        $this->assertStringContainsString("route: 'r/inventory/goods-receipts' }", $schema, 'NAV tidak punya layar GRN: saringan tidak punya sasaran.');
+        $this->assertStringContainsString('next      { label, route }', substr($schema, 0, 4000));
+    }
+
+    /** Ikon panah ada di sprite Lucide yang di-vendor; tautan bergaya tombol tidak digarisbawahi saat hover. */
+    public function test_the_arrow_icon_exists_and_the_link_is_not_underlined(): void
+    {
+        $sprite = (string) file_get_contents(public_path('app/vendor/lucide@1.41.0/sprite.svg'));
+        $this->assertStringContainsString('id="lucide-arrow-right"', $sprite);
+        $this->assertStringContainsString('.action-panel-actions a.btn:hover { text-decoration: none; }', $this->css());
     }
 
     /** Separuh penolakan. */

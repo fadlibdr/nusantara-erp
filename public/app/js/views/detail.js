@@ -9,7 +9,7 @@ import { activitiesCard, ACTIVITY_DOCUMENTS } from './activities.js';
 import { externalApprovalsCard } from './external.js';
 import { preload, labelFor } from '../lookup.js';
 import { openForm, startForm } from './form.js';
-import { RESOURCES } from '../schema.js';
+import { RESOURCES, visibleNav } from '../schema.js';
 import { actionButtons } from './actions.js';
 import { downloadPdf, openPrintable, pdfName, xlsxName } from '../print.js';
 import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
@@ -826,6 +826,24 @@ function documentMeta(def, record) {
  * kalimat yang sama. Nama orang dan tingkat datang dari record.approvals dan
  * required_levels — tidak ada yang dikarang di klien (E-3 butir 5).
  */
+/*
+ * Tautan lanjutan tampilan-saja (UX-E2.5, README E2 / ERRATA E-7): `def.detail.next`
+ * { label, route } — hanya pada panel dokumen TERKUNCI (tone success), dan hanya bila
+ * layar tujuannya ada di menu pembaca: saringan yang sama dengan bilah sisi dan Ctrl+K
+ * (visibleNav), bukan izin yang dikarang di view (aturan dasar 2). Tautan sungguhan ke
+ * daftarnya; ia TIDAK menyatakan apakah dokumen lanjutannya sudah dibuat — itu urusan
+ * daftar yang dibukanya. Di kertas ia kontrol dan disembunyikan; kalimat panel tetap.
+ */
+function canOpenRoute(route) {
+  return visibleNav((perm) => session.can(perm)).some((group) => (group.items || []).some((item) => item.route === route));
+}
+
+function nextLink(def, strip) {
+  const next = (def.detail || {}).next;
+  if (!next || !next.route || !strip || strip.tone !== 'success' || !canOpenRoute(next.route)) return null;
+  return el('a.btn', { href: `#/${next.route}` }, [icon('arrow-right', 15), el('span', { text: `Buka ${next.label}` })]);
+}
+
 function statusStrip(def, record, canEdit, { canDecide = false } = {}) {
   const status = String(record.status || '');
   const approvals = Array.isArray(record.approvals) ? record.approvals : [];
@@ -1148,7 +1166,8 @@ export async function renderDetail(host, { key, def, id }) {
     canDecide: (def.actions || []).some((action) => session.isDecisionDoor(action)
       && session.canAct(action) && (!action.when || action.when(record))),
   });
-  if (strip) host.appendChild(actionPanel({ tone: strip.tone, iconName: strip.iconName, title: strip.text, text: strip.sub }));
+  const next = nextLink(def, strip);
+  if (strip) host.appendChild(actionPanel({ tone: strip.tone, iconName: strip.iconName, title: strip.text, text: strip.sub, actions: next }));
 
   /* P8 — revisi generik (D9): the superseded banner, speaking the 422's own
      words (Revisable::assertRevisiBerlaku) BEFORE anybody presses a button.

@@ -865,7 +865,10 @@ baris. Setiap kolom di kartu Informasi berlabel kata yang sama dengan formulirny
 (mis. "Gudang tujuan", "Dari PR"); kolom hitungan yang tidak ada di formulir (DPP, PPN,
 tingkat persetujuan) memakai kamus label aplikasi. Kolom yang tidak berlabel di
 keduanya tidak hilang: ia dilipat di bawah **Bidang lainnya (n)** di dasar kartu yang
-sama — klik judulnya untuk membuka. Pada PO tidak ada yang terlipat. Kolom kanan: **Terkait**, **Riwayat Persetujuan**, **Lampiran**, **Metadata**
+sama — klik judulnya untuk membuka. Pada PO tidak ada yang terlipat. Pada dokumen yang
+sudah dikunci, panel keadaan dapat menampilkan tombol **Buka <layar lanjutan>** (mis. PO →
+**Buka Penerimaan Barang (GRN)**) bila layar itu ada di menu Anda; tombol ini hanya membuka
+daftarnya — ERP tidak menyatakan apakah dokumen lanjutannya sudah atau belum dibuat. Kolom kanan: **Terkait**, **Riwayat Persetujuan**, **Lampiran**, **Metadata**
 (ID, Dibuat, Diperbarui).
 
 **Warna lencana status:**

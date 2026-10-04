@@ -3537,6 +3537,8 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
 .action-panel-text { margin-top: 3px; color: var(--text-2); }
 .action-panel-title + .action-panel-text { margin-top: 4px; }
 .action-panel-actions { flex: none; display: flex; gap: 8px; flex-wrap: wrap; align-self: center; }
+/* Tautan bergaya tombol di panel (detail.next, UX-E2.5): a:hover global menggarisbawahi. */
+.action-panel-actions a.btn:hover { text-decoration: none; }
 .action-panel.attn { border-color: var(--attn); background: var(--attn-soft); }
 .action-panel.attn .action-panel-title, .action-panel.attn .action-panel-icon { color: var(--attn); }
 .action-panel.success, .action-panel.danger, .action-panel.warn, .action-panel.info { border-left-width: 3px; }

@@ -275,6 +275,10 @@ first-five cut, because the invoice guide promises Total · Sudah dibayar · Sis
 formatted by the same key regexes `autoValue` uses (percent before money, so `ppn_rate` reads
 "11%" and not "Rp 11"), and an empty value prints "—". The keys drawn as tiles are exactly the
 keys the Informasi card leaves out. PO is the pilot of `headline`, identical to its summary.
+`def.detail.next` `{ label, route }` (UX-E2.5) adds a display-only link "Buka <label>" to the LOCKED
+(success) panel's `actions` slot, and only for readers whose sidebar lists that route — `visibleNav()`
+with `session.can`, the same filter the sidebar and Ctrl+K use; it never claims the follow-up document
+exists or not. PO → Penerimaan Barang (GRN) is the only user; the link is hidden on paper as a control.
 
 ### Kanban hooks (`board.api`, `board.card.fields`, `action.body`, `action.boardOnly`, F-3)
 

@@ -274,7 +274,7 @@ def s2(pg):
     pg.wait_for_timeout(600)
     t_done = int((time.time() - t0) * 1000)
     toast = toasts(pg)
-    after = pg.evaluate("() => ({ url: location.hash, status: (document.querySelector('.page-head .badge')||{}).innerText, nextOffer: [...document.querySelectorAll('.toast')].map(t=>t.innerText.slice(0,140)), strip: (document.querySelector('.page-head + .action-panel, .page-head + .alert')||{}).innerText })")
+    after = pg.evaluate("() => ({ url: location.hash, status: (document.querySelector('.page-head .badge')||{}).innerText, nextOffer: [...document.querySelectorAll('.toast')].map(t=>t.innerText.slice(0,140)), strip: (document.querySelector('.page-head + .action-panel, .page-head + .alert')||{}).innerText, next_link: (document.querySelector('.page-head + .action-panel .action-panel-actions a')||{}).innerText || null })")
     if pg.locator(".toast button:has-text('Buka')").count():
         click(pg, ".toast button:has-text('Buka')"); pg.wait_for_timeout(1500)
         after["opened_next"] = pg.evaluate("() => (document.querySelector('.page-head h1')||{}).innerText")
@@ -16089,6 +16089,35 @@ def s57(pg):
         checks.append(f"PO/1: nomor dokumen bukan h1.doc-code: {po['kode_h1']} {po['h1']!r}")
     if "VND-" not in po["pihak"]:
         checks.append(f"PO/1: baris pihak tidak menyebut vendornya: {po['pihak']!r}")
+
+    # ------------------------------------------------------------ tautan lanjutan (E2.5)
+    # PO/1 disetujui pada seed → panel success. Tiga pembaca yang BOLEH membuka PO (prc.view):
+    # direktur dan procurement memegang inv.view dan melihat "Buka Penerimaan Barang (GRN)";
+    # finance (prc.view tanpa inv.view) tidak; kalimat panelnya sama. warehouse memegang inv.view
+    # tetapi ditolak di PO (tanpa prc.view, terukur UX-E2.0) — bukan bagian matriks.
+    out["matriks"] = {}
+    for email in ("direktur", "procurement", "finance"):
+        pg.context.clear_cookies()
+        pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
+        login(pg, f"{email}@nusantara.test")
+        pg.goto(BASE + "#/d/procurement/purchase-orders/1")
+        pg.wait_for_selector(".page-head + .action-panel", timeout=20000)
+        pg.wait_for_timeout(600)
+        out["matriks"][email] = pg.evaluate("""() => {
+          const p = document.querySelector('.page-head + .action-panel');
+          const a = p && p.querySelector('.action-panel-actions a');
+          return { panel: ((p.querySelector('.action-panel-body') || {}).innerText || '').replace(/\\s+/g, ' ').trim(),
+                   tautan: a ? { text: a.innerText.trim(), href: a.getAttribute('href') } : null };
+        }""")
+    m = out["matriks"]
+    for email in ("direktur", "procurement"):
+        t = m[email]["tautan"]
+        if not t or t["text"] != "Buka Penerimaan Barang (GRN)" or t["href"] != "#/r/inventory/goods-receipts":
+            checks.append(f"{email}: tautan GRN tidak tampil di panel PO terkunci: {t!r}")
+    if m["finance"]["tautan"]:
+        checks.append(f"finance: tautan GRN tampil bagi pembaca yang menunya tidak punya layar itu: {m['finance']['tautan']!r}")
+    if len({v["panel"] for v in m.values()}) != 1:
+        checks.append(f"kalimat panel berbeda antar pembaca: {[v['panel'][:60] for v in m.values()]!r}")
 
     if errors:
         checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
