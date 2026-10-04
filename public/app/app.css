@@ -1261,6 +1261,8 @@ table.data tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--pr
    kotak centang yang berkata "saya membuka dokumen" berbohong. */
 table.data th.pick, table.data td.pick { width: 1%; padding-right: 0; }
 table.data tbody tr.clickable td.pick { cursor: default; }
+/* Sel ⋯ baris (UX-E1.10): seperti td.pick, kliknya bukan "buka dokumen" — list.js menahannya. */
+table.data tbody tr.clickable td.row-menu { cursor: default; }
 
 /* Bilah seleksi — muncul HANYA bila ada baris tercentang, jadi ia tidak pernah
    menempati ruang untuk mengumumkan bahwa nol baris terpilih. Ia duduk di dalam

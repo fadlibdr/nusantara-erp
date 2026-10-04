@@ -380,6 +380,13 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
   }
 
   function onKey(event) {
+    /* Menu yatim: tombolnya dicabut selagi popup terbuka (daftar digambar ulang oleh
+       preload()/loadPrintForms() pada kunjungan pertama). Tanpa ini panah/Home/End di
+       seluruh halaman ditelan sampai ketukan berikutnya. */
+    if (!wrap.isConnected) {
+      close();
+      return;
+    }
     const list = itemsIn();
     if (!list.length) return;
     const at = list.indexOf(document.activeElement);
@@ -462,6 +469,11 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
     if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !pop) {
       event.preventDefault();
       open({ focusLast: event.key === 'ArrowUp' });
+      /* open() memasang onKey di document SELAGI keydown ini masih menggelembung ke sana,
+         dan pendengar yang baru dipasang ikut menerimanya: ↓ yang membuka menu lalu
+         memindah fokus ke butir KEDUA — pada menu ⋯ dua butir itu "Hapus…" (tinjauan
+         E1.10). Ketukan yang membuka menu bukan ketukan navigasi di dalamnya. */
+      event.stopPropagation();
     }
   });
 

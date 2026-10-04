@@ -184,7 +184,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
 Kalimat merah di layar sengaja menyebut nama, angka, dan jalan keluar. Yang paling sering
 untuk peran Anda, apa adanya:
 
-- **Tombol yang tidak akan pernah muncul** (PANDUAN §14.2, §6.1): ikon Hapus pada tiket
+- **Tombol yang tidak akan pernah muncul** (PANDUAN §14.2, §6.1): **Hapus…** di menu ⋯ baris tiket
   (izin hapus layanan — admin), `Setujui` opname stok (admin, direktur), `Tambah GRN` dan
   tombol Tambah lain di Persediaan (izin buat persediaan — gudang), dan baris Lapangan di
   sidebar.

@@ -1,7 +1,7 @@
 /* Generic list screen: search, filters, table, pagination, row actions. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader, field, modalDepth, filterChip, tabs } from '../ui.js';
+import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader, field, modalDepth, filterChip, tabs, overflowMenu } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -260,8 +260,8 @@ export async function renderList(host, { key, def }) {
   });
 
   // Formulir rumah yang dicetak dari BARIS, bukan dari layar detail — lihat
-  // rowActions(). Sama seperti preload di atas: begitu jawabannya tiba,
-  // barisnya digambar ulang supaya tombolnya ikut muncul.
+  // printRowItems(). Sama seperti preload di atas: begitu jawabannya tiba,
+  // barisnya digambar ulang supaya butir cetaknya ikut muncul di menu ⋯.
   loadPrintForms().then(() => {
     if (stillOnScreen()) renderRows();
   });
@@ -1437,43 +1437,39 @@ export async function renderList(host, { key, def }) {
   }
 
   /* Formulir rumah pada BARIS daftar, dan hanya untuk layar tanpa detail.
-     Layar yang punya detail membawa tombolnya di sana (detail.js), dan
+     Layar yang punya detail membawa keluarannya di sana (Cetak ▾, detail.js), dan
      mengulanginya per baris hanya akan meramaikan tabel.
 
      Ini bukan kehalusan: 'projects/weekly-progress' berstatus noDetail SEJAK
      AWAL sementara tombol "Detail Schedule"-nya dideklarasikan di schema.js —
      formulirnya jalan, endpoint-nya jalan, tapi tidak ada satu layar pun yang
-     membawa tombolnya. Barisnya adalah satu-satunya tempat yang jujur. */
-  function printRowButtons(row) {
+     membawa tombolnya. Barisnya adalah satu-satunya tempat yang jujur.
+
+     Sejak UX-E1.10 keduanya butir menu ⋯ baris, dengan label yang SAMA dengan
+     butir Cetak ▾ di halaman detail. Keduanya berjalan sinkron di dalam klik
+     butirnya, jadi tab cetak tidak diblokir peramban. */
+  function printRowItems(row) {
     if (!def.noDetail) return [];
 
     return printButtonsFor(def, key)
       .filter((form) => printableFor(form, row))
       .flatMap((form) => [
-        labelled(button('', {
-          size: 'sm',
-          variant: 'ghost',
+        {
+          label: `Cetak ${form.label}`,
           iconName: 'print',
           title: `Cetak ${form.label} dalam format formulir perusahaan`,
-          onClick: (event) => {
-            event.stopPropagation();
-            openPrintable(printablePath(form, row), event.currentTarget);
-          },
-        }), 'Cetak'),
-        /* P8 — pendamping ekspornya, hanya bila katalog menandai slug-nya
-           (form.xlsx). Baris daftar adalah SATU-SATUNYA rumah tombol untuk
+          onClick: (event, trigger) => openPrintable(printablePath(form, row), trigger),
+        },
+        /* P8 — pendamping ekspornya, hanya bila katalog menandai formulirnya
+           (form.xlsx). Baris daftar adalah SATU-SATUNYA rumah keluaran untuk
            layar noDetail, jadi ekspor harus ikut duduk di sini. */
         form.xlsx
-          ? labelled(button('', {
-            size: 'sm',
-            variant: 'ghost',
+          ? {
+            label: `Unduh ${form.label} (XLSX)`,
             iconName: 'download',
             title: `Unduh ${form.label} sebagai XLSX — sel yang di kertas bergaris adalah sel kosong, bukan 0`,
-            onClick: (event) => {
-              event.stopPropagation();
-              downloadPdf(xlsxPath(form, row), xlsxName(form.form, row.code || row[form.idField || 'id']), event.currentTarget);
-            },
-          }), 'Unduh')
+            onClick: (event, trigger) => downloadPdf(xlsxPath(form, row), xlsxName(form.form, row.code || row[form.idField || 'id']), trigger),
+          }
           : null,
       ])
       .filter(Boolean);
@@ -1498,32 +1494,55 @@ export async function renderList(host, { key, def }) {
     return btn;
   }
 
-  function rowActions(row) {
-    const wrap = el('.cell-actions');
-
-    printRowButtons(row).forEach((btn) => wrap.appendChild(btn));
-
+  /*
+   * Menu ⋯ baris (UX-E1.10, README E1) — pengganti tombol ikon per baris, SATU
+   * banding SATU: ⋯ muncul tepat pada baris yang dulu bertombol (cetak di layar
+   * noDetail, Ubah, Hapus), dengan gerbang yang disalin harfiah, jadi tidak ada
+   * baris yang memperoleh atau kehilangan aksi. "Buka" adalah butir pertamanya
+   * tetapi tidak pernah MELAHIRKAN ⋯ sendirian (aturan detail.js: baris yang bisa
+   * diklik sudah membuka dirinya), dan baris tanpa ⋯ tetap satu garis — kepadatan
+   * baris yang dibekukan tidak bergerak. Tidak ada butir "salin sebagai draf": server tidak punya
+   * aksinya (ERRATA E-5). Aksi dari def.actions (pintu keputusan, boardOnly) tidak
+   * masuk ke sini; rumahnya bilah aksi dokumen.
+   *
+   * `trigger.focus()` lebih dulu: modal() menangkap returnFocus SAAT dibuka, dan
+   * saat itu fokus masih di butir menu yang segera dicabut — Batal lalu
+   * menjatuhkan fokus ke <body>. Fokus di ⋯ = Batal kembali ke barisnya.
+   */
+  function rowMenu(row) {
+    const prints = printRowItems(row);
     const canEdit = def.canEdit !== false && Boolean(def.form) && session.can(`${def.module}.update`) &&
       (!def.editableWhen || def.editableWhen(row));
     const canDelete = def.canDelete !== false && session.can(`${def.module}.delete`) &&
       (!def.deletableWhen || def.deletableWhen(row));
+    if (!prints.length && !canEdit && !canDelete) return null;
 
-    if (canEdit) {
-      wrap.appendChild(labelled(button('', {
-        size: 'sm', variant: 'ghost', iconName: 'edit', title: 'Ubah',
-        onClick: (event) => {
-          event.stopPropagation();
-          startForm({ def, key, row, onSaved: () => load() });
-        },
-      }), 'Ubah'));
-    }
+    const items = [
+      !def.noDetail ? { label: 'Buka', iconName: 'eye', onClick: () => navigate(`d/${key}/${row.id}`) } : null,
+      prints.length >= 2 ? { heading: 'Cetak' } : null,
+      ...prints,
+      canEdit
+        ? {
+          label: 'Ubah',
+          iconName: 'edit',
+          onClick: (event, trigger) => {
+            trigger.focus();
+            startForm({ def, key, row, onSaved: () => load() });
+          },
+        }
+        : null,
+    ].filter(Boolean);
 
     if (canDelete) {
-      wrap.appendChild(labelled(button('', {
-        size: 'sm', variant: 'ghost', iconName: 'trash', title: def.deleteLabel || 'Hapus',
-        onClick: async (event) => {
-          event.stopPropagation();
-          await confirmDialog({
+      // Garis hanya bila ada butir lain di atasnya: garis di puncak menu tidak memisahkan apa pun.
+      if (items.length) items.push({ divider: true });
+      items.push({
+        label: `${def.deleteLabel || 'Hapus'}…`,
+        iconName: 'trash',
+        danger: true,
+        onClick: (event, trigger) => {
+          trigger.focus();
+          confirmDialog({
             title: `${def.deleteLabel || 'Hapus'} ${def.labelOne}`,
             message: def.deleteConfirm || `${def.deleteLabel || 'Hapus'} "${row.code || row.name || row.title || `#${row.id}`}"? Tindakan ini tidak dapat dibatalkan.`,
             confirmLabel: def.deleteLabel || 'Hapus',
@@ -1536,10 +1555,14 @@ export async function renderList(host, { key, def }) {
             },
           });
         },
-      }), def.deleteLabel || 'Hapus'));
+      });
     }
 
-    return wrap.childElementCount ? wrap : null;
+    const menu = overflowMenu(items, { title: `Aksi untuk ${codeOf(row)}` });
+    const trigger = menu.querySelector('.menu-trigger');
+    trigger.setAttribute('aria-label', trigger.title);
+    labelled(trigger, 'Aksi');
+    return el('.cell-actions', menu);
   }
 
   /*
@@ -1661,7 +1684,10 @@ export async function renderList(host, { key, def }) {
       return;
     }
 
-    const hasActions = rows.some((row) => rowActions(row));
+    /* Satu menu per baris, dibangun SEKALI — dulu rowActions() dipanggil dua kali per
+       baris (sekali untuk "adakah kolom aksi", sekali untuk menggambarnya). */
+    const menus = new Map(rows.map((row) => [row.id, rowMenu(row)]));
+    const hasActions = [...menus.values()].some(Boolean);
     const openable = !def.noDetail;
     const meta = (payload && payload.meta) || {};
     const sortable = Array.isArray(meta.sortable) ? meta.sortable : [];
@@ -1681,7 +1707,8 @@ export async function renderList(host, { key, def }) {
       el('thead', el('tr', [
         picking ? el('th.pick', pickAllBox(pickable)) : null,
         ...def.columns.map((column) => headerCell(column, sortable)),
-        hasActions ? el('th.right', { text: '', style: { width: '1%' } }) : null,
+        // th sticky = berposisi, jadi ia menampung span sr-only-nya sendiri.
+        hasActions ? el('th.right.col-min', el('span.sr-only', { text: 'Aksi' })) : null,
       ])),
       el('tbody', rows.map((row) => {
         const chosen = picking && picked.has(row.id);
@@ -1689,14 +1716,20 @@ export async function renderList(host, { key, def }) {
           picking ? el('td.pick', pickBox(row)) : null,
           ...def.columns.map((column) =>
             el(`td${column.align ? `.${column.align}` : ''}${column.type === 'code' ? '.code' : ''}${column.hideOnNarrow ? '.hide-narrow' : ''}`, renderCell(row, column))),
-          hasActions ? el('td.right', rowActions(row)) : null,
+          hasActions ? (menus.get(row.id) ? el('td.right.row-menu', menus.get(row.id)) : el('td.right')) : null,
         ]);
         if (openable) {
           /* Klik pada kotak centang TIDAK membuka dokumennya. Tanpa penjaga ini
              mencentang satu baris berarti berpindah halaman, dan seleksi yang
-             baru lahir itu ikut mati di muatan berikutnya. */
+             baru lahir itu ikut mati di muatan berikutnya.
+             Begitu pula klik pada ⋯ dan butir menunya (UX-E1.10). Butir yang
+             dipilih sudah DICABUT dari DOM saat kliknya sampai di <tr> (menuButton
+             menutup popup-nya di penangan butir), jadi closest() tidak lagi bisa
+             melihat selnya; composedPath() mencatat jalurnya saat dikirim. */
+          const menuCell = tr.querySelector('td.row-menu');
           tr.addEventListener('click', (event) => {
             if (event.target.closest('td.pick')) return;
+            if (menuCell && event.composedPath().includes(menuCell)) return;
             navigate(`d/${key}/${row.id}`);
           });
         }

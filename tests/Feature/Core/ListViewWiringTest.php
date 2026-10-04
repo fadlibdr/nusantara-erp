@@ -362,10 +362,93 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertGreaterThanOrEqual(8, $checked, 'Pemindai aturan tidak menemukan aturan tab/bilah daftar — pin ini hampa.');
     }
 
+    /* ------------------------------------------------------------ E1.10 */
+
+    /** Menu ⋯ baris menggantikan tombol baris SATU banding SATU: gerbang harfiah, Buka tidak pernah sendirian, tanpa aksi dokumen. */
+    public function test_the_row_menu_replaces_the_row_buttons_one_for_one(): void
+    {
+        $list = $this->spa('views/list.js');
+        $menu = $this->functionBody($list, 'function rowMenu(row) {');
+        $this->assertNotNull($menu, 'rowMenu() hilang dari list.js.');
+        $this->assertNull($this->functionBody($list, 'function rowActions(row) {'), 'rowActions() kembali di samping rowMenu().');
+
+        // Gerbang Ubah/Hapus disalin harfiah (ERRATA E-5; PANDUAN "izin DAN status").
+        $this->assertStringContainsString('const canEdit = def.canEdit !== false && Boolean(def.form) && session.can(`${def.module}.update`) &&'."\n".'      (!def.editableWhen || def.editableWhen(row));', $menu);
+        $this->assertStringContainsString('const canDelete = def.canDelete !== false && session.can(`${def.module}.delete`) &&'."\n".'      (!def.deletableWhen || def.deletableWhen(row));', $menu);
+        // ⋯ lahir hanya dari cetak/Ubah/Hapus — Buka tidak pernah sendirian (kepadatan beku, aturan detail.js).
+        $this->assertStringContainsString('if (!prints.length && !canEdit && !canDelete) return null;', $menu);
+        $this->assertLessThan(strpos($menu, "label: 'Buka'"), strpos($menu, 'if (!prints.length && !canEdit && !canDelete) return null;'));
+        $this->assertStringContainsString('overflowMenu(items, { title: `Aksi untuk ${codeOf(row)}` })', $menu);
+        $this->assertStringContainsString('label: `${def.deleteLabel || \'Hapus\'}…`', $menu);
+        $this->assertStringContainsString('items.push({ divider: true });', $menu);
+        $this->assertStringContainsString('danger: true,', $menu);
+        $this->assertStringContainsString("labelled(trigger, 'Aksi');", $menu);
+        $this->assertStringNotContainsString('def.actions', $menu, 'Aksi dokumen (pintu keputusan, boardOnly) menyusup ke menu baris.');
+        // Hapus tetap menulis kalimat konfirmasi dan jalur api.del → invalidate → toast → load yang sama.
+        $this->assertStringContainsString('? Tindakan ini tidak dapat dibatalkan.`', $menu);
+        $this->assertMatchesRegularExpression('/await api\.del\(`\$\{def\.api\}\/\$\{row\.id\}`\);\n\s*invalidateByPath\(def\.api\);\n\s*forgetWhole\(\);[^\n]*\n\s*toast\(`\$\{def\.labelOne\} dihapus\.`\);\n\s*load\(\);/', $menu);
+
+        // Fokus dipindah ke ⋯ SEBELUM dialog/formulir: modal() menangkap returnFocus saat dibuka.
+        // Berdampingan persis — irisan "dari onClick terdekat" bisa berlabuh di penangan butir lain.
+        $this->assertMatchesRegularExpression('/trigger\.focus\(\);\n\s*startForm\(\{ def, key, row,/', $menu,
+            'Fokus tidak berada di ⋯ saat Ubah membuka formulirnya — Batal menjatuhkannya ke <body>.');
+        $this->assertMatchesRegularExpression('/trigger\.focus\(\);\n\s*confirmDialog\(\{/', $menu,
+            'Fokus tidak berada di ⋯ saat Hapus… membuka konfirmasinya — Batal menjatuhkannya ke <body>.');
+
+        $rows = (string) $this->functionBody($list, 'function renderRows() {');
+        $this->assertStringContainsString('const menus = new Map(rows.map((row) => [row.id, rowMenu(row)]));', $rows);
+        $this->assertSame(1, substr_count($rows, 'rowMenu('), 'rowMenu() dipanggil lebih dari sekali per baris.');
+        $this->assertStringContainsString("el('th.right.col-min', el('span.sr-only', { text: 'Aksi' }))", $rows);
+        $this->assertStringNotContainsString("width: '1%'", $rows, 'Lebar sebaris kolom aksi kembali — .col-min yang memegangnya.');
+        // Klik ⋯ atau butirnya tidak membuka dokumen; butir yang dipilih sudah tercabut, maka composedPath().
+        $this->assertStringContainsString("if (event.target.closest('td.pick')) return;", $rows);
+        $this->assertStringContainsString('if (menuCell && event.composedPath().includes(menuCell)) return;', $rows);
+        // …dan sel yang dijaganya benar-benar ada: tanpa .row-menu, menuCell null dan penjaga mati diam-diam.
+        $this->assertStringContainsString("el('td.right.row-menu', menus.get(row.id))", $rows);
+        $this->assertStringContainsString("const menuCell = tr.querySelector('td.row-menu');", $rows);
+
+        // ui.js: ↓/↑ yang MEMBUKA menu tidak ikut menavigasi di dalamnya (butir kedua = "Hapus…"),
+        // dan menu yatim melepaskan papan ketik pada ketukan berikutnya.
+        $ui = $this->spa('ui.js');
+        $opener = (int) strpos($ui, "open({ focusLast: event.key === 'ArrowUp' });");
+        $this->assertGreaterThan(0, $opener);
+        $this->assertStringContainsString('event.stopPropagation();', substr($ui, $opener, (int) strpos($ui, "\n  });", $opener) - $opener),
+            '↓ yang membuka menu ⋯ ikut menggelembung ke onKey dan memindah fokus ke butir kedua ("Hapus…").');
+        $this->assertStringContainsString("if (!wrap.isConnected) {\n      close();\n      return;\n    }", $ui);
+
+        // Butir cetak tetap pada layar noDetail saja, dengan rantai yang dipaku DunningLetterTest.
+        $prints = (string) $this->functionBody($list, 'function printRowItems(row) {');
+        $this->assertStringContainsString('if (!def.noDetail) return [];', $prints);
+        $this->assertStringContainsString('.filter((form) => printableFor(form, row))', $prints);
+        $this->assertStringContainsString('onClick: (event, trigger) => openPrintable(printablePath(form, row), trigger),', $prints);
+
+        $this->assertStringContainsString('table.data tbody tr.clickable td.row-menu { cursor: default; }', $this->css());
+    }
+
+    /** Tidak ada "Duplikat" (ERRATA E-5: server tidak punya aksinya) — huruf besar persis, di seluruh SPA dan skema. */
+    public function test_no_duplicate_action_exists_in_the_spa(): void
+    {
+        $offenders = [];
+        foreach ($this->spaFiles() as $path => $source) {
+            if ($this->offersDuplicate($source)) {
+                $offenders[] = $path;
+            }
+        }
+        $this->assertSame([], $offenders, 'Aksi "Duplikat" muncul di SPA padahal server tidak punya endpoint-nya (ERRATA E-5).');
+        $this->assertDoesNotMatchRegularExpression("/path: '[^']*(duplicate|duplikat|clone)[^']*'/i", $this->spa('schema.js'));
+    }
+
+    /** Separuh penolakan: pembacanya mengenali butir Duplikat persis seperti README menggambarnya. */
+    public function test_the_duplicate_reader_recognises_the_readme_item(): void
+    {
+        $this->assertTrue($this->offersDuplicate("items.push({ label: 'Duplikat sebagai draf', iconName: 'copy' });"));
+        $this->assertFalse($this->offersDuplicate("// duplikat dan duplicate dalam komentar huruf kecil bukan aksi"));
+    }
+
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(53, (int) $version[1],
+        $this->assertGreaterThanOrEqual(57, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -385,6 +468,26 @@ class ListViewWiringTest extends ErpTestCase
     private function css(): string
     {
         return (string) file_get_contents(public_path('app/app.css'));
+    }
+
+    private function offersDuplicate(string $source): bool
+    {
+        return str_contains($source, 'Duplikat');
+    }
+
+    /** @return array<string, string> setiap berkas .js di public/app/js, rekursif. */
+    private function spaFiles(): array
+    {
+        $files = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(public_path('app/js'), \FilesystemIterator::SKIP_DOTS));
+        foreach ($iterator as $file) {
+            if ($file->isFile() && $file->getExtension() === 'js') {
+                $files[$file->getPathname()] = (string) file_get_contents($file->getPathname());
+            }
+        }
+        $this->assertGreaterThan(30, count($files), 'Pembaca berkas SPA tidak menemukan berkasnya — pin ini hampa.');
+
+        return $files;
     }
 
     /** Larik `filters: [` … `],` tingkat resource (indentasi 4) di dalam satu blok, atau null. */

@@ -710,14 +710,20 @@ mengurutkan yang ikut tercetak.
 
 **Membuka baris.** Klik baris untuk membuka halaman dokumennya. Beberapa layar memang
 tidak punya halaman dokumen (mis. Bagan Akun, Progres Mingguan, Rekap Absensi); di sana
-baris tidak bisa diklik dan yang tersedia hanya ikon di ujung kanan baris.
+baris tidak bisa diklik dan yang tersedia hanya menu **⋯** di ujung kanan baris.
 
 **Dengan papan ketik**: Tab masuk ke tabel sekali, lalu ↑/↓ berpindah baris, Home/End ke
 ujung, Enter atau spasi membuka baris.
 
-**Ikon di ujung kanan baris**: ikon printer (hanya pada layar tanpa halaman dokumen),
-pensil **Ubah**, tong sampah **Hapus**. Keduanya hanya muncul bila izin Anda
-mengizinkan **dan** status barisnya mengizinkan.
+**Menu ⋯ di ujung kanan baris** (tombol **Aksi**): **Buka** (membuka halaman dokumennya
+— sama dengan mengklik barisnya), **Cetak …** dan **Unduh … (XLSX)** (hanya pada layar
+tanpa halaman dokumen, mis. Progres Mingguan), **Ubah**, lalu — sesudah garis, dalam
+merah — **Hapus…** (atau **Nonaktifkan…** pada Pengguna). **Ubah** dan **Hapus…** hanya
+muncul bila izin Anda mengizinkan **dan** status barisnya mengizinkan — PO yang sudah
+disetujui, misalnya, tidak bisa diubah maupun dihapus. Baris yang tidak punya apa pun
+selain **Buka** tidak diberi ⋯ sama sekali: barisnya sendiri sudah bisa diklik. Menu
+ini bisa dibuka dengan papan ketik (Tab ke ⋯, lalu Enter atau ↓), dan Esc menutupnya;
+mengklik ⋯ tidak membuka dokumennya. Menu tertutup sendiri begitu halamannya digulir.
 
 **Menghapus.** Konfirmasinya berbunyi `Hapus "<kode>"? Tindakan ini tidak dapat
 dibatalkan.` — dan itu apa adanya. **Tidak ada tempat sampah, tidak ada pemulihan, tidak
@@ -3861,7 +3867,7 @@ dan tidak dapat dihapus. Terima dulu transfernya di gudang tujuan, baru hapus it
 rata-rata tertimbang item itu **di seluruh gudang**; di **Saldo Stok** ia rata-rata di
 **satu gudang**. **Sebuah bon selalu dinilai pada angka GUDANG.**
 
-**`Persediaan › Kategori Item`** — tanpa halaman detail; ubah/hapus dari ikon di baris.
+**`Persediaan › Kategori Item`** — tanpa halaman detail; **Ubah** / **Hapus…** di menu ⋯ baris.
 Kode (wajib, unik) · Nama kategori (wajib) · Kategori induk. Menghapus ditolak:
 *"Kategori masih dipakai oleh item atau sub-kategori."*
 
@@ -4396,7 +4402,7 @@ mengajukan atau menyetujuinya — yang menekan tombolnya tetap orang, di layar
 Tiga akibatnya yang harus Anda ketahui sejak awal:
 
 - **Tombol Hapus praktis tidak pernah ada.** Izin hapus tidak dipegang manajer proyek
-  maupun site manager, jadi ikon tong sampah tidak muncul pada laporan harian, milestone,
+  maupun site manager, jadi **Hapus…** tidak muncul di menu ⋯ baris laporan harian, milestone,
   temuan, penugasan personel, draf BAST, maupun draf baseline. **Salah entri diperbaiki
   lewat `Ubah`, bukan hapus-buat-ulang.** Bila sebuah baris memang harus lenyap, minta
   administrator.
@@ -4823,8 +4829,8 @@ yang sama — bantuan di formulirnya mengatakannya: *"Menyimpan ulang minggu yan
 memperbarui data (upsert)."*
 
 Kolom: Proyek · Minggu (`M-8`) · Mulai · Selesai · Rencana (%) · Aktual (%) · **Sumber
-aktual** · **Deviasi** (bertanda). Saringan: Proyek. Ikon printer per baris mencetak
-**Detail Schedule** (§7.13).
+aktual** · **Deviasi** (bertanda). Saringan: Proyek. **Cetak Detail Schedule** di menu ⋯
+setiap baris mencetak **Detail Schedule** (§7.13).
 
 1. **`Tambah Progres Mingguan`**.
 2. Isi **Proyek** (wajib), **Minggu ke-** (wajib, 1–520), **Periode mulai** (wajib),
@@ -4903,7 +4909,7 @@ lama.
 | **`Verifikasi`** | **setujui** | idem | Tanggal diterima |
 | **`Dispensasi`** | **setujui** | idem | **Alasan dispensasi** (wajib, min. 10 karakter) + tanggal |
 | **`Buka kembali`** | **setujui** | status Selesai atau Dispensasi | **Alasan** (wajib, min. 10 karakter) |
-| ikon Ubah | ubah | status bukan Selesai/Dispensasi | formulir temuan |
+| **`Ubah`** (halaman temuan, atau menu ⋯ barisnya) | ubah | status bukan Selesai/Dispensasi | formulir temuan |
 
 Alurnya: Terbuka → Perbaikan berjalan → **Menunggu verifikasi** → Selesai (terverifikasi)
 atau Dispensasi pelanggan.
@@ -5355,7 +5361,7 @@ periksanya lagi.
 |---|---|---|
 | **Data Proyek** (F/DP) | halaman proyek, kepala halaman | 17 baris dari data proyek — semuanya terisi |
 | **Laporan Harian** (F/LH) | **halaman** laporan harian | satu laporan + kelima tabel barisnya (§7.3) |
-| **Detail Schedule** (F/DS) | **baris** daftar Progres Mingguan (ikon printer) | WBS + baseline + progres mingguan |
+| **Detail Schedule** (F/DS) | **baris** daftar Progres Mingguan (**Cetak** di menu ⋯) | WBS + baseline + progres mingguan |
 | **Daftar Temuan** (F/DT) | **halaman** satu temuan | **seluruh register temuan proyek itu** |
 | **Izin Kerja Lapangan** (F/IK) | **halaman satu izin** — register `Izin Kerja (IKL)` | izin itu: shift, jam berlaku, pekerjaan, tabel bahaya/APD |
 | **Izin Kerja Lembur** (F/IL) | **halaman satu izin** — register `Izin Lembur (ILB)` | izin + satu baris tercetak per pekerja |
@@ -5475,7 +5481,7 @@ bulan itu, enam kolom hari Senin–Sabtu. Baris = pohon WBS.
   yang benar-benar tercetak — satu kalimat untuk lembar yang seluruhnya diketik, satu untuk
   yang seluruhnya dari opname, dan satu lagi untuk bulan yang bercampur.
 
-> **Tombol cetak Detail Schedule pada baris Progres Mingguan selalu mencetak jadwal BULAN
+> **Cetak Detail Schedule di menu ⋯ baris Progres Mingguan selalu mencetak jadwal BULAN
 > BERJALAN.** Mencetak dari baris minggu 3 (Februari) menghasilkan lembar bulan Agustus.
 > Tidak ada cara memilih bulan dari layar. Cetaklah pada bulan yang bersangkutan, atau
 > catat keterbatasan itu pada arsipnya.
@@ -6210,7 +6216,7 @@ satu baris itu.
 
 ### 9.2 Kategori Aset — isi ini lebih dulu
 
-`Aset › Kategori Aset` (tanpa halaman detail; ubah/hapus dari ikon baris). Kolom: Kode ·
+`Aset › Kategori Aset` (tanpa halaman detail; **Ubah** / **Hapus…** di menu ⋯ baris). Kolom: Kode ·
 Nama kategori · Umur manfaat default · Akun beban · Akun akumulasi · Akun harga
 perolehan.
 
@@ -7301,7 +7307,7 @@ varian material tidak masuk akal.
 
 ### 10.14 Master keuangan
 
-Ketiganya **tanpa halaman detail** — ubah dan hapus dari ikon di baris.
+Ketiganya **tanpa halaman detail** — **Ubah** dan **Hapus…** di menu ⋯ baris.
 
 **`Keuangan › Bagan Akun`** (100 baris per halaman). Kolom: Kode (menjorok mengikuti
 kodenya) · Nama akun · Tipe · Saldo normal · Dapat diposting · Aktif. Formulir: **Kode
@@ -8011,7 +8017,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Jenis layar | Letak tombol | Contoh |
 |---|---|---|
 | Layar dokumen biasa | baris tombol di kepala halaman | Penawaran, PO, GRN, Payroll |
-| Layar daftar **tanpa** halaman dokumen | **ikon printer di baris** | Progres Mingguan |
+| Layar daftar **tanpa** halaman dokumen | **Cetak di menu ⋯ baris** | Progres Mingguan |
 | Layar khusus | tombolnya sendiri di kepala layar atau di kartu | Kasir Kas Kecil, Absensi Harian, Kalender Pajak, halaman proyek |
 | Register yang dicetak per induk | pada halaman **salah satu anggotanya** | Register Jaminan (per kontrak), Daftar Temuan (per proyek), Daftar Saldo Stok (per gudang) |
 
@@ -8020,8 +8026,8 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 ### 13.2a Tombol XLSX — sepuluh formulir yang juga turun sebagai Excel
 
 Sejak P8, **sepuluh formulir tersering** membawa tombol kedua **di samping tombol
-cetaknya** — `XLSX` di halaman dokumen, ikon unduh di baris daftar layar tanpa halaman
-dokumen. Ia **mengunduh berkas Excel** berisi **data yang persis sama** dengan lembar
+cetaknya** — `XLSX` di halaman dokumen, **Unduh … (XLSX)** di menu ⋯ baris daftar layar
+tanpa halaman dokumen. Ia **mengunduh berkas Excel** berisi **data yang persis sama** dengan lembar
 cetaknya: keduanya dibaca dari satu komposisi, sehingga sebuah angka tidak mungkin
 berbeda antara kertas dan Excel-nya.
 

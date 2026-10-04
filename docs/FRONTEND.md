@@ -296,7 +296,7 @@ The four places a button can land, and why there are four:
 |---------------------------------|---------------------------------------------------|
 | generic detail                  | `detail.js` — automatic                            |
 | `customDetail: '…'`             | one `houseFormButtons('<key>', $record)` line in the view |
-| `noDetail: true` list           | `list.js` row action — there is no detail screen to carry it |
+| `noDetail: true` list           | `list.js` row ⋯ menu — there is no detail screen to carry it |
 | route-only screen (`absensi`)   | its own button, anchored on a row of what is on screen |
 
 Keep `printForms` on the schema entry only for a form that needs a query parameter the
