@@ -649,6 +649,18 @@ Counted as `git grep -n -F '<phrase>' <rev> -- docs ':!docs/design_handoff_nusan
 - S4's `fields_typed_before_expiry` now reads 15 (14 before): the auto row's default `qty` is an input with a value — recorded, not re-pinned.
 - S28 and S30 stay red on their pre-E2 checks (OQ-7; S30 not investigated). Screenshots were reviewed by eye. MySQL not run (UX-F1, UX-I).
 
+## UX-F1 — Backend: `GET core/my-work`
+
+Branch `feat/ux-redesign-f1` from `77b7410` (the E3 merge). One endpoint, exactly as ERRATA E-9; no SPA change (the screen that reads it is UX-F2).
+
+### UX-F1.1 — `GET core/my-work` with `MyWorkTest`
+- Commit: see the commit that adds this entry. No `public/app` change (SHELL stays 73).
+- Files: `Modules/Core/Support/MyWork.php` (new), `Modules/Core/Http/Controllers/MyWorkController.php` (new), `Modules/Core/Routes/api.php` (route beside `inbox`, same no-gate reasoning), `Modules/Core/Support/ApprovalQueue.php` (`ownerOf`, `ownedByEmployee`, `amountOf`, `titleOf` extracted and used by `pending()`), `tests/Feature/Core/MyWorkTest.php` (new, 6 tests), `docs/FRONTEND.md`, this file
+- What: `MyWork::for($user, $now)` iterates `ApprovableDocuments::all()` (no feature-module import in Core), skips types the caller cannot `<prefix>.view`, loads `submitted` + `rejected` documents through the registered class, reads `core_approvals` with `DB::table` (latest `submitted` and latest `rejected` row per document, `on_behalf_of_user_id` when the column exists) and keeps the documents the caller owns — **through `ApprovalQueue::ownerOf()` / `ownedByEmployee()`**, extracted from the inbox so the two cannot drift (user on the latest `submitted` row, else the first non-empty `OWNER_KEYS`, else `employee_id` = the caller's). Row = the inbox row shape (`id`, `code`, `label`, `resource`, `title`, `amount`, `submitted_at`, `days_waiting`, `link`) + `status`, `bucket` (`needs_fix` | `waiting`) and, for rejected documents, `decided_at`, `decided_by` ("Budi a.n. Sari" when delegated) and `note` from the latest `rejected` row. `meta`: `total`, `failed` (labels of types that threw), `as_of`. Order: `needs_fix` by oldest decision, then `waiting` by oldest submission. The controller is invokable and authenticated; no permission gate of its own (the rows are the caller's by construction).
+- Tests (`MyWorkTest`): the owner sees own submitted and rejected documents in the right buckets, order and shape (note, decided_by, link); another user's documents are not offered; a document with no submission row falls back to `requested_by`; a type that throws (its table dropped) lands in `meta.failed` while the others still answer; a type the caller cannot view contributes no rows; and a source pin that the inbox and MyWork share `ownerOf()` and that MyWork copies no `OWNER_KEYS` and imports no feature module. ApprovalQueueDelegationTest, ApprovalInboxGateTest, ApprovalWatchTest and ApprovalPolicyEquivalenceTest stay green on the refactored `pending()`.
+- Gate: Core on SQLite **green — 1 507 tests, 12 575 assertions, 11 skipped** (E3 gate: 1 501; +6 MyWorkTest). Core on MySQL (`phpunit.mysql.xml`, the local mysqld; the `erp` user was granted `erp_test` for the run): **green — 1 518 tests, 12 582 assertions, 9 skipped**. Found on MySQL: the throwing-type test dropped `crm_quotations` behind foreign keys (MySQL refuses) → `Schema::disableForeignKeyConstraints()` around the drop (SQLite's PRAGMA, MySQL's SET); and one full-run error in NotificationTemplatesTest (`sole()` found 2) that does not reproduce with the class alone, with the old or the new ApprovalQueue, nor in the rerun of the whole directory — a cross-test interaction under MySQL, recorded, not F1's.
+- Deviations: none.
+
 ---
 
 ## Metrics
