@@ -656,7 +656,7 @@ Susunannya dari atas ke bawah:
    terakhir hanya muncul bila Anda memegang izin membuat.
 2. **Bilah alat**: kotak **Cari** (bekerja 320 milidetik setelah Anda berhenti
    mengetik; Anda boleh terus mengetik selama daftarnya dimuat ulang), tombol
-   **`Filter`**, saringan yang sedang aktif, dan di ujung kanan **`Ekspor CSV`**.
+   **`Filter`**, saringan yang sedang aktif, lalu di kanan **`Ekspor CSV`** dan **`Atur kolom`**.
    Setiap saringan aktif tampil sebagai chip kecil sesudah tombol **`Filter`** —
    *Disaring: Status: Disetujui ×* — dan × pada chip membuang saringan itu saja.
    **`Hapus semua`** di ujung chip membuang semuanya sekaligus, termasuk isi kotak Cari,
@@ -4923,7 +4923,7 @@ lama.
 | **`Verifikasi`** | **setujui** | idem | Tanggal diterima |
 | **`Dispensasi`** | **setujui** | idem | **Alasan dispensasi** (wajib, min. 10 karakter) + tanggal |
 | **`Buka kembali`** | **setujui** | status Selesai atau Dispensasi | **Alasan** (wajib, min. 10 karakter) |
-| **`Ubah`** (halaman temuan, atau menu ⋯ barisnya) | ubah | status bukan Selesai/Dispensasi | formulir temuan |
+| ikon Ubah | ubah | status bukan Selesai/Dispensasi | formulir temuan |
 
 Alurnya: Terbuka → Perbaikan berjalan → **Menunggu verifikasi** → Selesai (terverifikasi)
 atau Dispensasi pelanggan.

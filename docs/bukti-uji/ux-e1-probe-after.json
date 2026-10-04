@@ -1,0 +1,841 @@
+{
+ "base": "http://127.0.0.1:8000/app/",
+ "rows": {
+  "procurement/purchase-orders|admin|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "inventory/item-categories|admin|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 5,
+     "min": 32,
+     "max": 32
+    },
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 5,
+     "min": 46.5,
+     "max": 47
+    },
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 5,
+     "min": 48,
+     "max": 48
+    },
+    "header": 42.5
+   }
+  },
+  "finance/accounts|admin|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 77,
+     "min": 32,
+     "max": 46
+    },
+    "header": 23
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 77,
+     "min": 47,
+     "max": 58
+    },
+    "header": 35
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 77,
+     "min": 48,
+     "max": 58
+    },
+    "header": 35
+   }
+  },
+  "crm/customers|admin|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "crm/quotations|admin|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "servicedesk/tickets|admin|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "projects/weekly-progress|admin|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 32,
+     "max": 32
+    },
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 57.5,
+     "max": 58
+    },
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 57.5,
+     "max": 58
+    },
+    "header": 42.5
+   }
+  },
+  "procurement/purchase-orders|direktur|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "inventory/item-categories|direktur|fine": {
+   "compact": {
+    "text": {
+     "n": 5,
+     "min": 32,
+     "max": 32
+    },
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": {
+     "n": 5,
+     "min": 38.5,
+     "max": 38.5
+    },
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": {
+     "n": 5,
+     "min": 48,
+     "max": 48
+    },
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "finance/accounts|direktur|fine": {
+   "compact": {
+    "text": {
+     "n": 77,
+     "min": 32,
+     "max": 46
+    },
+    "badge": null,
+    "button": null,
+    "header": 23
+   },
+   "normal": {
+    "text": {
+     "n": 77,
+     "min": 38.5,
+     "max": 58
+    },
+    "badge": null,
+    "button": null,
+    "header": 35
+   },
+   "comfortable": {
+    "text": {
+     "n": 77,
+     "min": 48,
+     "max": 58
+    },
+    "badge": null,
+    "button": null,
+    "header": 35
+   }
+  },
+  "crm/customers|direktur|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "crm/quotations|direktur|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "servicedesk/tickets|direktur|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "projects/weekly-progress|direktur|fine": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 32,
+     "max": 32
+    },
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 57.5,
+     "max": 58
+    },
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 57.5,
+     "max": 58
+    },
+    "header": 42.5
+   }
+  },
+  "procurement/purchase-orders|admin|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 38
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 50
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 50
+   }
+  },
+  "inventory/item-categories|admin|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 5,
+     "min": 42.5,
+     "max": 43
+    },
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 5,
+     "min": 54.5,
+     "max": 55
+    },
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 5,
+     "min": 54.5,
+     "max": 55
+    },
+    "header": 42.5
+   }
+  },
+  "finance/accounts|admin|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 77,
+     "min": 43,
+     "max": 46
+    },
+    "header": 23
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 77,
+     "min": 55,
+     "max": 58
+    },
+    "header": 35
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 77,
+     "min": 55,
+     "max": 58
+    },
+    "header": 35
+   }
+  },
+  "crm/customers|admin|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "crm/quotations|admin|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 38
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 50
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 50
+   }
+  },
+  "servicedesk/tickets|admin|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 38
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 50
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 50
+   }
+  },
+  "projects/weekly-progress|admin|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 45.5,
+     "max": 46
+    },
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 57.5,
+     "max": 58
+    },
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 57.5,
+     "max": 58
+    },
+    "header": 42.5
+   }
+  },
+  "procurement/purchase-orders|direktur|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "inventory/item-categories|direktur|coarse": {
+   "compact": {
+    "text": {
+     "n": 5,
+     "min": 32,
+     "max": 32
+    },
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": {
+     "n": 5,
+     "min": 38.5,
+     "max": 38.5
+    },
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": {
+     "n": 5,
+     "min": 48,
+     "max": 48
+    },
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "finance/accounts|direktur|coarse": {
+   "compact": {
+    "text": {
+     "n": 77,
+     "min": 32,
+     "max": 46
+    },
+    "badge": null,
+    "button": null,
+    "header": 23
+   },
+   "normal": {
+    "text": {
+     "n": 77,
+     "min": 38.5,
+     "max": 58
+    },
+    "badge": null,
+    "button": null,
+    "header": 35
+   },
+   "comfortable": {
+    "text": {
+     "n": 77,
+     "min": 48,
+     "max": 58
+    },
+    "badge": null,
+    "button": null,
+    "header": 35
+   }
+  },
+  "crm/customers|direktur|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "crm/quotations|direktur|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "servicedesk/tickets|direktur|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": null,
+    "header": 42.5
+   }
+  },
+  "projects/weekly-progress|direktur|coarse": {
+   "compact": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 45.5,
+     "max": 46
+    },
+    "header": 30.5
+   },
+   "normal": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 57.5,
+     "max": 58
+    },
+    "header": 42.5
+   },
+   "comfortable": {
+    "text": null,
+    "badge": null,
+    "button": {
+     "n": 8,
+     "min": 57.5,
+     "max": 58
+    },
+    "header": 42.5
+   }
+  }
+ },
+ "tabstops": {
+  "procurement/purchase-orders|admin": {
+   "total": 16,
+   "search_to_next": null
+  },
+  "inventory/item-categories|admin": {
+   "total": 13,
+   "search_to_next": null
+  },
+  "finance/accounts|admin": {
+   "total": 84,
+   "search_to_next": null
+  },
+  "crm/customers|admin": {
+   "total": 16,
+   "search_to_next": null
+  },
+  "crm/quotations|admin": {
+   "total": 14,
+   "search_to_next": null
+  },
+  "servicedesk/tickets|admin": {
+   "total": 21,
+   "search_to_next": null
+  },
+  "projects/weekly-progress|admin": {
+   "total": 21,
+   "search_to_next": null
+  },
+  "procurement/purchase-orders|direktur": {
+   "total": 12,
+   "search_to_next": null
+  },
+  "inventory/item-categories|direktur": {
+   "total": 7,
+   "search_to_next": null
+  },
+  "finance/accounts|direktur": {
+   "total": 6,
+   "search_to_next": null
+  },
+  "crm/customers|direktur": {
+   "total": 12,
+   "search_to_next": null
+  },
+  "crm/quotations|direktur": {
+   "total": 13,
+   "search_to_next": null
+  },
+  "servicedesk/tickets|direktur": {
+   "total": 14,
+   "search_to_next": null
+  },
+  "projects/weekly-progress|direktur": {
+   "total": 20,
+   "search_to_next": null
+  }
+ },
+ "requests": {
+  "polos": {
+   "count": 4,
+   "sample": [
+    "projects?per_page=500&page=1",
+    "procurement/vendors?per_page=500&page=1",
+    "core/print/forms",
+    "procurement/purchase-orders?per_page=20&page=1"
+   ]
+  },
+  "dua saringan": {
+   "count": 2,
+   "sample": [
+    "procurement/purchase-orders?status=draft&vendor_id=1&per_page=20&page=1",
+    "procurement/purchase-orders?per_page=1&page=1"
+   ]
+  }
+ },
+ "toolbar": {
+  "1440|polos": 62,
+  "1440|dua saringan": 138,
+  "390|polos": 106,
+  "390|dua saringan": 356
+ },
+ "actions": {
+  "procurement/purchase-orders|admin": {
+   "reachable": "tidak ada aksi baris"
+  },
+  "inventory/item-categories|admin": {
+   "via": "menu",
+   "clicks": 2
+  },
+  "finance/accounts|admin": {
+   "via": "menu",
+   "clicks": 2
+  },
+  "crm/customers|admin": {
+   "via": "menu",
+   "clicks": 2
+  },
+  "crm/quotations|admin": {
+   "reachable": "tidak ada aksi baris"
+  },
+  "servicedesk/tickets|admin": {
+   "via": "menu",
+   "clicks": 2
+  },
+  "projects/weekly-progress|admin": {
+   "via": "menu",
+   "clicks": 2
+  },
+  "procurement/purchase-orders|direktur": {
+   "reachable": "tidak ada aksi baris"
+  },
+  "inventory/item-categories|direktur": {
+   "reachable": "tidak ada aksi baris"
+  },
+  "finance/accounts|direktur": {
+   "reachable": "tidak ada aksi baris"
+  },
+  "crm/customers|direktur": {
+   "reachable": "tidak ada aksi baris"
+  },
+  "crm/quotations|direktur": {
+   "reachable": "tidak ada aksi baris"
+  },
+  "servicedesk/tickets|direktur": {
+   "reachable": "tidak ada aksi baris"
+  },
+  "projects/weekly-progress|direktur": {
+   "via": "menu",
+   "clicks": 2
+  }
+ }
+}
