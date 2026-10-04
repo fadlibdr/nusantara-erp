@@ -195,7 +195,8 @@ instead of the generic detail screen.
 
 ### A live note under a field (`liveNote`, F-2)
 
-A field spec may carry `liveNote: '<key>'`. `views/form.js` keeps the providers in one
+A field spec may carry `liveNote: '<key>'`. The note carries `.tone-warn` / `.tone-neg` (a class,
+never an inline colour — UX-E3.4; S29 reads the class). `views/form.js` keeps the providers in one
 registry (`LIVE_NOTES`) and renders a `.help` line under that field, refreshed whenever the
 form changes:
 

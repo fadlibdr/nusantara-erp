@@ -1,7 +1,7 @@
 /* Schema-driven create/edit form, including repeatable line-item tables. */
 
 import { api } from '../api.js';
-import { el, clear, button, badge, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog } from '../ui.js';
+import { el, clear, button, badge, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog, errorSummary } from '../ui.js';
 import { renderCell } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -918,7 +918,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
      catatan. Delegasi adalah pola yang sama yang sudah dipakai visibleWhen di
      atas, dengan alasan yang persis sama. */
   const noteRefreshers = noteWatchers.map((watcher) => {
-    const note = el('.help');
+    const note = el('.help', { role: 'status' });
     note.hidden = true;
     watcher.wrapper.appendChild(note);
 
@@ -937,8 +937,9 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
         if (mine !== seq) return;
         note.hidden = !result;
         note.textContent = result ? result.text : '';
-        note.style.color = result && result.tone === 'danger' ? 'var(--danger)'
-          : (result && result.tone === 'warning' ? 'var(--warning)' : '');
+        // Warna lewat kelas, bukan gaya sebaris (UX-E3.4; CONVENTIONS §13a).
+        note.classList.toggle('tone-neg', Boolean(result && result.tone === 'danger'));
+        note.classList.toggle('tone-warn', Boolean(result && result.tone === 'warning'));
       } catch {
         // Diam: peringatan yang gagal dimuat tidak boleh menghalangi dokumen.
         if (mine !== seq) return;
@@ -1076,6 +1077,58 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
   }
 
   /*
+   * Ringkasan galat di atas formulir (UX-E3.4, README E3 / ERRATA E-6 + A-3): satu baris
+   * per galat — pemeriksaan wajib-isi di klien maupun 422 server — yang melompat ke
+   * kolom atau sel barisnya. Tanda merah per kolom tetap; fokus ke galat pertama tetap
+   * (dan kini juga untuk kunci KEPALA dari 422, yang dulu hanya dilukis tanpa gulir
+   * maupun fokus — pembaca reader E3). Dirakit primitif errorSummary() (ui.js),
+   * dipasang sebagai anak PERTAMA badan formulir: di halaman maupun dialog, di dalam
+   * .form-page / .modal-body, sehingga pembaca `.form-page .field .err` harness tidak
+   * berubah. Kunci yang tidak punya kontrol tampil dengan nama kuncinya tanpa lompatan —
+   * toast kunci-tak-terpetakan tetap menyebutnya (aturan di paintErrors).
+   */
+  let summaryNode = null;
+  function clearSummary() {
+    if (summaryNode) summaryNode.remove();
+    summaryNode = null;
+  }
+  function resolveControl(fieldKey) {
+    const match = /^([A-Za-z_]\w*)\.(\d+)\.(\w+)$/.exec(fieldKey);
+    if (match) {
+      const line = lineControls.find(({ def: lineDef }) => lineDef.key === match[1]);
+      const entry = line && line.control.entries()[Number(match[2])];
+      const cell = entry && entry.inputs[match[3]];
+      return cell ? (cell.input || cell.node) : null;
+    }
+    const control = controls[fieldKey.split('.')[0]];
+    return control && !hiddenKeys.has(fieldKey.split('.')[0]) ? (control.input || control.node) : null;
+  }
+  function focusField(fieldKey) {
+    const target = resolveControl(fieldKey);
+    if (!target) return;
+    const fold = target.closest('details');
+    if (fold) fold.toggleAttribute('open', true);
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    target.focus({ preventScroll: true });
+  }
+  function labelFor(fieldKey) {
+    const match = /^([A-Za-z_]\w*)\.(\d+)\.(\w+)$/.exec(fieldKey);
+    if (match) {
+      const line = lineControls.find(({ def: lineDef }) => lineDef.key === match[1]);
+      const column = line && line.def.columns.find((one) => one.key === match[3]);
+      return line ? `${line.def.label} · baris ${Number(match[2]) + 1} · ${column ? column.label : match[3]}` : fieldKey;
+    }
+    const found = fieldControls.find(({ spec }) => spec.key === fieldKey.split('.')[0]);
+    return found ? found.spec.label : fieldKey;
+  }
+  function showSummary(items) {
+    clearSummary();
+    if (!items.length) return;
+    summaryNode = errorSummary(items, { onJump: (fieldKey) => focusField(fieldKey) });
+    body.prepend(summaryNode);
+  }
+
+  /*
    * Satu jalan simpan untuk dua tombol: `trigger` yang sibuk, `afterSave` yang (bila ada)
    * menggantikan finish() sesudah dokumen tersimpan. Tombol kembarannya dinonaktifkan
    * selama berjalan — withBusy hanya mengunci tombol yang diklik (ui.js), dan dua POST
@@ -1132,6 +1185,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       node.querySelectorAll('.err').forEach((err) => err.remove());
     });
     body.querySelectorAll('td.cell-invalid').forEach((cell) => clearCellError(cell));
+    clearSummary();
 
     /*
      * Wajib-isi diperiksa SEBELUM request — hanya wajib-isi: format sudah
@@ -1141,6 +1195,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
      * baris yang tidak ikut terkirim.
      */
     const invalid = [];
+    const summaryItems = [];
     for (const { spec, control } of fieldControls) {
       if (!spec.required) continue;
       // Field yang sedang tersembunyi (visibleWhen) tidak dikirim, jadi
@@ -1150,10 +1205,11 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       if (value === null || value === '') {
         setFieldError(control.input || control.node, 'Wajib diisi.');
         invalid.push(control);
+        summaryItems.push({ field: spec.key, label: spec.label, message: 'Wajib diisi.' });
       }
     }
     for (const { def: lineDef, control } of lineControls) {
-      for (const entry of control.entries()) {
+      control.entries().forEach((entry, index) => {
         for (const column of lineDef.columns) {
           if (!column.required) continue;
           const cell = entry.inputs[column.key];
@@ -1161,11 +1217,14 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
           if (value === null || value === '') {
             setCellError(cell, 'Wajib diisi.');
             invalid.push(cell);
+            const fieldKey = `${lineDef.key}.${index}.${column.key}`;
+            summaryItems.push({ field: fieldKey, label: labelFor(fieldKey), message: 'Wajib diisi.' });
           }
         }
-      }
+      });
     }
     if (invalid.length) {
+      showSummary(summaryItems);
       toast('Periksa isian yang ditandai.', { tone: 'err' });
       const first = invalid[0].input || invalid[0].node;
       first.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -1226,17 +1285,30 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
         }
         const scrolled = { done: false };
         const unmapped = [];
+        const items = [];
+        let firstPainted = null;
         for (const [fieldKey, messages] of Object.entries(error.errors)) {
           const message = [].concat(messages)[0];
-          if (applyLineError(fieldKey, message, scrolled)) continue;
+          if (applyLineError(fieldKey, message, scrolled)) {
+            items.push({ field: fieldKey, label: labelFor(fieldKey), message });
+            firstPainted = firstPainted || fieldKey;
+            continue;
+          }
           const headKey = fieldKey.split('.')[0];
           const control = controls[headKey];
           if (control && !hiddenKeys.has(headKey)) {
             setFieldError(control.input || control.node, message);
+            items.push({ field: fieldKey, label: labelFor(fieldKey), message });
+            firstPainted = firstPainted || fieldKey;
             continue;
           }
           unmapped.push(`${fieldKey}: ${message}`);
+          items.push({ field: fieldKey, label: fieldKey, message });
         }
+        showSummary(items);
+        // Galat 422 pertama yang dilukis difokuskan seperti galat wajib-isi (UX-E3.4);
+        // dulu kunci kepala hanya dilukis, tanpa gulir dan fokus.
+        if (firstPainted) focusField(firstPainted);
         if (!unmapped.length) {
           toast('Periksa isian yang ditandai.', { tone: 'err' });
           return;

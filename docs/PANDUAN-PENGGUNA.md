@@ -806,9 +806,12 @@ Simpan tidak pernah diulang.
 
 **Yang diperiksa peramban sebelum mengirim**: hanya kolom wajib yang kosong. Masing-masing
 ditandai `Wajib diisi.`, muncul pesan **"Periksa isian yang ditandai."**, dan layar
-menggulir ke kolom pertama yang bermasalah.
+menggulir ke kolom pertama yang bermasalah. Di atas formulir muncul **ringkasan galat**
+(*"N isian perlu diperbaiki"*): satu baris per galat, masing-masing tombol yang melompat ke
+kolom atau sel barisnya; tanda merah per kolom tetap ada.
 
-**Yang diperiksa server** ditandai langsung pada kolom yang disebutnya. Pada tabel baris,
+**Yang diperiksa server** ditandai langsung pada kolom yang disebutnya — dan masuk ke
+ringkasan galat yang sama; kolom pertama yang bermasalah difokuskan. Pada tabel baris,
 kesalahan mendarat pada **sel baris yang bersangkutan**, berwarna merah, dan barisnya
 digulirkan ke tengah layar. Tanda merah hilang begitu Anda mengetik ulang di sel itu.
 

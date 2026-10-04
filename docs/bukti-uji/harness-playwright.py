@@ -9671,7 +9671,9 @@ FORM_NOTE = """() => {
   const labels = [...document.querySelectorAll('.modal .field, .field')];
   const box = labels.find(f => /^Proyek/.test((f.querySelector('label') || {}).innerText || ''));
   if (!box) return { found: false, labels: labels.map(f => ((f.querySelector('label') || {}).innerText || '').trim()).slice(0, 20) };
-  const help = [...box.querySelectorAll('.help')].map(h => ({ text: h.innerText.replace(/\\s+/g, ' ').trim(), hidden: h.hidden, color: h.style.color }));
+  // UX-E3.4: warnanya kelas (.tone-warn/.tone-neg), bukan gaya sebaris — dibaca kelas + warna terhitung.
+  const help = [...box.querySelectorAll('.help')].map(h => ({ text: h.innerText.replace(/\\s+/g, ' ').trim(), hidden: h.hidden,
+    tone: [...h.classList].filter(c => c.startsWith('tone-')).join(' '), color: getComputedStyle(h).color }));
   return { found: true, help };
 }"""
 
@@ -9977,7 +9979,7 @@ def s29(pg):
         "the_po_form_warns_before_a_single_line_is_typed": any(
             "terpakai" in t for t in note_texts),
         "the_po_form_note_is_coloured_at_the_threshold": any(
-            h.get("color") for h in (out["po_form"].get("help") or []) if not h["hidden"]),
+            h.get("tone") for h in (out["po_form"].get("help") or []) if not h["hidden"]),
         # 5 — riwayat revisi
         "the_revision_history_shows_both_revisions": len((out["revision_chain"].get("rows") or [])) == 2,
         "and_the_difference_between_them": any(
@@ -16175,6 +16177,34 @@ def s58(pg):
     if out["kaki"]["position"] != "fixed" or not out["kaki"]["on_screen"]:
         checks.append(f"kaki formulir tidak lengket/terlihat: {out['kaki']!r}")
 
+    # ------------------------------------------------------------ ringkasan galat (E3.4)
+    click(pg, ".form-page .form-foot button:has-text('Simpan draf')")
+    pg.wait_for_timeout(600)
+    out["ringkasan"] = pg.evaluate("""() => { const s = document.querySelector('.form-page .error-summary'); if (!s) return null;
+        const marked = document.querySelectorAll('.form-page .field.invalid, .form-page td.cell-invalid').length;
+        const first = document.querySelector('.form-page .field.invalid');
+        return { title: (s.querySelector('strong') || {}).innerText || null, role: s.getAttribute('role'), first_child: s === s.parentElement.firstElementChild,
+                 items: [...s.querySelectorAll('li')].map((li) => li.innerText.replace(/\\s+/g, ' ').trim()), marked,
+                 focused_in_first_invalid: !!(first && document.activeElement && first.contains(document.activeElement)) }; }""")
+    r = out["ringkasan"]
+    if not r:
+        checks.append("ringkasan galat tidak muncul sesudah Simpan draf pada formulir kosong")
+    else:
+        if not re.match(r"^\d+ isian perlu diperbaiki$", r["title"] or ""):
+            checks.append(f"judul ringkasan galat bukan 'N isian perlu diperbaiki': {r['title']!r}")
+        if len(r["items"]) != r["marked"] or not r["items"]:
+            checks.append(f"baris ringkasan ({len(r['items'])}) != kolom yang ditandai ({r['marked']}): {r['items']!r}")
+        if r["role"] != "alert" or not r["first_child"]:
+            checks.append(f"ringkasan bukan role=alert anak pertama: {r!r}")
+        if not r["focused_in_first_invalid"]:
+            checks.append("fokus tidak jatuh ke kolom pertama yang bermasalah")
+        # Lompat lewat tautan TERAKHIR: fokus harus pindah ke kontrol kolom itu.
+        click(pg, ".form-page .error-summary li:last-child button.linkish")
+        pg.wait_for_timeout(500)
+        out["lompat"] = pg.evaluate("""() => { const a = document.activeElement; return { tag: a.tagName.toLowerCase(), in_invalid: !!a.closest('.field.invalid, td.cell-invalid') }; }""")
+        if not out["lompat"]["in_invalid"]:
+            checks.append(f"tautan ringkasan tidak memfokuskan kolomnya: {out['lompat']!r}")
+
     def pick_combo(label_text, typed):
         f = pg.locator(".form-page .field", has=pg.locator("label", has_text=label_text)).first
         inp = f.locator("input.combo-input").first
@@ -16209,11 +16239,24 @@ def s58(pg):
     row.locator("td:nth-child(5) input").first.fill("1500000")
     before = len(posts)
     click(pg, ".form-page .form-foot button:has-text('Simpan & ajukan')")
+    # Gerbang anggaran: pada salinan DB yang sudah dilalui S29 (RAP proyek terlampaui) server menolak
+    # pengajuan dengan kunci `budget`, dan mesin konfirmasi-lanjut yang sama dengan Ajukan membuka
+    # "Melampaui sisa anggaran RAP — tetap ajukan?". Dijawab "Ya, tetap ajukan" dan dicatat —
+    # bukti bahwa Simpan & ajukan memakai putaran yang sama (UX-E3.2); pada seed segar dialognya tidak ada.
+    out["konfirmasi"] = None
+    for _ in range(40):  # ≤ 10 s: dialog konfirmasi ATAU formulir tertutup — toast sukses berumur pendek, jangan menunggu buta
+        pg.wait_for_timeout(250)
+        if pg.locator(".modal:has-text('tetap ajukan')").count():
+            out["konfirmasi"] = pg.evaluate("() => ((document.querySelector('.modal .modal-head h2') || {}).innerText || '').trim()")
+            click(pg, ".modal .modal-foot button:has-text('tetap ajukan')")
+            break
+        if not pg.locator(".form-page").count():
+            break
     try:
         pg.wait_for_selector(".form-page", state="detached", timeout=15000)
     except Exception:
         checks.append("formulir tidak tertutup dalam 15 s sesudah Simpan & ajukan")
-    pg.wait_for_timeout(1500)
+    pg.wait_for_timeout(600)
     new_posts = posts[before:]
     out["posts"] = [u.split("/api/")[-1] for u in new_posts]
     out["after"] = pg.evaluate("() => ({ hash: location.hash, badge: ((document.querySelector('.page-head .badge') || {}).innerText || '').trim(), h1: ((document.querySelector('.page-head h1') || {}).innerText || '').trim() })")
@@ -16222,8 +16265,11 @@ def s58(pg):
     submits = [u for u in new_posts if re.search(r"/purchase-orders/\d+/submit$", u)]
     if len(creates) != 1:
         checks.append(f"POST pembuatan dikirim {len(creates)} kali (harus 1): {out['posts']!r}")
-    if len(submits) != 1:
-        checks.append(f"POST pengajuan dikirim {len(submits)} kali (harus 1): {out['posts']!r}")
+    # Satu POST pengajuan — plus satu per dialog konfirmasi yang dijawab (gerbang anggaran menolak
+    # yang pertama; yang kedua membawa confirm_over_budget — itulah putaran konfirmasi-lanjut).
+    expected_submits = 1 + (1 if out["konfirmasi"] else 0)
+    if len(submits) != expected_submits:
+        checks.append(f"POST pengajuan dikirim {len(submits)} kali (harus {expected_submits}): {out['posts']!r}")
     if not out["after"]["hash"].startswith("#/d/procurement/purchase-orders/"):
         checks.append(f"tidak mendarat di halaman dokumen: {out['after']!r}")
     if out["after"]["badge"] != "Diajukan":

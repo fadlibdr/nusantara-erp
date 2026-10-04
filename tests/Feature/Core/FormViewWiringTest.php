@@ -69,7 +69,7 @@ class FormViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_form(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(68, (int) $version[1],
+        $this->assertGreaterThanOrEqual(69, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa formulir UX-E3: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -191,7 +191,50 @@ class FormViewWiringTest extends ErpTestCase
         $this->assertStringContainsString('read: () => entries().map((entry) => entry.read()),', $lines);
         $this->assertStringContainsString("button('Tambah baris', { size: 'sm', iconName: 'plus', onClick: () => addRow() })", $lines);
         $this->assertStringContainsString('Array.from({ length: lineDef.min || 1 })', $lines);
-        $this->assertStringContainsString('for (const entry of control.entries())', $form);
+        $this->assertStringContainsString('control.entries().forEach((entry, index) => {', $form, 'Pemeriksaan wajib-isi tidak lagi berjalan atas entries() — baris kosong ikut diperiksa.');
+    }
+
+    /* ------------------------------------------------------------ E3.4 */
+
+    /** Ringkasan galat dirakit primitif errorSummary() dan melompat ke kolomnya; dipasang sebagai anak pertama badan formulir. */
+    public function test_the_error_summary_is_built_by_the_primitive_and_jumps_to_the_field(): void
+    {
+        $form = $this->spa('views/form.js');
+        $this->assertMatchesRegularExpression("/import \{[^}]*\berrorSummary\b[^}]*\} from '\.\.\/ui\.js'/", $form);
+        $show = (string) $this->functionBody($form, 'function showSummary(');
+        $this->assertStringContainsString('errorSummary(items, { onJump: (fieldKey) => focusField(fieldKey) })', $show);
+        $this->assertStringContainsString('body.prepend(summaryNode);', $show);
+        $focus = (string) $this->functionBody($form, 'function focusField(');
+        foreach (["scrollIntoView({ block: 'center', behavior: 'smooth' })", 'focus({ preventScroll: true })', "toggleAttribute('open', true)"] as $needle) {
+            $this->assertStringContainsString($needle, $focus);
+        }
+        $open = (string) $this->functionBody($form, 'export async function openForm(');
+        $this->assertStringContainsString('showSummary(summaryItems);', $open, 'Pemeriksaan wajib-isi tidak lagi mengisi ringkasan.');
+        $this->assertStringContainsString('showSummary(items);', $open, '422 tidak lagi mengisi ringkasan.');
+        $this->assertStringContainsString('if (firstPainted) focusField(firstPainted);', $open, 'Galat 422 pertama tidak lagi difokuskan.');
+    }
+
+    /** Aturan toast dan fokus galat pertama di klien tetap sebyte pun; ringkasan dibersihkan tiap percobaan. */
+    public function test_the_toast_rules_and_first_error_focus_are_byte_identical(): void
+    {
+        $form = $this->spa('views/form.js');
+        $this->assertSame(2, substr_count($form, "toast('Periksa isian yang ditandai.', { tone: 'err' });"));
+        $this->assertStringContainsString("toastError({ message: painted ? 'Periksa isian yang ditandai.' : error.message, details: unmapped });", $form);
+        $this->assertStringContainsString("const first = invalid[0].input || invalid[0].node;\n      first.scrollIntoView({ block: 'center', behavior: 'smooth' });\n      first.focus({ preventScroll: true });", $form);
+        $save = (string) $this->functionBody($form, 'async function attemptSave(');
+        $this->assertTrue(strpos($save, 'clearSummary();') < strpos($save, 'await withBusy(trigger'), 'Ringkasan lama tidak dibersihkan sebelum percobaan baru.');
+    }
+
+    /** Warna catatan hidup adalah kelas, bukan gaya sebaris. */
+    public function test_live_note_colour_is_a_class_not_an_inline_style(): void
+    {
+        $form = $this->spa('views/form.js');
+        $this->assertStringNotContainsString('note.style.color', $form);
+        $this->assertStringContainsString("note.classList.toggle('tone-warn'", $form);
+        $this->assertStringContainsString("note.classList.toggle('tone-neg'", $form);
+        $css = $this->css();
+        $this->assertStringContainsString('.field .help.tone-warn { color: var(--warning); }', $css);
+        $this->assertStringContainsString('.field .help.tone-neg { color: var(--danger); }', $css);
     }
 
     /** Separuh penolakan. */
