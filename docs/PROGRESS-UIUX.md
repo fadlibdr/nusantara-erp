@@ -511,6 +511,14 @@ Branch `feat/ux-redesign-e3` from `80245eb` (the E2 merge). The plan came from t
 - Census (`ux-e3-probes.py --census`, schema.js imported in Chromium): **92** forms, **35** with lines, **20** long (> 8 fields, no lines), **84** with one section, **28** with a `submit` action (3 of them with a `fields` dialog: work-orders, subcontracts, labor-contracts), `form.layout`/`section.advanced` 0; `form.js` holds **13** `style: {` of the 526/526 budget.
 - Deviations: none; measurements only.
 
+### UX-E3.1 — `withConfirmResubmit()` and `toastActionDone()` extracted from `runAction`
+- Commit: see the commit that adds this entry. SHELL_VERSION 65 → 66.
+- Files: `public/app/js/views/actions.js`, `public/app/sw.js`, `tests/Feature/Core/FormViewWiringTest.php` (new, 5 tests), `docs/bukti-uji/harness-playwright.py` (S12 gains checks), `docs/FRONTEND.md`, this file
+- What: the confirm-resubmit loop (three PO rules: prakualifikasi, kendali harga, gate anggaran) moves out of `runAction` into the exported `withConfirmResubmit(action, payload, call)`, its comment moved with it plus the WHY of the export; `runAction` now reads `const run = () => withConfirmResubmit(action, payload, call);` — the same mutable `payload`, so an answered flag reaches `postAction` exactly as before. The success sentence becomes `toastActionDone(action, code, result)`. Both will be used by the page form's "Simpan & ajukan" (E3.2) so there is one answer engine for one 422. Nothing else in actions.js moves: the `printTab`, `action.confirm(row)`, `session.canAct`, `action.opens`, `boardOnly` literals that DunningLetterTest, LeadPipelineSpaWiringTest, ApBillPaymentButtonTest, ApprovalInboxGateTest and BoardWiringTest pin are re-asserted in the new test so a later E3 commit cannot move them silently.
+- Mutation (not committed): `const run = () => call();` on a served copy (loop bypassed) → **S12 as committed before this task stayed "ok"** — it recorded the prompt and checked nothing (a hollow guard, like the E1 finds). S12 now checks five things read from what it recorded: the blocked vendor opens the override prompt, the prompt speaks the server's sentence ("prakualifikasi"), an empty reason is held in the browser ("Wajib diisi." with the dialog open), the reason reaches the server and the PO is submitted, a healthy vendor submits with no dialog. On the mutation it goes red on the first four; on the real code it is ok.
+- Harness (fresh seed): **S2 ok** 4 clicks; **S3 ok** 12 clicks, ledger identical to E3.0; **S12 ok** with the new checks; **S13 ok**; **S16 ok**; **S17 ok** (alone — it died on the login 429 inside the six-scenario lane, the token_for trap, as in E2.0). PHPUnit: FormViewWiringTest 5, DunningLetterTest, ApprovalInboxGateTest, BoardWiringTest, LauncherWiringTest, PwaServiceWorkerTest, LeadPipelineSpaWiringTest (Crm), ApBillPaymentButtonTest (Finance) green; Core green (1478 passed, 11 skipped).
+- Deviations: none.
+
 ---
 
 ## Metrics

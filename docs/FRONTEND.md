@@ -111,7 +111,7 @@ public/app/
                         table, pagination
       form.js           generic create/edit modal incl. repeatable line items
       detail.js         generic document detail: head, status panel, Informasi (label: form → LABELS → "Bidang lainnya"), lines, approvals
-      actions.js        lifecycle actions (submit/approve/post/…)
+      actions.js        lifecycle actions (submit/approve/post/…); withConfirmResubmit() is the one confirm-resubmit engine (runAction and the page form's Simpan & ajukan), toastActionDone() the one success sentence
       dashboard.js      cross-module dashboard + approval inbox
       home.js           app launcher #/home: search (same screen index as Ctrl+K), Favorit and
                         Terakhir dibuka rows from server prefs, one tile per module the caller may

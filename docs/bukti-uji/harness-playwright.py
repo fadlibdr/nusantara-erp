@@ -3711,6 +3711,23 @@ def s12(pg):
         pg.screenshot(path=f"{OUT}/s12-blocked-failed.png")
     finally:
         con = sqlite3.connect(DB); con.execute("UPDATE prc_vendors SET status='active' WHERE id=?", (vendor["id"],)); con.commit(); con.close()
+    # Pemeriksaan (UX-E3.1): sampai 4 Okt 2026 skenario ini hanya MENCATAT — uji mutasi (runAction tanpa
+    # putaran konfirmasi-lanjut) tetap "ok" karena tidak satu pun nilai dibaca. Yang dipaku: Ajukan pada
+    # vendor terblokir membuka dialog alasan (bukan toast galat), alasan kosong ditahan di klien,
+    # alasan yang diketik sampai ke server dan PO-nya terkirim.
+    prompt = out.get("prompt") or {}
+    checks = {
+        "a_blocked_vendor_opens_the_override_prompt": any("override" in f.lower() for f in prompt.get("fields", [])),
+        "the_prompt_speaks_the_servers_sentence": "prakualifikasi" in (prompt.get("message") or "").lower(),
+        "an_empty_reason_is_held_in_the_browser": out.get("empty_reason", {}).get("modal_open") is True
+            and any("wajib" in e.lower() for e in out.get("empty_reason", {}).get("errors", [])),
+        "the_reason_reaches_the_server_and_the_po_is_submitted": (out.get("stored") or {}).get("status") == "submitted"
+            and bool((out.get("stored") or {}).get("qualification_override_reason")),
+        "a_healthy_vendor_submits_without_a_dialog": (out.get("healthy") or {}).get("modal_opened") is False,
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
     return out
 
 @scenario("S13_approve_with_note")

@@ -178,6 +178,77 @@ export function isBulkAction(action) {
   return !BULK_BLOCKERS.some((flag) => action[flag] !== undefined && action[flag] !== false);
 }
 
+/*
+ * Kalimat sukses sebuah aksi — satu fungsi, dipakai runAction dan "Simpan &
+ * ajukan" di formulir halaman (UX-E3). Nomor dokumen sebagai subjek kalimat,
+ * bukan "Ajukan berhasil.": toast adalah satu-satunya jejak yang dilihat orang
+ * setelah tombolnya hilang. `toast` pada aksi = kalimatnya sendiri (kode,
+ * hasil), untuk aksi yang subjeknya bukan dokumennya melainkan suratnya (T3.7).
+ */
+export function toastActionDone(action, code, result) {
+  const said = PAST[action.key];
+  toast(action.toast ? action.toast(code, result) : (code && said ? `${code} ${said}.` : `${action.label} berhasil.`));
+}
+
+/*
+ * Alur konfirmasi-lanjut untuk AKSI — cermin def.form.confirmResubmit di
+ * form.js (GRN harga 0, temuan #72): server menolak 422 pada kunci galat
+ * yang cocok `test` sampai payload membawa jawabannya. Dua bentuk jawaban:
+ * `flag` (boolean — dialog Ya/Batal) dan `promptField` (satu isian wajib,
+ * dikirim di bawah kuncinya sendiri). Bentuk kedua lahir untuk alasan
+ * override prakualifikasi PO (#35): sebelumnya Ajukan membawa `fields` dan
+ * membuka modal alasan pada SETIAP pengajuan, padahal alasannya hanya
+ * berarti bila server menolak — diukur 2 Sep 2026 (HASIL-UJI §1, S3):
+ * 12 klik buat→ajukan, dua di antaranya modal yang dikosongkan untuk
+ * vendor sehat. Ajukan PO kini memakai TIGA aturan (prakualifikasi #35:
+ * qualification_override_reason, kendali harga #34: items.N.unit_price,
+ * gate anggaran #33: budget) yang bisa muncul BERURUTAN, jadi mesinnya
+ * berputar — satu putaran menjawab satu jenis penolakan, lalu mencoba
+ * lagi. Hanya berjalan bila SEMUA kunci galat cocok satu aturan: galat
+ * campuran berarti ada yang tetap ditolak walau dijawab, jadi ditampilkan
+ * biasa saja.
+ *
+ * Diekspor (UX-E3.1) supaya "Simpan & ajukan" di formulir halaman memakai
+ * MESIN JAWABAN YANG SAMA untuk tiga aturan PO itu — dua salinan putaran
+ * ini berarti dua cara menjawab satu 422. `payload` dimutasi di tempat:
+ * jawaban yang diberikan ikut terkirim pada percobaan berikutnya lewat
+ * `call()`, yang membaca objek yang sama. Dialog yang dibatalkan
+ * menyelesaikan `undefined` — pemanggil yang membedakannya dari sukses
+ * membaca nilai kembaliannya.
+ */
+export async function withConfirmResubmit(action, payload, call) {
+  const rules = [].concat(action.confirmResubmit || []);
+  const answerKey = (rule) => (rule.promptField ? rule.promptField.key : rule.flag);
+
+  for (let attempt = 0; attempt <= rules.length; attempt += 1) {
+    try {
+      return await call();
+    } catch (error) {
+      const keys = error.errors ? Object.keys(error.errors) : [];
+      const rule = rules.find((candidate) => payload[answerKey(candidate)] === undefined
+        && keys.length && keys.every((key) => candidate.test.test(key)));
+      if (!rule) throw error;
+
+      // Pesan server apa adanya: dialah yang menyebut vendor dan penyebab
+      // blokirnya, atau angka harga/anggaran yang diminta dikonfirmasi.
+      const message = keys.map((key) => [].concat(error.errors[key])[0]).join(' ');
+
+      if (rule.promptField) {
+        const values = await promptFields(rule.title, [rule.promptField], {
+          submitLabel: rule.confirmLabel, message,
+        });
+        if (values === null) return undefined;
+        payload[rule.promptField.key] = values[rule.promptField.key];
+      } else {
+        const ok = await confirmDialog({ title: rule.title, message, confirmLabel: rule.confirmLabel });
+        if (!ok) return undefined;
+        payload[rule.flag] = true;
+      }
+    }
+  }
+  return undefined;
+}
+
 export async function runAction(action, row, def, { trigger, onDone, inline } = {}) {
 
   /*
@@ -231,8 +302,7 @@ export async function runAction(action, row, def, { trigger, onDone, inline } = 
        `toast` pada aksi = kalimatnya sendiri (kode, hasil), untuk aksi yang
        subjeknya bukan dokumennya melainkan suratnya (T3.7). */
     const code = (result && result.code) || (row && row.code) || '';
-    const said = PAST[action.key];
-    toast(action.toast ? action.toast(code, result) : (code && said ? `${code} ${said}.` : `${action.label} berhasil.`));
+    toastActionDone(action, code, result);
     if (printTab) {
       printed = true;
       showPrintable(printTab, `core/print/forms/${action.printForm}/${(result && result.id) || row.id}`);
@@ -248,55 +318,7 @@ export async function runAction(action, row, def, { trigger, onDone, inline } = 
     }
   };
 
-  /*
-   * Alur konfirmasi-lanjut untuk AKSI — cermin def.form.confirmResubmit di
-   * form.js (GRN harga 0, temuan #72): server menolak 422 pada kunci galat
-   * yang cocok `test` sampai payload membawa jawabannya. Dua bentuk jawaban:
-   * `flag` (boolean — dialog Ya/Batal) dan `promptField` (satu isian wajib,
-   * dikirim di bawah kuncinya sendiri). Bentuk kedua lahir untuk alasan
-   * override prakualifikasi PO (#35): sebelumnya Ajukan membawa `fields` dan
-   * membuka modal alasan pada SETIAP pengajuan, padahal alasannya hanya
-   * berarti bila server menolak — diukur 2 Sep 2026 (HASIL-UJI §1, S3):
-   * 12 klik buat→ajukan, dua di antaranya modal yang dikosongkan untuk
-   * vendor sehat. Ajukan PO kini memakai TIGA aturan (prakualifikasi #35:
-   * qualification_override_reason, kendali harga #34: items.N.unit_price,
-   * gate anggaran #33: budget) yang bisa muncul BERURUTAN, jadi mesinnya
-   * berputar — satu putaran menjawab satu jenis penolakan, lalu mencoba
-   * lagi. Hanya berjalan bila SEMUA kunci galat cocok satu aturan: galat
-   * campuran berarti ada yang tetap ditolak walau dijawab, jadi ditampilkan
-   * biasa saja.
-   */
-  const rules = [].concat(action.confirmResubmit || []);
-  const answerKey = (rule) => (rule.promptField ? rule.promptField.key : rule.flag);
-
-  const run = async () => {
-    for (let attempt = 0; attempt <= rules.length; attempt += 1) {
-      try {
-        return await call();
-      } catch (error) {
-        const keys = error.errors ? Object.keys(error.errors) : [];
-        const rule = rules.find((candidate) => payload[answerKey(candidate)] === undefined
-          && keys.length && keys.every((key) => candidate.test.test(key)));
-        if (!rule) throw error;
-
-        // Pesan server apa adanya: dialah yang menyebut vendor dan penyebab
-        // blokirnya, atau angka harga/anggaran yang diminta dikonfirmasi.
-        const message = keys.map((key) => [].concat(error.errors[key])[0]).join(' ');
-
-        if (rule.promptField) {
-          const values = await promptFields(rule.title, [rule.promptField], {
-            submitLabel: rule.confirmLabel, message,
-          });
-          if (values === null) return;
-          payload[rule.promptField.key] = values[rule.promptField.key];
-        } else {
-          const ok = await confirmDialog({ title: rule.title, message, confirmLabel: rule.confirmLabel });
-          if (!ok) return;
-          payload[rule.flag] = true;
-        }
-      }
-    }
-  };
+  const run = () => withConfirmResubmit(action, payload, call);
 
   try {
     if (trigger) await withBusy(trigger, run);
