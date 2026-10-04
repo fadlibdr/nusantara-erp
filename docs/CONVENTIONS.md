@@ -408,7 +408,9 @@ terhadapnya. Sapuan atas 177 rute itu tidak menemukan tabrakan, luberan atau keg
 sesudah UI-7 §3a ditutup, tetapi "tidak ada cacat" bukan "sudah disensus".) Layar dokumen generik
 diukur terpisah pada UX-E2 (4 Okt 2026, `docs/bukti-uji/ux-e2-probes.py`: tinggi kepala, bilah dan
 panel keadaan, dt Informasi, baris tabel per kepadatan, perhentian Tab, 48 sel) — sensus 143 rute
-di atas tetap tidak mencakupnya.
+di atas tetap tidak mencakupnya. Formulir halaman diukur pada UX-E3 (`ux-e3-probes.py`): jarak
+`.form-section` 20/18 tidak berubah; bagian "Lanjutan" (`section.advanced`, UX-E3.5) memakai
+tipe judul `.form-section > h3` yang sama di dalam `<summary>`-nya.
 
 1. **Ritmenya `--space-3`, dan tidak ada anak yang menambah pada padding kartunya.**
    `.card-body > p` dan `.card-body > dl` memakai `margin: 0 0 var(--space-3)`, anak terakhir `0`

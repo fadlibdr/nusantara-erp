@@ -1,7 +1,7 @@
 /* Schema-driven create/edit form, including repeatable line-item tables. */
 
 import { api } from '../api.js';
-import { el, clear, button, badge, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog, errorSummary } from '../ui.js';
+import { el, clear, button, badge, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog, errorSummary, stepper } from '../ui.js';
 import { renderCell } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -822,7 +822,10 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
 
   const noteWatchers = [];
 
-  for (const section of sections) {
+  const steps = [];
+  const numbered = sections.filter((section) => (section.fields || []).some((spec) => (isEdit ? !spec.createOnly : !spec.editOnly))).length + lineDefs.length > 1;
+  // Bagian `advanced` digambar SESUDAH tabel baris (README E3: sections + Item + Lanjutan).
+  const renderSection = (section) => {
     const fields = section.fields
       .filter((spec) => (isEdit ? !spec.createOnly : !spec.editOnly))
       /*
@@ -835,7 +838,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
        * dan server mengartikan absennya sebagai "tidak ada klaim baru".
        */
       .filter((spec) => !spec.hideWhen || !spec.hideWhen(record, isEdit));
-    if (!fields.length) continue;
+    if (!fields.length) return;
 
     const grid = el('.form-grid');
     const sectionWatchers = [];
@@ -855,17 +858,37 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       if (spec.liveNote && LIVE_NOTES[spec.liveNote]) noteWatchers.push({ spec, wrapper, control });
     }
 
-    const sectionNode = el('.form-section', [
-      sections.length > 1 && section.title ? el('h3', { text: section.title }) : null,
-      section.help ? el('.alert.info', { style: { marginBottom: '12px' } }, section.help) : null,
-      grid,
-    ]);
+    /*
+     * Bagian bernomor dan "Lanjutan" yang dilipat (UX-E3.5, README E3). Langkah
+     * (steps) = bagian kepala + satu per tabel baris + bagian `advanced`; bila
+     * langkahnya ≥ 2 judulnya bernomor ("1 · Pesanan pembelian") dan halaman
+     * memasang navigasi bagian (stepper) di ≥ 1024 px. `section.advanced` menjadi
+     * <details> tertutup berjudul "Lanjutan": wajib-isi di dalamnya TETAP diperiksa,
+     * dan lipatannya dibuka begitu ada galat (focusField/markSteps). Bagian kepala
+     * tanpa judul memakai nama dokumennya sebagai label langkah.
+     */
+    const stepIndex = steps.length + 1;
+    const title = section.title || (section.advanced ? 'Lanjutan' : def.labelOne);
+    const heading = numbered ? `${stepIndex} · ${title}` : title;
+    const sectionNode = section.advanced
+      ? el('details.form-section.advanced', [
+        el('summary', [el('h3', { text: heading }), el('span.muted', { text: `${fields.length} isian` })]),
+        section.help ? el('.alert.info', section.help) : null,
+        grid,
+      ])
+      : el('.form-section', [
+        numbered || (sections.length > 1 && section.title) ? el('h3', { text: heading }) : null,
+        section.help ? el('.alert.info', section.help) : null,
+        grid,
+      ]);
+    steps.push({ label: title, node: sectionNode });
     body.appendChild(sectionNode);
 
     for (const watcher of sectionWatchers) {
       visibilityWatchers.push({ ...watcher, sectionNode, sectionSpecs: fields });
     }
-  }
+  };
+  sections.filter((section) => !section.advanced).forEach(renderSection);
 
   const headerValues = () => Object.fromEntries(
     Object.entries(controls)
@@ -956,12 +979,62 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
 
   const lineControls = lineDefs.map((lineDef) => {
     const control = buildLines(lineDef, record ? record[lineDef.key] : null, headerValues, isEdit ? record : null);
+    if (numbered) control.node.querySelector('.lines-head h3').textContent = `${steps.length + 1} · ${lineDef.label}`;
+    steps.push({ label: lineDef.label, node: control.node });
     body.appendChild(control.node);
     return { def: lineDef, control };
   });
 
+  sections.filter((section) => section.advanced).forEach(renderSection);
+
   if (def.form.note) {
-    body.appendChild(el('.alert.info', { style: { marginTop: '16px' } }, def.form.note));
+    body.appendChild(el('.alert.info.form-note', def.form.note));
+  }
+
+  /*
+   * Navigasi bagian (UX-E3.5): stepper vertikal yang menempel di kiri pada ≥ 1024 px,
+   * hanya bila langkahnya ≥ 2 — satu tombol per bagian melompat ke bagiannya dan
+   * memfokuskan kontrol pertamanya; `aria-current="step"` mengikuti gulir; titik merah
+   * (li.has-error) mengikuti penanda galat. Dialog mengabaikannya (present() dialog tidak
+   * membaca `nav`): 640/960 px tidak punya ruang untuknya.
+   */
+  const jumpTo = (step) => {
+    if (step.node.tagName === 'DETAILS') step.node.toggleAttribute('open', true);
+    step.node.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    const target = step.node.querySelector('input:not([type=hidden]), select, textarea, button');
+    if (target) target.focus({ preventScroll: true });
+  };
+  const nav = numbered
+    ? el('nav.form-nav', { 'aria-label': 'Bagian formulir' }, stepper(steps.map((step) => ({ label: step.label, onClick: () => jumpTo(step) }))))
+    : null;
+  const stepItems = nav ? [...nav.querySelectorAll('li.step')] : [];
+  function markSteps() {
+    steps.forEach((step, index) => {
+      const bad = Boolean(step.node.querySelector('.field.invalid, td.cell-invalid'));
+      if (bad && step.node.tagName === 'DETAILS') step.node.toggleAttribute('open', true);
+      if (stepItems[index]) {
+        stepItems[index].classList.toggle('has-error', bad);
+        const link = stepItems[index].querySelector('.step-link');
+        if (link) link.title = bad ? 'Ada isian yang perlu diperbaiki di bagian ini' : '';
+      }
+    });
+  }
+  function markActive() {
+    if (!nav) return;
+    const limit = 96;
+    let current = 0;
+    steps.forEach((step, index) => { if (step.node.getBoundingClientRect().top <= limit) current = index; });
+    stepItems.forEach((item, index) => {
+      item.classList.toggle('active', index === current);
+      if (index === current) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
+    });
+  }
+  if (nav) {
+    let ticking = false;
+    const onScroll = () => { if (ticking) return; ticking = true; requestAnimationFrame(() => { ticking = false; markActive(); }); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    document.querySelector('.main')?.addEventListener('scroll', onScroll, { passive: true });
+    requestAnimationFrame(markActive);
   }
 
   /*
@@ -1044,6 +1117,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     // Batal sits right beside Simpan in .modal-foot; a mis-aimed click there
     // loses the same 15 lines a mis-aimed Escape does.
     footer: [button('Batal', { onClick: () => dialog.requestClose() }), save, saveSubmit].filter(Boolean),
+    nav,
     dirty: () => snapshot() !== pristine,
     onClose: () => {
       clearTimeout(draftTimer);
@@ -1186,6 +1260,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     });
     body.querySelectorAll('td.cell-invalid').forEach((cell) => clearCellError(cell));
     clearSummary();
+    markSteps();
 
     /*
      * Wajib-isi diperiksa SEBELUM request — hanya wajib-isi: format sudah
@@ -1225,6 +1300,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     }
     if (invalid.length) {
       showSummary(summaryItems);
+      markSteps();
       toast('Periksa isian yang ditandai.', { tone: 'err' });
       const first = invalid[0].input || invalid[0].node;
       first.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -1306,6 +1382,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
           items.push({ field: fieldKey, label: fieldKey, message });
         }
         showSummary(items);
+        markSteps();
         // Galat 422 pertama yang dilukis difokuskan seperti galat wajib-isi (UX-E3.4);
         // dulu kunci kepala hanya dilukis, tanpa gulir dan fokus.
         if (firstPainted) focusField(firstPainted);

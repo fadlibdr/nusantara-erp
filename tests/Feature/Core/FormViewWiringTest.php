@@ -69,7 +69,7 @@ class FormViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_form(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(69, (int) $version[1],
+        $this->assertGreaterThanOrEqual(70, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa formulir UX-E3: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -237,6 +237,77 @@ class FormViewWiringTest extends ErpTestCase
         $this->assertStringContainsString('.field .help.tone-neg { color: var(--danger); }', $css);
     }
 
+    /* ------------------------------------------------------------ E3.5 */
+
+    /** Navigasi bagian memakai primitif stepper(), hanya bila langkahnya ≥ 2; dialog tidak membacanya. */
+    public function test_section_nav_uses_the_stepper_primitive_only_when_there_are_two_or_more_steps(): void
+    {
+        $form = $this->spa('views/form.js');
+        $this->assertMatchesRegularExpression("/import \{[^}]*\bstepper\b[^}]*\} from '\.\.\/ui\.js'/", $form);
+        $open = (string) $this->functionBody($form, 'export async function openForm(');
+        $this->assertStringContainsString("const numbered = sections.filter(", $open);
+        $this->assertStringContainsString("+ lineDefs.length > 1;", $open);
+        $this->assertStringContainsString("el('nav.form-nav', { 'aria-label': 'Bagian formulir' }, stepper(", $open);
+        $this->assertStringContainsString("const nav = numbered\n    ? el('nav.form-nav'", $open, 'Navigasi bagian dipasang juga pada formulir satu langkah.');
+        $ui = (string) $this->functionBody($this->spa('ui.js'), 'export function stepper(');
+        $this->assertStringContainsString("el('button.step-link', { type: 'button', onclick: step.onClick, title }, body)", $ui);
+        $this->assertStringContainsString('${step.error ? \'.has-error\' : \'\'}', $ui);
+        $presenter = (string) $this->functionBody($this->spa('app.js'), 'function formPagePresenter(');
+        $this->assertStringContainsString('${spec.nav ? \'.has-nav\' : \'\'}', $presenter);
+        $this->assertStringContainsString("el('.form-main', [spec.body, el('.form-foot', spec.footer)])", $presenter);
+        $modal = (string) $this->functionBody($this->spa('ui.js'), 'export function modal(');
+        $this->assertStringNotContainsString('nav', $modal, 'Dialog mulai membaca navigasi bagian.');
+    }
+
+    /** "Lanjutan" adalah <details>; wajib-isi di dalamnya tetap diperiksa dan lipatannya dibuka saat ada galat. */
+    public function test_lanjutan_is_a_details_whose_required_fields_are_still_checked(): void
+    {
+        $form = $this->spa('views/form.js');
+        $open = (string) $this->functionBody($form, 'export async function openForm(');
+        $this->assertStringContainsString("el('details.form-section.advanced', [", $open);
+        $this->assertStringContainsString("if (bad && step.node.tagName === 'DETAILS') step.node.toggleAttribute('open', true);", $open);
+        $required = substr($open, strpos($open, 'for (const { spec, control } of fieldControls) {'), 700);
+        $this->assertStringNotContainsString("closest('details')", $required, 'Wajib-isi melewati lipatan yang tertutup.');
+        $this->assertStringNotContainsString('.open', $required);
+        foreach (['markSteps();'] as $needle) {
+            $this->assertGreaterThanOrEqual(3, substr_count($open, $needle), 'markSteps() tidak dipanggil di tiap jalur penandaan (bersihkan, wajib-isi, 422).');
+        }
+    }
+
+    /** PO adalah pilot `advanced`: bagian Lanjutan membawa objek medan yang sama persis. */
+    public function test_po_declares_lanjutan_with_the_same_field_objects(): void
+    {
+        $schema = $this->spa('schema.js');
+        $po = $this->resourceBlock('procurement/purchase-orders');
+        $this->assertMatchesRegularExpression("/title: 'Lanjutan', advanced: true,/", $po);
+        foreach ([
+            "{ key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', help: 'Kosongkan untuk memakai termin vendor.' }",
+            "{ key: 'delivery_address', label: 'Alamat pengiriman', type: 'textarea', span: 2 }",
+            "{ key: 'discount_amount', label: 'Diskon', type: 'currency', default: 0 }",
+            "{ key: 'expected_date', label: 'Perkiraan kirim', type: 'date', required: true }",
+        ] as $literal) {
+            $this->assertSame(1, substr_count($po, $literal), "Medan PO berubah bentuk: {$literal}");
+        }
+        $this->assertSame(1, substr_count($schema, 'advanced: true,'), 'advanced dipakai di luar pilot PO.');
+        $this->assertStringContainsString('section { title, help, fields[], advanced }', substr($schema, 0, 4000));
+    }
+
+    /** Titik galat dan navigasi lengket adalah aturan CSS di ≥ 1024 px; gaya sebaris form.js turun 13 → 11. */
+    public function test_error_dots_and_sticky_nav_are_css_rules_and_inline_styles_went_down(): void
+    {
+        $css = $this->css();
+        $this->assertStringContainsString('.form-nav { display: none; }', $css);
+        $at = strpos($css, '@media (min-width: 1024px) {');
+        $block = substr($css, $at, 1600);
+        $this->assertStringContainsString('.form-nav { display: block; position: sticky; top: var(--space-4); }', $block);
+        $this->assertStringContainsString('.form-nav .step.has-error .step-index::after {', $block);
+        $form = $this->spa('views/form.js');
+        $this->assertLessThanOrEqual(11, preg_match_all('/style:\s*\{/', $form));
+        $this->assertStringNotContainsString("style: { marginBottom: '12px' }", $form);
+        $this->assertStringContainsString('.form-section > .alert.info { margin-bottom: var(--space-3); }', $css);
+        $this->assertStringContainsString('.form-note.alert.info { margin-top: var(--space-4); }', $css);
+    }
+
     /** Separuh penolakan. */
     public function test_the_readers_can_still_say_no(): void
     {
@@ -254,6 +325,17 @@ class FormViewWiringTest extends ErpTestCase
     private function css(): string
     {
         return (string) file_get_contents(public_path('app/app.css'));
+    }
+
+    /** Satu entri RESOURCES, supaya kabel tetangganya tidak memuaskan sebuah pin. */
+    private function resourceBlock(string $key): string
+    {
+        $schema = $this->spa('schema.js');
+        $start = strpos($schema, "'{$key}': {");
+        $this->assertNotFalse($start, "RESOURCES['{$key}'] hilang dari schema.js.");
+        $end = strpos($schema, "\n  '", $start + 1);
+
+        return substr($schema, $start, $end === false ? null : $end - $start);
     }
 
     /** Sumber tanpa komentar blok maupun baris. */

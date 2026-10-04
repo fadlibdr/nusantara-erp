@@ -1413,7 +1413,11 @@ function formPagePresenter(host, { def, backTo }) {
      * supaya pembaca `.form-page …` harness tetap menemukannya; .page-head tinggal judul.
      */
     host.appendChild(el('.page-head', [el('div', [el('h1', { text: spec.title })])]));
-    host.appendChild(el(`.form-page${spec.width === 'wide' ? '.wide' : ''}`, [spec.body, el('.form-foot', spec.footer)]));
+    // Navigasi bagian (UX-E3.5) di kolom kiri bila formulirnya punya ≥ 2 langkah; .form-main memegang badan + kaki.
+    host.appendChild(el(`.form-page${spec.width === 'wide' ? '.wide' : ''}${spec.nav ? '.has-nav' : ''}`, [
+      spec.nav || null,
+      el('.form-main', [spec.body, el('.form-foot', spec.footer)]),
+    ]));
 
     return {
       requestClose: async () => { if (await leaving()) navigate(backTo); },

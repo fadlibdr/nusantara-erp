@@ -794,6 +794,13 @@ dibagi menjadi beberapa bagian berjudul. Kolom wajib bertanda `*` merah; keteran
 di bawah kolom adalah bantuan resmi layar itu — bacalah, ia sering menyimpan aturan yang
 tidak ada di tempat lain.
 
+Pada formulir halaman, bagian-bagiannya **bernomor** (pada PO: **1 · Pesanan pembelian**,
+**2 · Item pesanan**, **3 · Lanjutan**); di layar ≥ 1024 px daftar bagian menempel di kiri —
+klik untuk melompat; titik merah menandai bagian yang punya isian bermasalah. **Lanjutan**
+dilipat: buka bila perlu (pada PO: termin bayar, alamat pengiriman, catatan, alasan override
+prakualifikasi). Kolom wajib di dalamnya tetap diperiksa, dan lipatannya terbuka sendiri bila
+ada galat.
+
 Tombolnya **`Batal`** dan **`Simpan`** (**`Simpan Perubahan`** saat mengubah). Pada formulir
 **halaman**, tombol-tombol itu ada di **kaki formulir yang menempel di dasar layar** — tetap
 terlihat saat Anda menggulir ke tabel baris. Bila dokumennya bisa diajukan, kakinya berbunyi

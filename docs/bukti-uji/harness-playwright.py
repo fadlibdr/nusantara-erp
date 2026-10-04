@@ -16177,6 +16177,35 @@ def s58(pg):
     if out["kaki"]["position"] != "fixed" or not out["kaki"]["on_screen"]:
         checks.append(f"kaki formulir tidak lengket/terlihat: {out['kaki']!r}")
 
+    # ------------------------------------------------------------ navigasi bagian (E3.5), 1440
+    out["nav"] = pg.evaluate("""() => { const nav = document.querySelector('.form-page .form-nav'); if (!nav) return null;
+        return { steps: [...nav.querySelectorAll('.step-label')].map((n) => n.innerText.trim()),
+                 active: ((nav.querySelector('[aria-current=step] .step-label') || {}).innerText || '').trim(),
+                 position: getComputedStyle(nav).position, display: getComputedStyle(nav).display,
+                 h3: [...document.querySelectorAll('.form-page .form-section > h3, .form-page .lines-head h3')].map((n) => n.textContent.trim()),  // textContent: h3 memakai text-transform uppercase
+                 lanjutan: ((document.querySelector('details.form-section.advanced > summary h3') || {}).textContent || '').trim(),
+                 lanjutan_open: !!document.querySelector('details.form-section.advanced[open]') }; }""")
+    nv = out["nav"]
+    if not nv:
+        checks.append("navigasi bagian (.form-nav) tidak ada pada formulir PO")
+    else:
+        if nv["steps"] != ["Pesanan pembelian", "Item pesanan", "Lanjutan"]:
+            checks.append(f"langkah navigasi bukan Pesanan pembelian · Item pesanan · Lanjutan: {nv['steps']!r}")
+        if nv["position"] != "sticky" or nv["display"] == "none":
+            checks.append(f"navigasi bagian tidak lengket/terlihat di 1440: {nv!r}")
+        if nv["h3"][:2] != ["1 · Pesanan pembelian", "2 · Item pesanan"] or not nv["lanjutan"].startswith("3 · Lanjutan"):
+            checks.append(f"judul bagian tidak bernomor: {nv['h3']!r} / {nv['lanjutan']!r}")
+        if nv["lanjutan_open"]:
+            checks.append("Lanjutan terbuka saat formulir dibuka")
+        # Klik langkah ketiga: lipatan terbuka dan fokus di dalamnya.
+        click(pg, ".form-page .form-nav li.step:nth-child(3) .step-link")
+        pg.wait_for_timeout(600)
+        out["lompat_nav"] = pg.evaluate("() => ({ open: !!document.querySelector('details.form-section.advanced[open]'), focus_inside: !!document.activeElement.closest('details.form-section.advanced') })")
+        if not out["lompat_nav"]["open"] or not out["lompat_nav"]["focus_inside"]:
+            checks.append(f"klik langkah Lanjutan tidak membuka lipatan/memfokuskan: {out['lompat_nav']!r}")
+        pg.evaluate("() => { document.querySelector('details.form-section.advanced').removeAttribute('open'); window.scrollTo(0, 0); }")
+        pg.wait_for_timeout(300)
+
     # ------------------------------------------------------------ ringkasan galat (E3.4)
     click(pg, ".form-page .form-foot button:has-text('Simpan draf')")
     pg.wait_for_timeout(600)
@@ -16198,6 +16227,10 @@ def s58(pg):
             checks.append(f"ringkasan bukan role=alert anak pertama: {r!r}")
         if not r["focused_in_first_invalid"]:
             checks.append("fokus tidak jatuh ke kolom pertama yang bermasalah")
+        if out.get("nav"):
+            out["titik_galat"] = pg.evaluate("() => [...document.querySelectorAll('.form-nav li.step.has-error .step-label')].map((n) => n.innerText.trim())")
+            if out["titik_galat"] != ["Pesanan pembelian"]:
+                checks.append(f"titik galat navigasi bukan hanya 'Pesanan pembelian': {out['titik_galat']!r}")
         # Lompat lewat tautan TERAKHIR: fokus harus pindah ke kontrol kolom itu.
         click(pg, ".form-page .error-summary li:last-child button.linkish")
         pg.wait_for_timeout(500)
@@ -16277,6 +16310,18 @@ def s58(pg):
     if not any("diajukan" in t for t in out["toasts"]):
         checks.append(f"toast tidak menyebut pengajuan: {out['toasts']!r}")
     pg.screenshot(path=f"{OUT}/s58-sesudah-simpan-ajukan.png")
+    # 390 px: navigasi bagian tersembunyi, judul tetap bernomor (konteks ponsel baru).
+    ctx = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        pm = ctx.new_page()
+        login(pm, "procurement@nusantara.test")
+        pm.goto(BASE + "#/f/procurement/purchase-orders")
+        pm.wait_for_selector(".form-page .form-foot", timeout=15000); pm.wait_for_timeout(600)
+        out["ponsel"] = pm.evaluate("() => { const nav = document.querySelector('.form-page .form-nav'); return { nav_display: nav ? getComputedStyle(nav).display : 'absent', h3: ((document.querySelector('.form-page .form-section > h3') || {}).innerText || '').trim() }; }")
+        if out["ponsel"]["nav_display"] != "none":
+            checks.append(f"navigasi bagian di 390 px bukan display:none (tampil, atau tidak dibangun): {out['ponsel']!r}")
+    finally:
+        ctx.close()
     out["failed_checks"] = checks
     out["ok"] = not checks
     return out

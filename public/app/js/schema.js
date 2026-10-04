@@ -5,6 +5,9 @@
    column  { key, label, type, align, width, sub, lookup, enum, hideOnNarrow }
    field   { key, label, type, required, span, options, enum, lookup, help,
              default, hideWhen(record) }
+   section { title, help, fields[], advanced }
+           advanced: true → dilipat sebagai <details> "Lanjutan" di formulir (UX-E3.5);
+           wajib-isi di dalamnya tetap diperiksa dan lipatannya dibuka saat ada galat.
    line    { key, label, columns[], min, prefill, importPick }
            prefill MENGGANTI seluruh baris dari dokumen sumber tanpa bertanya;
            importPick membuka dialog centang lalu MENAMBAHKAN baris terpilih —
@@ -2667,8 +2670,15 @@ export const RESOURCES = {
           // pernah disebut pengawas — tanggalnya kosong karena formulir tidak
           // memintanya. Server menolak 422 "Perkiraan kirim wajib diisi.".
           { key: 'expected_date', label: 'Perkiraan kirim', type: 'date', required: true },
-          { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', help: 'Kosongkan untuk memakai termin vendor.' },
           { key: 'discount_amount', label: 'Diskon', type: 'currency', default: 0 },
+        ],
+      }, {
+        /* Pilot `advanced` (UX-E3.5): bagian yang jarang perlu diubah dilipat sebagai
+           "Lanjutan" — termin, alamat kirim, catatan, alasan override. Diskon tetap di
+           bagian pertama: ia memberi makan DPP hidup di bawah tabel baris (E3.6). */
+        title: 'Lanjutan', advanced: true,
+        fields: [
+          { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', help: 'Kosongkan untuk memakai termin vendor.' },
           { key: 'delivery_address', label: 'Alamat pengiriman', type: 'textarea', span: 2 },
           { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
           { key: 'qualification_override_reason', label: 'Alasan override prakualifikasi', type: 'textarea', span: 2, help: 'Isi hanya bila vendor terblokir prakualifikasi (nonaktif / dokumen wajib kedaluwarsa) dan PO tetap harus dibuat.' },

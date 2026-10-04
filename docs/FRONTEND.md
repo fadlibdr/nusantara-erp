@@ -183,7 +183,7 @@ Add an entry to `RESOURCES` in `js/schema.js` and a link in `NAV`:
   labelOne: 'Pelanggan',
   columns: [ { key: 'name', label: 'Nama', type: 'text', sub: 'legal_name' }, … ],
   filters: [ { key: 'status', label: 'Status', enum: 'activeStatus' } ],
-  form: { sections: [ { title: '…', fields: [ … ] } ], lines: [ … ] },
+  form: { sections: [ { title: '…', fields: [ … ] }, { title: 'Lanjutan', advanced: true, fields: [ … ] } ], lines: [ … ] },  // advanced → folded <details> (UX-E3.5)
   detail: { summary: ['dpp', 'total'], tables: [ … ] },
   actions: [ … ],                // lifecycle buttons
 }
