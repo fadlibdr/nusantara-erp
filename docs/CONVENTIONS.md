@@ -405,7 +405,10 @@ kalimat, dan ketiganya lahir dari sensus 143 rute daftar/literal pada 19 Sep 202
 selera. (Sensus itu TIDAK mencakup layar dokumen, formulir halaman, papan atau beranda modul;
 katalog rute DALAM baru lahir 20 Sep 2026, dan ketiga aturan di bawah belum diukur ulang
 terhadapnya. Sapuan atas 177 rute itu tidak menemukan tabrakan, luberan atau kegagalan kontras
-sesudah UI-7 §3a ditutup, tetapi "tidak ada cacat" bukan "sudah disensus".)
+sesudah UI-7 §3a ditutup, tetapi "tidak ada cacat" bukan "sudah disensus".) Layar dokumen generik
+diukur terpisah pada UX-E2 (4 Okt 2026, `docs/bukti-uji/ux-e2-probes.py`: tinggi kepala, bilah dan
+panel keadaan, dt Informasi, baris tabel per kepadatan, perhentian Tab, 48 sel) — sensus 143 rute
+di atas tetap tidak mencakupnya.
 
 1. **Ritmenya `--space-3`, dan tidak ada anak yang menambah pada padding kartunya.**
    `.card-body > p` dan `.card-body > dl` memakai `margin: 0 0 var(--space-3)`, anak terakhir `0`
