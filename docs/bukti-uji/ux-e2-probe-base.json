@@ -1,0 +1,7055 @@
+{
+ "base": "http://127.0.0.1:8000/app/",
+ "fixtures": {
+  "A": {
+   "id": 3,
+   "code": "PO/2026/X/0003",
+   "submit_http": 200,
+   "delete_http": 422
+  },
+  "B": {
+   "id": 4,
+   "code": "PO/2026/X/0004",
+   "submit_http": 200,
+   "approve_http": 200,
+   "delete_http": 422
+  }
+ },
+ "pages": {
+  "po1|admin|1440": {
+   "route": "procurement/purchase-orders/1",
+   "paint_ms": 860,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 38.5,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 209.500.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 209.500.000"
+     ],
+     [
+      "PPN",
+      "Rp 23.045.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 232.545.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "inv1|admin|1440": {
+   "route": "finance/ar-invoices/1",
+   "paint_ms": 216,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Catat Faktur Pajak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Catat Faktur Pajak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Catat Faktur Pajak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "DPP",
+      "Rp 9.700.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 1.067.000.000"
+     ],
+     [
+      "RETENSI DITAHAN",
+      "Rp 0"
+     ],
+     [
+      "PEMULIHAN UANG MUKA",
+      "Rp 0"
+     ],
+     [
+      "PENALTY AMOUNT",
+      "Rp 0"
+     ],
+     [
+      "TOTAL",
+      "Rp 10.767.000.000"
+     ],
+     [
+      "SUDAH DIBAYAR",
+      "Rp 10.767.000.000"
+     ],
+     [
+      "SISA",
+      "Rp 0"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Measurement",
+     "Klaim uang muka",
+     "Tanggal invoice",
+     "Jatuh tempo",
+     "Keterangan",
+     "Tarif PPN",
+     "Penalty Reason",
+     "No. faktur pajak",
+     "Terbilang",
+     "Lunas pada",
+     "Tingkat penagihan"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'penalty_amount' belum ada di LABELS (detail.js) — label tampil auto-Inggris.",
+    "titleize: kunci 'measurement_id' belum ada di LABELS (detail.js) — label tampil auto-Inggris.",
+    "titleize: kunci 'penalty_reason' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "qtn3|admin|1440": {
+   "route": "crm/quotations/3",
+   "paint_ms": 217,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Buat Revisi"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Buat Revisi"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 38.5,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Buat Revisi"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 480.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 480.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 52.800.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 532.800.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Prospek",
+     "Judul",
+     "Lingkup",
+     "Metode pelaksanaan",
+     "Berlaku sampai",
+     "Tarif PPN",
+     "Revisi",
+     "Menang pada",
+     "Kalah pada",
+     "Alasan kalah",
+     "Catatan",
+     "No. kontrak"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Rincian penawaran",
+     "Aktivitas",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 6,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "wo1|admin|1440": {
+   "route": "procurement/work-orders/1",
+   "paint_ms": 317,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 39,
+      "max": 58.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 48,
+      "max": 58.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 585.000.000"
+     ],
+     [
+      "TARIF PPN",
+      "Rp 11"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Judul",
+     "Mulai",
+     "Selesai",
+     "Alasan override kualifikasi",
+     "Catatan",
+     "Billings"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Baris alat / jasa",
+     "Tagihan periode yang sudah dibuat",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'billings' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "ctr1|admin|1440": {
+   "route": "crm/contracts/1",
+   "paint_ms": 294,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 66,
+      "max": 143.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 78,
+      "max": 155.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 78,
+      "max": 155.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 48.500.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 5.335.000.000"
+     ],
+     [
+      "TOTAL TERMASUK PPN",
+      "Rp 53.835.000.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Penawaran",
+     "Dari penawaran",
+     "No. kontrak pelanggan",
+     "Judul",
+     "Lingkup",
+     "Tarif PPN",
+     "Total Terbilang",
+     "Tanggal TTD",
+     "Mulai",
+     "Selesai",
+     "Retensi",
+     "Masa pemeliharaan (bulan)"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Jadwal termin",
+     "Terkait",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 8,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'total_terbilang' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "lead1|admin|1440": {
+   "route": "crm/leads/1",
+   "paint_ms": 229,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman",
+       "Ubah",
+       "Ubah Tahap"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman",
+       "Ubah",
+       "Ubah Tahap"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman",
+       "Ubah",
+       "Ubah Tahap"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    }
+   },
+   "tiles": {
+    "stat_row": [],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 0
+   },
+   "info": {
+    "dt": [
+     "Nama",
+     "Perusahaan",
+     "Sumber",
+     "Telepon",
+     "Email",
+     "Ringkasan kebutuhan",
+     "Nilai estimasi",
+     "Pemilik prospek",
+     "Tindak lanjut berikutnya",
+     "Pelanggan",
+     "Catatan"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Riwayat Tahap",
+     "Aktivitas",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 4
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poA|admin|1440": {
+   "route": "procurement/purchase-orders/3",
+   "paint_ms": 131,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 66,
+      "bar_h": 66,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 72,
+      "bar_h": 72,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 39,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78,
+      "bar_h": 78,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 8,
+    "to_first_dt": 6
+   },
+   "clicks": {
+    "approve": 1,
+    "reject": 2,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poB|admin|1440": {
+   "route": "procurement/purchase-orders/4",
+   "paint_ms": 104,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 39,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "po1|direktur|1440": {
+   "route": "procurement/purchase-orders/1",
+   "paint_ms": 352,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 38.5,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 209.500.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 209.500.000"
+     ],
+     [
+      "PPN",
+      "Rp 23.045.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 232.545.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "inv1|direktur|1440": {
+   "route": "finance/ar-invoices/1",
+   "paint_ms": 205,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "DPP",
+      "Rp 9.700.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 1.067.000.000"
+     ],
+     [
+      "RETENSI DITAHAN",
+      "Rp 0"
+     ],
+     [
+      "PEMULIHAN UANG MUKA",
+      "Rp 0"
+     ],
+     [
+      "PENALTY AMOUNT",
+      "Rp 0"
+     ],
+     [
+      "TOTAL",
+      "Rp 10.767.000.000"
+     ],
+     [
+      "SUDAH DIBAYAR",
+      "Rp 10.767.000.000"
+     ],
+     [
+      "SISA",
+      "Rp 0"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Measurement",
+     "Klaim uang muka",
+     "Tanggal invoice",
+     "Jatuh tempo",
+     "Keterangan",
+     "Tarif PPN",
+     "Penalty Reason",
+     "No. faktur pajak",
+     "Terbilang",
+     "Lunas pada",
+     "Tingkat penagihan"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'penalty_amount' belum ada di LABELS (detail.js) — label tampil auto-Inggris.",
+    "titleize: kunci 'measurement_id' belum ada di LABELS (detail.js) — label tampil auto-Inggris.",
+    "titleize: kunci 'penalty_reason' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "qtn3|direktur|1440": {
+   "route": "crm/quotations/3",
+   "paint_ms": 195,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 38.5,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 480.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 480.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 52.800.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 532.800.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Prospek",
+     "Judul",
+     "Lingkup",
+     "Metode pelaksanaan",
+     "Berlaku sampai",
+     "Tarif PPN",
+     "Revisi",
+     "Menang pada",
+     "Kalah pada",
+     "Alasan kalah",
+     "Catatan",
+     "No. kontrak"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Rincian penawaran",
+     "Aktivitas",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "wo1|direktur|1440": {
+   "route": "procurement/work-orders/1",
+   "paint_ms": 110,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 39,
+      "max": 58.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 48,
+      "max": 58.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 585.000.000"
+     ],
+     [
+      "TARIF PPN",
+      "Rp 11"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Judul",
+     "Mulai",
+     "Selesai",
+     "Alasan override kualifikasi",
+     "Catatan",
+     "Billings"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Baris alat / jasa",
+     "Tagihan periode yang sudah dibuat",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'billings' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "ctr1|direktur|1440": {
+   "route": "crm/contracts/1",
+   "paint_ms": 225,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 46,
+      "max": 85
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 77.5,
+      "max": 116.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 77.5,
+      "max": 155.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 48.500.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 5.335.000.000"
+     ],
+     [
+      "TOTAL TERMASUK PPN",
+      "Rp 53.835.000.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Penawaran",
+     "Dari penawaran",
+     "No. kontrak pelanggan",
+     "Judul",
+     "Lingkup",
+     "Tarif PPN",
+     "Total Terbilang",
+     "Tanggal TTD",
+     "Mulai",
+     "Selesai",
+     "Retensi",
+     "Masa pemeliharaan (bulan)"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Jadwal termin",
+     "Terkait",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'total_terbilang' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "lead1|direktur|1440": {
+   "route": "crm/leads/1",
+   "paint_ms": 199,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    }
+   },
+   "tiles": {
+    "stat_row": [],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 0
+   },
+   "info": {
+    "dt": [
+     "Nama",
+     "Perusahaan",
+     "Sumber",
+     "Telepon",
+     "Email",
+     "Ringkasan kebutuhan",
+     "Nilai estimasi",
+     "Pemilik prospek",
+     "Tindak lanjut berikutnya",
+     "Pelanggan",
+     "Catatan"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Riwayat Tahap",
+     "Aktivitas",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poA|direktur|1440": {
+   "route": "procurement/purchase-orders/3",
+   "paint_ms": 116,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 66,
+      "bar_h": 66,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 72,
+      "bar_h": 72,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 39,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78,
+      "bar_h": 78,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 6,
+    "to_first_dt": 6
+   },
+   "clicks": {
+    "approve": 1,
+    "reject": 2,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poB|direktur|1440": {
+   "route": "procurement/purchase-orders/4",
+   "paint_ms": 93,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 39,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "po1|procurement|1440": {
+   "route": "procurement/purchase-orders/1",
+   "paint_ms": 303,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 38.5,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 209.500.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 209.500.000"
+     ],
+     [
+      "PPN",
+      "Rp 23.045.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 232.545.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "inv1|procurement|1440": {
+   "route": "finance/ar-invoices/1",
+   "paint_ms": 21,
+   "density": {},
+   "refused": "Anda tidak memiliki hak akses \"fin.view\" untuk halaman ini."
+  },
+  "qtn3|procurement|1440": {
+   "route": "crm/quotations/3",
+   "paint_ms": 22,
+   "density": {},
+   "refused": "Anda tidak memiliki hak akses \"crm.view\" untuk halaman ini."
+  },
+  "wo1|procurement|1440": {
+   "route": "procurement/work-orders/1",
+   "paint_ms": 112,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 39,
+      "max": 58.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 78.2,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 48,
+      "max": 58.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 585.000.000"
+     ],
+     [
+      "TARIF PPN",
+      "Rp 11"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Judul",
+     "Mulai",
+     "Selesai",
+     "Alasan override kualifikasi",
+     "Catatan",
+     "Billings"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Baris alat / jasa",
+     "Tagihan periode yang sudah dibuat",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'billings' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "ctr1|procurement|1440": {
+   "route": "crm/contracts/1",
+   "paint_ms": 14,
+   "density": {},
+   "refused": "Anda tidak memiliki hak akses \"crm.view\" untuk halaman ini."
+  },
+  "lead1|procurement|1440": {
+   "route": "crm/leads/1",
+   "paint_ms": 45,
+   "density": {},
+   "refused": "Anda tidak memiliki hak akses \"crm.view\" untuk halaman ini."
+  },
+  "poA|procurement|1440": {
+   "route": "procurement/purchase-orders/3",
+   "paint_ms": 104,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel warn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel warn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 39,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel warn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 4,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poB|procurement|1440": {
+   "route": "procurement/purchase-orders/4",
+   "paint_ms": 88,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 30,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 32,
+      "max": 32
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 36,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 39,
+      "max": 39
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 55.7,
+      "bar_h": 42,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 72.4,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 48,
+      "max": 48
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "po1|admin|390": {
+   "route": "procurement/purchase-orders/1",
+   "paint_ms": 318,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 147.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 46.5,
+      "max": 65.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 147.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 58.5,
+      "max": 77.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 153.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 58.5,
+      "max": 77.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 209.500.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 209.500.000"
+     ],
+     [
+      "PPN",
+      "Rp 23.045.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 232.545.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "inv1|admin|390": {
+   "route": "finance/ar-invoices/1",
+   "paint_ms": 198,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Catat Faktur Pajak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    },
+    "normal": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Catat Faktur Pajak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 106.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Catat Faktur Pajak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "DPP",
+      "Rp 9.700.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 1.067.000.000"
+     ],
+     [
+      "RETENSI DITAHAN",
+      "Rp 0"
+     ],
+     [
+      "PEMULIHAN UANG MUKA",
+      "Rp 0"
+     ],
+     [
+      "PENALTY AMOUNT",
+      "Rp 0"
+     ],
+     [
+      "TOTAL",
+      "Rp 10.767.000.000"
+     ],
+     [
+      "SUDAH DIBAYAR",
+      "Rp 10.767.000.000"
+     ],
+     [
+      "SISA",
+      "Rp 0"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Measurement",
+     "Klaim uang muka",
+     "Tanggal invoice",
+     "Jatuh tempo",
+     "Keterangan",
+     "Tarif PPN",
+     "Penalty Reason",
+     "No. faktur pajak",
+     "Terbilang",
+     "Lunas pada",
+     "Tingkat penagihan"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'penalty_amount' belum ada di LABELS (detail.js) — label tampil auto-Inggris.",
+    "titleize: kunci 'measurement_id' belum ada di LABELS (detail.js) — label tampil auto-Inggris.",
+    "titleize: kunci 'penalty_reason' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "qtn3|admin|390": {
+   "route": "crm/quotations/3",
+   "paint_ms": 205,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 142.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Buat Revisi"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 66,
+      "max": 104.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 142.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Buat Revisi"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 78,
+      "max": 116.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 148.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Buat Revisi"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 78,
+      "max": 116.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 480.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 480.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 52.800.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 532.800.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Prospek",
+     "Judul",
+     "Lingkup",
+     "Metode pelaksanaan",
+     "Berlaku sampai",
+     "Tarif PPN",
+     "Revisi",
+     "Menang pada",
+     "Kalah pada",
+     "Alasan kalah",
+     "Catatan",
+     "No. kontrak"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Rincian penawaran",
+     "Aktivitas",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 6,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "wo1|admin|390": {
+   "route": "procurement/work-orders/1",
+   "paint_ms": 95,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 170,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 46.5,
+      "max": 124
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 170,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 58.5,
+      "max": 136
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 176,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 58.5,
+      "max": 136
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 585.000.000"
+     ],
+     [
+      "TARIF PPN",
+      "Rp 11"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Judul",
+     "Mulai",
+     "Selesai",
+     "Alasan override kualifikasi",
+     "Catatan",
+     "Billings"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Baris alat / jasa",
+     "Tagihan periode yang sudah dibuat",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'billings' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "ctr1|admin|390": {
+   "route": "crm/contracts/1",
+   "paint_ms": 207,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 123,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 66,
+      "max": 143.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 123,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 78,
+      "max": 155.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 129,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 78,
+      "max": 155.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 48.500.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 5.335.000.000"
+     ],
+     [
+      "TOTAL TERMASUK PPN",
+      "Rp 53.835.000.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Penawaran",
+     "Dari penawaran",
+     "No. kontrak pelanggan",
+     "Judul",
+     "Lingkup",
+     "Tarif PPN",
+     "Total Terbilang",
+     "Tanggal TTD",
+     "Mulai",
+     "Selesai",
+     "Retensi",
+     "Masa pemeliharaan (bulan)"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Jadwal termin",
+     "Terkait",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 8,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'total_terbilang' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "lead1|admin|390": {
+   "route": "crm/leads/1",
+   "paint_ms": 196,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 123,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman",
+       "Ubah",
+       "Ubah Tahap"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    },
+    "normal": {
+     "head": {
+      "head_h": 123,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman",
+       "Ubah",
+       "Ubah Tahap"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 129,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman",
+       "Ubah",
+       "Ubah Tahap"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    }
+   },
+   "tiles": {
+    "stat_row": [],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 0
+   },
+   "info": {
+    "dt": [
+     "Nama",
+     "Perusahaan",
+     "Sumber",
+     "Telepon",
+     "Email",
+     "Ringkasan kebutuhan",
+     "Nilai estimasi",
+     "Pemilik prospek",
+     "Tindak lanjut berikutnya",
+     "Pelanggan",
+     "Catatan"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Riwayat Tahap",
+     "Aktivitas",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 4
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poA|admin|390": {
+   "route": "procurement/purchase-orders/3",
+   "paint_ms": 99,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 130.3,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 85.5,
+      "max": 85.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 130.3,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 106.5,
+      "bar_h": 46,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 130.3,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 8,
+    "to_first_dt": 6
+   },
+   "clicks": {
+    "approve": 1,
+    "reject": 2,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poB|admin|390": {
+   "route": "procurement/purchase-orders/4",
+   "paint_ms": 208,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 85.5,
+      "max": 85.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 106.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "po1|direktur|390": {
+   "route": "procurement/purchase-orders/1",
+   "paint_ms": 840,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 147.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 46.5,
+      "max": 65.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 147.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 58.5,
+      "max": 77.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 153.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 58.5,
+      "max": 77.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 209.500.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 209.500.000"
+     ],
+     [
+      "PPN",
+      "Rp 23.045.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 232.545.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "inv1|direktur|390": {
+   "route": "finance/ar-invoices/1",
+   "paint_ms": 221,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    },
+    "normal": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 106.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "INV/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 10.767.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": null
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "DPP",
+      "Rp 9.700.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 1.067.000.000"
+     ],
+     [
+      "RETENSI DITAHAN",
+      "Rp 0"
+     ],
+     [
+      "PEMULIHAN UANG MUKA",
+      "Rp 0"
+     ],
+     [
+      "PENALTY AMOUNT",
+      "Rp 0"
+     ],
+     [
+      "TOTAL",
+      "Rp 10.767.000.000"
+     ],
+     [
+      "SUDAH DIBAYAR",
+      "Rp 10.767.000.000"
+     ],
+     [
+      "SISA",
+      "Rp 0"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Measurement",
+     "Klaim uang muka",
+     "Tanggal invoice",
+     "Jatuh tempo",
+     "Keterangan",
+     "Tarif PPN",
+     "Penalty Reason",
+     "No. faktur pajak",
+     "Terbilang",
+     "Lunas pada",
+     "Tingkat penagihan"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'penalty_amount' belum ada di LABELS (detail.js) — label tampil auto-Inggris.",
+    "titleize: kunci 'measurement_id' belum ada di LABELS (detail.js) — label tampil auto-Inggris.",
+    "titleize: kunci 'penalty_reason' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "qtn3|direktur|390": {
+   "route": "crm/quotations/3",
+   "paint_ms": 225,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 142.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 66,
+      "max": 104.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 142.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 78,
+      "max": 116.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 148.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "QTN/2026/III/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 532.800.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Penawaran ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 78,
+      "max": 116.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 480.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 480.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 52.800.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 532.800.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Prospek",
+     "Judul",
+     "Lingkup",
+     "Metode pelaksanaan",
+     "Berlaku sampai",
+     "Tarif PPN",
+     "Revisi",
+     "Menang pada",
+     "Kalah pada",
+     "Alasan kalah",
+     "Catatan",
+     "No. kontrak"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Rincian penawaran",
+     "Aktivitas",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "wo1|direktur|390": {
+   "route": "procurement/work-orders/1",
+   "paint_ms": 146,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 170,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 46.5,
+      "max": 124
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 170,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 58.5,
+      "max": 136
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 176,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 58.5,
+      "max": 136
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 585.000.000"
+     ],
+     [
+      "TARIF PPN",
+      "Rp 11"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Judul",
+     "Mulai",
+     "Selesai",
+     "Alasan override kualifikasi",
+     "Catatan",
+     "Billings"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Baris alat / jasa",
+     "Tagihan periode yang sudah dibuat",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'billings' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "ctr1|direktur|390": {
+   "route": "crm/contracts/1",
+   "paint_ms": 203,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 123,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 66,
+      "max": 143.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 123,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 78,
+      "max": 155.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 129,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "CTR/2026/I/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Nilai (DPP): Rp 48.500.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 91.9,
+      "cls": "action-panel success",
+      "title": "Kontrak ini terkunci (Disetujui).",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 5,
+      "min": 78,
+      "max": 155.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 48.500.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 5.335.000.000"
+     ],
+     [
+      "TOTAL TERMASUK PPN",
+      "Rp 53.835.000.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Penawaran",
+     "Dari penawaran",
+     "No. kontrak pelanggan",
+     "Judul",
+     "Lingkup",
+     "Tarif PPN",
+     "Total Terbilang",
+     "Tanggal TTD",
+     "Mulai",
+     "Selesai",
+     "Retensi",
+     "Masa pemeliharaan (bulan)"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Jadwal termin",
+     "Terkait",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'total_terbilang' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "lead1|direktur|390": {
+   "route": "crm/leads/1",
+   "paint_ms": 202,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 123,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    },
+    "normal": {
+     "head": {
+      "head_h": 123,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 129,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "LEAD-0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Terkualifikasi"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Estimasi nilai: Rp 65.000.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak halaman"
+      ]
+     },
+     "panel": null,
+     "lines": null
+    }
+   },
+   "tiles": {
+    "stat_row": [],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 0
+   },
+   "info": {
+    "dt": [
+     "Nama",
+     "Perusahaan",
+     "Sumber",
+     "Telepon",
+     "Email",
+     "Ringkasan kebutuhan",
+     "Nilai estimasi",
+     "Pemilik prospek",
+     "Tindak lanjut berikutnya",
+     "Pelanggan",
+     "Catatan"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Riwayat Tahap",
+     "Aktivitas",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poA|direktur|390": {
+   "route": "procurement/purchase-orders/3",
+   "paint_ms": 124,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 130.3,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 85.5,
+      "max": 85.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 130.3,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 106.5,
+      "bar_h": 46,
+      "bar_justify": "safe flex-end",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Setujui",
+       "Tolak",
+       "Tambah catatan"
+      ]
+     },
+     "panel": {
+      "h": 130.3,
+      "cls": "action-panel attn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Giliran Anda memutuskan: Setujui, atau Tolak dengan alasan — dokumen kembali ke draf pengajunya.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 6,
+    "to_first_dt": 6
+   },
+   "clicks": {
+    "approve": 1,
+    "reject": 2,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poB|direktur|390": {
+   "route": "procurement/purchase-orders/4",
+   "paint_ms": 135,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 85.5,
+      "max": 85.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 106.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "po1|procurement|390": {
+   "route": "procurement/purchase-orders/1",
+   "paint_ms": 837,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 147.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 46.5,
+      "max": 65.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 147.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 58.5,
+      "max": 77.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 153.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PO/2026/II/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Total: Rp 232.545.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 2,
+      "min": 58.5,
+      "max": 77.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 209.500.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 209.500.000"
+     ],
+     [
+      "PPN",
+      "Rp 23.045.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 232.545.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "inv1|procurement|390": {
+   "route": "finance/ar-invoices/1",
+   "paint_ms": 11,
+   "density": {},
+   "refused": "Anda tidak memiliki hak akses \"fin.view\" untuk halaman ini."
+  },
+  "qtn3|procurement|390": {
+   "route": "crm/quotations/3",
+   "paint_ms": 17,
+   "density": {},
+   "refused": "Anda tidak memiliki hak akses \"crm.view\" untuk halaman ini."
+  },
+  "wo1|procurement|390": {
+   "route": "procurement/work-orders/1",
+   "paint_ms": 100,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 170,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 46.5,
+      "max": 124
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 170,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 58.5,
+      "max": 136
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 176,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PPK/2026/VI/0001",
+      "h1_doc_code": false,
+      "badges": [
+       "approved"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Proyek: PRJ-2026-001 — Pembangunan Gedung Kantor Graha Sentosa (8 Lantai)",
+       "Nilai PPK: Rp 585.000.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 03 Okt 2026 oleh Administrator Sistem · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 3,
+      "min": 58.5,
+      "max": 136
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "NILAI",
+      "Rp 585.000.000"
+     ],
+     [
+      "TARIF PPN",
+      "Rp 11"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "Proyek",
+     "Judul",
+     "Mulai",
+     "Selesai",
+     "Alasan override kualifikasi",
+     "Catatan",
+     "Billings"
+    ],
+    "groups": 0,
+    "group_labels": [],
+    "lainnya": [],
+    "dupl": [],
+    "cards": [
+     "Informasi",
+     "Baris alat / jasa",
+     "Tagihan periode yang sudah dibuat",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 2,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [
+    "titleize: kunci 'billings' belum ada di LABELS (detail.js) — label tampil auto-Inggris."
+   ],
+   "console_errors": []
+  },
+  "ctr1|procurement|390": {
+   "route": "crm/contracts/1",
+   "paint_ms": 18,
+   "density": {},
+   "refused": "Anda tidak memiliki hak akses \"crm.view\" untuk halaman ini."
+  },
+  "lead1|procurement|390": {
+   "route": "crm/leads/1",
+   "paint_ms": 24,
+   "density": {},
+   "refused": "Anda tidak memiliki hak akses \"crm.view\" untuk halaman ini."
+  },
+  "poA|procurement|390": {
+   "route": "procurement/purchase-orders/3",
+   "paint_ms": 91,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 149.8,
+      "cls": "action-panel warn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 85.5,
+      "max": 85.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 149.8,
+      "cls": "action-panel warn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 106.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0003",
+      "h1_doc_code": false,
+      "badges": [
+       "Diajukan"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 2,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak"
+      ]
+     },
+     "panel": {
+      "h": 149.8,
+      "cls": "action-panel warn",
+      "title": "Diajukan 04 Okt 2026 oleh Andi Kurniawan · menunggu persetujuan.",
+      "text": "Ubah dan Hapus tidak tersedia selama menunggu. Untuk memperbaiki isinya, minta penyetuju menolaknya — dokumen kembali ke draf.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 4,
+    "to_first_dt": 2
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  },
+  "poB|procurement|390": {
+   "route": "procurement/purchase-orders/4",
+   "paint_ms": 91,
+   "density": {
+    "compact": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 85.5,
+      "max": 85.5
+     }
+    },
+    "normal": {
+     "head": {
+      "head_h": 100.5,
+      "bar_h": 40,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    },
+    "comfortable": {
+     "head": {
+      "head_h": 106.5,
+      "bar_h": 46,
+      "bar_justify": "normal",
+      "h1": "PO/2026/X/0004",
+      "h1_doc_code": false,
+      "badges": [
+       "Disetujui"
+      ],
+      "kind": null,
+      "party": null,
+      "meta": [
+       "Total: Rp 3.330.000"
+      ],
+      "zones": 3,
+      "bar_buttons": [
+       "Kembali",
+       "Cetak",
+       "Tutup PO"
+      ]
+     },
+     "panel": {
+      "h": 110.8,
+      "cls": "action-panel success",
+      "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+      "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+      "actions": []
+     },
+     "lines": {
+      "n": 1,
+      "min": 97.5,
+      "max": 97.5
+     }
+    }
+   },
+   "tiles": {
+    "stat_row": [
+     [
+      "SUBTOTAL",
+      "Rp 3.000.000"
+     ],
+     [
+      "DISKON",
+      "Rp 0"
+     ],
+     [
+      "DPP",
+      "Rp 3.000.000"
+     ],
+     [
+      "PPN",
+      "Rp 330.000"
+     ],
+     [
+      "TOTAL",
+      "Rp 3.330.000"
+     ]
+    ],
+    "kv_tiles": [],
+    "stat_rows_outside_cards": 1
+   },
+   "info": {
+    "dt": [
+     "RFQ",
+     "Proyek",
+     "Gudang",
+     "Alamat pengiriman",
+     "Tanggal PO",
+     "Perkiraan kirim",
+     "Termin bayar (hari)",
+     "Tarif PPN",
+     "Perlu persetujuan direktur",
+     "PR",
+     "PR",
+     "Catatan",
+     "Alasan override kualifikasi",
+     "Alasan tanpa PR",
+     "Ditutup"
+    ],
+    "groups": 4,
+    "group_labels": [
+     "ASAL & TUJUAN",
+     "JADWAL",
+     "TERMIN & PAJAK"
+    ],
+    "lainnya": [],
+    "dupl": [
+     "PR"
+    ],
+    "cards": [
+     "Informasi",
+     "Item pesanan",
+     "Terkait",
+     "Riwayat Persetujuan",
+     "Lampiran",
+     "Metadata"
+    ]
+   },
+   "tabstops": {
+    "total": 5,
+    "to_first_dt": 3
+   },
+   "clicks": {
+    "approve": null,
+    "reject": null,
+    "submit": null
+   },
+   "titleize_warnings": [],
+   "console_errors": []
+  }
+ },
+ "matrix": {
+  "direktur": {
+   "panel": {
+    "h": 72.4,
+    "cls": "action-panel success",
+    "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+    "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+    "actions": []
+   },
+   "head": {
+    "head_h": 55.7,
+    "bar_h": 36,
+    "bar_justify": "normal",
+    "h1": "PO/2026/X/0004",
+    "h1_doc_code": false,
+    "badges": [
+     "Disetujui"
+    ],
+    "kind": null,
+    "party": null,
+    "meta": [
+     "Total: Rp 3.330.000"
+    ],
+    "zones": 2,
+    "bar_buttons": [
+     "Kembali",
+     "Cetak"
+    ]
+   },
+   "print": {
+    "panel_display": "flex",
+    "action_display": null,
+    "actions_display": null
+   }
+  },
+  "procurement": {
+   "panel": {
+    "h": 72.4,
+    "cls": "action-panel success",
+    "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+    "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+    "actions": []
+   },
+   "head": {
+    "head_h": 55.7,
+    "bar_h": 36,
+    "bar_justify": "normal",
+    "h1": "PO/2026/X/0004",
+    "h1_doc_code": false,
+    "badges": [
+     "Disetujui"
+    ],
+    "kind": null,
+    "party": null,
+    "meta": [
+     "Total: Rp 3.330.000"
+    ],
+    "zones": 3,
+    "bar_buttons": [
+     "Kembali",
+     "Cetak",
+     "Tutup PO"
+    ]
+   },
+   "print": {
+    "panel_display": "flex",
+    "action_display": null,
+    "actions_display": null
+   }
+  },
+  "warehouse": {
+   "panel": null,
+   "head": {
+    "head_h": null,
+    "bar_h": null,
+    "bar_justify": null,
+    "h1": null,
+    "h1_doc_code": false,
+    "badges": [],
+    "kind": null,
+    "party": null,
+    "meta": [],
+    "zones": 0,
+    "bar_buttons": []
+   },
+   "print": {
+    "panel_display": null,
+    "action_display": null,
+    "actions_display": null
+   }
+  },
+  "finance": {
+   "panel": {
+    "h": 72.4,
+    "cls": "action-panel success",
+    "title": "Disetujui 04 Okt 2026 oleh Budi Santoso · dokumen terkunci.",
+    "text": "Isi tidak dapat diubah lagi; perubahan hanya lewat revisi, pembalikan, atau dokumen lanjutan.",
+    "actions": []
+   },
+   "head": {
+    "head_h": 55.7,
+    "bar_h": 36,
+    "bar_justify": "normal",
+    "h1": "PO/2026/X/0004",
+    "h1_doc_code": false,
+    "badges": [
+     "Disetujui"
+    ],
+    "kind": null,
+    "party": null,
+    "meta": [
+     "Total: Rp 3.330.000"
+    ],
+    "zones": 2,
+    "bar_buttons": [
+     "Kembali",
+     "Cetak"
+    ]
+   },
+   "print": {
+    "panel_display": "flex",
+    "action_display": null,
+    "actions_display": null
+   }
+  }
+ },
+ "print": {}
+}

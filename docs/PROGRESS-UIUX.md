@@ -371,6 +371,27 @@ Recorded in the commits:
 
 ---
 
+## UX-E2 — Detail
+
+Branch `feat/ux-redesign-e2` from `11c19dc` (the E1 merge). The plan came from the same read-only workflow as E1 (six readers over `detail.js`, its PHPUnit and harness pins, the handoff design, the real API records and the conventions; two planners with opposite priorities; a judge). Its main calls, recorded as deviations below where they differ from README E2:
+- the decision buttons stay in the three-zone action bar, not in the action panel (ten harness scenarios and SpaPageHeadStandardTest pin the bar; S2 is already 2 clicks per document) — OQ-23;
+- no tabs over lines / approvals / attachments / activities (S30, S30r, S35 read those cards visible; print has no stacking rule) — OQ-24;
+- `docHeader()` is nested inside `.page-head`, with the document code as the page `h1` in mono on `--fs-page` (no 26 px override) — OQ-25;
+- the key-value tiles fall back to the WHOLE `detail.summary`, not its first 5, and the PO declares `headline` equal to its summary;
+- the Informasi label order is form label → LABELS → a collapsed "Bidang lainnya (n)" inside the card; `titleize()` and its warning stay as the last fallback;
+- `def.detail.next` is a display-only link on the locked panel, gated by `visibleNav(session.can)`, PO → GRN only;
+- S29 is repaired first, as a harness-only commit (OQ-16).
+
+### UX-E2.0 — Baseline on the merge base
+- Commit: the commit that adds this entry (docs and evidence only; nothing under `public/app` or `tests` changes).
+- Files: `docs/bukti-uji/results-ux-e2-base.json`, `docs/bukti-uji/ux-e2-probes.py`, `docs/bukti-uji/ux-e2-probe-base.json`, `docs/bukti-uji/ux-e2-label-census.json`, this file
+- Acceptance: harness on `11c19dc`, fresh seed copy per lane, four lanes on ports 8000–8003 — S1 S2 S3 S4 S5 S7 S8 S10 S11 S12 S13 S14 S16 S17 S18 S19 S20 S21 S21m S22 S30r S33 S35 S35m S43 S44 S45 S46 S47 S49 S52 S53 S54 S55 S56 ok (S17 first died on the login 429 inside lane A — the token_for trap — and is ok run alone). **Red before E2, each identical to E1:** S28 (`two_documents_were_actually_picked`, OQ-7), S29 (`Page.fill` timeout on `.modal …Proyek`, OQ-16), S30 (`and_the_information_panel_shows_the_same_date`). Gate numbers: S2 `_clicks` 4 for two documents (2 each), `action_bar` Kembali · Cetak · Setujui · Tolak, `approve_modal_opened` false, `after.strip` "Disetujui … · dokumen terkunci."; S49 zona 3, kelompok 3, blok 4, dt 13 on PO/1 and dt 12 on INV/1; S53 `baris_diperiksa` 15.
+- Probe (`ux-e2-probes.py`: 6 seeded screens + 2 PO fixtures × admin/direktur/procurement × 1440/390 × 3 densities, 48 cells; procurement is refused on the 4 CRM/Finance screens and that is recorded, not failed): titleize warnings **0 on PO/1** (all cells), 3 on INV/1 (`penalty_amount`, `measurement_id`, …), 1 on PPK/1 (`billings`), 1 on CTR/1 (`total_terbilang`); 22 in total, 0 console errors. `.stat-row .stat` count 5 on PO/1 (Subtotal · Diskon · DPP · PPN · Total), 8 on INV/1, and PPK/1's `ppn_rate` tile reads **"Rp 11"**; one `.stat-row` outside a card per summary screen. `details.kv-more` 0 everywhere (does not exist yet). Duplicate dt: `['PR']` on both fixture POs (no PR: `purchase_requisition` null and `purchase_requisition_id` null both draw "PR —"; pre-existing). Head 55,7 px (PO) / 78,2 px (screens with a `.desc`) at 1440; 100,5–170 px at 390; bar 36 px (40 at 390), `justify-content` normal, and `safe flex-end` with the folded note on the submitted PO (bar 72 px at 1440); panel 72,4 px at 1440. Lines rows 32 / 38,5–39 / 48 px per density at 1440 (frozen, CONVENTIONS §13). Tab stops to the first Informasi dt: 3 (PO/1, admin), 6 on the submitted PO as an approver. Paint to first card 104–860 ms. Role matrix on the approved fixture: direktur, procurement and finance open it (panel actions `[]`), **warehouse is refused** (no `prc.view`), so the E2.5 matrix is direktur/procurement (present) against finance (absent).
+- Census (`ux-e2-probes.py --census`): form label ≠ LABELS for **212** keys across the 92 forms, **84** of them on the 42 resources with a detail block; form keys with no LABELS entry 96 / 37. On the PO: `purchase_requisition_id` 'Dari PR' vs 'PR', `warehouse_id` 'Gudang tujuan' vs 'Gudang', `qualification_override_reason` 'Alasan override prakualifikasi' vs 'Alasan override kualifikasi'.
+- Deviations: none; measurements only.
+
+---
+
 ## Metrics
 
 Method for every row: the scenario named, on the fresh seed above, 1440 × 900, light theme unless stated. "Last recorded" is ERRATA §4, which quotes `RECAP-UX-PROSES-2026-09.md` of 5 Sep 2026.
