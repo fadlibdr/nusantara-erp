@@ -16015,6 +16015,12 @@ S57_INFO = """() => {
     ubin: [...document.querySelectorAll('.kv-tiles .kv-tile')].map((tile) => [
       tile.querySelector('.kv-tile-label').textContent.trim(), tile.querySelector('.kv-tile-value').innerText.trim()]),
     strip_lama: document.querySelectorAll('.main > .stat-row').length,
+    // E2.4: kepala dokumen lewat docHeader() di dalam .page-head.
+    jenis: ((document.querySelector('.page-head .doc-kind') || {}).innerText || '').trim(),
+    lencana_di_jenis: !!document.querySelector('.page-head .doc-kind .badge'),
+    kode_h1: !!document.querySelector('.page-head h1.doc-code'),
+    pihak: ((document.querySelector('.page-head .doc-party') || {}).innerText || '').trim(),
+    lencana_n: document.querySelectorAll('.page-head .badge').length,
   };
 }"""
 
@@ -16073,6 +16079,16 @@ def s57(pg):
             checks.append(f"{key}: strip uang lama (.stat-row) masih tergambar: {doc['strip_lama']}")
     if inv["titleize_warnings"]:
         checks.append(f"INV/1: konsol memperingatkan kunci tanpa label: {inv['titleize_warnings'][:3]!r}")
+
+    # ------------------------------------------------------------ kepala dokumen (E2.4)
+    if not po["jenis"].startswith("Pesanan Pembelian"):
+        checks.append(f"PO/1: baris jenis tidak menyebut jenis dokumennya: {po['jenis']!r}")
+    if not po["lencana_di_jenis"] or po["lencana_n"] != 1:
+        checks.append(f"PO/1: lencana status bukan tepat satu di baris jenis: {po['lencana_di_jenis']} / {po['lencana_n']}")
+    if not po["kode_h1"] or po["h1"] != "PO/2026/II/0001":
+        checks.append(f"PO/1: nomor dokumen bukan h1.doc-code: {po['kode_h1']} {po['h1']!r}")
+    if "VND-" not in po["pihak"]:
+        checks.append(f"PO/1: baris pihak tidak menyebut vendornya: {po['pihak']!r}")
 
     if errors:
         checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")

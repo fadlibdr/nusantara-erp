@@ -388,7 +388,11 @@ reading, in another shape. There is no `print` action anywhere in the permission
   `docHeader`, `statusBadge`, `actionPanel`, `tabs`, `filterChip`, `overflowMenu`, `keyValueTile`, `stepper`,
   `drawer`, `errorSummary` — each with its rules in the `primitif UX-C.3` section at the end of `app.css` and
   pinned by `UiPrimitivesTest` (exported, no hex literal in `ui.js`, every class it writes has a stylesheet
-  rule). `statusBadge(status, enumName, { label })` is **icon + word**, never colour alone: tone from
+  rule). `docHeader()` has its first caller since UX-E2.4, `views/detail.js`: it renders the document
+  number as `h1.doc-code.mono` (the number is the page title; harness and a11y read `.page-head h1`),
+  and `.page-head` remains the container because the harness and `SpaPageHeadStandardTest` pin it; the
+  code's size follows `.page-head h1` (`--fs-page`), not `.doc-code`'s 26 px (OQ-25).
+  `statusBadge(status, enumName, { label })` is **icon + word**, never colour alone: tone from
   `fmt.statusTone()`, glyph from `fmt.statusIcon()` (the enum's own fourth tuple element in `enums.js`, else
   the shared word map). `overflowMenu(items)` is `menuButton` with an ellipsis trigger; items may carry
   `{ divider: true }` and `danger: true` so "Hapus…" stands after a rule in `--danger`. `actionPanel({ tone })`

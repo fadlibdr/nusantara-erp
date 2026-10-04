@@ -1,7 +1,7 @@
 /* Generic document detail: header, key/value panel, line tables, approvals. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, statusBadge, actionPanel, icon, errorState, emptyState, pluck, toast, menuButton, keyValueTile } from '../ui.js';
+import { el, clear, button, badge, statusBadge, actionPanel, icon, errorState, emptyState, pluck, toast, menuButton, keyValueTile, docHeader } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
@@ -661,7 +661,7 @@ function headlineTiles(record, keys, labels) {
 
 function linesTable(rows, table, record) {
   if (!rows || !rows.length) {
-    return el('.card-body', el('p.muted', { text: 'Belum ada baris.', style: { margin: 0 } }));
+    return el('.card-body', el('p.muted', { text: 'Belum ada baris.' }));
   }
 
   const totalKeys = table.totals || (table.totalKey ? [table.totalKey] : []);
@@ -734,7 +734,7 @@ function nestedTable(sections, table) {
   }
 
   if (!body.childElementCount) {
-    return el('.card-body', el('p.muted', { text: 'Belum ada bagian atau item.', style: { margin: 0 } }));
+    return el('.card-body', el('p.muted', { text: 'Belum ada bagian atau item.' }));
   }
 
   // Baris section dan tfoot memakai colspan penuh — dan justru karena itu
@@ -772,6 +772,20 @@ function nestedTable(sections, table) {
  * Nilainya digambar `renderCell` — bukan format sendiri — supaya angka di
  * kepala dokumen tidak pernah berbeda dari angka yang sama di tabel daftarnya.
  */
+/*
+ * Pihak dokumen untuk baris .doc-party (UX-E2.4): kolom teks pertama yang kuncinya
+ * berakhir '.name' dan terisi — dibaca lewat pluck, cara renderCell membacanya
+ * (aturan kejujuran documentMeta di bawah) — plus `sub`-nya (kode) bila terisi.
+ * 21 sumber daya menyatakan kolom seperti itu (PO: vendor.name · vendor.code).
+ */
+function partyText(def, record) {
+  const column = (def.columns || []).find((one) => one.type === 'text' && String(one.key).endsWith('.name')
+    && pluck(record, one.key) !== null && pluck(record, one.key) !== undefined && pluck(record, one.key) !== '');
+  if (!column) return '';
+  const sub = column.sub ? pluck(record, column.sub) : null;
+  return `${pluck(record, column.key)}${sub ? ` · ${sub}` : ''}`;
+}
+
 function documentMeta(def, record) {
   const columns = def.columns || [];
   /* `pluck`, bukan record[key]: sebagian kolom memakai kunci bertitik
@@ -1090,15 +1104,21 @@ export async function renderDetail(host, { key, def, id }) {
   ].filter(Boolean);
   decisions.filter((node) => node.classList.contains('primary')).slice(1).forEach((node) => node.classList.remove('primary'));
 
+  /*
+   * Kepala dokumen lewat docHeader() (UX-E2.4, README E2): jenis · lencana · nomor
+   * (h1 mono) · pihak · proyek/nilai. `.page-head` TETAP wadahnya — S2/S49/S56
+   * dan SpaPageHeadStandardTest membaca `.page-head h1/.badge/.actions`, dan bilah
+   * tiga zona di kanan tidak berubah sebyte pun (OQ-23). Judul dokumen (subtitle)
+   * menang atas pihak supaya tidak satu layar pun kehilangan judulnya.
+   */
   host.appendChild(el('.page-head', [
-    el('div', [
-      el('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } }, [
-        el('h1', { text: title }),
-        record.status ? statusBadge(record.status, statusEnum, { label: record.status_label || undefined }) : null,
-      ]),
-      subtitle ? el('.desc', { text: subtitle }) : null,
-      documentMeta(def, record),
-    ]),
+    docHeader({
+      kind: def.label,
+      code: title,
+      status: record.status ? statusBadge(record.status, statusEnum, { label: record.status_label || undefined }) : null,
+      party: subtitle || partyText(def, record) || null,
+      context: documentMeta(def, record),
+    }),
     el('.actions', [
       el('.zone.navigasi', [button('', { iconName: 'back', title: 'Kembali', onClick: () => back() })]),
       el('.zone.keluaran', [printMenu(def, key, record)]),
@@ -1138,7 +1158,7 @@ export async function renderDetail(host, { key, def, id }) {
   if (def.revisable && record.is_current === false && record.superseded_by_id) {
     host.appendChild(el('.alert.warn', [
       icon('warn', 15),
-      el('div', { style: { flex: '1' } }, [
+      el('.spacer', [
         el('div', {
           text: `${def.labelOne} ini telah digantikan revisi ${record.superseded_by_code || `#${record.superseded_by_id}`} `
             + 'dan tidak dapat diubah, diajukan, atau diputus lagi.',
@@ -1279,9 +1299,9 @@ export async function renderDetail(host, { key, def, id }) {
     main.appendChild(el('.card', [
       el('.card-head', el('h2', { text: list.label })),
       el('.card-body', values.length
-        ? el('ul', { style: { margin: 0, paddingLeft: '20px', lineHeight: '1.9' } },
+        ? el('ul.plain-list',
           values.map((value) => el('li', { text: String(value) })))
-        : el('p.muted', { text: 'Kosong.', style: { margin: 0 } })),
+        : el('p.muted', { text: 'Kosong.' })),
     ]));
   }
 

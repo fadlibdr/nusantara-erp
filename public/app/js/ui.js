@@ -1244,7 +1244,11 @@ export function docHeader({ kind, code, status, party, context } = {}) {
     : (context && context.label ? el('a.doc-context', { href: context.href || '#', text: context.label }) : null);
   return el('.doc-head', [
     el('.doc-kind', [kind ? el('span', { text: kind }) : null, status || null]),
-    el('.doc-code.mono', { text: code ?? '—' }),
+    // h1, bukan div (UX-E2.4): nomor dokumen ADALAH judul halaman (RECAP aturan 4) —
+    // harness, SpaPageHeadStandardTest dan pembaca layar membaca `.page-head h1`.
+    // Ukurannya mengikuti `.page-head h1` (--fs-page) karena selektor itu lebih
+    // spesifik dari .doc-code; 26 px-nya .doc-code menunggu OQ-25.
+    el('h1.doc-code.mono', { text: code ?? '—' }),
     party ? el('.doc-party', { text: party }) : null,
     ctx,
   ]);

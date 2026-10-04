@@ -140,7 +140,7 @@ class DetailViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_detail(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(63, (int) $version[1],
+        $this->assertGreaterThanOrEqual(64, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa layar dokumen UX-E2: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -203,6 +203,76 @@ class DetailViewWiringTest extends ErpTestCase
             "/summary: \['subtotal', 'discount_amount', 'dpp', 'ppn_amount', 'total'\],\n(?:\s*\/\/[^\n]*\n)*\s+headline: \['subtotal', 'discount_amount', 'dpp', 'ppn_amount', 'total'\],/",
             $this->resourceBlock('procurement/purchase-orders'),
         );
+    }
+
+    /* ------------------------------------------------------------ E2.4 */
+
+    /** Kepala dokumen lewat docHeader() DI DALAM .page-head: jenis · lencana · nomor · pihak · meta. */
+    public function test_the_document_head_is_doc_header_inside_page_head(): void
+    {
+        $detail = $this->spa('views/detail.js');
+        $render = $this->functionBody($detail, 'export async function renderDetail(');
+        // Pin kompatibilitas POSITIF: harness (.page-head h1/.badge/.actions) dan SpaPageHeadStandardTest.
+        $this->assertStringContainsString("el('.page-head', [", $render);
+        $head = strpos($render, 'docHeader({');
+        $badge = strpos($render, "statusBadge(record.status, statusEnum, { label: record.status_label || undefined })");
+        $actions = strpos($render, "el('.actions', [");
+        $this->assertNotFalse($head);
+        $this->assertNotFalse($badge);
+        $this->assertTrue($head < $badge && $badge < $actions, 'Lencana status tidak lagi di dalam docHeader() sebelum bilah aksi.');
+        $this->assertStringContainsString('kind: def.label,', $render);
+        $this->assertStringContainsString('context: documentMeta(def, record)', $render);
+        $this->assertStringNotContainsString("el('h1', { text: title })", $detail, 'Kepala dokumen kembali dirakit tangan.');
+        $this->assertStringNotContainsString("style: { display: 'flex', alignItems: 'center', gap: '9px'", $detail);
+    }
+
+    /** docHeader() menggambar nomor sebagai h1.doc-code; ukurannya tetap --fs-page (tidak ada override 26 px, OQ-25). */
+    public function test_doc_header_renders_the_code_as_the_page_h1(): void
+    {
+        $ui = $this->functionBody($this->spa('ui.js'), 'export function docHeader(');
+        $this->assertNotNull($ui);
+        $this->assertStringContainsString("el('h1.doc-code.mono'", $ui);
+        $css = $this->css();
+        foreach (['.doc-head {', '.doc-kind {', '.doc-code {', '.doc-party {'] as $rule) {
+            $this->assertStringContainsString($rule, $css);
+        }
+        $this->assertMatchesRegularExpression('/\.page-head h1 \{[^}]*font-size: var\(--fs-page\)/', $css);
+        $this->assertStringNotContainsString('.page-head h1.doc-code', $css, 'Ukuran kode dokumen dipaksa lepas dari --fs-page (OQ-25 belum diputus).');
+    }
+
+    /** Pihak dibaca seperti renderCell membacanya: pluck pada kolom teks '*.name'. */
+    public function test_party_is_read_the_way_render_cell_reads_it(): void
+    {
+        $body = $this->functionBody($this->spa('views/detail.js'), 'function partyText(');
+        $this->assertNotNull($body);
+        $this->assertStringContainsString('pluck(record, one.key)', $body);
+        $this->assertStringContainsString(".endsWith('.name')", $body);
+    }
+
+    /** Sapuan gaya sebaris detail.js: 8 → 2 (kerangka skeleton dan satu ukuran huruf riwayat). */
+    public function test_detail_js_inline_styles_went_down(): void
+    {
+        $detail = $this->spa('views/detail.js');
+        $this->assertLessThanOrEqual(2, preg_match_all('/style:\s*\{/', $detail),
+            'detail.js kembali memasang gaya sebaris; plafon SpaInlineStyleBudget tidak punya ruang.');
+        $this->assertStringNotContainsString("style: { flex: '1' }", $detail);
+        $this->assertStringContainsString('.card-body > ul.plain-list {', $this->css());
+    }
+
+    /** Bilah tiga zona tidak tersentuh (pin kompatibilitas di balik OQ-23). */
+    public function test_the_three_zone_bar_is_untouched(): void
+    {
+        $render = $this->functionBody($this->spa('views/detail.js'), 'export async function renderDetail(');
+        $positions = array_map(static fn (string $needle) => strpos($render, $needle), [
+            "el('.zone.navigasi'", "el('.zone.keluaran'", "el('.zone.keputusan', decisions)", '...notePanels,',
+        ]);
+        foreach ($positions as $position) {
+            $this->assertNotFalse($position);
+        }
+        $this->assertSame($positions, array_values(array_filter($positions, static fn ($p) => $p !== false)));
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions, 'Urutan zona bilah aksi berubah.');
     }
 
     /** Separuh penolakan. */

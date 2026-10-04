@@ -849,10 +849,11 @@ Anda terhubung ke baris asalnya** (§6.4).
 
 ### 2.4 Halaman dokumen
 
-Kepala halaman: kode dokumen sebagai judul, **lencana status** di sebelahnya, lalu baris
-tombol: panah kembali, ikon **Cetak halaman**, tombol **`PDF`** pada empat dokumen yang
-punya, satu tombol **`Cetak <nama formulir>`** per formulir rumah (plus **`XLSX`** pada
-sepuluh formulir tersering, §13.2a), **`Ubah`**, lalu tombol-tombol siklus hidup.
+Kepala halaman: jenis dokumen dan **lencana status** di baris kecil, nomor dokumen
+sebagai judul (huruf mono), pihak (vendor/pelanggan) atau judul dokumen, lalu proyek ·
+nilai; di kanan baris tombol: panah kembali, **Cetak ▾** (Cetak halaman · Unduh PDF pada
+dokumen yang punya · satu baris per formulir rumah, plus **XLSX** pada sepuluh formulir
+tersering, §13.2a), **`Ubah`**, lalu tombol-tombol siklus hidup.
 
 Kode dokumen diterbitkan sistem mengikuti format yang disetel administrator — sejak P8
 format sebuah jenis boleh memuat **kode proyek** (token `{PROJ}`), sehingga nomor
