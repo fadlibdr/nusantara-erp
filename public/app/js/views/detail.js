@@ -965,7 +965,11 @@ export function printMenu(def, key, record) {
   ].filter(Boolean);
 
   if (items.length === 1) return button('', { iconName: 'print', title: 'Cetak halaman', onClick: printPage.onClick });
-  return menuButton('Cetak', items, { iconName: 'print', title: 'Cetak atau unduh dokumen ini' });
+  /* Mengambang (menuButton `floating`, UX-E1.9). Di ≤ 760 px bilah aksi berzona menggulir
+     mendatar (.page-head .actions:has(> .zone), UI-3c) — wadah gulir yang memotong popup
+     absolut setinggi bilah itu: di 390 px hanya "Cetak halaman" yang terlihat, tiga
+     keluaran lainnya tidak bisa diketuk (terukur S56, 4 Okt 2026). */
+  return menuButton('Cetak', items, { iconName: 'print', title: 'Cetak atau unduh dokumen ini', floating: true });
 }
 
 export async function renderDetail(host, { key, def, id }) {

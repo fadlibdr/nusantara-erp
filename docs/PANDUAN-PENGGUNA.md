@@ -650,35 +650,92 @@ Bab ini berlaku di hampir semua layar. Bab-bab berikutnya hanya menyebut yang be
 
 Susunannya dari atas ke bawah:
 
-1. **Judul** = nama di sidebar. Di kanan atas: tombol aksi tingkat halaman (bila ada),
-   ikon **Muat ulang**, dan **`Tambah <nama dokumen>`** — yang terakhir hanya muncul
-   bila Anda memegang izin membuat.
-2. **Bilah saring**: kotak **Cari** (bekerja 320 milidetik setelah Anda berhenti
-   mengetik), saringan khusus layar itu, sepasang **Dari tanggal** / **Sampai tanggal**
-   (hanya pada layar yang punya kolom tanggal dokumen — tidak semua punya), tombol
-   **`Reset`** (muncul hanya bila ada saringan aktif), dan **`Ekspor CSV`**.
-3. **Tabel**. Kolom uang mendapat baris kaki berlabel **"Total halaman ini"**.
+1. **Judul** = nama di sidebar, kadang dengan satu kalimat abu-abu di bawahnya yang
+   menjelaskan layar itu (hari ini pada Pesanan Pembelian). Di kanan atas: tombol aksi
+   tingkat halaman (bila ada), ikon **Muat ulang**, dan **`Tambah <nama dokumen>`** — yang
+   terakhir hanya muncul bila Anda memegang izin membuat.
+2. **Bilah alat**: kotak **Cari** (bekerja 320 milidetik setelah Anda berhenti
+   mengetik; Anda boleh terus mengetik selama daftarnya dimuat ulang), tombol
+   **`Filter`**, saringan yang sedang aktif, lalu di kanan **`Ekspor CSV`** dan **`Atur kolom`**.
+   Setiap saringan aktif tampil sebagai chip kecil sesudah tombol **`Filter`** —
+   *Disaring: Status: Disetujui ×* — dan × pada chip membuang saringan itu saja.
+   **`Hapus semua`** di ujung chip membuang semuanya sekaligus, termasuk isi kotak Cari,
+   tetapi mempertahankan urutan kolom yang Anda pilih. Saat dicetak, chip-chip ini ikut
+   tercetak (tanpa × dan tanpa tombolnya) sebagai keterangan saringan lembar itu.
+   Paling kanan tertulis **jumlah datanya**, mis. *12 PO*, atau *3 dari 12 PO · tersaring*
+   bila ada saringan atau kata pencarian yang aktif. Angka pertama jumlah SELURUH hasil
+   saringan di server (semua halaman), bukan baris yang sedang tampil; selama daftar
+   dimuat, atau bila pemuatannya gagal, tempat itu kosong — bukan 0. Angka sesudah
+   **dari** adalah seluruh isi layar itu tanpa saringan, seperti yang terlihat oleh akun
+   Anda; ia diambil paling sering sekali semenit, dan diambil ulang begitu Anda menekan
+   **Muat ulang**, menambah, atau menghapus data di layar itu. Bila angka itu belum
+   tiba, gagal diambil, atau lebih kecil dari angka pertama (data orang lain berubah
+   dalam semenit itu), kata **dari** tidak ditulis sama sekali — *3 PO · tersaring*.
+   Angka ini juga ikut tercetak. Pada
+   lima layar yang mengabaikan kotak Cari (lihat di bawah), kata pencarian tetap menandai
+   daftarnya *tersaring* walaupun isinya tidak berubah. **`Filter`** membuka panel kecil berisi saringan khusus layar
+   itu — mis. Status, Vendor, Proyek — dan sepasang **Dari tanggal** / **Sampai tanggal**
+   (hanya pada layar yang punya kolom tanggal dokumen — tidak semua punya). Angka di
+   tombol **`Filter`** menyebut berapa saringan di panel itu yang sedang aktif; kotak Cari
+   tidak ikut dihitung. Panelnya tetap terbuka selama Anda memilih, dan tertutup dengan
+   **Esc** (bila daftar pilihan Vendor/Proyek sedang terbuka, Esc pertama menutup daftar
+   itu dulu), dengan klik di luar panel, atau dengan menekan **`Filter`** lagi.
+   **`Atur kolom`** (di samping **`Ekspor CSV`**, pada layar yang punya lebih dari dua
+   kolom) membuka daftar centang kolom: lepas centangnya untuk menyembunyikan kolom itu,
+   **`Tampilkan semua`** untuk mengembalikannya; angka di tombol menyebut berapa kolom
+   yang sedang disembunyikan. Kolom pertama (identitas barisnya — pada PO, Kode) dan kolom
+   yang sedang dipakai mengurutkan tidak bisa disembunyikan. Pilihan ini **berlaku sampai
+   halaman dimuat ulang** di tab itu: ia bertahan saat Anda berpindah layar, tetapi F5 —
+   atau **Muat ulang** pada pemberitahuan versi baru — menampilkan semua kolom lagi, dan ia
+   tidak ikut ke tautan yang dibagikan, ke tampilan tersimpan, ke perangkat lain, atau ke
+   jendela baru. (Keluar lalu masuk lagi di tab yang sama tidak mengembalikannya.)
+3. **Tabel**. Kolom uang mendapat baris kaki berlabel **"Total halaman ini"**. Di ponsel
+   beberapa kolom disembunyikan supaya tabelnya muat; pada Pesanan Pembelian nilainya
+   tidak hilang — sel Kode membawa baris kecil abu-abu *Proyek: …* dan *Tgl PO: …* di
+   bawah nomor PO-nya (nama proyek yang panjang dipotong sesudah kodenya).
 4. **Pager**: `Menampilkan 1–20 dari 137 data`, pemilih jumlah baris (20 bawaan, lalu
    25/50/100/200), nomor halaman, dan panah maju-mundur.
+
+**Tab status.** Pada 29 layar dokumen yang melewati persetujuan (PO, PR, penawaran,
+tagihan, pembayaran, klaim subkon, cuti, dan seterusnya) ada sederet tab di antara judul
+dan bilah alat: **Semua · Draf · Diajukan · Disetujui · Ditolak · Selesai · Dibatalkan**
+(pada Pembayaran: status pembayaran). Tab itu saringan **Status** yang sama dengan yang
+ada di panel **`Filter`**, hanya satu klik lebih dekat: memilih tab sama dengan memilih
+status di panel itu — chip *Status: …* muncul, alamatnya berubah — dan × pada chip itu
+atau **`Hapus semua`** mengembalikan tab ke **Semua**. Tab tidak membawa angka; jumlah
+dokumen untuk status yang dipilih tertulis di ujung kanan bilah alat. Tab yang tidak
+berisi dokumen (mis. *Dibatalkan* pada PO) tetap ada dan menampilkan keadaan kosong
+saringan. Dengan papan ketik, ← / → berpindah tab dan langsung memuat. Bila alamat
+menyebut status yang tidak dikenal, tidak ada tab yang menyala (saringannya tetap
+berlaku — **`Hapus semua`** membuangnya). Saat dicetak, tab tidak ikut; status yang
+dipilih tercetak sebagai chip-nya.
 
 **"Total halaman ini" adalah jumlah baris yang sedang tampil — bukan jumlah seluruh
 saringan.** Ubah ke 100 baris per halaman dan angkanya berubah. Satu-satunya total yang
 jujur atas seluruh saringan adalah berkas CSV.
 
 **Mengurutkan.** Judul kolom bisa diklik hanya bila server mengizinkan kolom itu
-diurutkan. Klik berputar: **naik ▲ → turun ▼ → kembali ke urutan bawaan**. Mengubah
-urutan mengembalikan Anda ke halaman 1.
+diurutkan; judul seperti itu membawa panah kecil atas-bawah yang redup. Klik berputar:
+**naik (panah ke atas) → turun (panah ke bawah) → kembali ke urutan bawaan**. Mengubah
+urutan mengembalikan Anda ke halaman 1. Saat dicetak, hanya panah kolom yang sedang
+mengurutkan yang ikut tercetak.
 
 **Membuka baris.** Klik baris untuk membuka halaman dokumennya. Beberapa layar memang
 tidak punya halaman dokumen (mis. Bagan Akun, Progres Mingguan, Rekap Absensi); di sana
-baris tidak bisa diklik dan yang tersedia hanya ikon di ujung kanan baris.
+baris tidak bisa diklik dan yang tersedia hanya menu **⋯** di ujung kanan baris.
 
 **Dengan papan ketik**: Tab masuk ke tabel sekali, lalu ↑/↓ berpindah baris, Home/End ke
 ujung, Enter atau spasi membuka baris.
 
-**Ikon di ujung kanan baris**: ikon printer (hanya pada layar tanpa halaman dokumen),
-pensil **Ubah**, tong sampah **Hapus**. Keduanya hanya muncul bila izin Anda
-mengizinkan **dan** status barisnya mengizinkan.
+**Menu ⋯ di ujung kanan baris** (tombol **Aksi**): **Buka** (membuka halaman dokumennya
+— sama dengan mengklik barisnya), **Cetak …** dan **Unduh … (XLSX)** (hanya pada layar
+tanpa halaman dokumen, mis. Progres Mingguan), **Ubah**, lalu — sesudah garis, dalam
+merah — **Hapus…** (atau **Nonaktifkan…** pada Pengguna). **Ubah** dan **Hapus…** hanya
+muncul bila izin Anda mengizinkan **dan** status barisnya mengizinkan — PO yang sudah
+disetujui, misalnya, tidak bisa diubah maupun dihapus. Baris yang tidak punya apa pun
+selain **Buka** tidak diberi ⋯ sama sekali: barisnya sendiri sudah bisa diklik. Menu
+ini bisa dibuka dengan papan ketik (Tab ke ⋯, lalu Enter atau ↓), dan Esc menutupnya;
+mengklik ⋯ tidak membuka dokumennya. Menu tertutup sendiri begitu halamannya digulir.
 
 **Menghapus.** Konfirmasinya berbunyi `Hapus "<kode>"? Tindakan ini tidak dapat
 dibatalkan.` — dan itu apa adanya. **Tidak ada tempat sampah, tidak ada pemulihan, tidak
@@ -700,7 +757,7 @@ tetapi lima layar mengabaikannya — mengetik di sana tidak menyaring apa pun:
 nampan) dengan tombol Tambah bila Anda boleh membuat. Tersaring habis → *"Tidak ada <label>
 yang lolos filter yang dipasang."* (gambar corong) dengan tombol **`Hapus filter`**, atau — bila
 hanya kotak cari yang terisi — *"Tidak ada <label> yang cocok dengan \"<kata>\"."* (gambar kaca
-pembesar) dengan **`Hapus pencarian`**; keduanya sama dengan **`Reset`** di bilah filter.
+pembesar) dengan **`Hapus pencarian`**; keduanya sama dengan **`Hapus semua`** di ujung chip saringan.
 
 ### 2.2 Ekspor CSV
 
@@ -711,8 +768,10 @@ Yang perlu diketahui sebelum menekannya:
 
 - **Ia mengekspor seluruh hasil saringan, semua halaman** — bukan hanya 20 baris yang
   tampak, dan bukan pula seluruh tabel tanpa saringan.
-- **Kolomnya persis kolom yang tampil di layar itu**, dengan judul yang sama. Bukan
-  seluruh kolom dokumen.
+- **Kolomnya persis kolom yang tampil di layar itu**, dengan judul yang sama — termasuk
+  pilihan **`Atur kolom`** Anda: kolom yang disembunyikan tidak ikut terekspor. Bukan
+  seluruh kolom dokumen. (Saat daftar dicetak, lembarnya menyebut kolom yang
+  disembunyikan: *Kolom yang disembunyikan di layar: Proyek.*)
 - Nilainya berbentuk data, bukan tampilan: angka mentah tanpa "Rp", tanggal
   `yyyy-mm-dd`, waktu `yyyy-mm-dd hh:mm`, ya/tidak sebagai `Ya`/`Tidak`.
 - Nama berkas: `<nama-layar>_yyyy-mm-dd.csv`.
@@ -3822,7 +3881,7 @@ dan tidak dapat dihapus. Terima dulu transfernya di gudang tujuan, baru hapus it
 rata-rata tertimbang item itu **di seluruh gudang**; di **Saldo Stok** ia rata-rata di
 **satu gudang**. **Sebuah bon selalu dinilai pada angka GUDANG.**
 
-**`Persediaan › Kategori Item`** — tanpa halaman detail; ubah/hapus dari ikon di baris.
+**`Persediaan › Kategori Item`** — tanpa halaman detail; **Ubah** / **Hapus…** di menu ⋯ baris.
 Kode (wajib, unik) · Nama kategori (wajib) · Kategori induk. Menghapus ditolak:
 *"Kategori masih dipakai oleh item atau sub-kategori."*
 
@@ -4357,7 +4416,7 @@ mengajukan atau menyetujuinya — yang menekan tombolnya tetap orang, di layar
 Tiga akibatnya yang harus Anda ketahui sejak awal:
 
 - **Tombol Hapus praktis tidak pernah ada.** Izin hapus tidak dipegang manajer proyek
-  maupun site manager, jadi ikon tong sampah tidak muncul pada laporan harian, milestone,
+  maupun site manager, jadi **Hapus…** tidak muncul di menu ⋯ baris laporan harian, milestone,
   temuan, penugasan personel, draf BAST, maupun draf baseline. **Salah entri diperbaiki
   lewat `Ubah`, bukan hapus-buat-ulang.** Bila sebuah baris memang harus lenyap, minta
   administrator.
@@ -4784,8 +4843,8 @@ yang sama — bantuan di formulirnya mengatakannya: *"Menyimpan ulang minggu yan
 memperbarui data (upsert)."*
 
 Kolom: Proyek · Minggu (`M-8`) · Mulai · Selesai · Rencana (%) · Aktual (%) · **Sumber
-aktual** · **Deviasi** (bertanda). Saringan: Proyek. Ikon printer per baris mencetak
-**Detail Schedule** (§7.13).
+aktual** · **Deviasi** (bertanda). Saringan: Proyek. **Cetak Detail Schedule** di menu ⋯
+setiap baris mencetak **Detail Schedule** (§7.13).
 
 1. **`Tambah Progres Mingguan`**.
 2. Isi **Proyek** (wajib), **Minggu ke-** (wajib, 1–520), **Periode mulai** (wajib),
@@ -5316,7 +5375,7 @@ periksanya lagi.
 |---|---|---|
 | **Data Proyek** (F/DP) | halaman proyek, kepala halaman | 17 baris dari data proyek — semuanya terisi |
 | **Laporan Harian** (F/LH) | **halaman** laporan harian | satu laporan + kelima tabel barisnya (§7.3) |
-| **Detail Schedule** (F/DS) | **baris** daftar Progres Mingguan (ikon printer) | WBS + baseline + progres mingguan |
+| **Detail Schedule** (F/DS) | **baris** daftar Progres Mingguan (**Cetak** di menu ⋯) | WBS + baseline + progres mingguan |
 | **Daftar Temuan** (F/DT) | **halaman** satu temuan | **seluruh register temuan proyek itu** |
 | **Izin Kerja Lapangan** (F/IK) | **halaman satu izin** — register `Izin Kerja (IKL)` | izin itu: shift, jam berlaku, pekerjaan, tabel bahaya/APD |
 | **Izin Kerja Lembur** (F/IL) | **halaman satu izin** — register `Izin Lembur (ILB)` | izin + satu baris tercetak per pekerja |
@@ -5436,7 +5495,7 @@ bulan itu, enam kolom hari Senin–Sabtu. Baris = pohon WBS.
   yang benar-benar tercetak — satu kalimat untuk lembar yang seluruhnya diketik, satu untuk
   yang seluruhnya dari opname, dan satu lagi untuk bulan yang bercampur.
 
-> **Tombol cetak Detail Schedule pada baris Progres Mingguan selalu mencetak jadwal BULAN
+> **Cetak Detail Schedule di menu ⋯ baris Progres Mingguan selalu mencetak jadwal BULAN
 > BERJALAN.** Mencetak dari baris minggu 3 (Februari) menghasilkan lembar bulan Agustus.
 > Tidak ada cara memilih bulan dari layar. Cetaklah pada bulan yang bersangkutan, atau
 > catat keterbatasan itu pada arsipnya.
@@ -6171,7 +6230,7 @@ satu baris itu.
 
 ### 9.2 Kategori Aset — isi ini lebih dulu
 
-`Aset › Kategori Aset` (tanpa halaman detail; ubah/hapus dari ikon baris). Kolom: Kode ·
+`Aset › Kategori Aset` (tanpa halaman detail; **Ubah** / **Hapus…** di menu ⋯ baris). Kolom: Kode ·
 Nama kategori · Umur manfaat default · Akun beban · Akun akumulasi · Akun harga
 perolehan.
 
@@ -7262,7 +7321,7 @@ varian material tidak masuk akal.
 
 ### 10.14 Master keuangan
 
-Ketiganya **tanpa halaman detail** — ubah dan hapus dari ikon di baris.
+Ketiganya **tanpa halaman detail** — **Ubah** dan **Hapus…** di menu ⋯ baris.
 
 **`Keuangan › Bagan Akun`** (100 baris per halaman). Kolom: Kode (menjorok mengikuti
 kodenya) · Nama akun · Tipe · Saldo normal · Dapat diposting · Aktif. Formulir: **Kode
@@ -7972,7 +8031,7 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 | Jenis layar | Letak tombol | Contoh |
 |---|---|---|
 | Layar dokumen biasa | baris tombol di kepala halaman | Penawaran, PO, GRN, Payroll |
-| Layar daftar **tanpa** halaman dokumen | **ikon printer di baris** | Progres Mingguan |
+| Layar daftar **tanpa** halaman dokumen | **Cetak di menu ⋯ baris** | Progres Mingguan |
 | Layar khusus | tombolnya sendiri di kepala layar atau di kartu | Kasir Kas Kecil, Absensi Harian, Kalender Pajak, halaman proyek |
 | Register yang dicetak per induk | pada halaman **salah satu anggotanya** | Register Jaminan (per kontrak), Daftar Temuan (per proyek), Daftar Saldo Stok (per gudang) |
 
@@ -7981,8 +8040,8 @@ duduk di **empat tempat yang berbeda**, tergantung jenis layarnya:
 ### 13.2a Tombol XLSX — sepuluh formulir yang juga turun sebagai Excel
 
 Sejak P8, **sepuluh formulir tersering** membawa tombol kedua **di samping tombol
-cetaknya** — `XLSX` di halaman dokumen, ikon unduh di baris daftar layar tanpa halaman
-dokumen. Ia **mengunduh berkas Excel** berisi **data yang persis sama** dengan lembar
+cetaknya** — `XLSX` di halaman dokumen, **Unduh … (XLSX)** di menu ⋯ baris daftar layar
+tanpa halaman dokumen. Ia **mengunduh berkas Excel** berisi **data yang persis sama** dengan lembar
 cetaknya: keduanya dibaca dari satu komposisi, sehingga sebuah angka tidak mungkin
 berbeda antara kertas dan Excel-nya.
 

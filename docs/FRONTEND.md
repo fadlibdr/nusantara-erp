@@ -105,7 +105,10 @@ public/app/
       laporanbebas.js   Laporan Bebas (P1-F): the report builder over the eight catalogued
                         resources — every choice on screen comes from GET core/reports/resources,
                         including the ceilings, which are announced not memorised
-      list.js           generic list: search, filters, table, pagination
+      list.js           generic list: a toolbar built once per screen (search that keeps
+                        focus across reloads, Filter popover holding the screen's filter
+                        controls, active-filter chips with Hapus semua, CSV), saved views,
+                        table, pagination
       form.js           generic create/edit modal incl. repeatable line items
       detail.js         generic document detail: fields, lines, approvals
       actions.js        lifecycle actions (submit/approve/post/…)
@@ -293,7 +296,7 @@ The four places a button can land, and why there are four:
 |---------------------------------|---------------------------------------------------|
 | generic detail                  | `detail.js` — automatic                            |
 | `customDetail: '…'`             | one `houseFormButtons('<key>', $record)` line in the view |
-| `noDetail: true` list           | `list.js` row action — there is no detail screen to carry it |
+| `noDetail: true` list           | `list.js` row ⋯ menu — there is no detail screen to carry it |
 | route-only screen (`absensi`)   | its own button, anchored on a row of what is on screen |
 
 Keep `printForms` on the schema entry only for a form that needs a query parameter the

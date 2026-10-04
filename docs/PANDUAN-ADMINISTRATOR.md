@@ -509,7 +509,7 @@ navigasi Sistem yang digerbangi `iam.view`.
 Karyawan terkait, Peran (multiselect), Aktif (default menyala). Kata sandi wajib
 minimal **8 karakter** lewat layar; teks polos tidak pernah disimpan.
 
-**Memberi/mengubah peran** (butuh `iam.update`). Lewat tombol pensil pada baris
+**Memberi/mengubah peran** (butuh `iam.update`). Lewat **Ubah** di menu ⋯ baris
 pengguna.
 
 > **Peran diganti WHOLESALE, bukan ditambah.** SPA selalu mengirim seluruh isian saat
@@ -531,8 +531,8 @@ sudo -u www-data env HOME=/tmp php artisan tinker
 
 lalu di dalamnya, cari penggunanya dan panggil `assignRole('admin')`.
 
-**Menonaktifkan seseorang yang keluar** (butuh `iam.delete`). Tombol tong sampah
-berlabel **"Nonaktifkan"**, dengan konfirmasi yang sudah tertulis di layar:
+**Menonaktifkan seseorang yang keluar** (butuh `iam.delete`). **Nonaktifkan…** di menu ⋯
+baris pengguna (sesudah garis, dalam merah), dengan konfirmasi yang sudah tertulis di layar:
 "Nonaktifkan pengguna ini? Semua token API-nya dicabut. Pengguna tidak pernah dihapus
 permanen karena id-nya dipakai di dokumen."
 

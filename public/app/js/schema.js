@@ -15,6 +15,17 @@
            satu textarea opsional yang dilipat di bilah aksi (actions.js
            inlineNote) dan ikut terkirim tanpa dialog.
 
+   resource (kunci opsional untuk layar daftar generik, views/list.js — UX-E1)
+           description  satu kalimat di bawah judul daftar; juga petunjuk kartu
+                        layar itu di beranda modulnya (module.js).
+           primaryColumn kunci kolom yang di ≤ 760 px membawa nilai kolom
+                        hideOnNarrow di baris redup di bawahnya (opt-in;
+                        bukan kolom hideOnNarrow itu sendiri).
+           quickFilters kunci saringan (mis. ['status']) yang tampil juga sebagai
+                        tab di atas tabel; saringannya harus ber-enum. Tanpa
+                        kunci ini: ['status'] bila layar punya pintu keputusan
+                        (setujui/tolak), selain itu tanpa tab (quickFilterOf).
+
    types — text | code | textarea | number | currency | qty | percent | date |
            datetime | time | bool | select | lookup | status | enum | rel |
            json | tags | progress | password | multiselect
@@ -2598,6 +2609,10 @@ export const RESOURCES = {
   'procurement/purchase-orders': {
     module: 'prc', api: 'procurement/purchase-orders', label: 'Pesanan Pembelian (PO)', labelOne: 'PO',
     lookupSource: 'purchaseOrders',
+    description: 'Pesanan resmi ke vendor. Setelah disetujui, barang diterima lewat Penerimaan Barang (GRN) dan tagihan vendor mengacu ke sini.',
+    // Kolom kode, bukan vendor: di ponsel kolom vendor menyusut ke kata terpanjangnya dan
+    // lipatannya tidak terbaca, sedangkan kolom kode (mono, tidak membungkus) sudah cukup lebar.
+    primaryColumn: 'code',
     printable: { path: 'core/print/purchase-orders/{id}', prefix: 'po' },
     columns: [
       codeColumn,
@@ -4608,6 +4623,9 @@ export const RESOURCES = {
   'finance/payments': {
     module: 'fin', api: 'finance/payments', label: 'Pembayaran', labelOne: 'Pembayaran',
     customDetail: 'payment',
+    // Disetujui di server (Finance/Routes/api.php), tetapi keputusannya hidup di
+    // halaman detail khususnya, bukan di `actions:` — jadi tab statusnya diminta di sini.
+    quickFilters: ['status'],
     columns: [
       codeColumn,
       { key: 'payment_date', label: 'Tanggal', type: 'date' },

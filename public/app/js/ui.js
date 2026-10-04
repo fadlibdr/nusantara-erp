@@ -289,7 +289,18 @@ export function spotlightClear() {
 let openMenu = null;
 let menuSeq = 0;
 
-export function menuButton(label, items, { iconName, title, variant = '', size = '', chevron = true } = {}) {
+/*
+ * `floating` (UX-E1.9): popup position: fixed, ditempatkan dari kotak tombolnya —
+ * untuk menu ⋯ BARIS, yang duduk di dalam .table-wrap (overflow: auto). Popup
+ * absolut biasa terpotong di tepi wadah itu: menu baris terakhir hilang di bawah
+ * pager. Popup fixed lolos dari pemotongan selama tidak ada leluhur yang memasang
+ * transform/filter/contain (app.css .menu-pop.floating). Karena ia tidak ikut
+ * bergulir bersama barisnya, gulir apa pun di luar popup — dan resize — MENUTUPNYA,
+ * bukan menggesernya: menu yang melayang terlepas dari barisnya lebih buruk
+ * daripada menu yang tertutup. Cetak ▾ di detail memakainya juga — di ≤ 760 px bilah
+ * aksinya sendiri wadah gulir (detail.js printMenu); Buat ▾ di bilah atas tidak.
+ */
+export function menuButton(label, items, { iconName, title, variant = '', size = '', chevron = true, floating = false } = {}) {
   const id = `menu-${++menuSeq}`;
   const trigger = button(label, { iconName, title, variant, size });
   trigger.id = `${id}-trigger`;
@@ -314,8 +325,50 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
     document.removeEventListener('pointerdown', onOutside, true);
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('hashchange', onRoute);
+    window.removeEventListener('scroll', onScroll, true);
+    window.removeEventListener('resize', onResize);
     if (openMenu === handle) openMenu = null;
-    if (refocus || held) trigger.focus();
+    if (refocus || held) trigger.focus({ preventScroll: floating });
+  }
+
+  // Hanya menu `floating`: gulir di DALAM popup (daftar panjang) bukan alasan menutup.
+  function onScroll(event) {
+    if (pop && event.target instanceof Node && pop.contains(event.target)) return;
+    close();
+  }
+
+  function onResize() {
+    close();
+  }
+
+  /* Popup fixed tidak boleh menggulir leluhurnya saat item difokus (gulirnya akan
+     langsung menutup menu ini); item di luar tinggi popup digeser di dalam popup sendiri. */
+  function focusItem(node) {
+    if (!floating) {
+      node.focus();
+      return;
+    }
+    node.focus({ preventScroll: true });
+    const top = node.offsetTop;
+    const bottom = top + node.offsetHeight;
+    if (top < pop.scrollTop) pop.scrollTop = top;
+    else if (bottom > pop.scrollTop + pop.clientHeight) pop.scrollTop = bottom - pop.clientHeight;
+  }
+
+  /* Rapat kanan pada tombolnya, 4 px di bawahnya; dibalik ke atas bila ruang di bawah
+     tidak cukup DAN ruang di atas lebih lapang; dijepit 8 px dari tepi layar. */
+  function place() {
+    const rect = trigger.getBoundingClientRect();
+    const box = pop.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const left = Math.max(8, Math.min(rect.right - box.width, vw - 8 - box.width));
+    const below = vh - 8 - (rect.bottom + 4);
+    const above = rect.top - 4 - 8;
+    let top = box.height > below && above > below ? rect.top - 4 - box.height : rect.bottom + 4;
+    top = Math.max(8, Math.min(top, vh - 8 - box.height));
+    pop.style.left = `${Math.round(left)}px`;
+    pop.style.top = `${Math.round(top)}px`;
   }
 
   function onOutside(event) {
@@ -327,6 +380,13 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
   }
 
   function onKey(event) {
+    /* Menu yatim: tombolnya dicabut selagi popup terbuka (daftar digambar ulang oleh
+       preload()/loadPrintForms() pada kunjungan pertama). Tanpa ini panah/Home/End di
+       seluruh halaman ditelan sampai ketukan berikutnya. */
+    if (!wrap.isConnected) {
+      close();
+      return;
+    }
     const list = itemsIn();
     if (!list.length) return;
     const at = list.indexOf(document.activeElement);
@@ -337,16 +397,16 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
       close({ refocus: true });
     } else if (event.key === 'ArrowDown') {
       event.preventDefault();
-      (list[at + 1] || list[0]).focus();
+      focusItem(list[at + 1] || list[0]);
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      (at > 0 ? list[at - 1] : list[list.length - 1]).focus();
+      focusItem(at > 0 ? list[at - 1] : list[list.length - 1]);
     } else if (event.key === 'Home') {
       event.preventDefault();
-      list[0].focus();
+      focusItem(list[0]);
     } else if (event.key === 'End') {
       event.preventDefault();
-      list[list.length - 1].focus();
+      focusItem(list[list.length - 1]);
     }
   }
 
@@ -375,22 +435,31 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
       });
       pop.appendChild(node);
     });
+    if (floating) pop.classList.add('floating');
     wrap.appendChild(pop);
-    /* Rapat kanan pada tombolnya (app.css .menu-pop). Bila tepi kirinya keluar
-       layar — ponsel 390 px: bilah aksi di 84–376 px, popup 358 px, terukur
-       4 Sep 2026 left −162 — geser ke kanan secukupnya, tidak lebih dari sisa
-       ruang di kanan; max-width popup < lebar layar, jadi selalu muat. */
-    const box = pop.getBoundingClientRect();
-    const shove = Math.min(Math.max(0, 8 - box.left), Math.max(0, window.innerWidth - 8 - box.right));
-    if (shove) pop.style.right = `${-shove}px`;
+    if (floating) {
+      place();
+    } else {
+      /* Rapat kanan pada tombolnya (app.css .menu-pop). Bila tepi kirinya keluar
+         layar — ponsel 390 px: bilah aksi di 84–376 px, popup 358 px, terukur
+         4 Sep 2026 left −162 — geser ke kanan secukupnya, tidak lebih dari sisa
+         ruang di kanan; max-width popup < lebar layar, jadi selalu muat. */
+      const box = pop.getBoundingClientRect();
+      const shove = Math.min(Math.max(0, 8 - box.left), Math.max(0, window.innerWidth - 8 - box.right));
+      if (shove) pop.style.right = `${-shove}px`;
+    }
     trigger.setAttribute('aria-expanded', 'true');
     trigger.setAttribute('aria-controls', id);
     document.addEventListener('pointerdown', onOutside, true);
     document.addEventListener('keydown', onKey);
     window.addEventListener('hashchange', onRoute);
+    if (floating) {
+      window.addEventListener('scroll', onScroll, true);
+      window.addEventListener('resize', onResize);
+    }
     openMenu = handle;
     const list = itemsIn();
-    if (list.length) (focusLast ? list[list.length - 1] : list[0]).focus();
+    if (list.length) focusItem(focusLast ? list[list.length - 1] : list[0]);
   }
 
   const handle = { close };
@@ -400,6 +469,11 @@ export function menuButton(label, items, { iconName, title, variant = '', size =
     if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !pop) {
       event.preventDefault();
       open({ focusLast: event.key === 'ArrowUp' });
+      /* open() memasang onKey di document SELAGI keydown ini masih menggelembung ke sana,
+         dan pendengar yang baru dipasang ikut menerimanya: ↓ yang membuka menu lalu
+         memindah fokus ke butir KEDUA — pada menu ⋯ dua butir itu "Hapus…" (tinjauan
+         E1.10). Ketukan yang membuka menu bukan ketukan navigasi di dalamnya. */
+      event.stopPropagation();
     }
   });
 
@@ -1218,6 +1292,12 @@ export function actionPanel({ tone = 'info', title, text, actions = [], iconName
 export function tabs(items, { active, onChange } = {}) {
   const list = (items || []).filter(Boolean);
   let current = active ?? (list[0] && list[0].id);
+  /* Nilai terakhir yang sudah DILAPORKAN ke onChange (atau dipasang dari luar lewat
+     host.select). Berbeda dari `current` hanya selama tombol panah DITAHAN: auto-repeat
+     memindahkan sorotan tanpa melapor, dan satu laporan menyusul saat tombolnya dilepas.
+     Tanpa ini, menahan → di tab status daftar (UX-E1.8) mengirim satu permintaan per
+     ulangan — ±30/detik, batas laju 120/menit habis dalam empat detik. */
+  let reported = current;
   const host = el('.tabs', { role: 'tablist' });
   const buttons = list.map((item) => {
     const node = el('button', { type: 'button', role: 'tab', id: item.tabId || undefined, 'aria-controls': item.panelId || undefined }, [
@@ -1228,16 +1308,17 @@ export function tabs(items, { active, onChange } = {}) {
     node.addEventListener('click', () => select(item.id, true));
     node.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      // Alt/Cmd+← adalah Kembali milik peramban, Shift/Ctrl+panah milik orangnya — bukan pindah tab.
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       event.preventDefault();
       const at = buttons.indexOf(node);
       const next = buttons[(at + (event.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length];
       next.focus();
-      select(next.dataset.tab, true);
+      select(next.dataset.tab, !event.repeat);
     });
     return node;
   });
   function select(id, fire = false) {
-    const changed = String(id) !== String(current);
     current = id;
     buttons.forEach((node) => {
       const on = node.dataset.tab === String(id);
@@ -1245,11 +1326,26 @@ export function tabs(items, { active, onChange } = {}) {
       node.setAttribute('aria-selected', String(on));
       node.tabIndex = on ? 0 : -1;
     });
-    if (fire && changed && onChange) onChange(id);
+    if (fire && String(id) !== String(reported)) {
+      reported = id;
+      if (onChange) onChange(id);
+    }
   }
+  /* Ulangan yang ditahan dilaporkan SEKALI: saat panahnya dilepas, atau saat fokus
+     meninggalkan barisan tab sebelum itu (jendela berganti di tengah tahanan). */
+  const settle = () => select(current, true);
+  host.addEventListener('keyup', (event) => {
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') settle();
+  });
+  host.addEventListener('focusout', (event) => {
+    if (!(event.relatedTarget instanceof Node) || !host.contains(event.relatedTarget)) settle();
+  });
   append(host, buttons);
   select(current);
-  host.select = (id) => select(id, false);
+  host.select = (id) => {
+    reported = id;
+    select(id, false);
+  };
   host.setCount = (id, count) => {
     const node = buttons.find((b) => b.dataset.tab === String(id));
     const pill = node && node.querySelector('.tab-count');
@@ -1276,8 +1372,9 @@ export function filterChip({ label, value, onRemove } = {}) {
  * kedua. Item destruktif ditulis pemanggil sesudah `{ divider: true }` dengan
  * `danger: true`. Esc, klik di luar, panah, dan satu-menu-terbuka ikut gratis.
  */
-export function overflowMenu(items, { title = 'Lainnya', size = 'sm', variant = 'ghost' } = {}) {
-  const wrap = menuButton('', items, { iconName: 'ellipsis', title, size, variant, chevron: false });
+export function overflowMenu(items, { title = 'Lainnya', size = 'sm', variant = 'ghost', floating = true } = {}) {
+  // Mengambang secara bawaan: rumah utamanya sel baris di dalam .table-wrap (menuButton `floating`).
+  const wrap = menuButton('', items, { iconName: 'ellipsis', title, size, variant, chevron: false, floating });
   wrap.classList.add('overflow-menu');
   return wrap;
 }

@@ -393,6 +393,10 @@ pertemuan), berlaku seketika. Simpanan: `localStorage`
 shell digambar, tanpa kedipan. **Sejak P1-C nilainya preferensi SERVER** (`core/me/preferences`,
 §15); `localStorage` tinggal cermin yang menjawab seketika, dan kunci `nusantara_erp_density:<id>`
 dinaikkan sekali lalu dihapus oleh `js/prefs.js`.
+Sejak UX-E1.10 tombol aksi baris daftar generik adalah SATU pemicu ⋯ (`overflowMenu`), dan baris
+yang membawanya terhitung baris **bertombol**: 47 px `normal`, 32/48 px `compact`/`comfortable` di
+`pointer: fine`, 43/55 px di layar sentuh — angka yang sama dengan tombol ikon lama, karena ⋯ hanya
+muncul di baris yang dulu bertombol (S21, S56).
 
 ### 13a. Jarak DI DALAM kartu, dan skala yang benar-benar berlaku (UI-7)
 
@@ -678,6 +682,12 @@ baris yang ia ukur di `#/r/inventory/item-categories` adalah baris ber-TOMBOL. Y
 ketiga layar tempat pembungkusan itu terukur bukan rute yang ia kunjungi, dan pada kepadatan NORMAL
 — bawaannya — ia membandingkan terhadap baseline, bukan terhadap 38,5. Harness **S52** menutup
 selisih itu.
+
+Sejak UX-E1.10 `.cell-actions` daftar generik memegang tepat SATU `.overflow-menu` (pemicu ⋯ 28 px
+di `normal`/`pointer: fine`, ber-`data-label` "Aksi" dan `aria-label`), tanpa `.btn` lain; uji
+"membungkus" lama hampa untuk satu anak, jadi S52 kini menegakkan bentuk itu dan tinggi bilah ≤
+tinggi pemicu + 2 px. Menunya mengambang (`menuButton` `floating`, `.menu-pop.floating`, z-index 48)
+supaya lolos dari `.table-wrap` yang memotong popup absolut.
 
 **`.stat` adalah kosakata BERSAMA, dan ubinnya diratakan `subgrid` (UI-5/UI-6b).** `.stat-row > .stat`
 memakai `grid-template-rows: subgrid` supaya label yang membungkus melebarkan trek untuk seluruh

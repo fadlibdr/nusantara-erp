@@ -188,7 +188,7 @@ Kalimat merah di layar sengaja menyebut nama, angka, dan jalan keluar. Yang pali
 untuk peran Anda, apa adanya:
 
 - **Tombol yang tidak akan pernah muncul** (PANDUAN §14.2): `Setujui`/`Tolak` cuti dan
-  payroll (direktur), `Tambah Pengguna` dan pensil Ubah pada Pengguna (administrator).
+  payroll (direktur), `Tambah Pengguna` dan **Ubah** di menu ⋯ baris Pengguna (administrator).
 - **Karyawan** (§11.2): NIK KTP harus **tepat 16 digit dan unik**; Tanggal lahir harus
   sebelum hari ini; **Dasar PKWT dan Akhir PKWT ditolak** untuk karyawan bukan-PKWT
   (galatnya tepat pada kedua kolom itu), dan mengubah kontrak menjadi tetap

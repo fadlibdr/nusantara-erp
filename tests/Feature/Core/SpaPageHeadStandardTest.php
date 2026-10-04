@@ -96,6 +96,14 @@ class SpaPageHeadStandardTest extends TestCase
             $mobile,
             'Bilah aksi yang ramai tidak lagi menggulung mendatar di ponsel.',
         );
+        // Luapan bilah yang menggulung harus tumpah ke KANAN (bisa digulir), bukan ke kiri titik awal
+        // gulir: bilah berzona dengan catatan lipat rapat kanan, dan flex-end biasa membuang Kembali,
+        // Cetak, Setujui dan Tolak ke x < 0 di 390 px (S49, 4 Okt 2026).
+        $this->assertStringContainsString(
+            '.page-head .actions:has(.action-note) { justify-content: flex-end; justify-content: safe flex-end; }',
+            $css,
+            'Bilah aksi dengan catatan lipat kembali rapat kanan TANPA `safe`: di ponsel tombolnya tumpah ke kiri dan tak terjangkau.',
+        );
     }
 
     public function test_the_three_zone_action_bar_never_loses_ground(): void

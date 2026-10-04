@@ -1,7 +1,7 @@
 /* Generic list screen: search, filters, table, pagination, row actions. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck } from '../ui.js';
+import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader, field, modalDepth, filterChip, tabs, overflowMenu } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -17,6 +17,23 @@ import { downloadPdf, openPrintable, xlsxName } from '../print.js';
 import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
 
 const state = new Map(); // per-resource UI state, kept across navigations
+
+/*
+ * "M" dalam "N dari M PO · tersaring" (UX-E1.7): total TAK TERSARING per
+ * pengguna × layar, { total, at } atau { pending } selama permintaannya jalan.
+ *
+ * Satu permintaan tambahan per pengguna, layar dan menit — `per_page: 1` tanpa
+ * q, saringan, tanggal maupun urutan, karena yang dibutuhkan hanya meta.total.
+ * Batas lajunya 120 permintaan/menit; tiga ganti saringan dalam semenit tetap
+ * SATU permintaan tambahan. Kuncinya membawa id pengguna karena logout() tidak
+ * memuat ulang halaman: orang berikutnya di peramban yang sama memegang hak
+ * yang berbeda, jadi registernya pun berbeda. M boleh basi sampai 60 detik;
+ * karena itu ia hanya ditulis bila M ≥ N (lihat countText), dan perubahan
+ * milik orangnya sendiri — Muat ulang, dokumen baru, hapus — membuangnya.
+ */
+const unfilteredTotals = new Map();
+const UNFILTERED_TTL_MS = 60 * 1000;
+const unfilteredKey = (key) => `${(session.user || {}).id ?? '?'}:${key}`;
 
 function stateFor(key, def) {
   // perPage null = belum pernah diisi; renderList mengisinya dari bawaan skema
@@ -37,7 +54,7 @@ function stateFor(key, def) {
      */
     const defaults = (def && def.defaultFilters) || {};
     state.set(key, {
-      q: '', page: 1, filters: { ...defaults }, perPage: null, sort: null, dir: null, dateFrom: '', dateTo: '',
+      q: '', page: 1, filters: { ...defaults }, perPage: null, hiddenColumns: [], sort: null, dir: null, dateFrom: '', dateTo: '',
     });
   }
   return state.get(key);
@@ -91,7 +108,7 @@ function seedFromUrl(key, def, ui) {
    * filternya terkirim, dan queryParams() menimpa setiap perubahan berikutnya
    * dengan nilai usang itu. Maka pasangan ini diarahkan ke tempat yang dibaca
    * input penampilnya; format kirim ke API identik dua-duanya. Pada resource
-   * yang sudah diadopsi, migrasi filterBar tetap memindahkannya ke
+   * yang sudah diadopsi, migrasi paintFilters tetap memindahkannya ke
    * ui.dateFrom/ui.dateTo begitu meta.date_column tiba.
    */
   const legacyDates = declared.has('date_from') || declared.has('date_to');
@@ -106,6 +123,26 @@ function seedFromUrl(key, def, ui) {
     const value = params.get(filter.key);
     if (value !== null && value !== '') ui.filters[filter.key] = value;
   }
+}
+
+/*
+ * Tab status cepat (UX-E1.8): TAMPILAN KEDUA dari saringan yang sudah
+ * dideklarasikan, bukan saringan baru. Tab menulis ke kunci ui.filters yang
+ * sama dengan select Status di popover Filter — jadi URL, stateQuery, tampilan
+ * tersimpan, chip, dan "Hapus semua" tidak tahu tab itu ada, dan tidak perlu.
+ *
+ * Siapa yang mendapatnya: layar yang mendeklarasikan `quickFilters` di skema,
+ * atau — bawaannya — layar yang punya PINTU KEPUTUSAN dokumen (setujui/tolak,
+ * session.isDecisionDoor). Di sana status adalah pertanyaan pertama orang
+ * ("mana yang masih menunggu?"); di daftar master tanpa alur, tab status hanya
+ * memakan 54 px tinggi tabel. Saringannya harus membawa enum yang dikenal
+ * ENUMS: tab dibangun dari opsinya, sama persis dengan <option> select-nya.
+ * Tidak ada angka per tab: tidak ada meta yang membawanya, dan enam permintaan
+ * tambahan per muatan bukan harga sebuah lencana.
+ */
+function quickFilterOf(def) {
+  const keys = def.quickFilters ?? ((def.actions || []).some((action) => session.isDecisionDoor(action)) ? ['status'] : []);
+  return (def.filters || []).find((filter) => keys.includes(filter.key) && filter.enum && ENUMS[filter.enum]) || null;
 }
 
 export async function renderList(host, { key, def }) {
@@ -123,10 +160,18 @@ export async function renderList(host, { key, def }) {
   // Predikat yang SAMA dengan Buat ▾ di bilah atas (js/create.js, UX-D.4): dua pintu, satu jawaban.
   const canCreate = canCreateResource(def);
 
-  const tableHost = el('.card');
-  const head = el('.page-head', [
-    el('div', [el('h1', { text: def.label }), def.description ? el('.desc', { text: def.description }) : null]),
-    el('.actions', [
+  const tableHost = el('.card', { id: `daftar-${key.replace(/[^a-z0-9]+/gi, '-')}` });
+  /* Kepala halaman lewat pageHeader() (UX-E1.1, README E1): markup yang sama
+     persis dengan yang dulu dirakit tangan di sini — h1, .desc, .actions — dari
+     satu pembangun. `def.description` adalah kunci skema opsional; kalimatnya
+     juga menjadi petunjuk kartu layar di beranda modulnya (module.js).
+     Aksi koleksi SENGAJA tanpa `variant`: Tambah harus tetap satu-satunya
+     .btn.primary di bilah ini — onboarding menyorotnya lewat selektor itu, dan
+     servicedesk/preventive-schedules mendeklarasikan variant 'primary'. */
+  const head = pageHeader({
+    title: def.label,
+    description: def.description,
+    actions: [
       ...(def.collectionActions || [])
         // canAct(): lihat session.canAct — aksi koleksi tidak pernah berbentuk
         // pintu keputusan dokumen, jadi ia menjawab sama dengan can().
@@ -136,18 +181,45 @@ export async function renderList(host, { key, def }) {
             await runAction(action, null, def, { trigger: event.currentTarget, onDone: load });
           },
         })),
-      button('', { iconName: 'refresh', title: 'Muat ulang', onClick: () => load() }),
+      button('', { iconName: 'refresh', title: 'Muat ulang', onClick: () => { forgetWhole(); load(); } }),
       canCreate
         ? button(`Tambah ${def.labelOne}`, {
           variant: 'primary', iconName: 'plus',
           onClick: () => startForm({ def, key, onSaved: afterCreate }),
         })
         : null,
-    ]),
-  ]);
+    ],
+  });
+
+  /* Tab status (UX-E1.8, lihat quickFilterOf). Dibangun SEKALI, seperti bilah
+     alat; renderAll() menyelaraskannya dengan ui.filters setiap muatan, jadi
+     × pada chip, "Hapus semua", tampilan tersimpan, select di popover dan
+     seed URL semuanya ikut memindahkan tab yang menyala. "Semua" menghapus
+     kuncinya — daftar yang belum disentuh tetap ber-URL polos. Teks polos:
+     tab aktif memakai --primary, bukan warna status ataupun aksen modul. */
+  const quickFilter = quickFilterOf(def);
+  const quickTabs = quickFilter
+    ? tabs([
+      { id: '', label: 'Semua', panelId: tableHost.id },
+      ...ENUMS[quickFilter.enum].map((option) => ({ id: option.value, label: option.label, panelId: tableHost.id })),
+    ], {
+      active: ui.filters[quickFilter.key] || '',
+      onChange: (value) => {
+        if (value === '') delete ui.filters[quickFilter.key];
+        else ui.filters[quickFilter.key] = value;
+        ui.page = 1;
+        load();
+      },
+    })
+    : null;
+  if (quickTabs) {
+    quickTabs.classList.add('list-tabs');
+    quickTabs.setAttribute('aria-label', `Saring ${quickFilter.label.toLowerCase()}`);
+  }
 
   clear(host);
-  host.append(head, tableHost);
+  // Element.append(null) menulis teks "null": layar tanpa tab hanya memasang dua.
+  host.append(...[head, quickTabs, tableHost].filter(Boolean));
 
   /*
    * Apakah gambar INI masih yang ada di layar.
@@ -166,9 +238,10 @@ export async function renderList(host, { key, def }) {
    * Yang dicegahnya jujur lebih kecil daripada yang dijanjikan versi lama:
    * BUKAN "mengecat di atas layar baru". renderAll dan renderRows hanya menulis
    * ke dalam tableHost, dan tableHost yatim tidak terlihat siapa pun. Yang
-   * dicegahnya adalah KERJANYA — merakit bilah filter lengkap dengan
-   * combobox-nya, lalu seluruh tabel, untuk layar yang sudah ditinggalkan,
-   * setiap kali sebuah endpoint lambat mendarat terlambat.
+   * dicegahnya adalah KERJANYA — menyegarkan bilah alat (dan membangun ulang
+   * kontrol saringannya bila keadaannya berpindah), lalu merakit seluruh tabel,
+   * untuk layar yang sudah ditinggalkan, setiap kali sebuah endpoint lambat
+   * mendarat terlambat.
    *
    * Efek yang benar-benar keluar dari tableHost ada dua, dan keduanya di luar
    * jangkauan penjaga ini: syncUrl() menulis ke bilah alamat — ia sudah punya
@@ -187,8 +260,8 @@ export async function renderList(host, { key, def }) {
   });
 
   // Formulir rumah yang dicetak dari BARIS, bukan dari layar detail — lihat
-  // rowActions(). Sama seperti preload di atas: begitu jawabannya tiba,
-  // barisnya digambar ulang supaya tombolnya ikut muncul.
+  // printRowItems(). Sama seperti preload di atas: begitu jawabannya tiba,
+  // barisnya digambar ulang supaya butir cetaknya ikut muncul di menu ⋯.
   loadPrintForms().then(() => {
     if (stillOnScreen()) renderRows();
   });
@@ -197,11 +270,25 @@ export async function renderList(host, { key, def }) {
   let loading = true;
   let error = null;
 
-  /* Combobox filter milik bilah yang sedang terpasang. Popup-nya menempel di
-     <body> (position: fixed), jadi clear(tableHost) pada renderAll TIDAK ikut
-     mencabutnya: filter yang popup-nya terbuka saat muatan pertama tiba
-     meninggalkan daftar yatim melayang di atas tabel sampai klik berikutnya.
-     renderAll menutupnya eksplisit sebelum menukar bilah. */
+  /*
+   * Urutan muat (UX-E1.2): hanya jawaban permintaan TERBARU yang boleh melukis.
+   *
+   * load() tidak pernah membatalkan permintaan sebelumnya, jadi jawaban yang
+   * tiba TERLAMBAT menang — dan itu sudah terjadi sebelum paket ini: kotak Cari
+   * yang diketik pelan memicu dua permintaan, dan bila yang pertama lebih
+   * lambat, daftar yang tergambar milik kata yang sudah dihapus sementara kotak,
+   * chip, dan bilah alamat menyebut kata yang baru. Tab status (UX-E1.8)
+   * memperbesarnya: panah kanan tiga kali = tiga muatan dalam sedetik.
+   * Nomor urut ini membuat jawaban usang dibuang diam-diam; permintaan yang
+   * lebih baru memiliki layarnya, termasuk keadaan "memuat"-nya.
+   */
+  let loadSeq = 0;
+
+  /* Combobox filter milik kontrol saringan yang sedang terpasang. Popup-nya
+     menempel di <body> (position: fixed), jadi membuang kontrolnya TIDAK ikut
+     mencabut popup itu: daftar yatim akan melayang di atas tabel sampai klik
+     berikutnya. paintFilters() menutupnya eksplisit sebelum membangun ulang
+     kontrol, dan menutup popover Filter menutupnya juga (UX-E1.4). */
   let filterCombos = [];
 
   /*
@@ -279,6 +366,7 @@ export async function renderList(host, { key, def }) {
   }
 
   async function load() {
+    const seq = ++loadSeq;
     loading = true;
     error = null;
     /* Seleksi mati di setiap muatan — halaman lain, filter lain, muat ulang.
@@ -289,13 +377,18 @@ export async function renderList(host, { key, def }) {
     picked.clear();
     syncBulk();
     renderAll();
+    let answer = null;
+    let failure = null;
     try {
-      payload = await api.list(def.api, {
+      answer = await api.list(def.api, {
         ...queryParams(),
         per_page: ui.perPage,
         page: ui.page,
       });
     } catch (caught) {
+      // Permintaan yang lebih baru sudah berjalan: penolakan ini milik keadaan
+      // yang sudah ditinggalkan, termasuk pemulihan sort di bawah.
+      if (seq !== loadSeq) return;
       /*
        * Sort yang ditolak server (422 dengan errors.sort) hanya bisa datang
        * dari seed URL usang/rakitan — header hanya menawarkan kunci
@@ -318,22 +411,55 @@ export async function renderList(host, { key, def }) {
         ui.page = 1;
         return load();
       }
-      error = caught;
-      payload = null;
+      failure = caught;
     }
+    if (seq !== loadSeq) return;
+    payload = failure ? null : answer;
+    error = failure;
     loading = false;
     syncUrl();
     if (stillOnScreen()) renderAll();
+    // Hanya sesudah muatan TERBARU yang berhasil, dan hanya bila tersaring.
+    if (!failure && stillOnScreen()) fetchWhole();
+  }
+
+  const forgetWhole = () => unfilteredTotals.delete(unfilteredKey(key));
+
+  /* Satu permintaan tak tersaring (lihat unfilteredTotals di atas modul).
+     Gagal = diam: angkanya kembali ke "N PO · tersaring" tanpa "dari", tidak ada
+     toast, tidak ada percobaan ulang sampai muatan berikutnya. */
+  function fetchWhole() {
+    if (!isFiltered()) return;
+    const cacheKey = unfilteredKey(key);
+    const known = unfilteredTotals.get(cacheKey);
+    if (known && (known.pending || Date.now() - known.at < UNFILTERED_TTL_MS)) return;
+    unfilteredTotals.set(cacheKey, { total: known ? known.total : undefined, pending: true });
+    api.list(def.api, { per_page: 1, page: 1 })
+      .then((answer) => {
+        const total = answer && answer.meta ? answer.meta.total : undefined;
+        if (typeof total === 'number') unfilteredTotals.set(cacheKey, { total, at: Date.now() });
+        else unfilteredTotals.delete(cacheKey);
+      })
+      .catch(() => {
+        unfilteredTotals.delete(cacheKey);
+      })
+      .finally(() => {
+        if (stillOnScreen()) syncCount();
+      });
   }
 
   /* Satu definisi "sedang disaring" dan satu jalan menghapusnya, dipakai
-     tombol Reset di bilah filter DAN tombol "Hapus filter" di keadaan kosong
-     (P1-B) — dua tombol dengan dua salinan logika akan hanyut. */
+     "Hapus semua" di baris chip DAN tombol "Hapus filter" di keadaan kosong
+     (P1-B) — dua tombol dengan dua salinan logika akan hanyut. (Tombol Reset
+     di bilah alat adalah pemakai ketiganya sampai UX-E1.5 menggantinya.) */
   function isFiltered() {
     return Boolean(ui.q || ui.dateFrom || ui.dateTo || Object.values(ui.filters).some(Boolean));
   }
 
   function resetFilters() {
+    // Ketikan yang masih menunggu jedanya akan memasang q-nya lagi 320 ms
+    // sesudah "berhenti menyaring" — dibatalkan di sini (UX-E1.4).
+    cancelSearch();
     ui.q = '';
     ui.filters = {};
     ui.dateFrom = '';
@@ -513,7 +639,11 @@ export async function renderList(host, { key, def }) {
    * memperbaikinya: disusun di desktop kantor, tidak ada di tablet lapangan.
    */
   const viewRoute = `r/${key}`;
-  let viewRow = null;
+  /* Tampilan tersimpan DI ATAS chip saringan, urutan yang sama dengan
+     prototipe: yang pertama dibaca adalah "saya sedang melihat tampilan mana",
+     baru "apa yang sedang mempersempitnya". Dibangun SEKALI (UX-E1.4) dan
+     dilukis ulang oleh paintViews(); dipasang di tableHost di akhir renderList. */
+  const viewRow = el('.chips.views', { hidden: true });
 
   /*
    * Dua query dianggap SAMA bila pasangannya sama — urutannya tidak dihitung,
@@ -552,6 +682,7 @@ export async function renderList(host, { key, def }) {
    * fungsi, bukan satu.
    */
   function applyView(view) {
+    cancelSearch(); // alasan yang sama dengan resetFilters()
     // replacePath, alasan yang sama dengan syncUrl di atas.
     replacePath(`r/${key}${view.query ? `?${view.query}` : ''}`);
     ui.q = '';
@@ -612,7 +743,6 @@ export async function renderList(host, { key, def }) {
   }
 
   function paintViews() {
-    if (!viewRow) return;
     clear(viewRow);
 
     const views = prefs.savedViews(viewRoute);
@@ -663,7 +793,7 @@ export async function renderList(host, { key, def }) {
      *
      * Begitu sebuah tampilan ada, keadaan POLOS justru layak dinamai: ia jalan
      * kembali dari tampilan tersaring, dan "Semua PO" adalah nama yang lebih
-     * jelas daripada mengingat bahwa Reset melakukannya.
+     * jelas daripada mengingat bahwa "Hapus semua" melakukannya.
      */
     if (!active && (worthSaving || views.length)) {
       viewRow.appendChild(button('Simpan tampilan ini', {
@@ -678,8 +808,13 @@ export async function renderList(host, { key, def }) {
    * Ia MENGGAMBAR keadaan yang sudah ada — ui.q, ui.filters, ui.dateFrom/To —
    * dan tidak menyimpan apa pun sendiri. Yang ditambahkannya dua hal yang bilah
    * kontrol tidak punya: ringkasan "daftar ini sedang dipersempit oleh APA" di
-   * satu tempat, dan cara membuang SATU filter dengan satu klik. Tombol Reset
-   * yang sudah ada hanya bisa membuang semuanya sekaligus.
+   * satu tempat, dan cara membuang SATU filter dengan satu klik. "Hapus semua"
+   * di ujung barisnya membuang semuanya sekaligus — sejak UX-E1.5 itulah
+   * satu-satunya tombol itu; tombol Reset di bilah alat sudah tidak ada.
+   *
+   * Barisnya duduk DI DALAM bilah alat (UX-E1.5, README E1), sesudah tombol
+   * Filter, dan tiap chip digambar filterChip() dari ui.js — markup yang sama
+   * (span.chip > span.chip-key + b + button.chip-x) dari satu pembangun.
    *
    * Label nilainya TIDAK dihitung ulang di sini. Tiap kontrol sudah tahu
    * labelnya sendiri — <select> punya <option> terpilih, combobox lookup punya
@@ -690,15 +825,18 @@ export async function renderList(host, { key, def }) {
    * buruk daripada tidak ada chip sama sekali.
    */
   let activeFilters = [];
-  let chipRow = null;
+  /* `.chips.active-filters`, bukan `.chips` telanjang: sejak UI-4c ADA DUA
+     baris chip di layar ini, dan `querySelector('.chips')` memulangkan yang
+     pertama — baris tampilan. Dibangun sekali, seperti viewRow, dan dipasang
+     di dalam bilah alat. */
+  const chipRow = el('.chips.active-filters', { hidden: true });
 
   function paintChips() {
-    if (!chipRow) return;
     clear(chipRow);
 
     const chips = [];
     if (ui.q) {
-      chips.push({ label: 'Cari', text: ui.q, clear: () => { ui.q = ''; ui.page = 1; load(); } });
+      chips.push({ label: 'Cari', text: ui.q, clear: () => { cancelSearch(); ui.q = ''; ui.page = 1; load(); } });
     }
     for (const one of activeFilters) {
       const text = one.text();
@@ -711,60 +849,366 @@ export async function renderList(host, { key, def }) {
       chips.push({ label: 'Sampai', text: date(ui.dateTo), clear: () => { ui.dateTo = ''; ui.page = 1; load(); } });
     }
 
-    chipRow.hidden = chips.length === 0;
-    if (!chips.length) return;
+    /* Tersembunyi hanya bila TIDAK ADA yang menyaring — bukan bila tidak ada
+       chip. Nilai seed yang tidak menggambar chip (enum basi di URL, lihat
+       buildFilter) tetap menyaring daftarnya, dan "Hapus semua" adalah jalan
+       keluarnya; dulu tugas itu milik tombol Reset. */
+    chipRow.hidden = !isFiltered();
+    if (chipRow.hidden) return;
 
     chipRow.appendChild(el('span.chips-label', { text: 'Disaring:' }));
     for (const chip of chips) {
-      const drop = el('button.chip-x', {
-        type: 'button',
-        'aria-label': `Hapus filter ${chip.label.toLowerCase()}`,
-        title: `Hapus filter ${chip.label.toLowerCase()}`,
-      }, icon('close', 11));
-      drop.addEventListener('click', chip.clear);
-      chipRow.appendChild(el('span.chip', [
-        el('span.chip-key', { text: `${chip.label}: ` }),
-        el('b', { text: chip.text }),
-        drop,
-      ]));
+      chipRow.appendChild(filterChip({ label: chip.label, value: chip.text, onRemove: chip.clear }));
     }
     // "Hapus semua" memakai resetFilters() yang sudah ada — satu definisi
-    // "berhenti menyaring", dipakai tombol Reset, keadaan kosong, dan di sini.
+    // "berhenti menyaring", dipakai keadaan kosong dan di sini. Ia
+    // mempertahankan urutan: berhenti menyaring bukan kembali ke urutan bawaan.
     chipRow.appendChild(button('Hapus semua', { size: 'sm', variant: 'ghost', onClick: resetFilters }));
   }
 
-  function filterBar() {
-    filterCombos = [];
-    activeFilters = [];
-    const bar = el('.filters');
-    const meta = (payload && payload.meta) || {};
+  /*
+   * ============================ BILAH ALAT (UX-E1.4) ==========================
+   *
+   * Cari · Filter · chip saringan aktif · Ekspor CSV — DIBANGUN SEKALI per
+   * gambar layar. (Tombol Reset ada di sini sampai UX-E1.5; "Hapus semua" di
+   * ujung baris chip menggantikannya.)
+   *
+   * Sampai paket ini renderAll() membuang dan membangun ulang seluruh bilah di
+   * setiap muatan, termasuk kotak Cari yang sedang diketik: jeda 320 ms memicu
+   * load(), load() memanggil renderAll() seketika, dan <input> yang memegang
+   * kursor dicabut dari halaman — orang yang mengetik "PO 12" pelan kehilangan
+   * kursornya sesudah "PO". Sekarang renderAll hanya MENYEGARKAN bilah ini
+   * (syncToolbar), dan kontrol saringan hanya dibangun ulang bila keadaan
+   * saringannya berubah (paintFilters).
+   *
+   * Saringan khusus layar duduk di popover "Filter". Kontrolnya TETAP di DOM
+   * selagi popover tertutup, dan itu syarat, bukan kebetulan: chip membaca label
+   * nilainya dari kontrol hidup (paintChips), dan pembaca lain (S30r) mencari
+   * `.filters select` tanpa membuka apa pun. Membangunnya malas akan
+   * mengosongkan chip pada muatan pertama.
+   */
+  let searchTimer = null;
+  function cancelSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+  }
 
-    const searchInput = el('input', {
-      type: 'text',
-      placeholder: `Cari ${def.label.toLowerCase()}…`,
-      value: ui.q,
-      'aria-label': 'Cari',
+  const searchInput = el('input', {
+    type: 'text',
+    placeholder: `Cari ${def.label.toLowerCase()}…`,
+    value: ui.q,
+    'aria-label': 'Cari',
+  });
+  searchInput.addEventListener('input', () => {
+    cancelSearch();
+    searchTimer = setTimeout(() => {
+      searchTimer = null;
+      ui.q = searchInput.value.trim();
+      ui.page = 1;
+      load();
+    }, 320);
+  });
+
+  /*
+   * Popover milik layar ini — Filter hari ini; Atur kolom (UX-E1.12) memakainya
+   * ulang. BUKAN menuButton(): isinya kontrol formulir, bukan menuitem, dan ia
+   * harus tetap HIDUP selagi tertutup (lihat catatan bilah alat di atas),
+   * sedangkan menuButton membangun popup-nya saat dibuka dan membuangnya saat
+   * ditutup. Aturan tutupnya mengikuti menuButton supaya dua popup di satu
+   * layar tidak berperilaku beda:
+   *
+   *  - Escape: pendengar document fase GELEMBUNG (bubble), tanpa capture.
+   *    Combobox menelan Escape pertamanya dengan stopPropagation()
+   *    (combobox.js), jadi Escape pertama menutup daftar pilihannya saja dan
+   *    Escape kedua menutup popover ini lalu mengembalikan fokus ke tombolnya.
+   *    Capture akan membalik urutan itu. Escape milik dialog yang terbuka
+   *    (modalDepth, atau sasaran di dalam .overlay) bukan urusannya.
+   *  - pointerdown di luar: fase tangkap, KECUALI di dalam .combo-pop — daftar
+   *    combobox menempel di <body>, jadi secara DOM ia "di luar"; tanpa
+   *    pengecualian ini memilih vendor menutup popover di tengah pilihan.
+   *  - fokus yang keluar (Tab melewati kontrol terakhir) dan pergantian rute.
+   */
+  function listPopover({ wrap, toggle, panel, onClose }) {
+    let open = false;
+
+    const controls = () => [...panel.querySelectorAll('input, select, textarea, button')]
+      .filter((node) => !node.disabled && node.getClientRects().length > 0);
+
+    function onKey(event) {
+      if (event.key !== 'Escape' && event.key !== 'Esc') return;
+      if (modalDepth() > 0) return;
+      if (event.target instanceof Element && event.target.closest('.overlay')) return;
+      event.preventDefault();
+      close({ refocus: true });
+    }
+
+    function onOutside(event) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (wrap.contains(target) || target.closest('.combo-pop')) return;
+      close();
+    }
+
+    function onFocusOut(event) {
+      const next = event.relatedTarget;
+      /* null = fokus tidak pindah ke elemen yang bisa disebut: kontrol yang sedang
+         dibangun ulang paintFilters(), atau jendela yang kehilangan fokus. Itu
+         bukan alasan menutup. */
+      if (!(next instanceof Element)) return;
+      if (wrap.contains(next) || next.closest('.combo-pop')) return;
+      close();
+    }
+
+    function onRoute() {
+      close();
+    }
+
+    function show() {
+      if (open) return;
+      open = true;
+      panel.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      document.addEventListener('keydown', onKey);
+      document.addEventListener('pointerdown', onOutside, true);
+      wrap.addEventListener('focusout', onFocusOut);
+      window.addEventListener('hashchange', onRoute);
+      const first = controls()[0];
+      if (first) first.focus({ preventScroll: true });
+    }
+
+    function close({ refocus = false } = {}) {
+      if (!open) return;
+      const held = panel.contains(document.activeElement);
+      open = false;
+      panel.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onOutside, true);
+      wrap.removeEventListener('focusout', onFocusOut);
+      window.removeEventListener('hashchange', onRoute);
+      if (onClose) onClose();
+      if (refocus || held) toggle.focus({ preventScroll: true });
+    }
+
+    toggle.addEventListener('click', () => (open ? close() : show()));
+    return { show, close, isOpen: () => open };
+  }
+
+  // Kontrol saringan dibangun di bawah `.filters` — nama kelas yang sama yang
+  // dibaca harness dan 23 layar lain; `.filter-grid` menatanya di dalam popover.
+  const filterGrid = el('.filters.filter-grid');
+  const filterCount = el('span.filter-count', { hidden: true });
+  const filterPop = el('.filter-pop', {
+    id: `saring-${key.replace(/[^a-z0-9]+/gi, '-')}`,
+    role: 'dialog',
+    'aria-label': `Saring ${def.label.toLowerCase()}`,
+    hidden: true,
+  }, filterGrid);
+  const filterToggle = button('Filter', { iconName: 'filter' });
+  filterToggle.classList.add('filter-toggle');
+  filterToggle.appendChild(filterCount);
+  filterToggle.setAttribute('aria-haspopup', 'dialog');
+  filterToggle.setAttribute('aria-expanded', 'false');
+  filterToggle.setAttribute('aria-controls', filterPop.id);
+  const filterWrap = el('span.filter-wrap', [filterToggle, filterPop]);
+  const filterPanel = listPopover({
+    wrap: filterWrap,
+    toggle: filterToggle,
+    panel: filterPop,
+    onClose: () => filterCombos.forEach((combo) => combo.closePopup()),
+  });
+
+  /* Ekspor memakai endpoint dan parameter yang sama dengan daftar itu sendiri,
+     jadi hak aksesnya identik dengan melihatnya. Tombolnya sekarang hidup lebih
+     lama dari satu muatan: selama ekspor berjalan withBusy() memegangnya dan
+     menulis disabled=false saat selesai, jadi syncCsv() menahan diri selama itu
+     lalu menulis keadaan yang sebenarnya sesudahnya. */
+  let exporting = false;
+  const csvButton = button('Ekspor CSV', {
+    size: 'sm',
+    variant: 'ghost',
+    iconName: 'download',
+    onClick: async () => {
+      exporting = true;
+      try {
+        await exportCsv(csvButton);
+      } finally {
+        exporting = false;
+        syncCsv();
+      }
+    },
+  });
+
+  function syncCsv() {
+    if (exporting) return;
+    const hasRows = Boolean(payload && (payload.data || []).length);
+    csvButton.disabled = !hasRows;
+    csvButton.title = hasRows ? 'Unduh daftar ini (semua halaman) sebagai CSV' : 'Tidak ada data untuk diekspor';
+  }
+
+  /*
+   * Jumlah baris (UX-E1.6, README E1 "N <label> · tersaring"): anak TERAKHIR
+   * bilah, sesudah Ekspor CSV, supaya mengosongkannya saat memuat tidak
+   * menggeser kontrol lain. aria-live polite: pembaca layar mendengar hasil
+   * saringan tanpa harus mencarinya.
+   */
+  const listCount = el('span.list-count', { 'aria-live': 'polite' });
+
+  /* Angkanya HANYA meta.total dari server — jumlah seluruh hasil saringan,
+     bukan baris halaman ini. Selama memuat, sesudah galat, atau bila server
+     tidak mengirim total: kosong. Bukan "0": "0 PO" adalah klaim bahwa tidak
+     ada PO, dan layar yang belum tahu tidak boleh mengklaimnya. */
+  function countText() {
+    if (loading || error || !payload) return '';
+    const meta = payload.meta || {};
+    if (typeof meta.total !== 'number') return '';
+    const text = `${meta.total.toLocaleString('id-ID')} ${def.labelOne}`;
+    if (!isFiltered()) return text;
+    /* "dari M" (UX-E1.7) hanya bila M angka DAN M ≥ N. M boleh basi sampai 60
+       detik; M yang lebih kecil dari N adalah M yang sudah ketinggalan, dan
+       "5 dari 3" lebih buruk daripada tidak menyebut M sama sekali. M yang
+       tidak diketahui tidak pernah ditulis sebagai nol ataupun tanda pisah. */
+    const whole = unfilteredTotals.get(unfilteredKey(key));
+    if (whole && typeof whole.total === 'number' && whole.total >= meta.total) {
+      return `${meta.total.toLocaleString('id-ID')} dari ${whole.total.toLocaleString('id-ID')} ${def.labelOne} · tersaring`;
+    }
+    return `${text} · tersaring`;
+  }
+
+  function syncCount() {
+    const count = countText();
+    // Ditulis hanya bila berubah: live region yang ditulis ulang dengan teks sama tetap bisa diumumkan.
+    if (listCount.textContent !== count) listCount.textContent = count;
+  }
+
+  /*
+   * ============================ ATUR KOLOM (UX-E1.12) ===========================
+   *
+   * Kolom yang disembunyikan pemakainya, sampai halaman dimuat ulang: disimpan di
+   * Map keadaan yang sama yang sudah mengingat baris-per-halaman (stateFor), tidak
+   * pernah ke URL, stateQuery, tampilan tersimpan, maupun penyimpanan peramban.
+   * Tidak ada kunci preferensi server untuknya (UserPreferencesTest memaku
+   * daftar kuncinya) dan CONVENTIONS §15 menolak localStorage sebagai kebenaran;
+   * menyimpannya lebih lama adalah pertanyaan terbuka, dan popover-nya
+   * mengatakan batas itu terang-terangan.
+   *
+   * Dua kolom tidak bisa disembunyikan: kolom utama (def.primaryColumn, atau
+   * kolom pertama — identitas barisnya) dan kolom yang sedang mengurutkan
+   * daftar (urutan yang tidak terlihat adalah urutan yang tidak bisa dibaca).
+   * Ekspor CSV mengikuti kolom yang tampil, dan kertas menyebut yang
+   * disembunyikan. Layar dengan dua kolom atau kurang tidak menawarkannya.
+   */
+  const lockedKey = def.primaryColumn || (def.columns[0] && def.columns[0].key);
+  const isLocked = (column) => column.key === lockedKey || column.key === ui.sort;
+  function visibleColumns() {
+    return def.columns.filter((column) => isLocked(column) || !ui.hiddenColumns.includes(column.key));
+  }
+
+  const colCount = el('span.col-count', { hidden: true });
+  const colToggle = button('Atur kolom', { size: 'sm', variant: 'ghost', iconName: 'sliders-horizontal' });
+  colToggle.classList.add('col-toggle');
+  colToggle.appendChild(colCount);
+  const colPop = el('.col-pop', {
+    id: `kolom-${key.replace(/[^a-z0-9]+/gi, '-')}`,
+    role: 'dialog',
+    'aria-label': 'Atur kolom',
+    hidden: true,
+  });
+  colToggle.setAttribute('aria-haspopup', 'dialog');
+  colToggle.setAttribute('aria-expanded', 'false');
+  colToggle.setAttribute('aria-controls', colPop.id);
+  const colBoxes = def.columns.map((column) => {
+    const box = el('input', { type: 'checkbox' });
+    const item = el('label.col-item', [box, el('span', { text: column.label })]);
+    box.addEventListener('change', () => {
+      const hidden = new Set(ui.hiddenColumns);
+      if (box.checked) hidden.delete(column.key);
+      else hidden.add(column.key);
+      ui.hiddenColumns = [...hidden];
+      syncColumns();
+      renderRows();
     });
-    let timer;
-    searchInput.addEventListener('input', () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        ui.q = searchInput.value.trim();
-        ui.page = 1;
-        load();
-      }, 320);
-    });
-    bar.appendChild(el('.search', [icon('search', 14), searchInput]));
+    return { column, box, item };
+  });
+  colPop.append(
+    el('.col-list', colBoxes.map(({ item }) => item)),
+    el('.col-foot', [
+      button('Tampilkan semua', {
+        size: 'sm',
+        variant: 'ghost',
+        onClick: () => {
+          ui.hiddenColumns = [];
+          syncColumns();
+          renderRows();
+        },
+      }),
+      el('p.col-note', { text: 'Berlaku sampai halaman dimuat ulang; Ekspor CSV mengikuti kolom yang tampil.' }),
+    ]),
+  );
+  const colWrap = def.columns.length > 2 ? el('span.col-wrap', [colToggle, colPop]) : null;
+  if (colWrap) listPopover({ wrap: colWrap, toggle: colToggle, panel: colPop });
+
+  /* Kertas tidak punya tombol Atur kolom: yang dicetak tanpa sebagian kolomnya harus
+     MENGATAKAN begitu, atau lembarnya terbaca sebagai seluruh isi daftar. */
+  const printNote = el('p.list-print-note', { hidden: true });
+
+  function syncColumns() {
+    const hiddenNow = def.columns.filter((column) => !visibleColumns().includes(column));
+    printNote.hidden = hiddenNow.length === 0;
+    printNote.textContent = hiddenNow.length
+      ? `Kolom yang disembunyikan di layar: ${hiddenNow.map((column) => column.label).join(', ')}.`
+      : '';
+    if (!colWrap) return;
+    colCount.hidden = hiddenNow.length === 0;
+    colCount.replaceChildren(String(hiddenNow.length), el('span.sr-only', { text: ' kolom disembunyikan' }));
+    for (const { column, box, item } of colBoxes) {
+      const locked = isLocked(column);
+      box.checked = locked || !ui.hiddenColumns.includes(column.key);
+      box.disabled = locked;
+      item.title = !locked
+        ? ''
+        : column.key === lockedKey
+          ? 'Kolom utama baris — selalu tampil.'
+          : 'Daftar sedang diurutkan menurut kolom ini — ia tampil selama urutannya berlaku.';
+    }
+  }
+
+  const toolbar = el('.list-toolbar', [
+    el('.search', [icon('search', 14), searchInput]),
+    filterWrap,
+    chipRow,
+    el('span.spacer'),
+    csvButton,
+    colWrap,
+    listCount,
+  ]);
+  const listBody = el('.list-body');
+
+  /* Keadaan saringan sebagai satu kunci: nilai yang terisi (urutannya diabaikan
+     — urutan mengisi bukan keadaan), pasangan tanggal, dan apakah server sudah
+     mengumumkan kolom tanggalnya. q sengaja tidak ikut: kotak Cari bukan
+     kontrol di popover, dan mengetik tidak boleh membangun ulang apa pun. */
+  let builtFilters = null;
+  function filtersKey(dateColumn) {
+    const set = Object.entries(ui.filters)
+      .filter(([, value]) => value !== undefined && value !== null && value !== '')
+      .map(([name, value]) => `${name}=${value}`)
+      .sort();
+    return JSON.stringify([set, ui.dateFrom, ui.dateTo, Boolean(dateColumn)]);
+  }
+
+  function paintFilters() {
+    const meta = (payload && payload.meta) || {};
 
     /*
      * Pasangan tanggal muncul ketika server mengumumkan kolom tanggal dokumennya
-     * (meta.date_column) — baru setelah respons pertama; satu render telat pada
-     * muat dingin diterima, filterBar memang dibangun ulang tiap renderAll.
-     * Dua resource lama mendeklarasikan date_from/date_to sebagai filter skema;
-     * begitu meta.date_column ada, pasangan skema itu DITEKAN supaya tidak dobel
-     * — schema.js read-only, jadi penekanan di sinilah mekanismenya; format
-     * kirim ke API identik dua-duanya. Nilai yang terlanjur tersimpan di
-     * ui.filters dipindahkan agar tidak hilang dan tidak terkirim ganda.
+     * (meta.date_column) — baru setelah respons pertama; satu pembangunan ulang
+     * telat pada muat dingin diterima. Dua resource lama mendeklarasikan
+     * date_from/date_to sebagai filter skema; begitu meta.date_column ada,
+     * pasangan skema itu DITEKAN supaya tidak dobel — schema.js read-only, jadi
+     * penekanan di sinilah mekanismenya; format kirim ke API identik dua-duanya.
+     * Nilai yang terlanjur tersimpan di ui.filters dipindahkan agar tidak hilang
+     * dan tidak terkirim ganda.
      */
     const dateColumn = meta.date_column || null;
     if (dateColumn) {
@@ -778,39 +1222,65 @@ export async function renderList(host, { key, def }) {
       }
     }
 
+    const next = filtersKey(dateColumn);
+    if (next === builtFilters) return;
+    builtFilters = next;
+
+    /* Kontrol yang sedang difokus ikut dibangun ulang di bawah: ingat namanya dan
+       kembalikan fokus ke kembarannya — memilih Status tidak boleh melempar
+       kursor keluar dari popover. */
+    const active = document.activeElement;
+    const focusedLabel = active && filterGrid.contains(active) ? active.getAttribute('aria-label') : null;
+
+    filterCombos.forEach((combo) => combo.closePopup());
+    filterCombos = [];
+    activeFilters = [];
+    clear(filterGrid);
+
+    // field(): label terlihat di atas tiap kontrol. Kontrolnya sudah membawa
+    // aria-label sendiri, jadi field() tidak menambahkan aria-labelledby.
     for (const filter of def.filters || []) {
       if (dateColumn && (filter.key === 'date_from' || filter.key === 'date_to')) continue;
-      bar.appendChild(buildFilter(filter));
+      filterGrid.appendChild(field(filter.label, buildFilter(filter)));
     }
 
     if (dateColumn) {
-      bar.appendChild(dateFilterInput('Dari tanggal', ui.dateFrom, (value) => {
+      filterGrid.appendChild(field('Dari tanggal', dateFilterInput('Dari tanggal', ui.dateFrom, (value) => {
         ui.dateFrom = value;
         ui.page = 1;
         load();
-      }));
-      bar.appendChild(dateFilterInput('Sampai tanggal', ui.dateTo, (value) => {
+      })));
+      filterGrid.appendChild(field('Sampai tanggal', dateFilterInput('Sampai tanggal', ui.dateTo, (value) => {
         ui.dateTo = value;
         ui.page = 1;
         load();
-      }));
+      })));
     }
 
-    if (isFiltered()) {
-      bar.appendChild(button('Reset', { size: 'sm', variant: 'ghost', onClick: resetFilters }));
+    // Layar tanpa satu pun saringan tidak menawarkan tombol yang membuka panel kosong.
+    filterWrap.hidden = filterGrid.childElementCount === 0;
+    if (filterWrap.hidden) filterPanel.close();
+
+    if (focusedLabel) {
+      const twin = [...filterGrid.querySelectorAll('[aria-label]')]
+        .find((node) => node.getAttribute('aria-label') === focusedLabel);
+      if (twin) twin.focus({ preventScroll: true });
     }
+  }
 
-    // Ekspor memakai endpoint dan parameter yang sama dengan daftar itu sendiri,
-    // jadi hak aksesnya identik dengan melihatnya.
-    const hasRows = Boolean(payload && (payload.data || []).length);
-    bar.appendChild(button('Ekspor CSV', {
-      size: 'sm', variant: 'ghost', iconName: 'download',
-      disabled: !hasRows,
-      title: hasRows ? 'Unduh daftar ini (semua halaman) sebagai CSV' : 'Tidak ada data untuk diekspor',
-      onClick: (event) => exportCsv(event.currentTarget),
-    }));
-
-    return bar;
+  function syncToolbar() {
+    // Kotak yang sedang diketik tidak ditimpa: nilainya milik jari orangnya, dan
+    // ui.q baru menyusul 320 ms kemudian.
+    if (document.activeElement !== searchInput) searchInput.value = ui.q;
+    paintFilters();
+    // Lencana Filter menghitung saringan di DALAM popover — q tidak, ia punya kotaknya sendiri.
+    const set = Object.values(ui.filters).filter((value) => value !== undefined && value !== null && value !== '').length
+      + (ui.dateFrom ? 1 : 0) + (ui.dateTo ? 1 : 0);
+    filterCount.hidden = set === 0;
+    filterCount.replaceChildren(String(set), el('span.sr-only', { text: ' saringan aktif' }));
+    syncCsv();
+    syncCount();
+    syncColumns(); // kolom pengurut terkunci: urutan baru = gembok baru
   }
 
   function dateFilterInput(label, value, apply) {
@@ -853,12 +1323,14 @@ export async function renderList(host, { key, def }) {
         /*
          * Parameter DIBEKUKAN saat tombol diklik: penelusuran memakan beberapa
          * permintaan dan bilah filter tetap hidup selama itu (withBusy hanya
-         * menonaktifkan tombolnya sendiri, dan load() dari filter yang diubah
-         * membangun ulang bilah). Membaca queryParams() per halaman menjahit
+         * menonaktifkan tombolnya sendiri, dan saringan yang diubah selama itu
+         * langsung memuat ulang daftarnya). Membaca queryParams() per halaman menjahit
          * dua query berbeda ke satu berkas tanpa peringatan; potret ini
          * menjamin berkasnya utuh milik daftar SAAT ekspor dimulai.
          */
         const params = queryParams();
+        // Kolom yang TAMPIL, dibekukan bersama parameternya (UX-E1.12, PANDUAN §2.2).
+        const columns = visibleColumns();
         const rows = [];
         let page = 1;
         let lastPage = 1;
@@ -870,8 +1342,8 @@ export async function renderList(host, { key, def }) {
         } while (page <= lastPage);
 
         const csv = toCsv(
-          def.columns.map((column) => column.label),
-          rows.map((row) => def.columns.map((column) => csvValue(row, column))),
+          columns.map((column) => column.label),
+          rows.map((row) => columns.map((column) => csvValue(row, column))),
         );
         downloadCsv(csvFilename(def.label), csv);
       });
@@ -1043,12 +1515,8 @@ export async function renderList(host, { key, def }) {
     // pemanggilan ulang pasca-'failed' tidak lagi tertangkap preload().
     if (state.status !== 'ok') loadSource(filter.lookup).then(sync, sync);
 
-    /* Lebar dipatok sejajar rentang select.filter-w (min 138 / max 230):
-       .combo mengisi 100% induknya, jadi sebagai item flex telanjang di
-       .filters lebarnya ikut lebar intrinsik <input> — berubah-ubah antar
-       browser/font. Kelas filter-w tidak bisa dipakai ulang: selektornya
-       terkualifikasi elemen (input./select.) dan tidak mengenai .combo-field. */
-    combo.node.style.width = '190px';
+    // Lebarnya milik kisi popover (.filter-pop .combo di app.css, UX-E1.4) —
+    // dulu 190px sebaris, untuk bilah flex yang tidak ada lagi.
     combo.input.setAttribute('aria-label', filter.label);
     combo.input.title = filter.label;
 
@@ -1065,43 +1533,39 @@ export async function renderList(host, { key, def }) {
   }
 
   /* Formulir rumah pada BARIS daftar, dan hanya untuk layar tanpa detail.
-     Layar yang punya detail membawa tombolnya di sana (detail.js), dan
+     Layar yang punya detail membawa keluarannya di sana (Cetak ▾, detail.js), dan
      mengulanginya per baris hanya akan meramaikan tabel.
 
      Ini bukan kehalusan: 'projects/weekly-progress' berstatus noDetail SEJAK
      AWAL sementara tombol "Detail Schedule"-nya dideklarasikan di schema.js —
      formulirnya jalan, endpoint-nya jalan, tapi tidak ada satu layar pun yang
-     membawa tombolnya. Barisnya adalah satu-satunya tempat yang jujur. */
-  function printRowButtons(row) {
+     membawa tombolnya. Barisnya adalah satu-satunya tempat yang jujur.
+
+     Sejak UX-E1.10 keduanya butir menu ⋯ baris, dengan label yang SAMA dengan
+     butir Cetak ▾ di halaman detail. Keduanya berjalan sinkron di dalam klik
+     butirnya, jadi tab cetak tidak diblokir peramban. */
+  function printRowItems(row) {
     if (!def.noDetail) return [];
 
     return printButtonsFor(def, key)
       .filter((form) => printableFor(form, row))
       .flatMap((form) => [
-        labelled(button('', {
-          size: 'sm',
-          variant: 'ghost',
+        {
+          label: `Cetak ${form.label}`,
           iconName: 'print',
           title: `Cetak ${form.label} dalam format formulir perusahaan`,
-          onClick: (event) => {
-            event.stopPropagation();
-            openPrintable(printablePath(form, row), event.currentTarget);
-          },
-        }), 'Cetak'),
-        /* P8 — pendamping ekspornya, hanya bila katalog menandai slug-nya
-           (form.xlsx). Baris daftar adalah SATU-SATUNYA rumah tombol untuk
+          onClick: (event, trigger) => openPrintable(printablePath(form, row), trigger),
+        },
+        /* P8 — pendamping ekspornya, hanya bila katalog menandai formulirnya
+           (form.xlsx). Baris daftar adalah SATU-SATUNYA rumah keluaran untuk
            layar noDetail, jadi ekspor harus ikut duduk di sini. */
         form.xlsx
-          ? labelled(button('', {
-            size: 'sm',
-            variant: 'ghost',
+          ? {
+            label: `Unduh ${form.label} (XLSX)`,
             iconName: 'download',
             title: `Unduh ${form.label} sebagai XLSX — sel yang di kertas bergaris adalah sel kosong, bukan 0`,
-            onClick: (event) => {
-              event.stopPropagation();
-              downloadPdf(xlsxPath(form, row), xlsxName(form.form, row.code || row[form.idField || 'id']), event.currentTarget);
-            },
-          }), 'Unduh')
+            onClick: (event, trigger) => downloadPdf(xlsxPath(form, row), xlsxName(form.form, row.code || row[form.idField || 'id']), trigger),
+          }
           : null,
       ])
       .filter(Boolean);
@@ -1113,6 +1577,7 @@ export async function renderList(host, { key, def }) {
      setiap dokumen (diukur 2 Sep 2026: 13 klik PO 2 baris, 1 di antaranya ini).
      Layar tanpa halaman detail tetap memuat ulang daftarnya. */
   function afterCreate(saved) {
+    forgetWhole(); // registernya bertambah satu: M yang tersimpan sudah salah
     if (saved && saved.id && !def.noDetail) navigate(`d/${key}/${saved.id}`);
     else load();
   }
@@ -1125,47 +1590,75 @@ export async function renderList(host, { key, def }) {
     return btn;
   }
 
-  function rowActions(row) {
-    const wrap = el('.cell-actions');
-
-    printRowButtons(row).forEach((btn) => wrap.appendChild(btn));
-
+  /*
+   * Menu ⋯ baris (UX-E1.10, README E1) — pengganti tombol ikon per baris, SATU
+   * banding SATU: ⋯ muncul tepat pada baris yang dulu bertombol (cetak di layar
+   * noDetail, Ubah, Hapus), dengan gerbang yang disalin harfiah, jadi tidak ada
+   * baris yang memperoleh atau kehilangan aksi. "Buka" adalah butir pertamanya
+   * tetapi tidak pernah MELAHIRKAN ⋯ sendirian (aturan detail.js: baris yang bisa
+   * diklik sudah membuka dirinya), dan baris tanpa ⋯ tetap satu garis — kepadatan
+   * baris yang dibekukan tidak bergerak. Tidak ada butir "salin sebagai draf": server tidak punya
+   * aksinya (ERRATA E-5). Aksi dari def.actions (pintu keputusan, boardOnly) tidak
+   * masuk ke sini; rumahnya bilah aksi dokumen.
+   *
+   * `trigger.focus()` lebih dulu: modal() menangkap returnFocus SAAT dibuka, dan
+   * saat itu fokus masih di butir menu yang segera dicabut — Batal lalu
+   * menjatuhkan fokus ke <body>. Fokus di ⋯ = Batal kembali ke barisnya.
+   */
+  function rowMenu(row) {
+    const prints = printRowItems(row);
     const canEdit = def.canEdit !== false && Boolean(def.form) && session.can(`${def.module}.update`) &&
       (!def.editableWhen || def.editableWhen(row));
     const canDelete = def.canDelete !== false && session.can(`${def.module}.delete`) &&
       (!def.deletableWhen || def.deletableWhen(row));
+    if (!prints.length && !canEdit && !canDelete) return null;
 
-    if (canEdit) {
-      wrap.appendChild(labelled(button('', {
-        size: 'sm', variant: 'ghost', iconName: 'edit', title: 'Ubah',
-        onClick: (event) => {
-          event.stopPropagation();
-          startForm({ def, key, row, onSaved: () => load() });
-        },
-      }), 'Ubah'));
-    }
+    const items = [
+      !def.noDetail ? { label: 'Buka', iconName: 'eye', onClick: () => navigate(`d/${key}/${row.id}`) } : null,
+      prints.length >= 2 ? { heading: 'Cetak' } : null,
+      ...prints,
+      canEdit
+        ? {
+          label: 'Ubah',
+          iconName: 'edit',
+          onClick: (event, trigger) => {
+            trigger.focus();
+            startForm({ def, key, row, onSaved: () => load() });
+          },
+        }
+        : null,
+    ].filter(Boolean);
 
     if (canDelete) {
-      wrap.appendChild(labelled(button('', {
-        size: 'sm', variant: 'ghost', iconName: 'trash', title: def.deleteLabel || 'Hapus',
-        onClick: async (event) => {
-          event.stopPropagation();
-          await confirmDialog({
+      // Garis hanya bila ada butir lain di atasnya: garis di puncak menu tidak memisahkan apa pun.
+      if (items.length) items.push({ divider: true });
+      items.push({
+        label: `${def.deleteLabel || 'Hapus'}…`,
+        iconName: 'trash',
+        danger: true,
+        onClick: (event, trigger) => {
+          trigger.focus();
+          confirmDialog({
             title: `${def.deleteLabel || 'Hapus'} ${def.labelOne}`,
             message: def.deleteConfirm || `${def.deleteLabel || 'Hapus'} "${row.code || row.name || row.title || `#${row.id}`}"? Tindakan ini tidak dapat dibatalkan.`,
             confirmLabel: def.deleteLabel || 'Hapus',
             onConfirm: async () => {
               await api.del(`${def.api}/${row.id}`);
               invalidateByPath(def.api);
+              forgetWhole(); // registernya berkurang satu
               toast(`${def.labelOne} dihapus.`);
               load();
             },
           });
         },
-      }), def.deleteLabel || 'Hapus'));
+      });
     }
 
-    return wrap.childElementCount ? wrap : null;
+    const menu = overflowMenu(items, { title: `Aksi untuk ${codeOf(row)}` });
+    const trigger = menu.querySelector('.menu-trigger');
+    trigger.setAttribute('aria-label', trigger.title);
+    labelled(trigger, 'Aksi');
+    return el('.cell-actions', menu);
   }
 
   /*
@@ -1235,6 +1728,39 @@ export async function renderList(host, { key, def }) {
     pickAll.indeterminate = on > 0 && on < rows.length;
   }
 
+  /*
+   * Kolom utama (UX-E1.11, README E1 — opt-in lewat `def.primaryColumn`, PO sebagai
+   * percontohan). Di ≤ 760 px kolom hideOnNarrow lenyap (app.css), dan dengannya
+   * Proyek dan Tgl PO sebuah PO — fakta yang membedakan dua PO ke vendor yang sama.
+   * Sel kolom utama tidak pernah ikut disembunyikan, dan membawa nilai-nilai yang
+   * hilang itu sebagai satu baris redup di bawahnya (.cell-fold, hanya tampil di
+   * ponsel), digambar oleh renderCell yang SAMA — jadi nilai kosong berbunyi '—',
+   * bukan sel kosong. Bukan .cell-sub: sensus S21 membuang baris yang memuat
+   * .cell-sub, dan aturan dasarnya dipakai ±60 berkas. Layar tanpa kunci ini
+   * tergambar persis seperti sebelumnya.
+   */
+  const foldedColumns = def.primaryColumn
+    ? def.columns.filter((column) => column.hideOnNarrow && column.key !== def.primaryColumn)
+    : [];
+  const narrowOf = (column) => (column.hideOnNarrow && column.key !== def.primaryColumn ? '.hide-narrow' : '');
+
+  function bodyCell(row, column) {
+    const tag = `td${column.align ? `.${column.align}` : ''}${column.type === 'code' ? '.code' : ''}${narrowOf(column)}`;
+    // Kolom yang disembunyikan pemakainya (Atur kolom) tidak dilipat kembali ke sini — kecuali
+    // yang terkunci tampil (kolom pengurut): aturan yang SAMA dengan visibleColumns(), atau di
+    // ponsel dan kertas daftar terurut menurut kolom yang tidak tampil di mana pun.
+    const folded = foldedColumns.filter((column2) => isLocked(column2) || !ui.hiddenColumns.includes(column2.key));
+    if (column.key !== def.primaryColumn || !folded.length) return el(tag, renderCell(row, column));
+    /* Satu blok per nilai, paling banyak dua garis lalu elipsis (app.css): kolom utama di
+       ponsel sempit, dan nama proyek yang dibiarkan membungkus membuat SATU baris PO
+       setinggi tujuh garis teks (terukur S56, 4 Okt 2026). Teks utuhnya di title. */
+    const lines = folded.map((column2) => `${column2.label}: ${renderCell(row, column2).textContent.trim()}`);
+    return el(tag, [
+      renderCell(row, column),
+      el('span.cell-fold', { title: lines.join(' · ') }, lines.map((text) => el('span', { text }))),
+    ]);
+  }
+
   function renderRows() {
     /*
      * Dipanggil dari tiga tempat, dan dua di antaranya JANJI yang mendarat
@@ -1287,7 +1813,10 @@ export async function renderList(host, { key, def }) {
       return;
     }
 
-    const hasActions = rows.some((row) => rowActions(row));
+    /* Satu menu per baris, dibangun SEKALI — dulu rowActions() dipanggil dua kali per
+       baris (sekali untuk "adakah kolom aksi", sekali untuk menggambarnya). */
+    const menus = new Map(rows.map((row) => [row.id, rowMenu(row)]));
+    const hasActions = [...menus.values()].some(Boolean);
     const openable = !def.noDetail;
     const meta = (payload && payload.meta) || {};
     const sortable = Array.isArray(meta.sortable) ? meta.sortable : [];
@@ -1296,7 +1825,11 @@ export async function renderList(host, { key, def }) {
        di layar, karena total seluruh hasil filter butuh dukungan API yang
        belum ada. Labelnya menyebut cakupannya supaya angka Rp di kaki tabel
        tidak pernah terbaca sebagai total outstanding seluruh filter. */
-    const moneyColumns = def.columns.filter((column) => column.type === 'currency' || column.type === 'currency2');
+    const columns = visibleColumns();
+    const moneyColumns = columns.filter((column) => column.type === 'currency' || column.type === 'currency2');
+    // Label kaki di kolom TAMPIL pertama yang bukan uang (UX-E1.12): dulu "indeks 0", yang
+    // diam-diam tidak menulis apa pun bila kolom pertama sebuah layar kolom uang.
+    const footLabelColumn = columns.find((column) => column.type !== 'currency' && column.type !== 'currency2');
 
     /* Baris yang bisa dikenai SETIDAKNYA satu aksi massal. Kotak centang baris
        lain digambar mati dengan alasannya di title: menyembunyikannya membuat
@@ -1306,23 +1839,29 @@ export async function renderList(host, { key, def }) {
     const table = el('table.data', [
       el('thead', el('tr', [
         picking ? el('th.pick', pickAllBox(pickable)) : null,
-        ...def.columns.map((column) => headerCell(column, sortable)),
-        hasActions ? el('th.right', { text: '', style: { width: '1%' } }) : null,
+        ...columns.map((column) => headerCell(column, sortable)),
+        // th sticky = berposisi, jadi ia menampung span sr-only-nya sendiri.
+        hasActions ? el('th.right.col-min', el('span.sr-only', { text: 'Aksi' })) : null,
       ])),
       el('tbody', rows.map((row) => {
         const chosen = picking && picked.has(row.id);
         const tr = el(`tr${openable ? '.clickable' : ''}${chosen ? '.selected' : ''}`, [
           picking ? el('td.pick', pickBox(row)) : null,
-          ...def.columns.map((column) =>
-            el(`td${column.align ? `.${column.align}` : ''}${column.type === 'code' ? '.code' : ''}${column.hideOnNarrow ? '.hide-narrow' : ''}`, renderCell(row, column))),
-          hasActions ? el('td.right', rowActions(row)) : null,
+          ...columns.map((column) => bodyCell(row, column)),
+          hasActions ? (menus.get(row.id) ? el('td.right.row-menu', menus.get(row.id)) : el('td.right')) : null,
         ]);
         if (openable) {
           /* Klik pada kotak centang TIDAK membuka dokumennya. Tanpa penjaga ini
              mencentang satu baris berarti berpindah halaman, dan seleksi yang
-             baru lahir itu ikut mati di muatan berikutnya. */
+             baru lahir itu ikut mati di muatan berikutnya.
+             Begitu pula klik pada ⋯ dan butir menunya (UX-E1.10). Butir yang
+             dipilih sudah DICABUT dari DOM saat kliknya sampai di <tr> (menuButton
+             menutup popup-nya di penangan butir), jadi closest() tidak lagi bisa
+             melihat selnya; composedPath() mencatat jalurnya saat dikirim. */
+          const menuCell = tr.querySelector('td.row-menu');
           tr.addEventListener('click', (event) => {
             if (event.target.closest('td.pick')) return;
+            if (menuCell && event.composedPath().includes(menuCell)) return;
             navigate(`d/${key}/${row.id}`);
           });
         }
@@ -1331,14 +1870,14 @@ export async function renderList(host, { key, def }) {
       moneyColumns.length
         ? el('tfoot', el('tr', [
           picking ? el('td.pick') : null,
-          ...def.columns.map((column, index) => {
-            const narrow = column.hideOnNarrow ? '.hide-narrow' : '';
+          ...columns.map((column) => {
+            const narrow = narrowOf(column);
             if (column.type === 'currency' || column.type === 'currency2') {
               return el(`td.right${narrow}`, {
                 text: rupiah(sumColumn(rows, column.key), column.type === 'currency2' ? { decimals: 2 } : {}),
               });
             }
-            return el(`td${column.align ? `.${column.align}` : ''}${narrow}`, { text: index === 0 ? 'Total halaman ini' : '' });
+            return el(`td${column.align ? `.${column.align}` : ''}${narrow}`, { text: column === footLabelColumn ? 'Total halaman ini' : '' });
           }),
           hasActions ? el('td') : null,
         ]))
@@ -1358,12 +1897,20 @@ export async function renderList(host, { key, def }) {
    * asc → desc → kembali ke urutan default. Kolom turunan (customer.name dsb.)
    * memang tidak pernah muncul di meta.sortable dan tetap diam — benar; seam
    * `column.sortKey` di schema.js dicatat untuk hari itu, tidak dibangun.
+   *
+   * Penanda (UX-E1.3): SETIAP kolom yang bisa diurutkan membawa panah —
+   * atas-bawah redup bila belum aktif, atas/bawah bila aktif — supaya
+   * "bisa diklik" terlihat sebelum diklik; dulu hanya kolom aktif yang
+   * bertanda segitiga teks dan kolom lain tampak sama dengan judul biasa. Kolom yang
+   * TIDAK bisa diurutkan tetap teks polos tanpa panah, jadi panah itu sendiri
+   * adalah janji server. Nama ikon ditulis literal (bukan dihitung) karena
+   * LauncherWiringTest hanya bisa memeriksa nama yang tertulis.
    */
   function headerCell(column, sortable) {
     // hide-narrow ikut di th: td yang hilang tanpa judulnya membuat seluruh
     // baris bergeser satu kolom di bawah 760px.
     const th = el(
-      `th${column.align ? `.${column.align}` : ''}${column.hideOnNarrow ? '.hide-narrow' : ''}`,
+      `th${column.align ? `.${column.align}` : ''}${narrowOf(column)}`,
       { style: column.width ? { width: column.width } : {} },
     );
 
@@ -1377,8 +1924,8 @@ export async function renderList(host, { key, def }) {
 
     const control = el('button.th-sort', { type: 'button', title: 'Urutkan' }, [
       column.label,
-      // Satu penanda saja, pada kolom yang sedang aktif.
-      active ? el('span', { text: ui.dir === 'desc' ? '▼' : '▲', 'aria-hidden': 'true' }) : null,
+      // Ikon sprite aria-hidden: arah urutnya sudah diumumkan aria-sort di th.
+      !active ? icon('arrow-up-down', 12) : ui.dir === 'desc' ? icon('arrow-down', 12) : icon('arrow-up', 12),
     ]);
     control.addEventListener('click', () => {
       if (ui.sort !== column.key) {
@@ -1458,42 +2005,46 @@ export async function renderList(host, { key, def }) {
     ]);
   }
 
+  /* Tab yang menyala = nilai saringan saat ini. Nilai yang tidak punya tab (seed
+     URL basi, ?status=bogus) menyalakan TIDAK ADA tab — "Semua" akan berbohong,
+     karena saringannya tetap terkirim — tetapi tablist tanpa satu pun tabIndex 0
+     tidak bisa dicapai dengan Tab, jadi tab pertama tetap menjadi pintunya. */
+  function syncQuickTabs() {
+    if (!quickTabs) return;
+    quickTabs.select(ui.filters[quickFilter.key] || '');
+    if (!quickTabs.querySelector('[role="tab"][aria-selected="true"]')) {
+      quickTabs.querySelector('[role="tab"]').tabIndex = 0;
+    }
+  }
+
   function renderAll() {
-    // Sebelum bilah lama dibuang — lihat catatan filterCombos di atas.
-    filterCombos.forEach((combo) => combo.closePopup());
-    clear(tableHost);
-    tableHost.appendChild(filterBar());
-
-    /* Tampilan tersimpan DI ATAS chip saringan, urutan yang sama dengan
-       prototipe: yang pertama dibaca adalah "saya sedang melihat tampilan
-       mana", baru "apa yang sedang mempersempitnya". */
-    viewRow = el('.chips.views', { hidden: true });
-    tableHost.appendChild(viewRow);
+    /* Bilah alat, baris tampilan, dan baris chip HIDUP lebih lama dari satu
+       muatan (UX-E1.4): renderAll menyegarkan isinya, bukan membangunnya, jadi
+       kotak Cari yang sedang diketik dan popover Filter yang terbuka selamat
+       melewati setiap muatan. Yang dibangun ulang tiap kali hanya badan daftar. */
+    syncToolbar();
+    syncQuickTabs();
     paintViews();
-
-    // Chip digambar SESUDAH bilahnya, karena buildFilter yang mengisi
-    // activeFilters saat bilah itu dibangun.
-    /* `.chips.active-filters`, bukan `.chips` telanjang: sejak UI-4c ADA DUA
-       baris chip di layar ini, dan `querySelector('.chips')` memulangkan yang
-       pertama — baris tampilan. Nol pemakai `.active-filters` diperiksa lebih
-       dulu di seluruh public/app, aturan yang sama dengan primitif UI-2. */
-    chipRow = el('.chips.active-filters', { hidden: true });
-    tableHost.appendChild(chipRow);
+    // Chip SESUDAH syncToolbar: paintFilters yang mengisi activeFilters saat ia
+    // membangun ulang kontrolnya.
     paintChips();
 
-    const body = el('.list-body');
-    tableHost.appendChild(body);
-
+    clear(listBody);
     if (loading) {
-      body.appendChild(skeletonTable(6, Math.min(def.columns.length, 6)));
+      listBody.appendChild(skeletonTable(6, Math.min(visibleColumns().length, 6)));
       return;
     }
     if (error) {
-      body.appendChild(el('.card-body', errorState(error, () => load())));
+      listBody.appendChild(el('.card-body', errorState(error, () => load())));
       return;
     }
     renderRows();
   }
 
+  /* Baris tampilan tersimpan di BAWAH bilah alat, chip saringan di DALAMNYA
+     (UX-E1.5): kotak Cari tidak pernah bergeser saat baris tampilan muncul.
+     UI-4c menaruh tampilan di atas chip; urutan itu dibalik dengan sengaja —
+     dicatat sebagai penyimpangan di PROGRESS-UIUX. */
+  tableHost.append(toolbar, viewRow, printNote, listBody);
   await load();
 }

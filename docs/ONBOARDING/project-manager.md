@@ -263,7 +263,7 @@ untuk peran Anda, apa adanya:
 - **Tombol yang tidak akan Anda lihat** (§14.2): `Setujui` SPK/addendum/opname subkon
   (direktur), `Bayar Retensi` dan `Cairkan Uang Muka` (admin), `Posting ke Stok` (admin
   atau teknisi — §6.1), `Demobilisasi` / `Posting Penyusutan` / `Hapus Buku` (keuangan
-  atau admin), dan ikon Hapus di modul Proyek (tidak ada izin hapus — §7.1).
+  atau admin), dan **Hapus…** di menu ⋯ baris modul Proyek (tidak ada izin hapus — §7.1).
 - **Yang tidak bisa dibatalkan** (§14.4): `Buat WBS dari BOQ` · `Bekukan` baseline ·
   `Setujui` BAST I dan BAST II · `Simpan` log BBM/jam alat.
 

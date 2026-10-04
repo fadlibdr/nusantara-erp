@@ -213,7 +213,7 @@ untuk peran Anda, apa adanya:
 
 - **Tombol yang tidak akan pernah muncul** (PANDUAN §7.1, §14.2): `Setujui`/`Tolak`,
   `Verifikasi`, `Dispensasi`, `Buka kembali`, `Tutup Insiden`, `Bekukan`, `Tutup proyek`,
-  `Catat Keputusan MK`, `Terbitkan Tautan` (MK/Owner), ikon Hapus di modul Proyek, dan
+  `Catat Keputusan MK`, `Terbitkan Tautan` (MK/Owner), **Hapus…** di menu ⋯ baris modul Proyek, dan
   `Posting ke Stok`. Bukan kerusakan: menyatakan perbaikan selesai adalah pekerjaan
   lapangan; **menerimanya** adalah tindakan orang lain.
 - **Laporan ganda** (§7.3): `The report date has already been taken.` — di bawah kolom
@@ -275,7 +275,7 @@ Peran Anda memegang **25** formulir rumah, satu baris satu tombol (kode F/ dari 
 
 - Proyek — Data Proyek (F/DP, kepala halaman proyek)
 - Proyek — Laporan Harian (F/LH, halaman laporan)
-- Proyek — Detail Schedule / Program Kerja (F/DS, ikon printer pada **baris** Progres
+- Proyek — Detail Schedule / Program Kerja (F/DS, **Cetak** di menu ⋯ **baris** Progres
   Mingguan; selalu bulan berjalan)
 - Proyek — Daftar Temuan / Defect List (F/DT, halaman satu temuan; seluruh register)
 - Proyek — Izin Kerja Lapangan (F/IK)

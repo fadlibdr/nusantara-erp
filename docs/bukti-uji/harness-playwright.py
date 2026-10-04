@@ -1,4 +1,4 @@
-import json, os, re, time, sqlite3, struct, zlib, base64, traceback, urllib.request
+import json, os, re, time, sqlite3, struct, zlib, base64, traceback, urllib.request, urllib.parse
 from datetime import date, timedelta
 from playwright.sync_api import sync_playwright
 
@@ -771,10 +771,13 @@ def s8(pg):
         checks.append("panel onboarding terbuka saat pengukuran — angka di atas bukan angka layar PO murni")
 
     # TIDAK digerbangi, dan sengaja:
-    #   * btn_sm_height. Di layar ini .btn.sm PERTAMA dalam urutan DOM adalah
-    #     'Batalkan pilihan' di dalam .selbar[hidden] (views/list.js:378), jadi 0 berarti
-    #     "bilah seleksi tersembunyi", bukan "sasaran sentuh 0 px". Angka 28 pun sah
-    #     begitu ada .btn.sm lain yang lebih awal. Yang dipegang hanya kesamaannya antar-tema.
+    #   * btn_sm_height. querySelector('.btn.sm') mengambil yang PERTAMA dalam urutan DOM, dan
+    #     siapa itu bergantung pada keadaan layar: sejak UX-E1.4 bilah alat (dibangun sekali,
+    #     di atas daftar) mendahului badan daftar, jadi pada PO polos itu 'Ekspor CSV'; pada
+    #     daftar tersaring 'Hapus semua' di baris chip; dulu 'Batalkan pilihan' di
+    #     .selbar[hidden] (0 = "bilah seleksi tersembunyi", bukan sasaran sentuh 0 px). Pemicu
+    #     ⋯ baris (UX-E1.10) juga .btn.sm, tetapi selalu sesudah bilah alat. Angkanya bukan
+    #     subjek — yang dipegang hanya kesamaannya antar-tema.
     #   * isi page_head_buttons. Label tombol milik kampanye salinan.
     #   * angka 11 px / 10 px / 5,23:1 sebagai NILAI. Yang dipegang lantai dan ambang.
     out["failed_checks"] = checks
@@ -1017,7 +1020,8 @@ def s44(pg):
     pg.wait_for_timeout(1600)
     out["buang_satu"] = {**pg.evaluate(CHIPS), "url": pg.url.split("?")[-1]}
 
-    # "Hapus semua" memakai resetFilters() yang sama dengan tombol Reset.
+    # "Hapus semua" memakai resetFilters() — sejak UX-E1.5 satu-satunya tombol "berhenti menyaring"
+    # selain "Hapus filter" di keadaan kosong (tombol Reset di bilah alat sudah tidak ada).
     click(pg, ".chips.active-filters button.btn")
     pg.wait_for_timeout(1600)
     out["hapus_semua"] = {**pg.evaluate(CHIPS), "url": pg.url.split("#")[-1]}
@@ -1276,6 +1280,52 @@ def s49(pg):
     pg.goto(BASE + "#/d/finance/ar-invoices/1"); pg.wait_for_timeout(2600)
     out["rata"] = pg.evaluate(HEAD)
 
+    # Bilah aksi dokumen yang MENUNGGU keputusan, di ponsel. Zona keputusan membawa catatan lipat
+    # (.action-note, T2.3), yang meminta `justify-content: flex-end`; di ≤ 760 px bilah yang sama
+    # nowrap + overflow-x: auto (UI-3c). Luapan flex-end tumpah ke KIRI titik awal gulir — tempat
+    # yang tidak bisa digulir siapa pun: terukur 4 Okt 2026, PO diajukan di 390 px hanya
+    # memperlihatkan "Tambah catatan"; Kembali, Cetak, Setujui dan Tolak di x < 0, tak terjangkau.
+    BAR = """() => {
+      const bar = document.querySelector('.page-head .actions');
+      bar.scrollLeft = 0;
+      const b = bar.getBoundingClientRect();
+      const vw = document.documentElement.clientWidth;
+      const kids = [...bar.querySelectorAll('button, summary')].filter((n) => n.getClientRects().length).map((n) => {
+        const r = n.getBoundingClientRect();
+        return { label: (n.innerText.trim() || n.title).slice(0, 24), left: Math.round(r.left), right: Math.round(r.right),
+                 stranded: r.right <= b.left + 1, on_screen: r.left >= -1 && r.right <= vw + 1 };
+      });
+      return { bar: [Math.round(b.left), Math.round(b.right), bar.scrollWidth, bar.clientWidth], kids,
+               justify: getComputedStyle(bar).justifyContent };
+    }"""
+    tok = token_for("procurement@nusantara.test")
+    s_, d_ = api("procurement/vendors?status=active&per_page=20", tok)
+    vendor = next((v for v in d_["data"] if v.get("vendor_type") in (None, "supplier")), None)
+    sub = None
+    if vendor:
+        s_, d_ = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
+                     "expected_date": "2026-09-16", "pr_bypass_reason": "UJI-UX — bilah aksi ponsel (S49)",
+                     "items": [{"description": "UJI-UX bilah ponsel", "qty": 1, "unit": "unit", "unit_price": 1000000}]})
+        if s_ in (200, 201):
+            sub = d_["data"]["id"]
+            out["ponsel_submit_http"] = api(f"procurement/purchase-orders/{sub}/submit", tok, "POST", {})[0]
+    if not sub:
+        out["ponsel"] = {"fixture": "gagal"}
+    else:
+        pg.goto(BASE + f"#/d/procurement/purchase-orders/{sub}")
+        pg.wait_for_selector(".page-head .actions .action-note", timeout=15000); pg.wait_for_timeout(600)
+        out["meja"] = pg.evaluate(BAR)
+        ctx = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        try:
+            p390 = ctx.new_page()
+            login(p390, "admin@nusantara.test")
+            p390.goto(BASE + f"#/d/procurement/purchase-orders/{sub}")
+            p390.wait_for_selector(".page-head .actions .action-note", timeout=15000); p390.wait_for_timeout(600)
+            out["ponsel"] = p390.evaluate(BAR)
+            p390.screenshot(path=f"{OUT}/s49-bilah-diajukan-390.png")
+        finally:
+            ctx.close()
+
     checks = []
     g = out["berkelompok"]
     if not g["judul"]:
@@ -1303,6 +1353,21 @@ def s49(pg):
         checks.append(f"blok sisa tidak tergambar: {g['blok']} blok untuk {len(g['kelompok'])} kelompok — medan yang tidak disebut lenyap")
     if g["dt"] <= 9:
         checks.append(f"panel Informasi PO hanya {g['dt']} medan; sembilan di antaranya disebut kelompok, jadi sisanya hilang")
+
+    ph = out.get("ponsel") or {}
+    if ph.get("fixture") == "gagal":
+        checks.append("bilah ponsel: fixture PO diajukan gagal dibuat — galat, bukan SKIPPED")
+    else:
+        stranded = [k["label"] for k in ph["kids"] if k["stranded"]]
+        if stranded:
+            checks.append(f"bilah ponsel: {stranded!r} terdampar di kiri titik awal gulir bilah aksi (tak terjangkau) — {ph['bar']}")
+        need = [k for k in ph["kids"] if k["label"] in ("Setujui", "Tolak")]
+        if len(need) != 2 or not all(k["on_screen"] for k in need):
+            checks.append(f"bilah ponsel: Setujui/Tolak tidak terlihat tanpa menggulir: {need!r}")
+        desk = out["meja"]
+        last = max(desk["kids"], key=lambda k: k["right"]) if desk["kids"] else None
+        if not last or abs(last["right"] - desk["bar"][1]) > 2:
+            checks.append(f"bilah meja: kontrol terakhir tidak lagi rapat kanan ({last!r} vs bilah {desk['bar']})")
 
     # Sumber daya yang TIDAK menyatakannya tidak berubah.
     f = out["rata"]
@@ -1679,17 +1744,24 @@ def s52(pg):
     """
     login(pg, "admin@nusantara.test")
 
-    # Membungkus = anak-anaknya tidak lagi berbagi satu garis atas.
+    # UX-E1.10: bilah aksi sel memegang SATU pemicu ⋯ (overflowMenu) — uji "membungkus" lama
+    # (anak-anak tidak berbagi satu garis atas) hampa untuk satu anak. Invariannya sekarang bentuk
+    # dan tinggi: tepat satu .overflow-menu berisi tepat satu button[aria-haspopup=menu], tanpa .btn
+    # lain; pemicunya membawa data-label (kata kerja di pointer kasar) dan aria-label; bilahnya tidak
+    # lebih tinggi dari pemicunya + 2 px (tidak ada yang membungkus); tanpa gaya sebaris.
     WRAP = """() => {
       const bars = [...document.querySelectorAll('.main table.data .cell-actions')];
-      const membungkus = bars.filter(b => {
-        const kids = [...b.children].filter(k => k.getClientRects().length);
-        if (kids.length < 2) return false;
-        const tops = kids.map(k => Math.round(k.getBoundingClientRect().top));
-        return Math.max(...tops) - Math.min(...tops) > 2;
-      }).length;
-      return { bilah: bars.length, membungkus,
-               gaya_sebaris: bars.filter(b => b.getAttribute('style')).length };
+      const trig = (b) => b.querySelector('button[aria-haspopup="menu"]');
+      return {
+        bilah: bars.length,
+        bentuk_salah: bars.filter(b => b.querySelectorAll(':scope > .overflow-menu').length !== 1
+          || b.querySelectorAll('button[aria-haspopup="menu"]').length !== 1
+          || [...b.querySelectorAll('.btn')].some(x => !x.matches('button[aria-haspopup="menu"]'))).length,
+        tanpa_label: bars.filter(b => !trig(b) || !trig(b).dataset.label || !trig(b).getAttribute('aria-label')).length,
+        membungkus: bars.filter(b => trig(b) && b.getBoundingClientRect().height > trig(b).getBoundingClientRect().height + 2).length,
+        tinggi_pemicu: [...new Set(bars.filter(trig).map(b => Math.round(trig(b).getBoundingClientRect().height * 2) / 2))],
+        gaya_sebaris: bars.filter(b => b.getAttribute('style')).length,
+      };
     }"""
 
     # Sel boolean: warnanya harus token --success, bukan abu-abu warisan.
@@ -1730,10 +1802,17 @@ def s52(pg):
     for route, r in out.items():
         bar = r.get("bilah")
         if bar:
-            # Daftar TANPA bilah aksi itu sah: #/r/procurement/purchase-orders
-            # tidak menggambar tombol baris sama sekali (diukur 18 Sep 2026).
+            # Daftar TANPA bilah aksi itu sah: PO yang disetujui tidak bisa diubah
+            # maupun dihapus, dan layar yang punya detail tidak menaruh cetak di
+            # baris — PO seed (dua-duanya disetujui) tidak menggambar ⋯ sama sekali.
             # Yang tidak sah adalah SELURUH himpunan kosong — itu gerbang hampa,
             # dan diperiksa sekali di bawah, bukan per layar.
+            if bar["bentuk_salah"]:
+                checks.append(f"{route}: {bar['bentuk_salah']} dari {bar['bilah']} bilah aksi sel bukan tepat satu pemicu ⋯ tanpa tombol lain")
+            if bar["tanpa_label"]:
+                checks.append(f"{route}: {bar['tanpa_label']} pemicu ⋯ tanpa data-label/aria-label — pointer kasar kehilangan kata kerjanya")
+            if bar["bilah"] and bar["tinggi_pemicu"] != [28]:
+                checks.append(f"{route}: pemicu ⋯ setinggi {bar['tinggi_pemicu']} px, bukan 28 (kepadatan normal, pointer halus)")
             if bar["membungkus"]:
                 checks.append(
                     f"{route}: {bar['membungkus']} dari {bar['bilah']} bilah aksi sel MEMBUNGKUS — "
@@ -1765,6 +1844,1639 @@ def s52(pg):
     out["failed_checks"] = checks
     out["ok"] = not checks
     return out
+
+# ------------------------------------------------------------ S54 (UX-E1)
+# Bilah daftar generik sesudah redesain UX-E1, satu blok per tugas paket. Setiap blok menulis
+# keadaan yang DIUKUR ke `out[<blok>]` dan alasannya ke `checks` — tidak ada blok yang boleh
+# lolos tanpa subjek: fixture yang gagal adalah galat, bukan SKIPPED.
+
+S54_DELAY_DRAFT = """() => {
+  // Tunda SETIAP permintaan daftar PO bersaringan status=draft 1,5 detik di halaman ini saja.
+  // Bukan pg.route + time.sleep: penangan rute sinkron memblokir pengirim Playwright.
+  if (window.__s54Delay) return 'sudah';
+  const original = window.fetch.bind(window);
+  window.__s54Delay = true;
+  window.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input.url;
+    if (/purchase-orders\\?/.test(url) && /status=draft/.test(url)) {
+      return new Promise((resolve) => setTimeout(resolve, 1500)).then(() => original(input, init));
+    }
+    return original(input, init);
+  };
+  return 'dipasang';
+}"""
+
+S54_LIST_STATE = """async () => {
+  // Kebenaran dari server untuk saringan TERAKHIR, lewat modul api.js milik halaman ini (instans
+  // modul yang sama, jadi token yang sama). Permintaan ini status=approved — tidak ditunda.
+  const { api } = await import('/app/js/api.js');
+  const truth = await api.list('procurement/purchase-orders', { status: 'approved', per_page: 100, page: 1 });
+  const rows = truth.data || [];
+  return {
+    hash: location.hash,
+    chips: [...document.querySelectorAll('.chips.active-filters .chip')].map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
+    badges: [...document.querySelectorAll('#view table.data tbody .badge[data-status]')].map((b) => b.dataset.status),
+    shown: document.querySelectorAll('#view table.data tbody tr').length,
+    empty: !!document.querySelector('#view .list-body .empty'),
+    select: (document.querySelector('.filters select[aria-label="Status"]') || {}).value ?? null,
+    server_approved: rows.length,
+  };
+}"""
+
+
+S54_SORT_HEAD = """() => {
+  const icons = (th) => [...th.querySelectorAll('svg use')].map((u) => (u.getAttribute('href') || '').split('#lucide-')[1] || '?');
+  const ths = [...document.querySelectorAll('#view table.data thead th')];
+  const sortable = ths.filter((th) => th.querySelector('button.th-sort')).map((th) => ({
+    label: th.querySelector('button.th-sort').innerText.trim(), aria_sort: th.getAttribute('aria-sort'), icons: icons(th),
+  }));
+  const plain = ths.filter((th) => !th.querySelector('button.th-sort')).map((th) => ({
+    label: th.innerText.trim(), svg: th.querySelectorAll('svg').length,
+  }));
+  const row = document.querySelector('#view table.data thead tr');
+  const withArrows = +row.getBoundingClientRect().height.toFixed(2);
+  const style = document.createElement('style');
+  style.textContent = 'table.data th .th-sort .lucide { display: none !important; }';
+  document.head.appendChild(style);
+  const without = +row.getBoundingClientRect().height.toFixed(2);
+  style.remove();
+  return { sortable, plain, glyph: /[\u25B2\u25BC]/.test(document.querySelector('#view table.data thead').textContent),
+           height_with: withArrows, height_without: without };
+}"""
+
+S54_SORT_PRINT = """() => {
+  const shown = (svg) => getComputedStyle(svg).display !== 'none';
+  const active = [...document.querySelectorAll('#view table.data thead th[aria-sort] .th-sort .lucide')].filter(shown).length;
+  const idle = [...document.querySelectorAll('#view table.data thead th:not([aria-sort]) .th-sort .lucide')].filter(shown).length;
+  return { active_shown: active, idle_shown: idle,
+           overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+}"""
+
+
+S54_FILTER_STATE = """() => {
+  const pop = document.querySelector('.filter-pop');
+  const toggle = document.querySelector('.list-toolbar .filter-toggle');
+  const pill = document.querySelector('.filter-count');
+  const search = document.querySelector('.list-toolbar input[aria-label="Cari"]');
+  const icon = document.querySelector('.list-toolbar .search svg');
+  const controls = [...document.querySelectorAll('.filter-pop .filters select, .filter-pop .filters input')];
+  const active = document.activeElement;
+  return {
+    open: !!pop && !pop.hidden,
+    expanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+    controls: controls.map((n) => n.getAttribute('aria-label')),
+    visible: controls.filter((n) => n.checkVisibility()).map((n) => n.getAttribute('aria-label')),
+    // Angkanya saja: .sr-only " saringan aktif" ikut di innerText.
+    pill: pill && !pill.hidden ? (pill.firstChild ? pill.firstChild.textContent.trim() : '') : null,
+    active: active ? active.getAttribute('aria-label') : null,
+    active_class: active ? [...active.classList].filter((c) => c !== 'btn').join(' ') : null,
+    combo_open: !!document.querySelector('.combo-pop'),
+    hash: location.hash,
+    toolbar_h: +document.querySelector('.list-toolbar').getBoundingClientRect().height.toFixed(1),
+    search_pad: search ? parseFloat(getComputedStyle(search).paddingLeft) : null,
+    search_icon_right: search && icon ? Math.round(icon.getBoundingClientRect().right - search.getBoundingClientRect().left) : null,
+  };
+}"""
+
+
+S54_CHIP_STATE = """() => {
+  const row = document.querySelector('.chips.active-filters');
+  if (!row) return { in_toolbar: false, hidden: null, chips: [], buttons: [] };
+  return {
+    in_toolbar: !!row.closest('.list-toolbar'),
+    hidden: row.hidden,
+    chips: [...row.querySelectorAll('.chip')].map((c) => ({
+      key: ((c.querySelector('.chip-key') || {}).textContent || '').trim(),
+      value: ((c.querySelector('b') || {}).textContent || '').trim(),
+      x_px: (() => { const s = c.querySelector('.chip-x svg'); return s ? +s.getAttribute('width') : null; })(),
+    })),
+    buttons: [...row.querySelectorAll('button.btn')].map((b) => b.innerText.trim()),
+  };
+}"""
+
+S54_CHIP_PRINT = """() => {
+  const shown = (n) => !!n && getComputedStyle(n).display !== 'none';
+  const bar = document.querySelector('.list-toolbar');
+  // .list-count (UX-E1.6) adalah PERNYATAAN total lembar itu, bukan kontrol — dicatat terpisah.
+  const controls = bar ? [...bar.children].filter((n) => !n.matches('.chips, .list-count') && shown(n)).map((n) => n.className) : [];
+  const row = bar && bar.querySelector('.chips.active-filters');
+  const count = bar && bar.querySelector('.list-count');
+  return {
+    toolbar_shown: shown(bar),
+    chips_shown: row && shown(row) ? [...row.querySelectorAll('.chip')].filter(shown).length : 0,
+    count_text: count && shown(count) ? count.textContent : null,
+    controls_shown: controls.concat(row ? [...row.querySelectorAll('.chip-x, .btn')].filter(shown).map((n) => n.className) : []),
+  };
+}"""
+
+
+S54_COUNT = """async (params) => {
+  const { api } = await import('/app/js/api.js');
+  const truth = await api.list('procurement/purchase-orders', { ...params, per_page: 1, page: 1 });
+  const node = document.querySelector('.list-toolbar .list-count');
+  return {
+    text: node ? node.textContent : null,
+    truth: truth && truth.meta && typeof truth.meta.total === 'number' ? truth.meta.total : null,
+    last: node ? node === node.parentElement.lastElementChild : null,
+    empty: !!document.querySelector('#view .list-body .empty'),
+  };
+}"""
+
+
+@scenario("S54_bilah_daftar")
+def s54(pg):
+    """UX-E1: bilah daftar generik — balapan muat (E1.2) dan blok-blok tugas berikutnya."""
+    out, checks, errors = {}, [], []
+    pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+
+    # ------------------------------------------------------------ balapan (E1.2)
+    # Jawaban usang tidak boleh melukis: pilih Draf (jawabannya ditunda 1,5 s), lalu segera
+    # Disetujui. Tanpa nomor urut muat, jawaban Draf tiba belakangan dan menimpa daftar
+    # Disetujui sementara chip, kontrol, dan bilah alamat menyebut Disetujui.
+    pg.goto(BASE + "#/r/procurement/purchase-orders")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(800)
+    out["balapan"] = {"patch": pg.evaluate(S54_DELAY_DRAFT)}
+    buka_saringan(pg)  # UX-E1.4: kontrol Status duduk di popover Filter
+    status_select = ".filters select[aria-label='Status']"
+    pg.select_option(status_select, "draft")
+    pg.wait_for_timeout(120)
+    pg.select_option(status_select, "approved")
+    pg.wait_for_timeout(2600)
+    state = pg.evaluate(S54_LIST_STATE)
+    out["balapan"].update(state)
+    if "status=approved" not in state["hash"] or "status=draft" in state["hash"]:
+        checks.append(f"balapan: hash {state['hash']!r} bukan keadaan terakhir (status=approved)")
+    if not any("Disetujui" in c for c in state["chips"]):
+        checks.append(f"balapan: chip Status tidak menyebut Disetujui ({state['chips']!r})")
+    wrong = [b for b in state["badges"] if b != "approved"]
+    if wrong:
+        checks.append(f"balapan: daftar melukis jawaban usang — lencana {wrong!r} di bawah saringan Disetujui")
+    # Seed punya PO disetujui dan tidak punya draf: jawaban Draf yang usang melukis daftar KOSONG
+    # dengan rapi. Karena itu yang diuji adalah isi, bukan bentuk: bila server punya PO disetujui,
+    # daftar harus menampilkan baris (lencana non-approved sudah ditangkap di atas).
+    if state["server_approved"] == 0:
+        checks.append("balapan: subjek hilang — server tidak punya PO disetujui, balapan tidak teruji")
+    elif state["shown"] == 0 or state["empty"]:
+        checks.append(f"balapan: tampil {state['shown']} baris (kosong={state['empty']}) padahal server punya "
+                      f"{state['server_approved']} PO disetujui — jawaban usang menimpa daftar")
+    pg.screenshot(path=f"{OUT}/s54-balapan.png")
+
+    # ------------------------------------------------------------ urut (E1.3)
+    # Setiap kolom yang server izinkan diurutkan membawa panah sprite (atas-bawah bila diam,
+    # atas/bawah bila aktif); kolom lain tanpa svg. Tinggi baris kepala diukur DENGAN dan TANPA
+    # panah di halaman yang sama — panah 12 px tidak boleh menambah tinggi. Cetak: hanya panah
+    # kolom aktif yang tergambar.
+    pg.goto(BASE + "#/r/procurement/purchase-orders?page=1")  # kunci dikenal → keadaan daftar di-reset
+    pg.wait_for_selector("#view table.data thead th", timeout=20000)
+    pg.wait_for_timeout(600)
+    out["urut"] = {"diam": pg.evaluate(S54_SORT_HEAD)}
+    diam = out["urut"]["diam"]
+    if not diam["sortable"]:
+        checks.append("urut: subjek hilang — tidak ada th dengan button.th-sort di daftar PO")
+    bad = [c for c in diam["sortable"] if c["icons"] != ["arrow-up-down"]]
+    if bad:
+        checks.append(f"urut: kolom diam tanpa tepat satu panah atas-bawah: {bad!r}")
+    plain_svg = [c for c in diam["plain"] if c["svg"]]
+    if plain_svg:
+        checks.append(f"urut: kolom yang tidak bisa diurutkan memuat svg: {plain_svg!r}")
+    if diam["glyph"]:
+        checks.append("urut: kepala tabel masih memuat penanda teks segitiga")
+    if diam["height_without"] is None or abs(diam["height_with"] - diam["height_without"]) > 0.5:
+        checks.append(f"urut: panah mengubah tinggi baris kepala {diam['height_without']} → {diam['height_with']} px")
+
+    kode = "#view table.data thead th button.th-sort:has-text('Kode')"
+    steps = []
+    for want_sort, want_icon in (("ascending", "arrow-up"), ("descending", "arrow-down"), (None, None)):
+        pg.click(kode)
+        if want_sort:
+            pg.wait_for_selector(f"#view table.data thead th[aria-sort={want_sort}]", timeout=10000)
+        else:
+            pg.wait_for_function("() => !document.querySelector('#view table.data thead th[aria-sort]')", timeout=10000)
+        pg.wait_for_timeout(400)
+        head = pg.evaluate(S54_SORT_HEAD)
+        kode_cell = next((c for c in head["sortable"] if c["label"] == "KODE" or c["label"] == "Kode"), None)
+        steps.append({"want": want_sort, "kode": kode_cell, "hash": pg.evaluate("location.hash")})
+        if not kode_cell:
+            checks.append(f"urut: kolom Kode hilang sesudah klik ({want_sort})")
+            continue
+        if kode_cell["aria_sort"] != want_sort:
+            checks.append(f"urut: Kode aria-sort {kode_cell['aria_sort']!r}, diharapkan {want_sort!r}")
+        expect = [want_icon] if want_icon else ["arrow-up-down"]
+        if kode_cell["icons"] != expect:
+            checks.append(f"urut: panah Kode {kode_cell['icons']!r}, diharapkan {expect!r} ({want_sort})")
+        others = [c for c in head["sortable"] if c is not kode_cell and c["icons"] != ["arrow-up-down"]]
+        if others:
+            checks.append(f"urut: kolom lain kehilangan panah atas-bawahnya ({want_sort}): {others!r}")
+        if want_sort == "descending":
+            # Cetak: panah aktif tergambar, panah diam disembunyikan, tidak ada yang meluber ke samping.
+            pg.emulate_media(media="print")
+            printed = pg.evaluate(S54_SORT_PRINT)
+            pg.emulate_media(media="screen")
+            out["urut"]["cetak"] = printed
+            if printed["active_shown"] != 1:
+                checks.append(f"urut: cetak — panah kolom aktif tergambar {printed['active_shown']} (harus 1)")
+            if printed["idle_shown"]:
+                checks.append(f"urut: cetak — {printed['idle_shown']} panah kolom diam ikut tercetak")
+            if printed["overflow_x"] > 1:
+                checks.append(f"urut: cetak — halaman meluber {printed['overflow_x']} px ke samping")
+    out["urut"]["langkah"] = steps
+
+    # Panah tidak menambah lebar kolom: baris ISI daftar yang sempit tidak boleh membungkus karena
+    # judulnya berpanah. Gerbang UX-E1 menemukan #/r/projects/weekly-progress di kepadatan padat
+    # naik 32 → 46 px. Diukur di halaman yang SAMA dengan dan tanpa panah, di ketiga kepadatan.
+    pg.goto(BASE + "#/r/projects/weekly-progress")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(900)
+    lebar = {}
+    for dens in ("compact", "normal", "comfortable"):
+        pg.evaluate("(d) => { document.documentElement.dataset.density = d; }", dens)
+        pg.wait_for_timeout(250)
+        rows = "() => [...document.querySelectorAll('#view table.data tbody tr')].map((tr) => Math.round(tr.getBoundingClientRect().height * 2) / 2)"
+        with_ = pg.evaluate(rows)
+        tag = pg.add_style_tag(content="table.data th .th-sort .lucide { display: none !important; }")
+        pg.wait_for_timeout(250)
+        without = pg.evaluate(rows)
+        pg.evaluate("(n) => n.remove()", tag)
+        lebar[dens] = {"dengan": with_, "tanpa": without}
+        if with_ != without:
+            checks.append(f"urut: weekly-progress {dens} — panah judul mengubah tinggi baris isi {without} → {with_}")
+    pg.evaluate("() => { delete document.documentElement.dataset.density; }")
+    out["urut"]["lebar_kolom"] = lebar
+
+    # ------------------------------------------------------------ saringan (E1.4)
+    # Bilah alat dibangun SEKALI: popover Filter memegang kontrol saringan (tetap di DOM selagi
+    # tertutup), kotak Cari tidak kehilangan kursor saat daftarnya dimuat ulang, dan Escape
+    # pertama milik daftar combobox, bukan popover-nya.
+    sar = {}
+    pg.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    sar["tertutup"] = pg.evaluate(S54_FILTER_STATE)
+    t = sar["tertutup"]
+    if t["expanded"] != "false" or t["open"]:
+        checks.append(f"saringan: popover terbuka tanpa diminta ({t['expanded']!r}, open={t['open']})")
+    if "Status" not in t["controls"]:
+        checks.append(f"saringan: select Status tidak ada di DOM selagi popover tertutup ({t['controls']!r}) — chip kehilangan sumber labelnya")
+    if t["search_pad"] is None or t["search_pad"] < t["search_icon_right"] + 4:
+        checks.append(f"saringan: teks kotak Cari mulai pada {t['search_pad']} px, ikon kaca pembesar berakhir pada {t['search_icon_right']} px")
+    sar["tinggi_bilah_1440"] = t["toolbar_h"]
+
+    click(pg, ".list-toolbar .filter-toggle")
+    pg.wait_for_selector(".filter-pop:not([hidden])", timeout=5000)
+    sar["dibuka"] = pg.evaluate(S54_FILTER_STATE)
+    d = sar["dibuka"]
+    want = ["Status", "Vendor", "Proyek", "Dari tanggal", "Sampai tanggal"]
+    if [c for c in want if c not in d["visible"]]:
+        checks.append(f"saringan: popover terbuka tanpa {[c for c in want if c not in d['visible']]!r} (terlihat {d['visible']!r})")
+    if d["active"] != "Status":
+        checks.append(f"saringan: membuka popover tidak memfokus kontrol pertamanya (fokus {d['active']!r})")
+
+    pg.select_option(".filters select[aria-label='Status']", "approved")
+    pg.wait_for_timeout(1500)
+    sar["status"] = pg.evaluate(S54_FILTER_STATE)
+    st = sar["status"]
+    if not st["open"] or st["active"] != "Status" or st["pill"] != "1":
+        checks.append(f"saringan: sesudah Status — terbuka={st['open']}, fokus={st['active']!r}, lencana={st['pill']!r} (harus terbuka, Status, '1')")
+
+    click(pg, ".filter-pop .combo input[aria-label='Vendor']")
+    pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000)
+    # Indeks, bukan teks: baris vendor terdiri dari beberapa span (kode · bintang — nama).
+    pick = pg.evaluate("""() => { const opts = [...document.querySelectorAll('.combo-pop .combo-opt')];
+      const i = opts.findIndex((o) => o.innerText.trim() !== '—');
+      return i < 0 ? null : { index: i, text: opts[i].innerText.replace(/\\s+/g, ' ').trim() }; }""")
+    sar["vendor_dipilih"] = pick
+    if not pick:
+        checks.append("saringan: daftar Vendor tidak punya satu pun vendor untuk dipilih")
+    else:
+        pg.click(f".combo-pop .combo-opt >> nth={pick['index']}")
+        pg.wait_for_timeout(1600)
+        sar["vendor"] = pg.evaluate(S54_FILTER_STATE)
+        v = sar["vendor"]
+        if not v["open"] or v["pill"] != "2" or "vendor_id=" not in v["hash"]:
+            checks.append(f"saringan: sesudah Vendor — terbuka={v['open']}, lencana={v['pill']!r}, hash={v['hash']!r} (harus terbuka, '2', vendor_id)")
+        if v["active"] != "Vendor":
+            checks.append(f"saringan: fokus lepas dari Vendor sesudah memilih ({v['active']!r})")
+
+    # Escape pertama menutup daftar combobox SAJA; yang kedua menutup popover dan kembali ke tombolnya.
+    click(pg, ".filter-pop .combo input[aria-label='Proyek']")
+    pg.wait_for_selector(".combo-pop", timeout=8000)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(300)
+    sar["escape_1"] = pg.evaluate(S54_FILTER_STATE)
+    if sar["escape_1"]["combo_open"] or not sar["escape_1"]["open"]:
+        checks.append(f"saringan: Escape pertama — daftar combobox terbuka={sar['escape_1']['combo_open']}, popover terbuka={sar['escape_1']['open']} (harus: daftar tertutup, popover tetap)")
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(300)
+    sar["escape_2"] = pg.evaluate(S54_FILTER_STATE)
+    if sar["escape_2"]["open"] or sar["escape_2"]["active_class"] != "filter-toggle":
+        checks.append(f"saringan: Escape kedua — popover terbuka={sar['escape_2']['open']}, fokus={sar['escape_2']['active_class']!r} (harus tertutup, tombol Filter)")
+
+    # Klik di luar menutupnya.
+    click(pg, ".list-toolbar .filter-toggle")
+    pg.wait_for_selector(".filter-pop:not([hidden])", timeout=5000)
+    pg.mouse.click(700, 110)  # bidang judul halaman, jauh dari bilah dan panel
+    pg.wait_for_timeout(300)
+    sar["klik_luar"] = pg.evaluate(S54_FILTER_STATE)
+    if sar["klik_luar"]["open"]:
+        checks.append("saringan: klik di luar tidak menutup popover")
+
+    # Kotak Cari: mengetik melewati muatan ulang (jeda 320 ms) tanpa kehilangan kursor.
+    click(pg, ".list-toolbar input[aria-label='Cari']")
+    pg.keyboard.type("PO", delay=150)
+    pg.wait_for_timeout(1000)
+    sar["cari"] = pg.evaluate("() => ({ active: document.activeElement.getAttribute('aria-label'), value: document.activeElement.value, hash: location.hash })")
+    if sar["cari"]["active"] != "Cari" or sar["cari"]["value"] != "PO":
+        checks.append(f"saringan: kotak Cari kehilangan kursor/isi sesudah muatan ulang ({sar['cari']!r})")
+    if "q=PO" not in sar["cari"]["hash"]:
+        checks.append(f"saringan: ketikan tidak pernah memuat ulang daftarnya (hash {sar['cari']['hash']!r})")
+    pg.screenshot(path=f"{OUT}/s54-saringan.png")
+
+    # 390 px: panelnya di dalam layar dan halamannya tidak bergeser ke samping.
+    ctx390 = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        p390 = ctx390.new_page()
+        p390.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(p390, "admin@nusantara.test")
+        p390.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+        p390.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        p390.wait_for_timeout(900)
+        sar["tinggi_bilah_390"] = p390.evaluate(S54_FILTER_STATE)["toolbar_h"]
+        p390.click(".list-toolbar .filter-toggle")
+        p390.wait_for_selector(".filter-pop:not([hidden])", timeout=5000)
+        p390.wait_for_timeout(300)
+        sar["ponsel"] = p390.evaluate("""() => { const r = document.querySelector('.filter-pop').getBoundingClientRect();
+          return { left: Math.round(r.left), right: Math.round(r.right), vw: document.documentElement.clientWidth,
+                   overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth }; }""")
+        m = sar["ponsel"]
+        if m["left"] < 0 or m["right"] > m["vw"] or m["overflow_x"] > 0:
+            checks.append(f"saringan: 390 px — panel {m['left']}..{m['right']} dalam layar {m['vw']}, luber {m['overflow_x']} px")
+        p390.screenshot(path=f"{OUT}/s54-saringan-390.png")
+    finally:
+        ctx390.close()
+    out["saringan"] = sar
+
+    # ------------------------------------------------------------ keping (E1.5)
+    # Chip saringan aktif duduk DI DALAM bilah alat (filterChip), "Hapus semua" satu-satunya tombol
+    # barisnya; nilai seed yang tidak menggambar chip tetap punya jalan keluar; kertas mencetak chip
+    # tanpa kontrolnya, dan daftar polos tidak mencetak bilah kosong.
+    kep = {}
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=PO&status=draft")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    kep["dua"] = pg.evaluate(S54_CHIP_STATE)
+    k = kep["dua"]
+    if not k["in_toolbar"] or k["hidden"]:
+        checks.append(f"keping: baris chip tidak terlihat di dalam .list-toolbar ({k!r})")
+    if [c["key"] for c in k["chips"]] != ["Cari:", "Status:"] or [c["value"] for c in k["chips"]] != ["PO", "Draf"]:
+        checks.append(f"keping: chip q+status bukan [Cari: PO, Status: Draf] — {k['chips']!r}")
+    if k["buttons"] != ["Hapus semua"]:
+        checks.append(f"keping: tombol baris chip {k['buttons']!r}, harus hanya 'Hapus semua'")
+    if any(c["x_px"] != 12 for c in k["chips"]):
+        checks.append(f"keping: ikon × bukan 12 px (filterChip): {[c['x_px'] for c in k['chips']]!r}")
+
+    pg.emulate_media(media="print")
+    kep["cetak"] = pg.evaluate(S54_CHIP_PRINT)
+    pg.emulate_media(media="screen")
+    c = kep["cetak"]
+    if not c["toolbar_shown"] or c["chips_shown"] != 2:
+        checks.append(f"keping: cetak — bilah {c['toolbar_shown']}, chip tercetak {c['chips_shown']} (harus 2)")
+    if c["controls_shown"]:
+        checks.append(f"keping: cetak — kontrol bilah alat ikut tercetak: {c['controls_shown']!r}")
+
+    pg.goto(BASE + "#/r/procurement/purchase-orders?status=bogus")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    kep["basi"] = pg.evaluate(S54_CHIP_STATE)
+    b = kep["basi"]
+    if b["hidden"] or b["chips"] or b["buttons"] != ["Hapus semua"]:
+        checks.append(f"keping: ?status=bogus — baris tersembunyi={b['hidden']}, chip {b['chips']!r}, tombol {b['buttons']!r} "
+                      "(harus terlihat, tanpa chip, dengan 'Hapus semua')")
+    else:
+        click(pg, ".list-toolbar .chips.active-filters button.btn")
+        pg.wait_for_timeout(1500)
+        kep["basi_dihapus"] = pg.evaluate("() => ({ hash: location.hash, hidden: document.querySelector('.chips.active-filters').hidden })")
+        if kep["basi_dihapus"]["hash"] != "#/r/procurement/purchase-orders" or not kep["basi_dihapus"]["hidden"]:
+            checks.append(f"keping: 'Hapus semua' tidak membuang nilai basi: {kep['basi_dihapus']!r}")
+
+    pg.emulate_media(media="print")
+    kep["cetak_polos"] = pg.evaluate(S54_CHIP_PRINT)
+    pg.emulate_media(media="screen")
+    # Sejak UX-E1.6 bilah daftar polos tercetak HANYA bila membawa angka jumlahnya — yang dilarang
+    # adalah bilah KOSONG di kertas, dan kontrol apa pun.
+    cp = kep["cetak_polos"]
+    if cp["toolbar_shown"] and not cp["count_text"]:
+        checks.append("keping: cetak daftar polos — bilah alat kosong ikut tercetak")
+    if cp["controls_shown"] or cp["chips_shown"]:
+        checks.append(f"keping: cetak daftar polos — kontrol/chip tercetak: {cp!r}")
+    out["keping"] = kep
+
+    # ------------------------------------------------------------ jumlah (E1.6)
+    # "N PO" dari meta.total server (dibandingkan dengan jawaban API untuk query yang sama),
+    # "· tersaring" hanya saat tersaring, KOSONG selama memuat — bukan "0 PO".
+    def idn(n):
+        return f"{n:,}".replace(",", ".")
+    jml = {}
+    pg.evaluate(S54_DELAY_DRAFT)  # status=draft ditunda 1,5 s (dipasang di blok balapan; idempoten)
+    pg.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    jml["polos"] = pg.evaluate(S54_COUNT, {})
+    j = jml["polos"]
+    if not isinstance(j["truth"], int) or j["text"] != f"{idn(j['truth'])} PO":
+        checks.append(f"jumlah: daftar polos menulis {j['text']!r}, server berkata {j['truth']!r} PO")
+    if not j["last"]:
+        checks.append("jumlah: angka bukan anak terakhir bilah alat")
+
+    pg.goto(BASE + "#/r/procurement/purchase-orders?status=draft")
+    pg.wait_for_timeout(500)
+    jml["memuat"] = pg.evaluate("() => ({ text: document.querySelector('.list-toolbar .list-count').textContent, skeleton: !!document.querySelector('#view .list-body .skel, #view .list-body .skeleton, #view .list-body table.skel') })")
+    if jml["memuat"]["text"] != "":
+        checks.append(f"jumlah: selama memuat angkanya {jml['memuat']['text']!r} — harus kosong, bukan klaim")
+    pg.wait_for_timeout(2200)
+    jml["draf"] = pg.evaluate(S54_COUNT, {"status": "draft"})
+    j = jml["draf"]
+    # UX-E1.7: tersaring membaca "N dari M" — M = total tak tersaring dari jawaban polos di atas.
+    whole = jml["polos"]["truth"]
+    if not isinstance(j["truth"], int) or j["text"] != f"{idn(j['truth'])} dari {idn(whole)} PO · tersaring":
+        checks.append(f"jumlah: ?status=draft menulis {j['text']!r}, server berkata {j['truth']!r} dari {whole!r} — harus '<n> dari <m> PO · tersaring'")
+
+    pg.goto(BASE + "#/r/procurement/purchase-orders?q=zzzzqq")
+    pg.wait_for_selector("#view .empty", timeout=20000)
+    pg.wait_for_timeout(700)
+    jml["cari_kosong"] = pg.evaluate(S54_COUNT, {"q": "zzzzqq"})
+    j = jml["cari_kosong"]
+    if j["text"] != f"0 dari {idn(whole)} PO · tersaring" or not j["empty"] or j["truth"] != 0:
+        checks.append(f"jumlah: ?q=zzzzqq menulis {j['text']!r} (keadaan kosong={j['empty']}, server {j['truth']!r}) — harus '0 dari {whole} PO · tersaring'")
+
+    pg.emulate_media(media="print")
+    jml["cetak"] = pg.evaluate("() => { const n = document.querySelector('.list-toolbar .list-count'); return { shown: getComputedStyle(n).display !== 'none' && getComputedStyle(n.parentElement).display !== 'none', text: n.textContent }; }")
+    pg.emulate_media(media="screen")
+    if not jml["cetak"]["shown"]:
+        checks.append("jumlah: angka tidak tercetak — pager disembunyikan di kertas, jadi lembarnya tidak menyebut totalnya")
+
+    # UX-E1.7 — log permintaan: M datang dari SATU permintaan per_page=1 per pengguna, layar dan
+    # menit. Konteks baru = modul list.js baru = cache M kosong; harness sendiri tidak memanggil
+    # api.list di konteks ini, jadi setiap per_page=1 yang tercatat milik layarnya.
+    def whole_requests(log):
+        return [u for u in log if "/api/procurement/purchase-orders?" in u and "per_page=1&" in u + "&"
+                and not any(p in u for p in ("status=", "q=", "vendor_id=", "project_id=", "date_from=", "date_to=", "sort="))]
+    ctx_log = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        pl = ctx_log.new_page()
+        sent = []
+        pl.on("request", lambda r: sent.append(r.url) if r.method == "GET" else None)
+        pl.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(pl, "admin@nusantara.test")
+        pl.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+        pl.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        pl.wait_for_timeout(1500)
+        polos = whole_requests(sent)
+        buka_saringan(pl)
+        pl.select_option(".filters select[aria-label='Status']", "approved")
+        pl.wait_for_timeout(1500)
+        pl.select_option(".filters select[aria-label='Status']", "draft")
+        pl.wait_for_timeout(1500)
+        pl.keyboard.press("Escape")
+        pl.wait_for_timeout(200)
+        pl.click(".list-toolbar input[aria-label='Cari']")
+        pl.keyboard.type("PO", delay=60)
+        pl.wait_for_timeout(1800)
+        tiga = whole_requests(sent)
+        jml["log"] = {
+            "polos": len(polos),
+            "tiga_ganti": len(tiga),
+            "hash": pl.evaluate("location.hash"),
+            "text": pl.evaluate("() => document.querySelector('.list-toolbar .list-count').textContent"),
+            "urls": tiga[:4],
+        }
+        lg = jml["log"]
+        if lg["polos"] != 0:
+            checks.append(f"jumlah: daftar polos mengirim {lg['polos']} permintaan per_page=1 — M hanya untuk daftar tersaring")
+        if not ("status=draft" in lg["hash"] and "q=PO" in lg["hash"]):
+            checks.append(f"jumlah: log — tiga ganti saringan tidak pernah sampai ({lg['hash']!r}); hitungan permintaannya tidak teruji")
+        if lg["tiga_ganti"] != 1:
+            checks.append(f"jumlah: tiga ganti saringan dalam semenit mengirim {lg['tiga_ganti']} permintaan per_page=1 (harus tepat 1): {lg['urls']!r}")
+        if " dari " not in (lg["text"] or ""):
+            checks.append(f"jumlah: log — sesudah tiga ganti angkanya {lg['text']!r}, tanpa 'dari M'")
+    finally:
+        ctx_log.close()
+
+    # UX-E1.7 — permintaan M gagal (429, batas laju): diam. Angkanya "N PO · tersaring" tanpa "dari",
+    # tanpa toast. Konteks terpisah dan DI LUAR gerbang konsol: Chromium mencatat 429 itu sebagai
+    # "Failed to load resource" — itu catatan peramban, bukan galat aplikasi.
+    ctx_429 = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        p4 = ctx_429.new_page()
+        hits = []
+        def refuse(route):
+            if route.request.method == "GET" and whole_requests([route.request.url]):
+                hits.append(route.request.url)
+                route.fulfill(status=429, content_type="application/json",
+                              body='{"message":"Terlalu banyak permintaan — coba lagi sebentar lagi."}')
+            else:
+                route.continue_()
+        login(p4, "admin@nusantara.test")
+        p4.route(re.compile(r"/api/procurement/purchase-orders\?"), refuse)
+        p4.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        p4.goto(BASE + "#/r/procurement/purchase-orders?status=draft")
+        p4.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        p4.wait_for_timeout(1500)
+        jml["gagal"] = p4.evaluate("""() => ({
+          text: document.querySelector('.list-toolbar .list-count').textContent,
+          toasts: [...document.querySelectorAll('.toast')].map((t) => t.innerText.trim()).filter(Boolean),
+        })""")
+        jml["gagal"]["hits"] = len(hits)
+        g = jml["gagal"]
+        if g["hits"] < 1:
+            checks.append("jumlah: 429 — permintaan per_page=1 tidak pernah dikirim; kegagalannya tidak teruji")
+        if not re.fullmatch(r"[\d.]+ PO · tersaring", g["text"] or ""):
+            checks.append(f"jumlah: 429 pada M — angkanya {g['text']!r}, harus 'N PO · tersaring' tanpa 'dari'")
+        if g["toasts"]:
+            checks.append(f"jumlah: 429 pada M bersuara — toast {g['toasts']!r}")
+    finally:
+        ctx_429.close()
+    out["jumlah"] = jml
+
+    out["console_errors"] = errors
+    if errors:
+        checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
+S55_TABS = """() => {
+  const strip = document.querySelector('#view > .list-tabs');
+  const tabs = strip ? [...strip.querySelectorAll('[role=tab]')] : [];
+  const sel = document.querySelector(".filters select[aria-label='Status']");
+  const on = tabs.find((t) => t.getAttribute('aria-selected') === 'true');
+  const probe = document.createElement('span');
+  probe.style.color = 'var(--primary)';
+  document.body.appendChild(probe);
+  const primary = getComputedStyle(probe).color;
+  probe.remove();
+  const active = document.activeElement;
+  return {
+    present: !!strip,
+    // Urutan simpul #view: kepala, tab, lalu kartu daftar.
+    order: [...document.querySelector('#view').children].map((n) => n.className.split(' ')[0]),
+    label: strip ? strip.getAttribute('aria-label') : null,
+    texts: tabs.map((t) => t.innerText.trim()),
+    selected: tabs.filter((t) => t.getAttribute('aria-selected') === 'true').map((t) => t.innerText.trim()),
+    focusable: tabs.filter((t) => t.tabIndex === 0).map((t) => t.innerText.trim()),
+    counts: strip ? strip.querySelectorAll('.tab-count').length : 0,
+    panel_ok: tabs.length > 0 && tabs.every((t) => {
+      const panel = document.getElementById(t.getAttribute('aria-controls') || '');
+      return !!panel && panel.matches('#view > .card');
+    }),
+    on_color: on ? getComputedStyle(on).color : null,
+    primary,
+    options: sel ? [...sel.options].filter((o) => o.value !== '').map((o) => o.text) : null,
+    select_value: sel ? sel.value : null,
+    chips: [...document.querySelectorAll('.chips.active-filters .chip')].map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
+    hash: location.hash,
+    badges: [...document.querySelectorAll('#view table.data tbody .badge[data-status]')].map((b) => b.dataset.status),
+    rows: document.querySelectorAll('#view table.data tbody tr').length,
+    empty: !!document.querySelector('#view .list-body .empty'),
+    focus_tab: active && active.getAttribute('role') === 'tab' ? active.innerText.trim() : null,
+    overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    strip_scroll: strip ? strip.scrollWidth - strip.clientWidth : null,
+  };
+}"""
+
+S55_DELAY_MIDDLE = """() => {
+  // Tunda jawaban daftar PO status=approved — yang DILEWATI panah kanan — 1,8 s. HANYA itu:
+  // approved BERISI baris (seed: dua PO disetujui) dan status terakhirnya (closed) kosong, jadi
+  // tanpa nomor urut muat (E1.2) jawaban approved tiba PALING AKHIR dan melukis dua lencana
+  // 'approved' di bawah tab Selesai. (Menunda rejected juga membuat jawaban KOSONG-nya tiba
+  // paling akhir dan menutupi kegagalan itu — terukur dengan penjaga E1.2 dicabut, 4 Okt 2026.)
+  if (window.__s55Delay) return 'sudah';
+  const original = window.fetch.bind(window);
+  window.__s55Delay = true;
+  window.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input.url;
+    if (/purchase-orders\\?/.test(url) && /status=approved(&|$)/.test(url)) {
+      return new Promise((resolve) => setTimeout(resolve, 1800)).then(() => original(input, init));
+    }
+    return original(input, init);
+  };
+  return 'dipasang';
+}"""
+
+S55_CENSUS = """async () => {
+  // Sensus tab: harapan dihitung dari skema + session.isDecisionDoor milik APLIKASI, dengan
+  // aturan rencana E1.8 — quickFilters ?? (punya pintu keputusan ? ['status'] : []), saringan
+  // pertama berkunci itu yang ber-enum di ENUMS. Lalu setiap layar dikunjungi.
+  const { RESOURCES } = await import('/app/js/schema.js');
+  const { session } = await import('/app/js/api.js');
+  const { ENUMS } = await import('/app/js/enums.js');
+  const rows = [];
+  for (const [key, def] of Object.entries(RESOURCES)) {
+    const keys = def.quickFilters ?? ((def.actions || []).some((a) => session.isDecisionDoor(a)) ? ['status'] : []);
+    const filter = (def.filters || []).find((f) => keys.includes(f.key) && f.enum && ENUMS[f.enum]) || null;
+    const statusFilter = (def.filters || []).some((f) => f.key === 'status' && f.enum);
+    rows.push({
+      key, api: def.api, tabs: filter ? ['Semua', ...ENUMS[filter.enum].map((o) => o.label)] : null,
+      // quickFilters yang DIMINTA tetapi tidak menemukan saringan ber-enum = deklarasi yang mati diam-diam.
+      declared_dead: def.quickFilters !== undefined && !filter,
+      status_filter: statusFilter,
+      can_view: session.can(def.viewPerm || `${def.module}.view`),
+    });
+  }
+  return rows;
+}"""
+
+
+@scenario("S55_jumlah_dan_tab")
+def s55(pg):
+    """UX-E1.8 tab status cepat (tampilan kedua saringan Status) dan UX-E1.12 Atur kolom."""
+    out, checks, errors = {}, [], []
+    pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+
+    # ------------------------------------------------------------ tab (E1.8)
+    tab = {}
+    po = "#/r/procurement/purchase-orders"
+    pg.goto(BASE + po)
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    tab["polos"] = t = pg.evaluate(S55_TABS)
+    if not t["present"]:
+        checks.append("tab: daftar PO tidak membawa .list-tabs")
+    else:
+        if t["order"][:3] != ["page-head", "tabs", "card"]:
+            checks.append(f"tab: urutan #view {t['order']!r}, harus kepala · tab · kartu")
+        if not t["options"] or t["texts"] != ["Semua"] + t["options"]:
+            checks.append(f"tab: teks {t['texts']!r} ≠ ['Semua'] + opsi select Status {t['options']!r}")
+        if t["selected"] != ["Semua"] or t["focusable"] != ["Semua"]:
+            checks.append(f"tab: daftar polos — menyala {t['selected']!r}, tabIndex 0 {t['focusable']!r} (harus 'Semua')")
+        if t["hash"] != po:
+            checks.append(f"tab: tab menulis ke URL daftar polos ({t['hash']!r})")
+        if t["counts"]:
+            checks.append(f"tab: {t['counts']} .tab-count — tab tidak membawa angka")
+        if t["label"] != "Saring status":
+            checks.append(f"tab: aria-label tablist {t['label']!r}")
+        if not t["panel_ok"]:
+            checks.append("tab: aria-controls tidak menunjuk kartu daftar")
+        if t["on_color"] != t["primary"]:
+            checks.append(f"tab: tab menyala berwarna {t['on_color']!r}, bukan --primary {t['primary']!r}")
+
+    click(pg, "#view .list-tabs [role=tab][data-tab='draft']")
+    pg.wait_for_function("() => location.hash.includes('status=draft')", timeout=10000)
+    pg.wait_for_timeout(1200)
+    tab["draf"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] != ["Draf"] or t["select_value"] != "draft" or "Status: Draf" not in t["chips"]:
+        checks.append(f"tab: klik Draf — menyala {t['selected']!r}, select {t['select_value']!r}, chip {t['chips']!r}")
+    if [b for b in t["badges"] if b != "draft"]:
+        checks.append(f"tab: klik Draf — lencana {t['badges']!r}")
+
+    # × pada chip Status mengembalikan tab ke Semua (chip satu-satunya: Status).
+    click(pg, ".chips.active-filters .chip .chip-x")
+    pg.wait_for_function(f"() => location.hash === '{po}'", timeout=10000)
+    pg.wait_for_timeout(1000)
+    tab["chip_dibuang"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] != ["Semua"] or t["chips"]:
+        checks.append(f"tab: × chip — menyala {t['selected']!r}, chip {t['chips']!r} (harus Semua, tanpa chip)")
+
+    # Select di popover menggerakkan tab juga.
+    buka_saringan(pg)
+    pg.select_option(".filters select[aria-label='Status']", "submitted")
+    pg.wait_for_timeout(1200)
+    tab["dari_select"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] != ["Diajukan"]:
+        checks.append(f"tab: select Status=submitted — tab menyala {t['selected']!r}")
+    tutup_saringan(pg)
+
+    pg.goto(BASE + po + "?status=approved")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    tab["seed_url"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] != ["Disetujui"] or t["focusable"] != ["Disetujui"]:
+        checks.append(f"tab: ?status=approved menyalakan {t['selected']!r}")
+    if not t["rows"] or [b for b in t["badges"] if b != "approved"]:
+        checks.append(f"tab: ?status=approved — {t['rows']} baris, lencana {t['badges']!r}")
+
+    # Tiga panah kanan cepat dari Diajukan: Disetujui (ditunda 1,8 s), Ditolak, Selesai.
+    # Tiga muatan; hanya yang terakhir boleh melukis, dan hash/tab/select/chip/isi sepakat.
+    # Subjeknya harus BISA gagal: Disetujui membawa baris (seed), Selesai kosong.
+    pg.goto(BASE + po + "?status=submitted")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    tab["patch"] = pg.evaluate(S55_DELAY_MIDDLE)
+    pg.focus("#view .list-tabs [role=tab][data-tab='submitted']")
+    for _ in range(3):
+        pg.keyboard.press("ArrowRight")
+        pg.wait_for_timeout(90)
+    pg.wait_for_timeout(2600)
+    tab["panah"] = t = pg.evaluate(S55_TABS)
+    agree = (t["selected"] == ["Selesai"] and t["focus_tab"] == "Selesai" and "status=closed" in t["hash"]
+             and t["select_value"] == "closed" and "Status: Selesai" in t["chips"])
+    if not agree:
+        checks.append(f"tab: tiga panah kanan — menyala {t['selected']!r}, fokus {t['focus_tab']!r}, hash {t['hash']!r}, "
+                      f"select {t['select_value']!r}, chip {t['chips']!r} (harus semuanya Selesai)")
+    if t["badges"] or t["rows"] or not t["empty"]:
+        checks.append(f"tab: tiga panah kanan — jawaban usang melukis {t['rows']} baris, lencana {t['badges']!r} di bawah Selesai")
+    if tab["seed_url"]["rows"] == 0:
+        checks.append("tab: subjek hilang — tidak ada PO disetujui, balapan tab tidak bisa gagal")
+
+    # Panah yang DITAHAN: auto-repeat memindahkan sorotan, dan hanya tekanan pertama serta
+    # pelepasannya yang memuat — bukan satu permintaan per ulangan (batas laju 120/menit).
+    sent = []
+    on_req = lambda r: sent.append(r.url) if r.method == "GET" and re.search(r"/api/procurement/purchase-orders\?.*per_page=20", r.url) else None
+    pg.on("request", on_req)
+    pg.focus("#view .list-tabs [role=tab][aria-selected=true]")
+    for _ in range(6):
+        pg.keyboard.down("ArrowLeft")  # kedua dan seterusnya: repeat=true
+        pg.wait_for_timeout(40)
+    pg.keyboard.up("ArrowLeft")
+    pg.wait_for_timeout(2600)
+    pg.remove_listener("request", on_req)
+    tab["tahan"] = t = pg.evaluate(S55_TABS)
+    t["requests"] = len(sent)
+    # Dari Selesai, enam kali kiri (tujuh tab, berputar): Ditolak, Disetujui, Diajukan, Draf, Semua, Dibatalkan.
+    if t["requests"] > 2:
+        checks.append(f"tab: menahan ← mengirim {t['requests']} permintaan daftar (harus ≤ 2: tekanan pertama + pelepasan)")
+    if t["selected"] != ["Dibatalkan"] or "status=cancelled" not in t["hash"] or "Status: Dibatalkan" not in t["chips"]:
+        checks.append(f"tab: sesudah menahan ← — menyala {t['selected']!r}, hash {t['hash']!r}, chip {t['chips']!r} (harus Dibatalkan, dimuat saat dilepas)")
+
+    # Panah bermodifier bukan milik tab: Shift+→ tidak memindahkan apa pun.
+    before = pg.evaluate("location.hash")
+    pg.keyboard.press("Shift+ArrowRight")
+    pg.wait_for_timeout(700)
+    tab["shift"] = t = pg.evaluate(S55_TABS)
+    if t["hash"] != before or t["selected"] != ["Dibatalkan"]:
+        checks.append(f"tab: Shift+→ memindahkan tab ({before!r} → {t['hash']!r}, menyala {t['selected']!r})")
+
+    # Nilai URL basi: tidak ada tab yang menyala, tetapi satu tab tetap bisa dicapai Tab.
+    pg.goto(BASE + po + "?status=bogus")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    tab["basi"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] or len(t["focusable"]) != 1:
+        checks.append(f"tab: ?status=bogus — menyala {t['selected']!r}, tabIndex 0 {t['focusable']!r} (harus nihil, tepat satu)")
+
+    # Kertas: tab tidak tercetak; status yang dipilih tercetak sebagai chip-nya.
+    pg.goto(BASE + po + "?status=draft")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(2200)
+    pg.emulate_media(media="print")
+    tab["cetak"] = pg.evaluate("""() => ({
+      tabs: getComputedStyle(document.querySelector('#view .list-tabs')).display,
+      chip: [...document.querySelectorAll('.chips.active-filters .chip')].filter((c) => getComputedStyle(c).display !== 'none').map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
+    })""")
+    pg.emulate_media(media="screen")
+    if tab["cetak"]["tabs"] != "none" or "Status: Draf" not in tab["cetak"]["chip"]:
+        checks.append(f"tab: cetak — tab display {tab['cetak']['tabs']!r}, chip tercetak {tab['cetak']['chip']!r}")
+    pg.screenshot(path=f"{OUT}/s55-tab-1440.png")
+    # Tema gelap: tab menyala tetap --primary (token tema gelap), dan buktinya tergambar.
+    pg.evaluate("document.documentElement.dataset.theme = 'dark'")
+    pg.wait_for_timeout(200)
+    tab["gelap"] = t = pg.evaluate(S55_TABS)
+    if t["on_color"] != t["primary"]:
+        checks.append(f"tab: tema gelap — tab menyala {t['on_color']!r}, bukan --primary {t['primary']!r}")
+    pg.screenshot(path=f"{OUT}/s55-tab-1440-dark.png")
+    pg.evaluate("delete document.documentElement.dataset.theme")
+
+    # Layar tanpa pintu keputusan tidak membawa tab, termasuk yang punya saringan status.
+    tab["tanpa"] = {}
+    for route in ("crm/customers", "servicedesk/field-reports", "servicedesk/tickets"):
+        pg.goto(BASE + f"#/r/{route}")
+        pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        pg.wait_for_timeout(500)
+        tab["tanpa"][route] = pg.evaluate("() => !!document.querySelector('#view .list-tabs')")
+        if tab["tanpa"][route]:
+            checks.append(f"tab: {route} membawa .list-tabs padahal tidak punya pintu keputusan")
+
+    # 390 px: tab menggulir di dalam stripnya, halamannya tidak bergeser ke samping.
+    ctx390 = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        p390 = ctx390.new_page()
+        p390.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(p390, "admin@nusantara.test")
+        p390.goto(BASE + po)
+        p390.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        p390.wait_for_timeout(900)
+        tab["ponsel"] = m = p390.evaluate(S55_TABS)
+        if not m["present"] or m["overflow_x"] > 0 or not (m["strip_scroll"] or 0) > 0:
+            checks.append(f"tab: 390 px — strip ada={m['present']}, luber halaman {m['overflow_x']} px, gulir strip {m['strip_scroll']} px "
+                          "(harus: halaman tidak luber, strip yang menggulir)")
+        p390.screenshot(path=f"{OUT}/s55-tab-390.png")
+        p390.evaluate("document.documentElement.dataset.theme = 'dark'")
+        p390.wait_for_timeout(200)
+        p390.screenshot(path=f"{OUT}/s55-tab-390-dark.png")
+    finally:
+        ctx390.close()
+    out["tab"] = tab
+
+    # ------------------------------------------------------------ kolom (E1.12)
+    # Atur kolom: menyembunyikan Proyek menurunkan jumlah sel th, td, dan tfoot BERSAMA-SAMA; kolom
+    # utama dan kolom pengurut terkunci; keadaannya bertahan selama sesi (pindah layar lalu kembali)
+    # tetapi tidak ke konteks baru; CSV mengikuti kolom yang tampil; kertas menyebut yang disembunyikan.
+    kol = {}
+    COLS = """() => {
+      const heads = [...document.querySelectorAll('#view table.data thead th')].filter((th) => !th.matches('.pick, .col-min'));
+      const body = [...document.querySelectorAll('#view table.data tbody tr')].map((tr) => tr.children.length);
+      const foot = document.querySelector('#view table.data tfoot tr');
+      const pop = document.querySelector('.col-pop');
+      const boxes = pop ? [...pop.querySelectorAll('.col-item')].map((item) => ({ label: item.innerText.trim(), checked: item.querySelector('input').checked, disabled: item.querySelector('input').disabled })) : [];
+      const pill = document.querySelector('.col-toggle .col-count');
+      const note = document.querySelector('.list-print-note');
+      return {
+        heads: heads.map((th) => th.textContent.trim()),
+        th: document.querySelectorAll('#view table.data thead th').length,
+        td: [...new Set(body)],
+        tfoot: foot ? foot.children.length : null,
+        foot_label: foot ? [...foot.children].map((td) => td.textContent.trim()).filter(Boolean) : [],
+        boxes, open: !!pop && !pop.hidden,
+        pill: pill && !pill.hidden ? pill.firstChild.textContent : null,
+        note: note && !note.hidden ? note.textContent : null,
+        hash: location.hash,
+      };
+    }"""
+    def open_cols(p):
+        if p.get_attribute(".list-toolbar .col-toggle", "aria-expanded") == "false":
+            p.click(".list-toolbar .col-toggle")
+        p.wait_for_selector(".col-pop:not([hidden])", timeout=5000)
+    pg.goto(BASE + po + "?page=1")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(900)
+    kol["awal"] = a = pg.evaluate(COLS)
+    open_cols(pg)
+    kol["popover"] = b = pg.evaluate(COLS)
+    kode = next((x for x in b["boxes"] if x["label"] == "Kode"), None)
+    if not kode or not kode["disabled"] or not kode["checked"]:
+        checks.append(f"kolom: Kode (kolom utama) tidak terkunci di popover ({kode!r})")
+    if any(not x["checked"] for x in b["boxes"]) or a["pill"]:
+        checks.append(f"kolom: daftar baru tidak menampilkan semua kolom ({b['boxes']!r}, lencana {a['pill']!r})")
+    pg.click(".col-pop .col-item:has-text('Proyek') input")
+    pg.wait_for_timeout(500)
+    kol["tanpa_proyek"] = c = pg.evaluate(COLS)
+    if "Proyek" in c["heads"] or c["th"] != a["th"] - 1 or c["td"] != [x - 1 for x in a["td"]] or (a["tfoot"] and c["tfoot"] != a["tfoot"] - 1):
+        checks.append(f"kolom: sembunyikan Proyek — th {a['th']}→{c['th']}, td {a['td']}→{c['td']}, tfoot {a['tfoot']}→{c['tfoot']} (harus turun satu bersama)")
+    if "Total halaman ini" not in c["foot_label"]:
+        checks.append(f"kolom: label 'Total halaman ini' hilang ({c['foot_label']!r})")
+    if c["pill"] != "1" or not c["open"]:
+        checks.append(f"kolom: lencana {c['pill']!r} (harus '1'), popover terbuka={c['open']}")
+    if c["hash"] != po + "?page=1" and c["hash"] != po:
+        checks.append(f"kolom: menyembunyikan kolom menulis ke URL ({c['hash']!r})")
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(200)
+
+    # CSV: judulnya persis judul kolom yang tampil.
+    with pg.expect_download(timeout=15000) as dl:
+        pg.click(".list-toolbar button:has-text('Ekspor CSV')")
+    raw = open(dl.value.path(), encoding="utf-8-sig").read()
+    header = [h.strip().strip('"') for h in raw.splitlines()[0].split(";")]
+    kol["csv_header"] = header
+    if header != c["heads"]:
+        checks.append(f"kolom: judul CSV {header!r} ≠ kolom yang tampil {c['heads']!r}")
+
+    # Kertas menyebut kolom yang disembunyikan.
+    pg.emulate_media(media="print")
+    kol["cetak"] = pg.evaluate("() => { const n = document.querySelector('.list-print-note'); return n ? { shown: getComputedStyle(n).display !== 'none', text: n.textContent } : null; }")
+    pg.emulate_media(media="screen")
+    if not kol["cetak"] or not kol["cetak"]["shown"] or "Proyek" not in kol["cetak"]["text"]:
+        checks.append(f"kolom: cetak tidak menyebut kolom yang disembunyikan ({kol['cetak']!r})")
+
+    # Bertahan selama sesi: pindah layar lalu kembali.
+    pg.goto(BASE + "#/home")
+    pg.wait_for_timeout(700)
+    pg.goto(BASE + po + "?page=1")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(900)
+    kol["kembali"] = d2 = pg.evaluate(COLS)
+    if "Proyek" in d2["heads"] or d2["pill"] != "1":
+        checks.append(f"kolom: kembali ke daftar — Proyek tampil lagi ({d2['heads']!r}, lencana {d2['pill']!r})")
+
+    # Kolom pengurut terkunci: urutkan menurut Total, lalu Total tidak bisa dicentang lepas.
+    pg.click("#view table.data thead th button.th-sort:has-text('Total')")
+    pg.wait_for_selector("#view table.data thead th[aria-sort]", timeout=10000)
+    pg.wait_for_timeout(700)
+    open_cols(pg)
+    kol["urut"] = e = pg.evaluate(COLS)
+    total = next((x for x in e["boxes"] if x["label"] == "Total"), None)
+    if not total or not total["disabled"]:
+        checks.append(f"kolom: kolom pengurut (Total) tidak terkunci ({total!r})")
+
+    # Tampilkan semua.
+    pg.click(".col-pop button:has-text('Tampilkan semua')")
+    pg.wait_for_timeout(500)
+    kol["semua"] = f = pg.evaluate(COLS)
+    if f["th"] != a["th"] or f["pill"] or f["note"]:
+        checks.append(f"kolom: Tampilkan semua — th {f['th']} (harus {a['th']}), lencana {f['pill']!r}, catatan {f['note']!r}")
+    pg.keyboard.press("Escape")
+
+    # Muat ulang (F5) di konteks yang SAMA mengembalikan semua kolom: pilihan ini hidup di memori
+    # halaman, bukan di penyimpanan peramban — localStorage/sessionStorage bertahan melewati muat
+    # ulang, jadi menyimpannya di sana akan membuat cek ini merah.
+    open_cols(pg)
+    pg.click(".col-pop .col-item:has-text('Proyek') input")
+    pg.keyboard.press("Escape")
+    pg.reload()
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(900)
+    kol["muat_ulang"] = r_ = pg.evaluate(COLS)
+    if r_["pill"] or r_["th"] != a["th"]:
+        checks.append(f"kolom: sesudah muat ulang kolom tersembunyi bertahan (lencana {r_['pill']!r}, th {r_['th']}) — tersimpan di peramban?")
+
+    # Konteks baru (= sesi baru) melihat semua kolom, walau sesi lain menyembunyikannya.
+    pg.goto(BASE + po + "?page=1")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    open_cols(pg)
+    pg.click(".col-pop .col-item:has-text('Proyek') input")
+    pg.keyboard.press("Escape")
+    ctx_k = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        pk = ctx_k.new_page()
+        pk.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(pk, "admin@nusantara.test")
+        pk.goto(BASE + po + "?page=1")
+        pk.wait_for_selector("#view table.data tbody tr", timeout=20000)
+        pk.wait_for_timeout(900)
+        kol["sesi_baru"] = g = pk.evaluate(COLS)
+        if g["pill"]:
+            checks.append(f"kolom: konteks baru mewarisi kolom tersembunyi (lencana {g['pill']!r})")
+        # Lipatan (UX-E1.11) mengikuti Atur kolom: Proyek yang disembunyikan tidak dilipat kembali,
+        # dan Tgl PO yang disembunyikan TETAPI sedang mengurutkan tetap terlipat (kolom terkunci).
+        FOLDS = "() => [...document.querySelectorAll('#view table.data tbody td .cell-fold')].map((f) => [...f.children].map((n) => n.textContent.split(':')[0]))"
+        open_cols(pk)
+        pk.click(".col-pop .col-item:has-text('Proyek') input")
+        pk.wait_for_timeout(400)
+        kol["lipat_tanpa_proyek"] = lp = pk.evaluate(FOLDS)
+        if not lp or any("Proyek" in x for x in lp) or not all("Tgl PO" in x for x in lp):
+            checks.append(f"kolom: 390 — lipatan sesudah menyembunyikan Proyek {lp!r} (harus hanya Tgl PO)")
+        pk.click(".col-pop .col-item:has-text('Tgl PO') input")
+        pk.keyboard.press("Escape")
+        pk.goto(BASE + po + "?sort=order_date&dir=desc")
+        pk.wait_for_selector("#view table.data tbody tr", timeout=20000)
+        pk.wait_for_timeout(900)
+        kol["lipat_urut"] = lu = {"folds": pk.evaluate(FOLDS), "note": pk.evaluate("() => document.querySelector('.list-print-note').textContent")}
+        if not lu["folds"] or not all(x == ["Tgl PO"] for x in lu["folds"]):
+            checks.append(f"kolom: 390 — diurutkan menurut Tgl PO yang disembunyikan, lipatannya {lu['folds']!r} (harus Tgl PO: kolom pengurut terkunci tampil)")
+        if "Proyek" not in lu["note"] or "Tgl PO" in lu["note"]:
+            checks.append(f"kolom: catatan kertas {lu['note']!r} — harus menyebut Proyek saja (Tgl PO terkunci oleh urutan)")
+        open_cols(pk)
+        kol["ponsel"] = pk.evaluate("""() => { const r = document.querySelector('.col-pop').getBoundingClientRect();
+          return { left: Math.round(r.left), right: Math.round(r.right), vw: document.documentElement.clientWidth,
+                   overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth }; }""")
+        m = kol["ponsel"]
+        if m["left"] < 0 or m["right"] > m["vw"] or m["overflow_x"] > 0:
+            checks.append(f"kolom: 390 px — popover {m['left']}..{m['right']} dalam {m['vw']}, luber {m['overflow_x']} px")
+        pk.screenshot(path=f"{OUT}/s55-kolom-390.png")
+    finally:
+        ctx_k.close()
+    # Bersihkan sesi utama untuk blok berikutnya.
+    open_cols(pg)
+    pg.click(".col-pop button:has-text('Tampilkan semua')")
+    pg.keyboard.press("Escape")
+    out["kolom"] = kol
+
+    # ------------------------------------------------------------ sensus tab (E1.8)
+    # Setiap layar r/<kunci>: tab ada TEPAT di layar yang dipilih aturannya, dengan teks dari enum
+    # saringannya. Endpoint DAFTAR layar-layar itu dijawab stub kosong — subjeknya strip tab, bukan
+    # datanya, dan 100+ kunjungan nyata menabrak batas 120 permintaan/menit.
+    sen = {"salah": [], "dilewati": []}
+    ctx_c = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        pc = ctx_c.new_page()
+        perr = []
+        pc.on("pageerror", lambda e: perr.append(str(e)[:200]))
+        login(pc, "admin@nusantara.test")
+        rows = pc.evaluate(S55_CENSUS)
+        apis = {r["api"] for r in rows}
+        empty = json.dumps({"data": [], "meta": {"total": 0, "current_page": 1, "last_page": 1, "per_page": 20,
+                                                 "from": None, "to": None, "sortable": []}})
+        def stub(route):
+            path = urllib.parse.urlparse(route.request.url).path
+            if route.request.method == "GET" and path.startswith("/api/") and path[5:] in apis:
+                route.fulfill(status=200, content_type="application/json", body=empty)
+            else:
+                route.continue_()
+        pc.route(re.compile(r"/api/"), stub)
+        for r in rows:
+            if not r["can_view"]:
+                sen["dilewati"].append(r["key"])
+                continue
+            pc.goto(BASE + f"#/r/{r['key']}")
+            pc.wait_for_selector("#view .card", timeout=15000)
+            pc.wait_for_timeout(120)
+            seen = pc.evaluate("() => { const s = document.querySelector('#view > .list-tabs'); return s ? [...s.querySelectorAll('[role=tab]')].map((t) => t.innerText.trim()) : null; }")
+            if seen != r["tabs"]:
+                sen["salah"].append({"key": r["key"], "harus": r["tabs"], "tampil": seen})
+        sen["quickfilters_mati"] = sorted(r["key"] for r in rows if r["declared_dead"])
+        sen["dengan_tab"] = sorted(r["key"] for r in rows if r["tabs"])
+        sen["status_tanpa_tab"] = sorted(r["key"] for r in rows if r["status_filter"] and not r["tabs"])
+        sen["layar"] = len(rows)
+        sen["pageerrors"] = perr
+    finally:
+        ctx_c.close()
+    out["sensus"] = sen
+    if sen["salah"]:
+        checks.append(f"sensus: {len(sen['salah'])} layar tidak sesuai aturan tab: {sen['salah'][:4]!r}")
+    if sen.get("quickfilters_mati"):
+        checks.append(f"sensus: quickFilters dideklarasikan tanpa saringan ber-enum yang cocok: {sen['quickfilters_mati']!r}")
+    if sen["dilewati"]:
+        checks.append(f"sensus: admin tidak bisa membuka {sen['dilewati']!r} — sensusnya tidak lengkap")
+    if "finance/payments" not in sen["dengan_tab"] or "procurement/purchase-orders" not in sen["dengan_tab"]:
+        checks.append("sensus: finance/payments atau PO tanpa tab")
+    if sen["pageerrors"]:
+        checks.append(f"sensus: {len(sen['pageerrors'])} pageerror: {sen['pageerrors'][:3]!r}")
+
+    out["console_errors"] = errors
+    if errors:
+        checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
+S56_PLANT_MENU = """async ({ floating, where, many }) => {
+  // Menu uji dari ui.js milik halaman ini (preseden EMPTY_KINDS): empat item, item destruktif
+  // sesudah garis. where='wrap' = di ujung .table-wrap (wadah overflow: auto yang memotong popup
+  // absolut); where='corner' = pojok kanan bawah layar (ruang di bawahnya habis → harus dibalik).
+  const { overflowMenu, menuButton } = await import('/app/js/ui.js');
+  document.querySelectorAll('.s56-host').forEach((n) => n.remove());
+  const items = many
+    ? Array.from({ length: many }, (_, i) => ({ label: `Butir ${i + 1}`, onClick: () => {} }))
+    : [
+      { label: 'Satu', iconName: 'eye', onClick: () => {} },
+      { label: 'Dua', iconName: 'edit', onClick: () => {} },
+      { label: 'Tiga', iconName: 'print', onClick: () => {} },
+      { divider: true },
+      { label: 'Empat…', iconName: 'trash', danger: true, onClick: () => {} },
+    ];
+  const menu = floating
+    ? overflowMenu(items, { title: 'Uji S56' })
+    : menuButton('', items, { iconName: 'ellipsis', title: 'Uji S56', size: 'sm', variant: 'ghost', chevron: false });
+  const host = document.createElement('div');
+  host.className = 's56-host';
+  host.style.cssText = where === 'corner'
+    ? 'position:fixed;right:12px;bottom:12px;z-index:30'
+    : 'display:flex;justify-content:flex-end;padding:4px 8px';
+  host.appendChild(menu);
+  if (where === 'corner') document.body.appendChild(host);
+  else document.querySelector('#view .table-wrap').appendChild(host);
+  return true;
+}"""
+
+S56_MENU_STATE = """() => {
+  const trigger = document.querySelector('.s56-host .menu-trigger');
+  const pop = document.querySelector('.s56-host .menu-pop');
+  if (!pop) return { open: false, expanded: trigger ? trigger.getAttribute('aria-expanded') : null };
+  const r = pop.getBoundingClientRect();
+  const t = trigger.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+  const items = [...pop.querySelectorAll('.menu-item')].map((n) => {
+    const b = n.getBoundingClientRect();
+    const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return { label: n.innerText.trim(), hit: !!hit && n.contains(hit) };
+  });
+  return {
+    open: true, floating: pop.classList.contains('floating'), position: getComputedStyle(pop).position,
+    expanded: trigger.getAttribute('aria-expanded'),
+    inside: r.left >= 0 && r.top >= 0 && r.right <= vw && r.bottom <= vh,
+    above: r.bottom <= t.top + 0.5, below: r.top >= t.bottom - 0.5,
+    right_gap: Math.round(t.right - r.right),
+    items, active: document.activeElement && document.activeElement.classList.contains('menu-item') ? document.activeElement.innerText.trim() : null,
+    pop: [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)], vw, vh,
+  };
+}"""
+
+S56_SCROLL_PAGE = """() => {
+  // Gulir NYATA di wadah gulir halaman: .main di meja, dokumen di ponsel. Pengganjal menjamin
+  // halamannya memang bisa digulir.
+  const spacer = document.createElement('div');
+  spacer.className = 's56-spacer';
+  spacer.style.height = '1600px';
+  document.querySelector('#view').appendChild(spacer);
+  const main = document.querySelector('.main');
+  const scroller = main && main.scrollHeight > main.clientHeight + 4 && getComputedStyle(main).overflowY !== 'visible'
+    ? main : document.scrollingElement;
+  const before = scroller.scrollTop;
+  scroller.scrollTop = before + 60;
+  return { scroller: scroller === main ? '.main' : 'document', moved: scroller.scrollTop - before };
+}"""
+
+
+def s56_floating_round(p, label, checks, out):
+    """Satu putaran 'mengambang' di satu ukuran layar; hasilnya ke out[label]."""
+    res = {}
+    p.goto(BASE + "#/r/servicedesk/field-reports")
+    p.wait_for_selector("#view .table-wrap", timeout=20000)
+    p.wait_for_timeout(700)
+
+    # Separuh penolakan: menu ABSOLUT di ujung .table-wrap terpotong — buktinya uji tembaknya bisa gagal.
+    p.evaluate(S56_PLANT_MENU, {"floating": False, "where": "wrap", "many": 0})
+    p.click(".s56-host .menu-trigger")
+    p.wait_for_timeout(250)
+    res["absolut"] = a = p.evaluate(S56_MENU_STATE)
+    if not a["open"] or all(i["hit"] for i in a["items"]):
+        checks.append(f"mengambang {label}: menu ABSOLUT di ujung .table-wrap tidak terpotong — uji tembak ini tidak bisa gagal ({a!r})")
+    p.keyboard.press("Escape")
+
+    p.evaluate(S56_PLANT_MENU, {"floating": True, "where": "wrap", "many": 0})
+    p.click(".s56-host .menu-trigger")
+    p.wait_for_timeout(250)
+    res["buka"] = m = p.evaluate(S56_MENU_STATE)
+    missed = [i["label"] for i in m.get("items", []) if not i["hit"]]
+    if not m["open"] or not m["floating"] or m["position"] != "fixed":
+        checks.append(f"mengambang {label}: overflowMenu tidak mengambang ({m!r})")
+    elif missed or not m["inside"] or len(m["items"]) != 4:
+        checks.append(f"mengambang {label}: item tertutup/terpotong {missed!r}, di dalam layar={m['inside']} ({m['pop']} di {m['vw']}×{m['vh']})")
+    elif abs(m["right_gap"]) > 1 and m["pop"][0] > 8:
+        checks.append(f"mengambang {label}: popup tidak rapat kanan pada tombolnya (selisih {m['right_gap']} px)")
+    if m.get("active") != "Satu":
+        checks.append(f"mengambang {label}: fokus awal {m.get('active')!r}, harus item pertama")
+
+    # Papan ketik: End/Home memindah fokus TANPA menggulir leluhur (gulir itu akan menutupnya).
+    p.keyboard.press("End")
+    p.wait_for_timeout(150)
+    res["end"] = e = p.evaluate(S56_MENU_STATE)
+    if not e["open"] or e.get("active") != "Empat…":
+        checks.append(f"mengambang {label}: End menutup menu atau tidak sampai item terakhir ({e!r})")
+
+    res["gulir"] = p.evaluate(S56_SCROLL_PAGE)
+    p.wait_for_timeout(250)
+    res["sesudah_gulir"] = g = p.evaluate(S56_MENU_STATE)
+    if res["gulir"]["moved"] <= 0:
+        checks.append(f"mengambang {label}: halaman tidak tergulir ({res['gulir']!r}) — penutupan-oleh-gulir tidak teruji")
+    elif g["open"] or g["expanded"] != "false":
+        checks.append(f"mengambang {label}: menggulir {res['gulir']['scroller']} tidak menutup menu ({g!r})")
+    p.evaluate("document.querySelectorAll('.s56-spacer').forEach((n) => n.remove())")
+
+    # Pojok kanan bawah: ruang di bawah habis → popup dibalik ke ATAS tombolnya, tetap di layar.
+    p.evaluate(S56_PLANT_MENU, {"floating": True, "where": "corner", "many": 0})
+    p.click(".s56-host .menu-trigger")
+    p.wait_for_timeout(250)
+    res["pojok"] = c = p.evaluate(S56_MENU_STATE)
+    if not c["open"] or not c["above"] or not c["inside"] or not all(i["hit"] for i in c["items"]):
+        checks.append(f"mengambang {label}: di pojok bawah popup tidak dibalik ke atas / keluar layar ({c!r})")
+    p.keyboard.press("Escape")
+    p.wait_for_timeout(150)
+    res["esc"] = p.evaluate("() => ({ active: document.activeElement && document.activeElement.classList.contains('menu-trigger'), open: !!document.querySelector('.s56-host .menu-pop') })")
+    if res["esc"]["open"] or not res["esc"]["active"]:
+        checks.append(f"mengambang {label}: Escape tidak menutup dan mengembalikan fokus ke tombol ({res['esc']!r})")
+    p.evaluate("document.querySelectorAll('.s56-host').forEach((n) => n.remove())")
+
+    # Menu PANJANG (30 butir, melampaui max-height): End menggulir popup itu SENDIRI dan menu tetap
+    # terbuka — gulir di dalam popup bukan alasan menutup (onScroll), fokus tanpa menggulir leluhur.
+    p.evaluate(S56_PLANT_MENU, {"floating": True, "where": "wrap", "many": 30})
+    p.click(".s56-host .menu-trigger")
+    p.wait_for_timeout(250)
+    p.keyboard.press("End")
+    p.wait_for_timeout(250)
+    res["panjang"] = lp = p.evaluate("""() => { const pop = document.querySelector('.s56-host .menu-pop');
+      if (!pop) return { open: false };
+      const a = document.activeElement;
+      return { open: true, scrollable: pop.scrollHeight > pop.clientHeight, scrolled: pop.scrollTop,
+               active: a && a.classList.contains('menu-item') ? a.innerText.trim() : null }; }""")
+    if not lp["open"] or lp.get("active") != "Butir 30" or (lp.get("scrollable") and lp.get("scrolled", 0) <= 0):
+        checks.append(f"mengambang {label}: menu 30 butir — End menutupnya atau tidak menggulir popup ke butir terakhir ({lp!r})")
+    elif not lp.get("scrollable"):
+        checks.append(f"mengambang {label}: menu 30 butir tidak melampaui tinggi popup — uji gulir-dalam tidak menguji apa pun")
+    else:
+        p.evaluate("document.querySelector('.s56-host .menu-pop').scrollTop = 0")
+        p.wait_for_timeout(200)
+        if not p.evaluate("!!document.querySelector('.s56-host .menu-pop')"):
+            checks.append(f"mengambang {label}: menggulir DI DALAM popup menutupnya")
+    p.keyboard.press("Escape")
+    p.evaluate("document.querySelectorAll('.s56-host').forEach((n) => n.remove())")
+
+    # Lembar onboarding ponsel (z-index 45, fixed di atas bilah bawah): menu yang baru dibuka berdiri
+    # DI ATASNYA. Lembarnya ditanam dengan kelas aslinya, jadi tangga z-index yang diuji adalah milik app.css.
+    if label == "390":
+        # Menu dibuka DULU, lembarnya ditanam sesudahnya (tanpa pointerdown): lembar yang terbuka penuh
+        # menutupi tombolnya sendiri, jadi yang diuji adalah popup yang menjorok ke wilayah lembar.
+        p.evaluate(S56_PLANT_MENU, {"floating": True, "where": "wrap", "many": 0})
+        p.click(".s56-host .menu-trigger")
+        p.wait_for_timeout(250)
+        p.evaluate("""() => { const d = document.createElement('div'); d.className = 'onboarding-dock s56-dock';
+          d.dataset.mode = 'mobile'; d.style.position = 'fixed'; document.body.appendChild(d); }""")
+        p.wait_for_timeout(100)
+        res["lembar"] = lb = p.evaluate(S56_MENU_STATE)
+        lb["dock"] = p.evaluate("() => { const r = document.querySelector('.s56-dock').getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom), getComputedStyle(document.querySelector('.s56-dock')).zIndex]; }")
+        under = lb.get("pop") and lb["pop"][3] > lb["dock"][0]
+        if not under:
+            checks.append(f"mengambang {label}: menu tidak menumpuk lembar onboarding ({lb.get('pop')} vs lembar {lb['dock']}) — uji tumpukan tidak menguji apa pun")
+        elif not all(i["hit"] for i in lb.get("items", [])):
+            checks.append(f"mengambang {label}: butir menu tertutup lembar onboarding (z {lb['dock'][2]}): {[i['label'] for i in lb['items'] if not i['hit']]!r}")
+        p.keyboard.press("Escape")
+        p.evaluate("document.querySelectorAll('.s56-host, .s56-dock').forEach((n) => n.remove())")
+    out[label] = res
+
+
+@scenario("S56_menu_baris")
+def s56(pg):
+    """UX-E1.9…E1.11: menu ⋯ baris — popup mengambang (E1.9), menu baris (E1.10), lipatan kolom utama (E1.11)."""
+    out, checks, errors = {}, [], []
+    pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+
+    # ------------------------------------------------------------ mengambang (E1.9)
+    ambang = {}
+    s56_floating_round(pg, "1440", checks, ambang)
+
+    # Resize menutupnya juga.
+    pg.goto(BASE + "#/r/servicedesk/field-reports")
+    pg.wait_for_selector("#view .table-wrap", timeout=20000)
+    pg.wait_for_timeout(500)
+    pg.evaluate(S56_PLANT_MENU, {"floating": True, "where": "wrap", "many": 0})
+    pg.click(".s56-host .menu-trigger")
+    pg.wait_for_timeout(200)
+    vp = pg.viewport_size
+    pg.set_viewport_size({"width": vp["width"] - 40, "height": vp["height"]})
+    pg.wait_for_timeout(300)
+    ambang["resize"] = pg.evaluate(S56_MENU_STATE)
+    pg.set_viewport_size(vp)
+    if ambang["resize"]["open"]:
+        checks.append("mengambang: mengubah ukuran jendela tidak menutup menu")
+    pg.evaluate("document.querySelectorAll('.s56-host').forEach((n) => n.remove())")
+
+    # Cetak ▾ di detail PO dan Buat ▾ di bilah atas TIDAK mengambang: perilaku lama.
+    po = pg.evaluate("""async () => { const { api } = await import('/app/js/api.js');
+      const r = await api.list('procurement/purchase-orders', { per_page: 1, page: 1 }); return r.data && r.data[0] ? r.data[0].id : null; }""")
+    if not po:
+        checks.append("mengambang: subjek hilang — tidak ada PO untuk menguji Cetak ▾")
+    else:
+        pg.goto(BASE + f"#/d/procurement/purchase-orders/{po}")
+        pg.wait_for_selector(".page-head .actions .menu-trigger:has-text('Cetak')", timeout=20000)
+        pg.wait_for_timeout(500)
+        pg.click(".page-head .actions .menu-trigger:has-text('Cetak')")
+        pg.wait_for_timeout(250)
+        ambang["cetak"] = c = pg.evaluate("""() => { const t = document.querySelector('.page-head .actions .menu-trigger[aria-expanded=true]');
+          const pop = t && t.parentElement.querySelector('.menu-pop'); if (!pop) return null;
+          const r = pop.getBoundingClientRect(), b = t.getBoundingClientRect();
+          return { floating: pop.classList.contains('floating'), position: getComputedStyle(pop).position, below: r.top >= b.bottom - 0.5,
+                   gap: Math.round(r.top - b.bottom), right_gap: Math.round(b.right - r.right) }; }""")
+        # Cetak ▾ mengambang juga (ia terpotong di ≤ 760 px, lihat blok 390 di bawah) — di meja ia
+        # tetap tepat di bawah tombolnya, rapat kanan, seperti dulu.
+        if not c or not c["floating"] or c["position"] != "fixed" or not c["below"] or c["gap"] > 5 or abs(c["right_gap"]) > 1:
+            checks.append(f"mengambang: Cetak ▾ di detail PO ({c!r}) — harus mengambang, tepat di bawah tombolnya, rapat kanan")
+        pg.keyboard.press("Escape")
+
+    pg.click(".header .create-menu .menu-trigger")
+    pg.wait_for_selector(".header .create-menu .menu-pop", timeout=5000)
+    pg.keyboard.press("End")
+    pg.wait_for_timeout(200)
+    ambang["buat"] = b = pg.evaluate("""() => { const pop = document.querySelector('.header .create-menu .menu-pop');
+      return { floating: pop.classList.contains('floating'), position: getComputedStyle(pop).position,
+               scrollable: pop.scrollHeight > pop.clientHeight, scrolled: pop.scrollTop,
+               last: document.activeElement === [...pop.querySelectorAll('.menu-item')].pop() }; }""")
+    if b["floating"] or b["position"] != "absolute" or not b["last"] or (b["scrollable"] and b["scrolled"] <= 0):
+        checks.append(f"mengambang: Buat ▾ berubah ({b!r}) — harus absolut, End menggulir daftarnya sendiri ke item terakhir")
+    pg.keyboard.press("Escape")
+
+    # 390 × 844, pointer kasar.
+    ctx390 = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        p390 = ctx390.new_page()
+        p390.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+        p390.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(p390, "admin@nusantara.test")
+        s56_floating_round(p390, "390", checks, ambang)
+        p390.screenshot(path=f"{OUT}/s56-mengambang-390.png")
+
+        # Cetak ▾ di detail PO DISETUJUI, 390 px: bilah aksi berzona menggulir mendatar (≤ 760 px, UI-3c),
+        # jadi popup ABSOLUT di dalamnya terpotong setinggi bilah itu — terukur 4 Okt 2026: hanya
+        # "Cetak halaman" yang terlihat. Setiap butir harus bisa diketuk.
+        approved = p390.evaluate("""async () => { const { api } = await import('/app/js/api.js');
+          const r = await api.list('procurement/purchase-orders', { status: 'approved', per_page: 1, page: 1 }); return r.data && r.data[0] ? r.data[0].id : null; }""")
+        if not approved:
+            checks.append("mengambang: subjek hilang — tidak ada PO disetujui untuk Cetak ▾ 390 px")
+        else:
+            p390.goto(BASE + f"#/d/procurement/purchase-orders/{approved}")
+            p390.wait_for_selector(".page-head .actions .menu-trigger:has-text('Cetak')", timeout=20000)
+            p390.wait_for_timeout(600)
+            p390.click(".page-head .actions .menu-trigger:has-text('Cetak')")
+            p390.wait_for_timeout(300)
+            ambang["cetak_390"] = c = p390.evaluate("""() => { const t = document.querySelector('.page-head .actions .menu-trigger[aria-expanded=true]');
+              const pop = t && t.parentElement.querySelector('.menu-pop'); if (!pop) return null;
+              const vw = document.documentElement.clientWidth, vh = window.innerHeight, r = pop.getBoundingClientRect();
+              return { floating: pop.classList.contains('floating'), inside: r.left >= 0 && r.top >= 0 && r.right <= vw && r.bottom <= vh,
+                items: [...pop.querySelectorAll('.menu-item')].map((n) => { const b = n.getBoundingClientRect();
+                  const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+                  return { label: n.innerText.trim(), hit: !!hit && n.contains(hit) }; }) }; }""")
+            if not c or not c["items"]:
+                checks.append(f"mengambang: Cetak ▾ di detail PO 390 px tidak terbuka ({c!r})")
+            elif not all(i["hit"] for i in c["items"]) or not c["inside"]:
+                checks.append(f"mengambang: Cetak ▾ di detail PO 390 px — butir terpotong {[i['label'] for i in c['items'] if not i['hit']]!r} (di layar={c['inside']})")
+            p390.screenshot(path=f"{OUT}/s56-cetak-390.png")
+    finally:
+        ctx390.close()
+    out["mengambang"] = ambang
+
+    # ------------------------------------------------------------ menu (E1.10)
+    # Menu ⋯ baris menggantikan tombol baris SATU banding SATU: gerbang editableWhen/deletableWhen
+    # harfiah (draf vs disetujui, admin vs direktur), Buka tidak pernah sendirian, tanpa Duplikat.
+    menu = {}
+    po = "#/r/procurement/purchase-orders"
+    tok = token_for("procurement@nusantara.test")
+    s_, d_ = api("procurement/vendors?status=active&per_page=20", tok)
+    vendor = next((v for v in d_.get("data", []) if v.get("vendor_type") in (None, "supplier")), None)
+    fx = None
+    if vendor:
+        s_, d_ = api("procurement/purchase-orders", tok, "POST", {"vendor_id": vendor["id"], "order_date": "2026-09-02",
+                     "expected_date": "2026-09-16", "pr_bypass_reason": "UJI-UX — menu baris (S56)",
+                     "items": [{"description": "UJI-UX menu baris", "qty": 1, "unit": "unit", "unit_price": 1500000}]})
+        if s_ in (200, 201):
+            fx = {"id": d_["data"]["id"], "code": d_["data"]["code"]}
+    menu["fixture"] = fx
+    if not fx:
+        checks.append("menu: fixture PO draf gagal dibuat — galat, bukan SKIPPED")
+    else:
+        row = f"#view table.data tbody tr:has-text('{fx['code']}')"
+        trig = f"{row} .overflow-menu .menu-trigger"
+        ITEMS = """() => { const pop = document.querySelector('.menu-pop.floating'); if (!pop) return null;
+          const kids = [...pop.children];
+          const danger = pop.querySelector('.menu-item.danger');
+          return { items: [...pop.querySelectorAll('.menu-item')].map((n) => n.innerText.trim()),
+                   headings: [...pop.querySelectorAll('.menu-heading')].map((n) => n.innerText.trim()),
+                   divider_before_danger: !!danger && !!danger.previousElementSibling && danger.previousElementSibling.matches('hr.menu-divider'),
+                   active: document.activeElement && document.activeElement.classList.contains('menu-item') ? document.activeElement.innerText.trim() : null }; }"""
+
+        def open_list():
+            pg.goto(BASE + po + "?page=1")
+            pg.wait_for_selector(row, timeout=20000)
+            pg.wait_for_timeout(600)
+
+        open_list()
+        before = pg.evaluate("location.hash")
+        click(pg, trig)
+        pg.wait_for_timeout(250)
+        menu["draf_admin"] = m = pg.evaluate(ITEMS)
+        after_click = pg.evaluate("location.hash")
+        if not m or m["items"] != ["Buka", "Ubah", "Hapus…"] or not m["divider_before_danger"]:
+            checks.append(f"menu: PO draf (admin) — butir {m and m['items']!r}, garis sebelum Hapus… {m and m['divider_before_danger']!r} (harus ['Buka','Ubah','Hapus…'] dengan garis)")
+        if after_click != before:
+            checks.append(f"menu: klik ⋯ membuka dokumennya ({before!r} → {after_click!r})")
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(150)
+        menu["esc_fokus"] = pg.evaluate("() => document.activeElement && document.activeElement.matches('.overflow-menu .menu-trigger') && !!document.activeElement.closest('tr') && document.activeElement.closest('tr').innerText.includes(" + json.dumps(fx["code"]) + ")")
+        if not menu["esc_fokus"]:
+            checks.append("menu: Escape tidak mengembalikan fokus ke ⋯ barisnya")
+        # Enter pada ⋯ membuka menunya, tidak membuka dokumen.
+        pg.keyboard.press("Enter")
+        pg.wait_for_timeout(250)
+        menu["enter"] = {"hash": pg.evaluate("location.hash"), "open": pg.evaluate("!!document.querySelector('.menu-pop.floating')")}
+        if menu["enter"]["hash"] != before or not menu["enter"]["open"]:
+            checks.append(f"menu: Enter pada ⋯ — {menu['enter']!r} (harus membuka menu, hash tetap)")
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(150)
+        # ↓ membuka menu pada butir PERTAMA, ↑ pada yang TERAKHIR — ketukan pembukanya tidak ikut
+        # menavigasi di dalam menu (tinjauan E1.10: ↓ dulu mendarat di butir kedua).
+        panah = {}
+        for key, want in (("ArrowDown", "Buka"), ("ArrowUp", "Hapus…")):
+            pg.keyboard.press(key)
+            pg.wait_for_timeout(200)
+            panah[key] = (pg.evaluate(ITEMS) or {}).get("active")
+            pg.keyboard.press("Escape")
+            pg.wait_for_timeout(150)
+            if panah[key] != want:
+                checks.append(f"menu: {key} pada ⋯ memfokus {panah[key]!r}, harus {want!r}")
+        menu["panah"] = panah
+
+        # Hapus… → konfirmasi berfokus di Batal; Batal → fokus kembali ke ⋯.
+        click(pg, trig)
+        pg.wait_for_timeout(200)
+        click(pg, ".menu-pop.floating .menu-item.danger")
+        pg.wait_for_selector(".overlay .modal", timeout=5000)
+        pg.wait_for_timeout(200)
+        menu["konfirmasi"] = pg.evaluate("() => ({ active: document.activeElement ? document.activeElement.innerText.trim() : null, title: (document.querySelector('.overlay .modal h2, .overlay .modal .modal-title') || {}).innerText || null, hash: location.hash })")
+        if menu["konfirmasi"]["active"] != "Batal" or menu["konfirmasi"]["hash"] != before:
+            checks.append(f"menu: Hapus… — {menu['konfirmasi']!r} (harus berfokus di Batal, hash tetap)")
+        click(pg, ".overlay .modal button:has-text('Batal')")
+        pg.wait_for_timeout(300)
+        menu["batal_fokus"] = pg.evaluate("() => !!document.activeElement && document.activeElement.matches('.overflow-menu .menu-trigger')")
+        if not menu["batal_fokus"]:
+            checks.append("menu: Batal menjatuhkan fokus — harus kembali ke ⋯ barisnya")
+
+        # Ubah → formulir (#/f/…), bukan halaman dokumen.
+        click(pg, trig)
+        pg.wait_for_timeout(200)
+        click(pg, ".menu-pop.floating .menu-item:has-text('Ubah')")
+        pg.wait_for_timeout(1200)
+        menu["ubah_hash"] = pg.evaluate("location.hash")
+        if not menu["ubah_hash"].startswith("#/f/") or "/d/" in menu["ubah_hash"]:
+            checks.append(f"menu: Ubah membawa ke {menu['ubah_hash']!r}, bukan formulir #/f/…")
+
+        # Buka → halaman dokumennya.
+        open_list()
+        click(pg, trig)
+        pg.wait_for_timeout(200)
+        click(pg, ".menu-pop.floating .menu-item:has-text('Buka')")
+        pg.wait_for_timeout(900)
+        menu["buka_hash"] = pg.evaluate("location.hash")
+        if menu["buka_hash"] != f"#/d/procurement/purchase-orders/{fx['id']}":
+            checks.append(f"menu: Buka membawa ke {menu['buka_hash']!r}")
+
+        # PO disetujui (seed) tidak menggambar ⋯: tidak bisa diubah maupun dihapus.
+        open_list()
+        menu["disetujui"] = pg.evaluate("""() => [...document.querySelectorAll('#view table.data tbody tr')]
+          .filter((tr) => tr.querySelector('.badge[data-status="approved"]'))
+          .map((tr) => !!tr.querySelector('.overflow-menu'))""")
+        if not menu["disetujui"] or any(menu["disetujui"]):
+            checks.append(f"menu: baris PO disetujui — ⋯ {menu['disetujui']!r} (harus ada baris, tanpa ⋯)")
+
+        # direktur: draf yang sama, tanpa ⋯ (tidak memegang prc.update/prc.delete).
+        ctx_d = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+        try:
+            pd = ctx_d.new_page()
+            pd.on("pageerror", lambda e: errors.append(str(e)[:200]))
+            login(pd, "direktur@nusantara.test")
+            pd.goto(BASE + po + "?page=1")
+            pd.wait_for_selector(row, timeout=20000)
+            pd.wait_for_timeout(600)
+            menu["direktur"] = pd.query_selector(f"{row} .overflow-menu") is not None
+            if menu["direktur"]:
+                checks.append("menu: direktur melihat ⋯ pada PO draf — gerbang izin menu berbeda dari tombol lama")
+        finally:
+            ctx_d.close()
+
+        # Layar noDetail: Progres Mingguan hanya cetak (tanpa Buka); Kategori Barang Ubah · garis · Hapus….
+        for route, want in (("projects/weekly-progress", None), ("inventory/item-categories", ["Ubah", "Hapus…"])):
+            pg.goto(BASE + f"#/r/{route}")
+            pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+            pg.wait_for_timeout(900)
+            first = "#view table.data tbody tr .overflow-menu .menu-trigger"
+            if not pg.query_selector(first):
+                checks.append(f"menu: {route} tanpa satu pun ⋯ — subjek hilang")
+                continue
+            pg.click(first)
+            pg.wait_for_timeout(250)
+            got = pg.evaluate(ITEMS)
+            menu[route] = got
+            pg.keyboard.press("Escape")
+            if want is None:
+                if not got or not got["items"] or not all(i.startswith("Cetak ") or i.startswith("Unduh ") for i in got["items"]) or "Buka" in got["items"]:
+                    checks.append(f"menu: {route} — butir {got and got['items']!r} (harus hanya keluaran cetak, tanpa Buka)")
+            elif not got or got["items"] != want or not got["divider_before_danger"]:
+                checks.append(f"menu: {route} — butir {got and got['items']!r} (harus {want!r} dengan garis)")
+        menu["tanpa_duplikat"] = not any(re.search("Duplikat", " ".join((v or {}).get("items", []))) for v in (menu.get("draf_admin"), menu.get("projects/weekly-progress"), menu.get("inventory/item-categories")) if isinstance(v, dict))
+        if not menu["tanpa_duplikat"]:
+            checks.append("menu: ada butir Duplikat")
+
+        # Baris TERAKHIR, 1440 dan 390 pointer kasar: setiap butir bisa diketuk, pemicu berkata
+        # "Aksi" di pointer kasar, barisnya tetap satu garis.
+        LAST = """() => { const trs = [...document.querySelectorAll('#view table.data tbody tr')].filter((tr) => tr.querySelector('.overflow-menu'));
+          const tr = trs[trs.length - 1]; if (!tr) return null; const t = tr.querySelector('.overflow-menu .menu-trigger');
+          const cell = tr.querySelector('.cell-actions');
+          return { after: getComputedStyle(t, '::after').content, cell_h: cell.getBoundingClientRect().height, trig_h: t.getBoundingClientRect().height,
+                   tr_h: Math.round(tr.getBoundingClientRect().height * 2) / 2 }; }"""
+        def last_row(p, label):
+            p.goto(BASE + "#/r/inventory/item-categories")
+            p.wait_for_selector("#view table.data tbody tr", timeout=20000)
+            p.wait_for_timeout(900)
+            info = p.evaluate(LAST)
+            # Gulir barisnya ke tempatnya DULU lalu tunggu: gulir yang dipicu klik Playwright tiba satu
+            # bingkai SESUDAH menu terbuka, dan menu mengambang menutup diri pada gulir (E1.9) — orang
+            # yang mengetuk tidak menggulir pada saat yang sama.
+            last = p.locator("#view table.data tbody tr:has(.overflow-menu) .overflow-menu .menu-trigger").last
+            last.evaluate("(n) => n.scrollIntoView({ block: 'center' })")
+            p.wait_for_timeout(400)
+            last.click()
+            p.wait_for_timeout(300)
+            hit = p.evaluate("""() => { const pop = document.querySelector('.menu-pop.floating'); if (!pop) return null;
+              return [...pop.querySelectorAll('.menu-item')].map((n) => { const b = n.getBoundingClientRect();
+                const h = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!h && n.contains(h); }); }""")
+            p.keyboard.press("Escape")
+            menu[f"terakhir_{label}"] = {"info": info, "hit": hit}
+            if not hit or not all(hit):
+                checks.append(f"menu: baris terakhir {label} — butir yang tidak bisa diketuk {hit!r}")
+            if not info or info["cell_h"] > info["trig_h"] + 2:
+                checks.append(f"menu: baris terakhir {label} — sel ⋯ membungkus ({info!r})")
+            if label == "390" and (not info or info["after"] != '"Aksi"'):
+                checks.append(f"menu: 390 pointer kasar — pemicu ⋯ tidak berkata 'Aksi' ({info and info['after']!r})")
+        last_row(pg, "1440")
+        ctx_m = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        try:
+            pm = ctx_m.new_page()
+            pm.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+            pm.on("pageerror", lambda e: errors.append(str(e)[:200]))
+            login(pm, "admin@nusantara.test")
+            last_row(pm, "390")
+            pm.screenshot(path=f"{OUT}/s56-menu-390.png")
+        finally:
+            ctx_m.close()
+
+        # Akhirnya: Hapus… → konfirmasi → fixture terhapus, baris hilang, toast "PO dihapus.".
+        open_list()
+        click(pg, trig)
+        pg.wait_for_timeout(200)
+        click(pg, ".menu-pop.floating .menu-item.danger")
+        pg.wait_for_selector(".overlay .modal", timeout=5000)
+        click(pg, ".overlay .modal .btn.danger")
+        pg.wait_for_timeout(1800)
+        menu["hapus"] = pg.evaluate("() => ({ row: [...document.querySelectorAll('#view table.data tbody tr')].some((tr) => tr.innerText.includes(" + json.dumps(fx["code"]) + ")), toasts: [...document.querySelectorAll('.toast')].map((t) => t.innerText.trim()) })")
+        if menu["hapus"]["row"] or not any("PO dihapus." in t for t in menu["hapus"]["toasts"]):
+            checks.append(f"menu: Hapus… — baris masih ada={menu['hapus']['row']}, toast {menu['hapus']['toasts']!r}")
+        pg.screenshot(path=f"{OUT}/s56-menu-1440.png")
+    out["menu"] = menu
+
+    # ------------------------------------------------------------ lipat (E1.11)
+    # Kolom utama PO (kode): di ponsel Proyek dan Tgl PO disembunyikan, dan nilainya pindah ke baris
+    # redup di bawah kodenya — teks yang SAMA dengan sel aslinya di meja, satu garis per nilai. Di meja
+    # lipatannya tidak tampil dan sel kodenya tidak berubah. Total tetap di layar ponsel: kolom kode
+    # sudah selebar lipatannya (percobaan pertama di kolom vendor mendorong Total keluar layar).
+    lipat = {}
+    FOLD = """() => {
+      const ths = [...document.querySelectorAll('#view table.data thead th')];
+      const idx = (label) => ths.findIndex((th) => th.innerText.trim().toLowerCase() === label.toLowerCase());
+      const shown = (n) => !!n && getComputedStyle(n).display !== 'none';
+      const iv = idx('Kode'), ip = idx('Proyek'), it = idx('Tgl PO'), im = idx('Total');
+      const vw = document.documentElement.clientWidth;
+      const rows = [...document.querySelectorAll('#view table.data tbody tr')].map((tr) => {
+        const td = tr.children;
+        const fold = td[iv] ? td[iv].querySelector('.cell-fold') : null;
+        const total = td[im] ? td[im].getBoundingClientRect() : null;
+        return { vendor: td[iv] ? td[iv].innerText.trim() : null, fold: fold ? [...fold.children].map((n) => n.textContent).join(' · ') : null, fold_shown: shown(fold),
+                 fold_lines: fold && shown(fold) ? [...fold.children].map((n) => Math.round(n.getBoundingClientRect().height)) : null,
+                 fold_cut: fold && shown(fold) ? [...fold.children].map((n) => n.scrollWidth > n.clientWidth + 1) : null,
+                 // Kode proyek TERLIHAT utuh di dalam kotak yang dijepit dua garis: kotak klien rentang
+                 // teks "PRJ-xxxx-xxx" berada di dalam kotak garisnya (tidak tersembunyi elipsis).
+                 code_fits: fold && shown(fold) && fold.children[0] ? (() => { const n = fold.children[0];
+                   const t = n.firstChild; const m = t && t.textContent.match(/PRJ-\\d{4}-\\d{3}/); if (!m) return null;
+                   const range = document.createRange(); range.setStart(t, m.index); range.setEnd(t, m.index + m[0].length);
+                   const box = n.getBoundingClientRect();
+                   return [...range.getClientRects()].every((r) => r.bottom <= box.bottom + 0.5 && r.right <= box.right + 0.5); })() : null,
+                 fold_h: fold && shown(fold) ? [...fold.children].map((n) => Math.round(n.getBoundingClientRect().height)) : null,
+                 total_on_screen: !!total && total.right <= vw + 1 && total.left >= 0,
+                 vendor_w: td[iv] ? Math.round(td[iv].getBoundingClientRect().width) : null, tr_h: Math.round(tr.getBoundingClientRect().height),
+                 proyek: td[ip] ? td[ip].innerText.trim() : null, tgl: td[it] ? td[it].innerText.trim() : null,
+                 proyek_shown: shown(td[ip]), tgl_shown: shown(td[it]),
+                 cells: td.length, heads: ths.length };
+      });
+      return { rows, th_proyek: shown(ths[ip]), th_tgl: shown(ths[it]),
+               overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    }"""
+    pg.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(1500)
+    lipat["1440"] = d = pg.evaluate(FOLD)
+    if not d["rows"]:
+        checks.append("lipat: daftar PO tanpa baris — subjek hilang")
+    for r in d["rows"]:
+        want = f"Proyek: {r['proyek']} · Tgl PO: {r['tgl']}"
+        if r["fold_shown"] or "Proyek:" in (r["vendor"] or ""):
+            checks.append(f"lipat: 1440 — lipatan tampil di meja ({r['vendor']!r})")
+        if r["fold"] != want:
+            checks.append(f"lipat: teks lipatan {r['fold']!r} ≠ sel aslinya {want!r}")
+        if r["cells"] != r["heads"]:
+            checks.append(f"lipat: 1440 — {r['cells']} sel untuk {r['heads']} judul kolom")
+    ctx_l = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        pl = ctx_l.new_page()
+        pl.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(pl, "admin@nusantara.test")
+        pl.goto(BASE + "#/r/procurement/purchase-orders?page=1")
+        pl.wait_for_selector("#view table.data tbody tr", timeout=20000)
+        pl.wait_for_timeout(1500)
+        lipat["390"] = m = pl.evaluate(FOLD)
+        if m["th_proyek"] or m["th_tgl"] or any(r["proyek_shown"] or r["tgl_shown"] for r in m["rows"]):
+            checks.append("lipat: 390 — kolom Proyek/Tgl PO masih tampil")
+        bad = [r["vendor"] for r in m["rows"] if not r["fold_shown"] or "Proyek:" not in (r["vendor"] or "") or "Tgl PO:" not in (r["vendor"] or "")]
+        if bad or not m["rows"]:
+            checks.append(f"lipat: 390 — sel kode tanpa 'Proyek:'/'Tgl PO:' {bad!r}")
+        offscreen = [r["vendor"] for r in m["rows"] if not r["total_on_screen"]]
+        if offscreen:
+            checks.append(f"lipat: 390 — kolom Total terdorong keluar layar pada {len(offscreen)} baris (kode-nilai-status adalah inti PO di ponsel)")
+        # Kode proyek harus terbaca utuh (yang membedakan dua PO ke vendor yang sama) — nama proyek
+        # sesudahnya boleh berelipsis; tanggal (nilai pendek) utuh.
+        # Hanya baris yang PUNYA proyek: PO tanpa proyek (sah — S2, S12 dan S49 membuatnya) melipat
+        # menjadi "Proyek: —", dan itu yang diperiksa untuk mereka.
+        no_code = [r["fold"] for r in m["rows"] if re.search(r"PRJ-\d{4}-\d{3}", r["proyek"] or "") and not r.get("code_fits")]
+        if no_code:
+            checks.append(f"lipat: 390 — lipatan tanpa kode proyek utuh: {no_code!r}")
+        dash = [r["fold"] for r in m["rows"] if (r["proyek"] or "") == "—" and not (r["fold"] or "").startswith("Proyek: — · ")]
+        if dash:
+            checks.append(f"lipat: 390 — PO tanpa proyek tidak melipat menjadi 'Proyek: —': {dash!r}")
+        lipat["tanpa_proyek"] = sum(1 for r in m["rows"] if (r["proyek"] or "") == "—")
+        cut_dates = [r["vendor"] for r in m["rows"] if r["fold_cut"] and r["fold_cut"][-1]]
+        if cut_dates:
+            checks.append(f"lipat: 390 — Tgl PO di lipatan terpotong pada {len(cut_dates)} baris")
+        if m["overflow_x"] > 0:
+            checks.append(f"lipat: 390 — halaman meluber {m['overflow_x']} px ke samping")
+        # Paling banyak dua garis per nilai: nama proyek yang panjang tidak boleh membuat satu baris
+        # PO setinggi tujuh garis teks (versi pertama lipatan, terukur 4 Okt 2026).
+        tall = [r["fold_lines"] for r in m["rows"] if r["fold_lines"] and max(r["fold_lines"]) > 40]
+        if tall:
+            checks.append(f"lipat: 390 — nilai lipatan lebih dari dua garis (tinggi {tall!r} px)")
+        pl.screenshot(path=f"{OUT}/s56-lipat-390.png")
+    finally:
+        ctx_l.close()
+    out["lipat"] = lipat
+
+    out["console_errors"] = errors
+    if errors:
+        checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
 
 @scenario("S53_satu_ukuran_per_baris_ubin")
 def s53(pg):
@@ -13998,6 +15710,24 @@ VIEWS = """() => {
 }"""
 
 
+def buka_saringan(pg):
+    """UX-E1.4: saringan khusus layar duduk di popover Filter — select_option butuh kontrol TERLIHAT.
+
+    Diklik hanya bila popover-nya tertutup (tombolnya membalik: klik kedua menutup)."""
+    toggle = ".list-toolbar .filter-toggle"
+    pg.wait_for_selector(toggle, timeout=10000)
+    if pg.get_attribute(toggle, "aria-expanded") == "false":
+        click(pg, toggle)
+    pg.wait_for_selector(".filter-pop:not([hidden])", timeout=5000)
+
+
+def tutup_saringan(pg):
+    """Escape menutup popover Filter (pendengar document fase gelembung) — baris tampilan dan
+    chip berada DI BAWAH panel yang terbuka, jadi klik ke sana harus menunggu ini."""
+    pg.keyboard.press("Escape")
+    pg.wait_for_selector(".filter-pop", state="hidden", timeout=5000)
+
+
 @scenario("S46_tampilan_tersimpan")
 def s46(browser):
     """UI-4c: keadaan layar daftar yang diberi nama — dan yang benar-benar mengikuti ORANGNYA.
@@ -14106,18 +15836,25 @@ def s46(browser):
         #    `ui.filters[key] = value` menyisipkan kunci sesuai urutan klik.
         PENAWARAN = "#/r/crm/quotations"
         pg.goto(BASE + PENAWARAN); pg.wait_for_timeout(2600)
+        buka_saringan(pg)  # UX-E1.4: kontrolnya di popover Filter
         pilihan = pg.evaluate("""() => ({
           status: [...document.querySelectorAll('.filters select[aria-label="Status"] option')].map((o) => o.value).filter(Boolean),
           lingkup: [...document.querySelectorAll('.filters select[aria-label="Lingkup"] option')].map((o) => o.value).filter(Boolean),
         })""")
         if not pilihan["status"] or not pilihan["lingkup"]:
-            out["SKIPPED"] = f"layar penawaran tidak punya dua filter select: {pilihan}"
+            # Sejak UX-E1.4 popover-nya DIBUKA dengan sengaja sebelum dibaca, jadi dua select
+            # yang tidak ada adalah galat, bukan fixture yang hilang (runner tidak menghitung SKIPPED).
+            galat.append(f"layar penawaran tidak punya dua filter select di popover Filter: {pilihan}")
+            out["galat"] = galat
+            out["failed_checks"] = galat
+            out["ok"] = False
             return out
         st, lk = pilihan["status"][0], pilihan["lingkup"][0]
 
         pg.select_option('.filters select[aria-label="Status"]', st); pg.wait_for_timeout(1700)
         pg.select_option('.filters select[aria-label="Lingkup"]', lk); pg.wait_for_timeout(1900)
         out["urutan_a"] = pg.evaluate(VIEWS)
+        tutup_saringan(pg)  # baris tampilan berada di bawah panel yang terbuka
 
         click(pg, ".chips.views button.btn"); pg.wait_for_timeout(700)
         pg.fill(".modal input[type=text]", "Urutan A")
@@ -14125,9 +15862,11 @@ def s46(browser):
 
         # Saringan yang SAMA, diisi TERBALIK: Lingkup dulu, baru Status.
         click(pg, ".chips.active-filters button.btn"); pg.wait_for_timeout(1900)   # Hapus semua
+        buka_saringan(pg)
         pg.select_option('.filters select[aria-label="Lingkup"]', lk); pg.wait_for_timeout(1700)
         pg.select_option('.filters select[aria-label="Status"]', st); pg.wait_for_timeout(1900)
         out["urutan_terbalik"] = pg.evaluate(VIEWS)
+        tutup_saringan(pg)
 
         if out["urutan_terbalik"]["url"] == out["urutan_a"]["url"]:
             galat.append(f"kedua urutan menghasilkan query yang sama ({out['urutan_a']['url']!r}) — "
@@ -14248,7 +15987,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

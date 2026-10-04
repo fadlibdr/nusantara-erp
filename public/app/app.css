@@ -866,8 +866,14 @@ table.data tr.emphasis td { background: var(--surface-2); }
    panel tetap menyumbang satu `gap` (8 px) ke lebar max-content .actions —
    terukur 4 Sep 2026: tombol berhenti 8 px sebelum tepi kanan. Sekali dibuka,
    .actions perlu lebar untuk kotak catatannya. Peramban tanpa :has() hanya
-   kehilangan dua rapian ini. */
-.page-head .actions:has(.action-note) { justify-content: flex-end; }
+   kehilangan dua rapian ini.
+   `safe`: di ≤ 760 px bilah yang sama nowrap + overflow-x: auto (UI-3c), dan luapan
+   flex-end biasa tumpah ke KIRI titik awal gulir — tempat yang tidak bisa digulir.
+   Terukur 4 Okt 2026 (S49), PO diajukan di 390 px: hanya "Tambah catatan" yang
+   tampak; Kembali, Cetak, Setujui dan Tolak di x < 0, tak terjangkau. safe kembali ke
+   awal hanya saat meluap, jadi bilah meja tetap rapat kanan. Baris pertama untuk
+   peramban yang belum mengenal `safe`. */
+.page-head .actions:has(.action-note) { justify-content: flex-end; justify-content: safe flex-end; }
 .page-head .actions:has(.action-note[open]) { min-width: min(100%, 440px); }
 @media (pointer: coarse) { .action-note > summary { min-height: 36px; } }
 
@@ -891,6 +897,8 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .menu-pop {
   position: absolute; top: calc(100% + 4px); right: 0; z-index: 25;
   min-width: 100%; width: max-content; max-width: min(360px, calc(100vw - 32px));
+  /* Popup mewarisi perataan tuannya: menu ⋯ baris tinggal di td.right (UX-E1.10). */
+  text-align: left;
   display: flex; flex-direction: column; gap: 1px; padding: 4px;
   background: var(--surface); border: 1px solid var(--border-strong);
   border-radius: var(--radius); box-shadow: var(--shadow-md);
@@ -906,6 +914,24 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .menu-item svg { flex: none; color: var(--muted); }
 /* Sasaran jempol, seperti .combo-opt dan .btn.sm di bawah. */
 @media (pointer: coarse) { .menu-item { min-height: 42px; } }
+/* Menu mengambang (menuButton `floating`, UX-E1.9 — menu ⋯ baris, dan Cetak ▾ di bilah
+   aksi berzona yang menggulir di ≤ 760 px): fixed, jadi lolos dari .table-wrap
+   (overflow: auto) dan wadah gulir lain yang memotong popup absolut. ANDAIAN: tidak ada
+   leluhur yang memasang transform, filter, contain, atau will-change — salah satunya
+   menjadikan leluhur itu blok penampung, dan popup terperangkap lagi. left/top ditulis
+   menuButton dari kotak tombolnya; min-width 100% di sini berarti selebar LAYAR, maka
+   0. z-index 48, bukan 25 milik popup biasa: menu yang BARU dibuka orangnya berdiri di
+   atas lembar onboarding ponsel (45) — di bawahnya, "Hapus…" yang tertutup lembar itu
+   diketuk dan yang terbuka justru lembarnya (tinjauan E1.9) — tetapi di bawah laci nav
+   (50), sorotan (58) dan dialog (60). Membuka laci atau lembar itu sendiri butuh satu
+   ketukan di luar menu, dan ketukan itu menutupnya lebih dulu. */
+.menu-pop.floating {
+  position: fixed; top: 0; left: 0; right: auto; z-index: 48;
+  min-width: 0; max-height: calc(100dvh - 16px); overflow-y: auto;
+}
+/* Elipsis sendirian (overflowMenu, tanpa chevron): aturan chevron .menu-trigger di atas
+   membuat svg TERAKHIR — yaitu elipsis itu sendiri — bergeser −2 px dan redup. */
+.overflow-menu .menu-trigger svg:last-child { margin-left: 0; opacity: 1; }
 
 /* --------------------------------------------------------------- buttons */
 .btn {
@@ -1020,7 +1046,11 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .cell-yes { color: var(--success); font-weight: var(--fw-bold); }
 
 /* --------------------------------------------------------------- filters */
-.filters {
+/* `.list-toolbar` (UX-E1.4) — bilah alat layar daftar — DIKELOMPOKKAN di sini,
+   bukan disalin: 11 px adalah literal di luar skala yang CONVENTIONS §13a
+   biarkan pada padding komponen, dan salinan kedua akan melahirkannya lagi.
+   23 layar lain memakai `.filters` apa adanya; deklarasinya tidak berubah. */
+.filters, .list-toolbar {
   display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
   padding: 11px 12px;
   border-bottom: 1px solid var(--border);
@@ -1032,8 +1062,79 @@ table.data tr.emphasis td { background: var(--surface-2); }
   position: relative;
   flex: 1 1 230px; min-width: 180px; max-width: 340px;
 }
-.search input { width: 100%; padding-left: 32px; }
+/* `[type=text]`, bukan `input` telanjang (UX-E1.4): aturan umum
+   `input[type=text]` di bawah berspesifisitas SAMA (0,1,1) dan ditulis
+   sesudahnya, jadi `padding: 0 10px`-nya menang sejak komit pertama — teks dan
+   placeholder kotak Cari mulai pada 10 px, DI ATAS ikon kaca pembesar (10–24 px).
+   Terukur di daftar PO, Barang (custom.js) dan Cacat (defect.js). */
+.search input[type=text] { width: 100%; padding-left: 32px; }
 .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: .45; pointer-events: none; }
+
+/* Bilah alat daftar (views/list.js, UX-E1.4): Cari · Filter · chip saringan · Ekspor CSV ·
+   Atur kolom · jumlah, dibangun sekali per layar (Reset digantikan "Hapus semua", UX-E1.5). Popover Filter berlabuh pada bilahnya, bukan pada
+   tombolnya, supaya tepi kirinya sejajar kotak Cari di setiap lebar. */
+.list-toolbar { position: relative; }
+/* `.btn` dan `.filter-wrap` menulis `display` sendiri, yang MENGALAHKAN
+   `[hidden] { display: none }` milik peramban — tanpa dua aturan ini tombol Filter
+   (dan dulu Reset) tetap tampil saat disembunyikan. */
+.list-toolbar .btn[hidden], .filter-wrap[hidden] { display: none; }
+.filter-wrap { display: inline-flex; }
+.filter-pop {
+  position: absolute; top: calc(100% + 4px); left: 12px; z-index: 25;
+  width: min(560px, calc(100vw - 32px));
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.filter-pop[hidden] { display: none; }
+/* Kontrolnya tetap di bawah `.filters` (nama yang dibaca harness dan chip), jadi
+   tampilan bilah `.filters` dinetralkan di sini dan diganti kisi dua kolom. */
+.filter-pop .filters {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3);
+  padding: 0; border: 0; background: none; border-radius: 0;
+}
+.filter-pop input.filter-w, .filter-pop select.filter-w, .filter-pop .combo { width: 100%; min-width: 0; max-width: none; }
+/* Jumlah saringan aktif di tombol Filter: angka saja; pembaca layar mendengar
+   "2 saringan aktif" lewat .sr-only di dalamnya. Hilang pada nol. */
+.filter-count, .col-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--primary); color: var(--primary-fg);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.filter-count[hidden] { display: none; }
+.col-count[hidden] { display: none; }
+/* Atur kolom (UX-E1.12): popover yang sama rupanya dengan Filter, berlabuh di KANAN bilah
+   (tombolnya di ujung kanan, sesudah Ekspor CSV). */
+.col-pop {
+  position: absolute; top: calc(100% + 4px); right: 12px; z-index: 25;
+  width: min(300px, calc(100vw - 32px));
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.col-pop[hidden] { display: none; }
+.col-list { display: grid; gap: 2px; max-height: min(50vh, 360px); overflow-y: auto; }
+.col-item { display: flex; align-items: center; gap: 8px; min-height: 30px; font-size: var(--fs-body); cursor: pointer; }
+.col-item input { width: auto; height: auto; margin: 0; }
+.col-item:has(input:disabled) { color: var(--muted); cursor: default; }
+.col-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: var(--space-2); }
+.col-note { margin: 0; color: var(--muted); font-size: var(--fs-secondary); }
+@media (pointer: coarse) { .col-item { min-height: 40px; } }
+/* Catatan kertas: kolom yang disembunyikan di layar (lihat @media print). */
+.list-print-note { display: none; }
+/* "N PO · tersaring" (UX-E1.6) — angka dari meta.total, abu-abu, tidak pernah dipatah. */
+.list-count { color: var(--muted); font-size: var(--fs-secondary); white-space: nowrap; }
+@media (max-width: 760px) {
+  .filter-pop, .col-pop { left: 12px; right: 12px; width: auto; }
+  .filter-pop .filters { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* --------------------------------------------------------------- inputs */
 input[type=text], input[type=password], input[type=email], input[type=number],
@@ -1182,6 +1283,10 @@ table.data tbody tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--pr
    kotak centang yang berkata "saya membuka dokumen" berbohong. */
 table.data th.pick, table.data td.pick { width: 1%; padding-right: 0; }
 table.data tbody tr.clickable td.pick { cursor: default; }
+/* Sel ⋯ baris (UX-E1.10): seperti td.pick, kliknya bukan "buka dokumen" — list.js menahannya. */
+table.data tbody tr.clickable td.row-menu { cursor: default; }
+/* Baris lipat kolom utama: hanya ponsel (lihat blok ≤ 760 px). */
+.cell-fold { display: none; }
 
 /* Bilah seleksi — muncul HANYA bila ada baris tercentang, jadi ia tidak pernah
    menempati ruang untuk mengumumkan bahwa nol baris terpilih. Ia duduk di dalam
@@ -2071,9 +2176,33 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      tabel 7-10 kolom hanya bisa digeser-geser, dan menyetujui PO dari ponsel
      cukup kode-nilai-status. */
   table.data .hide-narrow { display: none; }
+  /* Kolom utama (list.js def.primaryColumn, UX-E1.11): nilai kolom yang baru saja
+     disembunyikan, sebagai baris redup di bawah nilainya sendiri. Teks biasa, bukan
+     mono/nowrap milik td.code (kolom utama PO adalah kodenya). min-width 10em: di ponsel
+     tabel sudah lebih lebar dari layarnya, jadi setiap kolom menyusut ke lebar minimumnya,
+     dan lipatan di kolom yang terlalu sempit hanya menyisakan "Proyek: …" (kolom vendor,
+     82 px — percobaan pertama, S56 4 Okt 2026). Kolom kode sudah selebar ini, jadi
+     lipatannya tidak mendorong Total keluar layar. */
+  table.data .cell-fold {
+    display: block; min-width: 10em; margin-top: 2px;
+    font-family: var(--font); font-size: var(--fs-secondary); color: var(--muted); white-space: normal;
+  }
+  /* Setiap nilai paling banyak DUA garis, lalu elipsis. Satu garis tidak cukup di 390 px:
+     "Proyek: PRJ-2026-002" butuh ±132 px, dan kolom yang selebar itu mendorong Total keluar
+     layar (terukur S56). Dua garis memuat kode proyeknya utuh walau terbelah di tanda
+     hubungnya ("Proyek: PRJ-2026-" / "002 — Instalasi…", terukur 390 px), dan kolomnya
+     tidak melebar: lebar minimumnya potongan kata terpanjang, bukan seluruh nilai. */
+  table.data .cell-fold > span {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  }
 }
 
 @media print {
+  /* Atur kolom (UX-E1.12): lembar yang dicetak tanpa sebagian kolomnya menyebutnya. */
+  .list-print-note:not([hidden]) { display: block; margin: 0 0 6px; color: var(--muted); font-size: var(--fs-secondary); }
+  /* Lipatan kolom utama (UX-E1.11): kertas A4 tegak (±718 px) jatuh di blok ≤ 760 px, jadi
+     lipatannya tercetak — tanpa jepit dua garis: di kertas tidak ada title untuk sisanya. */
+  table.data .cell-fold > span { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; }
   /* Cetak adalah satu-satunya jalur keluar laporan keuangan, dan pengguna
      bertema gelap mencetak --text #e7ebf0 (abu sangat terang) di kertas putih
      — hasilnya nyaris kosong. Token terang dipaksa di sini; selector kedua
@@ -2103,6 +2232,16 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      yang terbuka dulu ikut tercetak persis di tempatnya, menimpa angka. */
   .nav, .brand, .header, .page-head .actions, .filters, .pager,
   .toasts, .overlay, .tabs { display: none !important; }
+  /* Bilah alat daftar (UX-E1.4): Cari, Filter, dan Ekspor CSV adalah kontrol,
+     sama seperti bilah `.filters` lamanya. Chip saringan aktif di dalamnya
+     (UX-E1.5) TETAP tercetak — di kertas ia pernyataan "lembar ini tersaring
+     oleh apa" — tanpa tombol × dan "Hapus semua"-nya. */
+  .list-toolbar > :not(.chips):not(.list-count) { display: none !important; }
+  .chips .chip-x, .chips .btn { display: none !important; }
+  /* Jumlah barisnya (UX-E1.6) juga tercetak: pager disembunyikan di kertas,
+     jadi "12 PO · tersaring" satu-satunya pernyataan total di lembar itu.
+     Bilah tanpa chip DAN tanpa angka tidak dicetak sebagai bilah kosong. */
+  .list-toolbar:not(:has(> .chips:not([hidden]))):not(:has(> .list-count:not(:empty))) { display: none !important; }
   /* UX-C.3: tombol keputusan dan ringkasan galat adalah kontrol, bukan isi dokumen. */
   .action-panel-actions, .error-summary, .overflow-menu { display: none !important; }
   /* Seleksi adalah keadaan LAYAR: bilahnya dan kolom centangnya tidak punya
@@ -2149,6 +2288,10 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
      query-nya menang". Menambah satu selektor tipe (0,2,3 lawan 0,2,2)
      menutupnya tanpa bergantung pada posisi. */
   table.data th button.th-sort { min-height: 0; min-width: 0; }
+  /* Panah kolom yang TIDAK aktif adalah kontrol, bukan data — kertas tidak
+     bisa diklik. Panah kolom aktif tetap tercetak: ia mencatat urutan lembar
+     itu (UX-E1.3). */
+  table.data th:not([aria-sort]) button.th-sort .lucide { display: none; }
   body { background: #fff; }
 }
 
@@ -2402,15 +2545,21 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 .form-page > .form-grid { margin-bottom: var(--space-5); }
 
 /* Chip filter aktif (UI-4a). Ia meringkas apa yang MEMPERSEMPIT daftar dan
-   memberi jalan membuang satu filter dengan satu klik — tombol Reset yang
-   sudah ada hanya bisa membuang semuanya. Dibiarkan ringan: pada daftar dengan
-   satu filter aktif ia tidak boleh terbaca sebagai bilah kedua. */
+   memberi jalan membuang satu filter dengan satu klik; "Hapus semua" di
+   ujungnya membuang semuanya (sejak UX-E1.5 pengganti tombol Reset). Dibiarkan
+   ringan: pada daftar dengan satu filter aktif ia tidak boleh terbaca sebagai
+   bilah kedua — dan di layar daftar ia memang bukan bilah: ia duduk di dalam
+   bilah alat (lihat `.list-toolbar .chips` di bawah). */
 .chips {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
   padding: 0 var(--space-4) var(--space-3);
   font-size: var(--fs-secondary);
 }
 .chips[hidden] { display: none; }
+/* Di dalam bilah alat daftar (UX-E1.5) padding barisnya milik bilah itu.
+   Terbatas pada selektor ini: kepala aturan `.chip` dan `.chip-x` dan warna
+   chip tidak disentuh, jadi baris tampilan tersimpan dan layar lain tetap. */
+.list-toolbar .chips { padding: 0; min-width: 0; }
 .chips-label { color: var(--muted); }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
@@ -2850,8 +2999,9 @@ table.lines .combo .combo-input { height: 31px; font-size: 12.5px; }
 /* Judul kolom yang bisa diurutkan adalah <button> asli DI DALAM th-nya —
    fokus keyboard dan Enter/Space datang gratis dari elemennya sendiri.
    Tipografinya mewarisi th (11px, uppercase, muted) supaya kolom yang bisa
-   dan tidak bisa diurutkan tampak satu keluarga; hanya kursor dan penanda
-   ▲/▼ yang membedakan. */
+   dan tidak bisa diurutkan tampak satu keluarga; yang membedakan hanya kursor
+   dan panah sprite 12 px (UX-E1.3) — atas-bawah di setiap kolom yang bisa
+   diurutkan, atas atau bawah di kolom yang aktif. */
 table.data th .th-sort {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 0; border: 0; background: none;
@@ -2885,6 +3035,19 @@ table.data th .th-sort:focus-visible { outline: 2px solid var(--primary); outlin
 
 /* Kolom yang sedang aktif diurutkan sedikit lebih gelap dari saudaranya. */
 table.data th[aria-sort] .th-sort { color: var(--text); }
+/* Panahnya currentColor tanpa opacity: --muted pada kolom diam, --text pada
+   yang aktif lewat aturan di atas — kontrasnya selalu sama dengan labelnya.
+   flex: none supaya label yang membungkus dua baris tidak memipihkan ikonnya. */
+table.data th .th-sort .lucide { flex: none; }
+/* Panahnya TIDAK menambah lebar kolom (gerbang UX-E1): margin kanan negatif selebar ikon +
+   gap (12 + 4) membuatnya menyumbang nol ke lebar max-content judulnya, dan ia tergambar di
+   padding kanan th sendiri (10/12/14 px per kepadatan) — paling jauh 6 px melewati tepi th,
+   masih 4 px dari label tetangganya. Tanpa ini, enam judul berpanah menaikkan lebar minimum
+   tabel #/r/projects/weekly-progress dan baris ISI-nya membungkus di kepadatan padat: 32 →
+   46 px (probe gerbang, 4 Okt 2026) — kepadatan beku CONVENTIONS §13. Kolom terakhir tetap
+   menyimpan panahnya di dalam alur: luapan di sana akan menjadi gulir mendatar .table-wrap. */
+table.data th .th-sort .lucide { margin-right: -16px; }
+table.data th:last-child .th-sort .lucide { margin-right: 0; }
 
 /* --------------------------------------- tabel baris: galat per sel (422) */
 
@@ -3504,7 +3667,7 @@ button.linkish:hover b { text-decoration: underline; }
 /* ================================================== bilah bawah UX-D.5 */
 /* Beranda · Persetujuan · Cari · Menu, hanya ≤ 760 px (tempat sidebar menjadi laci).
    z-index 20: di atas isi halaman (≤ 2), DI BAWAH semua yang melayang — popup menu (25),
-   kain laci (40), lembar onboarding (45), laci nav (50), panel onboarding (55), sorotan
+   kain laci (40), lembar onboarding (45), menu ⋯ baris mengambang (48), laci nav (50), panel onboarding (55), sorotan
    (58), dialog (60), combobox (200), toast (90). Jadi ia tidak pernah menutupi laci
    maupun lembar panduan (gerbang UX-D), dan kain laci yang terbuka meredupkannya. */
 :root { --bottom-nav-h: 62px; }

@@ -117,7 +117,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    **Kategori**, **Jenis item**, **Satuan**, Stok minimum → **`Simpan`**. **Jenis item
    menentukan pos biaya proyek yang dibebani setiap bon selamanya**: Alat Bantu → Alat;
    Material, Sparepart, Barang Dagangan → Material. HPP rata-rata tidak pernah diketik.
-   `Persediaan › Kategori Item` (tanpa halaman detail; ubah/hapus dari ikon baris) dan
+   `Persediaan › Kategori Item` (tanpa halaman detail; **Ubah** / **Hapus…** di menu ⋯ baris) dan
    `Persediaan › Gudang` → **Kode** (wajib, tanpa penomoran otomatis), **Nama gudang**,
    **Proyek (gudang site)** bila gudang berada di lokasi proyek. Item massal: `Sistem ›
    Impor Data Master` → **Item / Material** (`kode`, `nama`, `satuan`, `kategori_kode`
@@ -283,7 +283,7 @@ Peran Anda memegang **18** formulir rumah, satu baris satu tombol (kode F/ dari 
 - Persediaan — Label Barcode (F/LBL, **halaman Item**, menu `Cetak ▾` — 12, 24 atau 60
   stiker untuk digunting)
 - Proyek — Data Proyek (F/DP) · Laporan Harian (F/LH) · Detail Schedule / Program Kerja
-  (F/DS, ikon printer pada baris Progres Mingguan) · Daftar Temuan / Defect List (F/DT)
+  (F/DS, **Cetak** di menu ⋯ baris Progres Mingguan) · Daftar Temuan / Defect List (F/DT)
 - Proyek — Izin Kerja Lapangan (F/IK) · Izin Kerja Lembur (F/IL) · Izin Masuk / Keluar
   Material & Peralatan (F/IM)
 - Proyek — Opname ke Pemilik (OPN) (F/OPN) · BAPP per Zona (F/BAPP) · Formulir K3 Harian
