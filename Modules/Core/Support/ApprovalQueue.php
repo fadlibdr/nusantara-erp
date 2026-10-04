@@ -54,6 +54,66 @@ class ApprovalQueue
     private const OWNER_KEYS = ['requested_by', 'created_by', 'submitted_by', 'requester_id', 'user_id'];
 
     /**
+     * Pemilik sebuah dokumen: pengguna pada baris `submitted` TERAKHIR, bila tidak
+     * ada — kolom kepemilikan pertama yang terisi (OWNER_KEYS). Satu fungsi untuk
+     * dua pembaca (ERRATA E-9): kotak masuk MELEWATKAN dokumen milik pembacanya,
+     * Pekerjaan Saya (MyWork) MENYIMPAN yang milik pembacanya — dua salinan aturan
+     * ini berarti sebuah dokumen yang bukan milik siapa pun, atau milik dua orang.
+     *
+     * @param  array<string, mixed>  $attrs
+     */
+    public static function ownerOf(array $attrs, ?object $submission): ?int
+    {
+        $ownerId = $submission->user_id ?? null;
+        if ($ownerId !== null) {
+            return (int) $ownerId;
+        }
+        foreach (self::OWNER_KEYS as $key) {
+            if (! empty($attrs[$key])) {
+                return (int) $attrs[$key];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Bentuk ketiga kepemilikan: dokumen yang kolom employee_id-nya adalah
+     * pegawai si pembaca (cuti, kasbon) — tanpa baris pengajuan maupun kolom
+     * pengguna, tetapi jelas miliknya.
+     *
+     * @param  array<string, mixed>  $attrs
+     */
+    public static function ownedByEmployee(array $attrs, ?int $employeeId): bool
+    {
+        return $employeeId !== null && ! empty($attrs['employee_id']) && (int) $attrs['employee_id'] === (int) $employeeId;
+    }
+
+    /** @param  array<string, mixed>  $attrs */
+    public static function amountOf(array $attrs): ?float
+    {
+        foreach (self::AMOUNT_KEYS as $key) {
+            if (isset($attrs[$key]) && is_numeric($attrs[$key])) {
+                return (float) $attrs[$key];
+            }
+        }
+
+        return null;
+    }
+
+    /** @param  array<string, mixed>  $attrs */
+    public static function titleOf(array $attrs): ?string
+    {
+        foreach (self::TITLE_KEYS as $key) {
+            if (! empty($attrs[$key]) && is_string($attrs[$key])) {
+                return $attrs[$key];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * $forUser = null → seluruh antrean (untuk pengawasan); selain itu hanya
      * yang boleh disetujui pengguna itu dan bukan miliknya sendiri.
      *
@@ -111,16 +171,8 @@ class ApprovalQueue
                 foreach ($docs as $doc) {
                     $attrs = $doc->getAttributes();
                     $sub = $submissions->get($doc->getKey());
-                    $ownerId = $sub->user_id ?? null;
-                    if ($ownerId === null) {
-                        foreach (self::OWNER_KEYS as $key) {
-                            if (! empty($attrs[$key])) {
-                                $ownerId = (int) $attrs[$key];
-                                break;
-                            }
-                        }
-                    }
-                    $ownEmployee = $employeeId !== null && ! empty($attrs['employee_id']) && (int) $attrs['employee_id'] === (int) $employeeId;
+                    $ownerId = self::ownerOf($attrs, $sub);
+                    $ownEmployee = self::ownedByEmployee($attrs, $employeeId);
 
                     if ($forUser !== null && (($ownerId !== null && $ownerId === (int) $forUser->getKey()) || $ownEmployee)) {
                         continue; // maker-checker: not yours to approve
@@ -152,20 +204,8 @@ class ApprovalQueue
                         continue;
                     }
 
-                    $amount = null;
-                    foreach (self::AMOUNT_KEYS as $key) {
-                        if (isset($attrs[$key]) && is_numeric($attrs[$key])) {
-                            $amount = (float) $attrs[$key];
-                            break;
-                        }
-                    }
-                    $title = null;
-                    foreach (self::TITLE_KEYS as $key) {
-                        if (! empty($attrs[$key]) && is_string($attrs[$key])) {
-                            $title = $attrs[$key];
-                            break;
-                        }
-                    }
+                    $amount = self::amountOf($attrs);
+                    $title = self::titleOf($attrs);
                     $submittedAt = $sub->created_at ?? ($attrs['updated_at'] ?? null);
 
                     $rows[] = [

@@ -14,6 +14,7 @@ use Modules\Core\Http\Controllers\ExternalApprovalController;
 use Modules\Core\Http\Controllers\FormPrintController;
 use Modules\Core\Http\Controllers\HealthController;
 use Modules\Core\Http\Controllers\InboxController;
+use Modules\Core\Http\Controllers\MyWorkController;
 use Modules\Core\Http\Controllers\LocationController;
 use Modules\Core\Http\Controllers\MasterDataController;
 use Modules\Core\Http\Controllers\MethodLibraryController;
@@ -160,6 +161,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     // penyaringannya per {modul}.approve di dalam controller, dan yang tidak
     // punya satu pun mendapat daftar kosong yang jujur.
     Route::get('inbox', InboxController::class);
+
+    // UX-F1 (ERRATA E-9): Pekerjaan Saya pemanggil — dokumen miliknya yang masih
+    // diajukan atau ditolak. Tanpa gerbang izin, alasan yang sama dengan inbox:
+    // barisnya milik $request->user(), dan tiap jenis disaring <awalan>.view di
+    // dalam MyWork.
+    Route::get('my-work', MyWorkController::class);
 
     /*
      * F-1 — delegasi persetujuan "a.n.". Tanpa gerbang izin di rute, untuk

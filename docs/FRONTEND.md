@@ -589,7 +589,14 @@ reading, in another shape. There is no `print` action anywhere in the permission
   Rp 62,39 rb · Rp 62,78 rb` — a ±1,3% band invented by the padding that keeps a flat line off
   the plot edge, then labelled. The padding stays; the labels go. The non-zero-based axis
   itself remains deliberate and is written for users in `PANDUAN-PENGGUNA` §4.6.
-- **Errors**: `api.js` normalises `{ message, errors }` into an `ApiError`; forms map
+- **Errors**: `GET core/my-work` (UX-F1, ERRATA E-9) is the caller's Pekerjaan Saya: own documents still
+`submitted` (`bucket: 'waiting'`) or `rejected` (`bucket: 'needs_fix'`, with `decided_at`,
+`decided_by` — "Budi a.n. Sari" when delegated — and `note`), the inbox row shape plus `status`,
+ordered needs_fix first (oldest decision), then waiting (oldest submission); `meta.failed` names
+types that threw. Ownership is `ApprovalQueue::ownerOf()`, the inbox's own function. The screen
+that reads it is UX-F2.
+
+`api.js` normalises `{ message, errors }` into an `ApiError`; forms map
   `errors` back onto their fields, everything else raises a toast. A view that throws
   renders an error panel rather than a blank page.
 - **Editability**: a document's own status decides it — `editableWhen` /
