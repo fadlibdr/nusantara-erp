@@ -18,6 +18,10 @@
    resource (kunci opsional untuk layar daftar generik, views/list.js — UX-E1)
            description  satu kalimat di bawah judul daftar; juga petunjuk kartu
                         layar itu di beranda modulnya (module.js).
+           quickFilters kunci saringan (mis. ['status']) yang tampil juga sebagai
+                        tab di atas tabel; saringannya harus ber-enum. Tanpa
+                        kunci ini: ['status'] bila layar punya pintu keputusan
+                        (setujui/tolak), selain itu tanpa tab (quickFilterOf).
 
    types — text | code | textarea | number | currency | qty | percent | date |
            datetime | time | bool | select | lookup | status | enum | rel |
@@ -4613,6 +4617,9 @@ export const RESOURCES = {
   'finance/payments': {
     module: 'fin', api: 'finance/payments', label: 'Pembayaran', labelOne: 'Pembayaran',
     customDetail: 'payment',
+    // Disetujui di server (Finance/Routes/api.php), tetapi keputusannya hidup di
+    // halaman detail khususnya, bukan di `actions:` — jadi tab statusnya diminta di sini.
+    quickFilters: ['status'],
     columns: [
       codeColumn,
       { key: 'payment_date', label: 'Tanggal', type: 'date' },

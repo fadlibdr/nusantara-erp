@@ -1218,6 +1218,12 @@ export function actionPanel({ tone = 'info', title, text, actions = [], iconName
 export function tabs(items, { active, onChange } = {}) {
   const list = (items || []).filter(Boolean);
   let current = active ?? (list[0] && list[0].id);
+  /* Nilai terakhir yang sudah DILAPORKAN ke onChange (atau dipasang dari luar lewat
+     host.select). Berbeda dari `current` hanya selama tombol panah DITAHAN: auto-repeat
+     memindahkan sorotan tanpa melapor, dan satu laporan menyusul saat tombolnya dilepas.
+     Tanpa ini, menahan → di tab status daftar (UX-E1.8) mengirim satu permintaan per
+     ulangan — ±30/detik, batas laju 120/menit habis dalam empat detik. */
+  let reported = current;
   const host = el('.tabs', { role: 'tablist' });
   const buttons = list.map((item) => {
     const node = el('button', { type: 'button', role: 'tab', id: item.tabId || undefined, 'aria-controls': item.panelId || undefined }, [
@@ -1228,16 +1234,17 @@ export function tabs(items, { active, onChange } = {}) {
     node.addEventListener('click', () => select(item.id, true));
     node.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      // Alt/Cmd+← adalah Kembali milik peramban, Shift/Ctrl+panah milik orangnya — bukan pindah tab.
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       event.preventDefault();
       const at = buttons.indexOf(node);
       const next = buttons[(at + (event.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length];
       next.focus();
-      select(next.dataset.tab, true);
+      select(next.dataset.tab, !event.repeat);
     });
     return node;
   });
   function select(id, fire = false) {
-    const changed = String(id) !== String(current);
     current = id;
     buttons.forEach((node) => {
       const on = node.dataset.tab === String(id);
@@ -1245,11 +1252,26 @@ export function tabs(items, { active, onChange } = {}) {
       node.setAttribute('aria-selected', String(on));
       node.tabIndex = on ? 0 : -1;
     });
-    if (fire && changed && onChange) onChange(id);
+    if (fire && String(id) !== String(reported)) {
+      reported = id;
+      if (onChange) onChange(id);
+    }
   }
+  /* Ulangan yang ditahan dilaporkan SEKALI: saat panahnya dilepas, atau saat fokus
+     meninggalkan barisan tab sebelum itu (jendela berganti di tengah tahanan). */
+  const settle = () => select(current, true);
+  host.addEventListener('keyup', (event) => {
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') settle();
+  });
+  host.addEventListener('focusout', (event) => {
+    if (!(event.relatedTarget instanceof Node) || !host.contains(event.relatedTarget)) settle();
+  });
   append(host, buttons);
   select(current);
-  host.select = (id) => select(id, false);
+  host.select = (id) => {
+    reported = id;
+    select(id, false);
+  };
   host.setCount = (id, count) => {
     const node = buttons.find((b) => b.dataset.tab === String(id));
     const pill = node && node.querySelector('.tab-count');

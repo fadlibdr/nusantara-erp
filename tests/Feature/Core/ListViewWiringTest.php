@@ -250,10 +250,122 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertMatchesRegularExpression('/await api\\.del\\(`\\$\\{def\\.api\\}\\/\\$\\{row\\.id\\}`\\);\\n\\s*invalidateByPath\\(def\\.api\\);\\n\\s*forgetWhole\\(\\);/', $list);
     }
 
+    /* ------------------------------------------------------------ E1.8 */
+
+    /** Tab status = tampilan kedua dari saringan yang DIDEKLARASIKAN: pintu keputusan atau quickFilters, enum dari ENUMS, tanpa angka. */
+    public function test_status_tabs_are_a_second_view_of_the_declared_filter(): void
+    {
+        $list = $this->spa('views/list.js');
+        $of = $this->functionBody($list, 'function quickFilterOf(def) {');
+        $this->assertNotNull($of, 'quickFilterOf() hilang dari list.js.');
+        $this->assertStringContainsString("def.quickFilters ?? ((def.actions || []).some((action) => session.isDecisionDoor(action)) ? ['status'] : [])", $of);
+        $this->assertStringContainsString('filter.enum && ENUMS[filter.enum]', $of);
+
+        // Pembangun item tab: "Semua" lalu opsi enum yang SAMA dengan <option> select-nya — tanpa angka.
+        $start = strpos($list, 'const quickTabs = quickFilter');
+        $this->assertNotFalse($start);
+        $builder = substr($list, $start, (int) strpos($list, "\n    : null;", $start) - $start);
+        $this->assertStringContainsString("{ id: '', label: 'Semua', panelId: tableHost.id }", $builder);
+        $this->assertStringContainsString('...ENUMS[quickFilter.enum].map((option) => ({ id: option.value, label: option.label, panelId: tableHost.id })),', $builder);
+        $this->assertStringNotContainsString('count', $builder, 'Tab membawa angka: tidak ada meta per status, jadi angkanya berarti enam permintaan tambahan per muatan.');
+        // "Semua" MENGHAPUS kuncinya — daftar yang belum disentuh tetap ber-URL polos (S7/S8/S43 memaku hash persis).
+        $this->assertStringContainsString("if (value === '') delete ui.filters[quickFilter.key];", $builder);
+        $this->assertStringContainsString('ui.page = 1;', $builder);
+
+        $this->assertStringContainsString('host.append(...[head, quickTabs, tableHost].filter(Boolean));', $list,
+            'Tab dipasang tanpa .filter(Boolean): Element.append(null) menulis teks "null" di layar tanpa tab.');
+        $this->assertStringContainsString('syncQuickTabs();', (string) $this->functionBody($list, 'function renderAll() {'));
+        $sync = (string) $this->functionBody($list, 'function syncQuickTabs() {');
+        $this->assertStringContainsString("quickTabs.select(ui.filters[quickFilter.key] || '');", $sync);
+        $this->assertStringContainsString(".tabIndex = 0;", $sync, 'Nilai URL basi meninggalkan tablist tanpa satu pun tabIndex 0 — tidak terjangkau Tab.');
+
+        // ui.js tabs(): panah yang DITAHAN memuat sekali (bukan per ulangan — batas laju 120/menit),
+        // dan panah bermodifier (Alt/Cmd+← = Kembali) bukan milik tab.
+        $tabs = (string) $this->functionBody($this->spa('ui.js'), 'export function tabs(');
+        $this->assertStringContainsString('if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;', $tabs);
+        $this->assertLessThan(strpos($tabs, 'event.preventDefault();'), strpos($tabs, 'event.altKey'));
+        $this->assertStringContainsString('select(next.dataset.tab, !event.repeat);', $tabs);
+        $this->assertStringContainsString("host.addEventListener('keyup',", $tabs);
+        $this->assertStringContainsString("host.addEventListener('focusout',", $tabs);
+        $this->assertStringContainsString('if (fire && String(id) !== String(reported)) {', $tabs);
+
+        // Kontrak URL tidak berubah: tab hanya menulis kunci saringan yang sudah dideklarasikan.
+        $this->assertStringContainsString("const RESERVED_PARAMS = ['page', 'q', 'sort', 'dir', 'date_from', 'date_to'];", $list);
+        foreach (['function stateQuery({ withPage } = {}) {', 'function seedFromUrl(key, def, ui) {', 'function syncUrl() {'] as $signature) {
+            $body = $this->functionBody($list, $signature);
+            $this->assertNotNull($body, "{$signature} hilang.");
+            $this->assertStringNotContainsString('quick', $body, "{$signature} tahu soal tab — tab seharusnya tidak terlihat oleh kontrak URL.");
+        }
+    }
+
+    /** Setiap `quickFilters:` di skema menunjuk saringan BER-ENUM di `filters:` blok resource yang sama. */
+    public function test_every_declared_quick_filter_names_an_enum_filter_of_its_own_block(): void
+    {
+        $schema = $this->spa('schema.js');
+        $this->assertStringContainsString('quickFilters kunci saringan', $schema, 'Kunci skema quickFilters tidak terdokumentasi di kepala schema.js.');
+        $enums = $this->spa('enums.js');
+
+        $count = preg_match_all('/^    quickFilters: \[([^\]]*)\],$/m', $schema, $found, PREG_OFFSET_CAPTURE);
+        $this->assertGreaterThanOrEqual(1, $count, 'Tidak ada satu pun quickFilters — finance/payments kehilangan tab statusnya.');
+        // Setiap deklarasi terbaca (dokumentasi di kepala berkas menulis kuncinya tanpa titik dua).
+        $this->assertSame($count, substr_count($schema, 'quickFilters:'),
+            'Ada quickFilters yang ditulis dalam bentuk lain dan lolos dari pemindai ini.');
+
+        $declaredOn = [];
+        foreach ($found[0] as $i => [, $offset]) {
+            // Blok resource: dari kunci tingkat-atas terdekat di atasnya ("\n  '...': {") sampai kunci berikutnya.
+            $open = strrpos(substr($schema, 0, $offset), "\n  '");
+            $this->assertNotFalse($open);
+            $close = strpos($schema, "\n  '", $offset);
+            $block = substr($schema, $open, ($close === false ? strlen($schema) : $close) - $open);
+            preg_match("/^\n  '([^']+)'/", $block, $name);
+            $declaredOn[] = $name[1];
+            preg_match_all("/'([^']+)'/", $found[1][$i][0], $keys);
+            $this->assertNotEmpty($keys[1], "{$name[1]}: quickFilters kosong.");
+            $filters = $this->filtersOf($block);
+            $this->assertNotNull($filters, "{$name[1]}: quickFilters tanpa `filters:` — quickFilterOf() hanya membaca def.filters.");
+            foreach ($keys[1] as $key) {
+                $this->assertSame(1, preg_match($this->quickFilterPattern($key), $filters, $hit),
+                    "{$name[1]}: quickFilters menyebut '{$key}', tetapi `filters:` blok ini tidak punya saringan ber-enum berkunci itu.");
+                $this->assertMatchesRegularExpression("/^  {$hit[1]}: opts\\(/m", $enums, "{$name[1]}: enum '{$hit[1]}' tidak ada di enums.js.");
+            }
+        }
+        $this->assertContains('finance/payments', $declaredOn);
+    }
+
+    /** Separuh penolakan untuk pemindai blok di atas: saringan tanpa enum, atau enum yang hanya ada di kolom/formulir, ditolak. */
+    public function test_the_quick_filter_reader_refuses_a_filter_without_an_enum(): void
+    {
+        $plain = "\n  'x/y': {\n    filters: [\n      { key: 'status', label: 'Status', type: 'text' },\n    ],\n    quickFilters: ['status'],\n";
+        $this->assertSame(0, preg_match($this->quickFilterPattern('status'), (string) $this->filtersOf($plain)));
+
+        // Enum status di FORMULIR, saringannya hanya project_id: blok utuh cocok, `filters:` tidak.
+        $formOnly = "\n  'x/z': {\n    filters: [\n      { key: 'project_id', label: 'Proyek', lookup: 'projects' },\n    ],\n    quickFilters: ['status'],\n"
+            ."    form: { sections: [{ fields: [\n      { key: 'status', label: 'Status', type: 'select', enum: 'documentStatus' },\n    ] }] },\n";
+        $this->assertSame(1, preg_match($this->quickFilterPattern('status'), $formOnly));
+        $this->assertSame(0, preg_match($this->quickFilterPattern('status'), (string) $this->filtersOf($formOnly)));
+    }
+
+    /** Tab, pil, dan angka bilah daftar tidak pernah memakai warna aksen modul — aksen bukan warna status. */
+    public function test_list_tabs_and_pills_use_no_accent_colour(): void
+    {
+        $css = $this->css();
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER);
+        $checked = 0;
+        foreach ($rules as [, $selector, $body]) {
+            if (! preg_match('/\.tabs\b|\.tab-count\b|\.list-tabs\b|\.list-toolbar\b|\.filter-count\b|\.list-count\b/', $selector)) {
+                continue;
+            }
+            $checked++;
+            $this->assertDoesNotMatchRegularExpression('/--(module-)?accent/', $body, 'Aturan '.trim($selector).' memakai warna aksen.');
+        }
+        $this->assertGreaterThanOrEqual(8, $checked, 'Pemindai aturan tidak menemukan aturan tab/bilah daftar — pin ini hampa.');
+    }
+
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(52, (int) $version[1],
+        $this->assertGreaterThanOrEqual(53, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -273,6 +385,23 @@ class ListViewWiringTest extends ErpTestCase
     private function css(): string
     {
         return (string) file_get_contents(public_path('app/app.css'));
+    }
+
+    /** Larik `filters: [` … `],` tingkat resource (indentasi 4) di dalam satu blok, atau null. */
+    private function filtersOf(string $block): ?string
+    {
+        $start = strpos($block, "\n    filters: [");
+        if ($start === false) {
+            return null;
+        }
+        $end = strpos($block, "\n    ],", $start);
+
+        return $end === false ? null : substr($block, $start, $end - $start);
+    }
+
+    private function quickFilterPattern(string $key): string
+    {
+        return "/\\{ key: '".preg_quote($key, '/')."', label: '[^']+', (?:type: '[^']+', )?enum: '([A-Za-z]+)'/";
     }
 
     /** Badan fungsi bersarang/bertingkat-atas: dari tanda tangan sampai `}` pada indentasinya sendiri. */

@@ -1,7 +1,7 @@
 /* Generic list screen: search, filters, table, pagination, row actions. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader, field, modalDepth, filterChip } from '../ui.js';
+import { el, clear, button, icon, badge, emptyState, errorState, skeletonTable, toast, toastError, confirmDialog, withBusy, pluck, pageHeader, field, modalDepth, filterChip, tabs } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -125,6 +125,26 @@ function seedFromUrl(key, def, ui) {
   }
 }
 
+/*
+ * Tab status cepat (UX-E1.8): TAMPILAN KEDUA dari saringan yang sudah
+ * dideklarasikan, bukan saringan baru. Tab menulis ke kunci ui.filters yang
+ * sama dengan select Status di popover Filter — jadi URL, stateQuery, tampilan
+ * tersimpan, chip, dan "Hapus semua" tidak tahu tab itu ada, dan tidak perlu.
+ *
+ * Siapa yang mendapatnya: layar yang mendeklarasikan `quickFilters` di skema,
+ * atau — bawaannya — layar yang punya PINTU KEPUTUSAN dokumen (setujui/tolak,
+ * session.isDecisionDoor). Di sana status adalah pertanyaan pertama orang
+ * ("mana yang masih menunggu?"); di daftar master tanpa alur, tab status hanya
+ * memakan 54 px tinggi tabel. Saringannya harus membawa enum yang dikenal
+ * ENUMS: tab dibangun dari opsinya, sama persis dengan <option> select-nya.
+ * Tidak ada angka per tab: tidak ada meta yang membawanya, dan enam permintaan
+ * tambahan per muatan bukan harga sebuah lencana.
+ */
+function quickFilterOf(def) {
+  const keys = def.quickFilters ?? ((def.actions || []).some((action) => session.isDecisionDoor(action)) ? ['status'] : []);
+  return (def.filters || []).find((filter) => keys.includes(filter.key) && filter.enum && ENUMS[filter.enum]) || null;
+}
+
 export async function renderList(host, { key, def }) {
   const ui = stateFor(key, def);
   // Hanya kunjungan pertama yang memakai bawaan skema: menimpa tanpa syarat di
@@ -140,7 +160,7 @@ export async function renderList(host, { key, def }) {
   // Predikat yang SAMA dengan Buat ▾ di bilah atas (js/create.js, UX-D.4): dua pintu, satu jawaban.
   const canCreate = canCreateResource(def);
 
-  const tableHost = el('.card');
+  const tableHost = el('.card', { id: `daftar-${key.replace(/[^a-z0-9]+/gi, '-')}` });
   /* Kepala halaman lewat pageHeader() (UX-E1.1, README E1): markup yang sama
      persis dengan yang dulu dirakit tangan di sini — h1, .desc, .actions — dari
      satu pembangun. `def.description` adalah kunci skema opsional; kalimatnya
@@ -171,8 +191,35 @@ export async function renderList(host, { key, def }) {
     ],
   });
 
+  /* Tab status (UX-E1.8, lihat quickFilterOf). Dibangun SEKALI, seperti bilah
+     alat; renderAll() menyelaraskannya dengan ui.filters setiap muatan, jadi
+     × pada chip, "Hapus semua", tampilan tersimpan, select di popover dan
+     seed URL semuanya ikut memindahkan tab yang menyala. "Semua" menghapus
+     kuncinya — daftar yang belum disentuh tetap ber-URL polos. Teks polos:
+     tab aktif memakai --primary, bukan warna status ataupun aksen modul. */
+  const quickFilter = quickFilterOf(def);
+  const quickTabs = quickFilter
+    ? tabs([
+      { id: '', label: 'Semua', panelId: tableHost.id },
+      ...ENUMS[quickFilter.enum].map((option) => ({ id: option.value, label: option.label, panelId: tableHost.id })),
+    ], {
+      active: ui.filters[quickFilter.key] || '',
+      onChange: (value) => {
+        if (value === '') delete ui.filters[quickFilter.key];
+        else ui.filters[quickFilter.key] = value;
+        ui.page = 1;
+        load();
+      },
+    })
+    : null;
+  if (quickTabs) {
+    quickTabs.classList.add('list-tabs');
+    quickTabs.setAttribute('aria-label', `Saring ${quickFilter.label.toLowerCase()}`);
+  }
+
   clear(host);
-  host.append(head, tableHost);
+  // Element.append(null) menulis teks "null": layar tanpa tab hanya memasang dua.
+  host.append(...[head, quickTabs, tableHost].filter(Boolean));
 
   /*
    * Apakah gambar INI masih yang ada di layar.
@@ -1793,12 +1840,25 @@ export async function renderList(host, { key, def }) {
     ]);
   }
 
+  /* Tab yang menyala = nilai saringan saat ini. Nilai yang tidak punya tab (seed
+     URL basi, ?status=bogus) menyalakan TIDAK ADA tab — "Semua" akan berbohong,
+     karena saringannya tetap terkirim — tetapi tablist tanpa satu pun tabIndex 0
+     tidak bisa dicapai dengan Tab, jadi tab pertama tetap menjadi pintunya. */
+  function syncQuickTabs() {
+    if (!quickTabs) return;
+    quickTabs.select(ui.filters[quickFilter.key] || '');
+    if (!quickTabs.querySelector('[role="tab"][aria-selected="true"]')) {
+      quickTabs.querySelector('[role="tab"]').tabIndex = 0;
+    }
+  }
+
   function renderAll() {
     /* Bilah alat, baris tampilan, dan baris chip HIDUP lebih lama dari satu
        muatan (UX-E1.4): renderAll menyegarkan isinya, bukan membangunnya, jadi
        kotak Cari yang sedang diketik dan popover Filter yang terbuka selamat
        melewati setiap muatan. Yang dibangun ulang tiap kali hanya badan daftar. */
     syncToolbar();
+    syncQuickTabs();
     paintViews();
     // Chip SESUDAH syncToolbar: paintFilters yang mengisi activeFilters saat ia
     // membangun ulang kontrolnya.

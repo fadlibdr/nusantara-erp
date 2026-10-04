@@ -684,6 +684,20 @@ Susunannya dari atas ke bawah:
 4. **Pager**: `Menampilkan 1–20 dari 137 data`, pemilih jumlah baris (20 bawaan, lalu
    25/50/100/200), nomor halaman, dan panah maju-mundur.
 
+**Tab status.** Pada 29 layar dokumen yang melewati persetujuan (PO, PR, penawaran,
+tagihan, pembayaran, klaim subkon, cuti, dan seterusnya) ada sederet tab di antara judul
+dan bilah alat: **Semua · Draf · Diajukan · Disetujui · Ditolak · Selesai · Dibatalkan**
+(pada Pembayaran: status pembayaran). Tab itu saringan **Status** yang sama dengan yang
+ada di panel **`Filter`**, hanya satu klik lebih dekat: memilih tab sama dengan memilih
+status di panel itu — chip *Status: …* muncul, alamatnya berubah — dan × pada chip itu
+atau **`Hapus semua`** mengembalikan tab ke **Semua**. Tab tidak membawa angka; jumlah
+dokumen untuk status yang dipilih tertulis di ujung kanan bilah alat. Tab yang tidak
+berisi dokumen (mis. *Dibatalkan* pada PO) tetap ada dan menampilkan keadaan kosong
+saringan. Dengan papan ketik, ← / → berpindah tab dan langsung memuat. Bila alamat
+menyebut status yang tidak dikenal, tidak ada tab yang menyala (saringannya tetap
+berlaku — **`Hapus semua`** membuangnya). Saat dicetak, tab tidak ikut; status yang
+dipilih tercetak sebagai chip-nya.
+
 **"Total halaman ini" adalah jumlah baris yang sedang tampil — bukan jumlah seluruh
 saringan.** Ubah ke 100 baris per halaman dan angkanya berubah. Satu-satunya total yang
 jujur atas seluruh saringan adalah berkas CSV.

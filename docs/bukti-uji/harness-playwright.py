@@ -1,4 +1,4 @@
-import json, os, re, time, sqlite3, struct, zlib, base64, traceback, urllib.request
+import json, os, re, time, sqlite3, struct, zlib, base64, traceback, urllib.request, urllib.parse
 from datetime import date, timedelta
 from playwright.sync_api import sync_playwright
 
@@ -2299,6 +2299,329 @@ def s54(pg):
     finally:
         ctx_429.close()
     out["jumlah"] = jml
+
+    out["console_errors"] = errors
+    if errors:
+        checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
+S55_TABS = """() => {
+  const strip = document.querySelector('#view > .list-tabs');
+  const tabs = strip ? [...strip.querySelectorAll('[role=tab]')] : [];
+  const sel = document.querySelector(".filters select[aria-label='Status']");
+  const on = tabs.find((t) => t.getAttribute('aria-selected') === 'true');
+  const probe = document.createElement('span');
+  probe.style.color = 'var(--primary)';
+  document.body.appendChild(probe);
+  const primary = getComputedStyle(probe).color;
+  probe.remove();
+  const active = document.activeElement;
+  return {
+    present: !!strip,
+    // Urutan simpul #view: kepala, tab, lalu kartu daftar.
+    order: [...document.querySelector('#view').children].map((n) => n.className.split(' ')[0]),
+    label: strip ? strip.getAttribute('aria-label') : null,
+    texts: tabs.map((t) => t.innerText.trim()),
+    selected: tabs.filter((t) => t.getAttribute('aria-selected') === 'true').map((t) => t.innerText.trim()),
+    focusable: tabs.filter((t) => t.tabIndex === 0).map((t) => t.innerText.trim()),
+    counts: strip ? strip.querySelectorAll('.tab-count').length : 0,
+    panel_ok: tabs.length > 0 && tabs.every((t) => {
+      const panel = document.getElementById(t.getAttribute('aria-controls') || '');
+      return !!panel && panel.matches('#view > .card');
+    }),
+    on_color: on ? getComputedStyle(on).color : null,
+    primary,
+    options: sel ? [...sel.options].filter((o) => o.value !== '').map((o) => o.text) : null,
+    select_value: sel ? sel.value : null,
+    chips: [...document.querySelectorAll('.chips.active-filters .chip')].map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
+    hash: location.hash,
+    badges: [...document.querySelectorAll('#view table.data tbody .badge[data-status]')].map((b) => b.dataset.status),
+    rows: document.querySelectorAll('#view table.data tbody tr').length,
+    empty: !!document.querySelector('#view .list-body .empty'),
+    focus_tab: active && active.getAttribute('role') === 'tab' ? active.innerText.trim() : null,
+    overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    strip_scroll: strip ? strip.scrollWidth - strip.clientWidth : null,
+  };
+}"""
+
+S55_DELAY_MIDDLE = """() => {
+  // Tunda jawaban daftar PO status=approved — yang DILEWATI panah kanan — 1,8 s. HANYA itu:
+  // approved BERISI baris (seed: dua PO disetujui) dan status terakhirnya (closed) kosong, jadi
+  // tanpa nomor urut muat (E1.2) jawaban approved tiba PALING AKHIR dan melukis dua lencana
+  // 'approved' di bawah tab Selesai. (Menunda rejected juga membuat jawaban KOSONG-nya tiba
+  // paling akhir dan menutupi kegagalan itu — terukur dengan penjaga E1.2 dicabut, 4 Okt 2026.)
+  if (window.__s55Delay) return 'sudah';
+  const original = window.fetch.bind(window);
+  window.__s55Delay = true;
+  window.fetch = (input, init) => {
+    const url = typeof input === 'string' ? input : input.url;
+    if (/purchase-orders\\?/.test(url) && /status=approved(&|$)/.test(url)) {
+      return new Promise((resolve) => setTimeout(resolve, 1800)).then(() => original(input, init));
+    }
+    return original(input, init);
+  };
+  return 'dipasang';
+}"""
+
+S55_CENSUS = """async () => {
+  // Sensus tab: harapan dihitung dari skema + session.isDecisionDoor milik APLIKASI, dengan
+  // aturan rencana E1.8 — quickFilters ?? (punya pintu keputusan ? ['status'] : []), saringan
+  // pertama berkunci itu yang ber-enum di ENUMS. Lalu setiap layar dikunjungi.
+  const { RESOURCES } = await import('/app/js/schema.js');
+  const { session } = await import('/app/js/api.js');
+  const { ENUMS } = await import('/app/js/enums.js');
+  const rows = [];
+  for (const [key, def] of Object.entries(RESOURCES)) {
+    const keys = def.quickFilters ?? ((def.actions || []).some((a) => session.isDecisionDoor(a)) ? ['status'] : []);
+    const filter = (def.filters || []).find((f) => keys.includes(f.key) && f.enum && ENUMS[f.enum]) || null;
+    const statusFilter = (def.filters || []).some((f) => f.key === 'status' && f.enum);
+    rows.push({
+      key, api: def.api, tabs: filter ? ['Semua', ...ENUMS[filter.enum].map((o) => o.label)] : null,
+      // quickFilters yang DIMINTA tetapi tidak menemukan saringan ber-enum = deklarasi yang mati diam-diam.
+      declared_dead: def.quickFilters !== undefined && !filter,
+      status_filter: statusFilter,
+      can_view: session.can(def.viewPerm || `${def.module}.view`),
+    });
+  }
+  return rows;
+}"""
+
+
+@scenario("S55_jumlah_dan_tab")
+def s55(pg):
+    """UX-E1.8: tab status cepat — tampilan kedua dari saringan Status yang dideklarasikan."""
+    out, checks, errors = {}, [], []
+    pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+
+    # ------------------------------------------------------------ tab (E1.8)
+    tab = {}
+    po = "#/r/procurement/purchase-orders"
+    pg.goto(BASE + po)
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    tab["polos"] = t = pg.evaluate(S55_TABS)
+    if not t["present"]:
+        checks.append("tab: daftar PO tidak membawa .list-tabs")
+    else:
+        if t["order"][:3] != ["page-head", "tabs", "card"]:
+            checks.append(f"tab: urutan #view {t['order']!r}, harus kepala · tab · kartu")
+        if not t["options"] or t["texts"] != ["Semua"] + t["options"]:
+            checks.append(f"tab: teks {t['texts']!r} ≠ ['Semua'] + opsi select Status {t['options']!r}")
+        if t["selected"] != ["Semua"] or t["focusable"] != ["Semua"]:
+            checks.append(f"tab: daftar polos — menyala {t['selected']!r}, tabIndex 0 {t['focusable']!r} (harus 'Semua')")
+        if t["hash"] != po:
+            checks.append(f"tab: tab menulis ke URL daftar polos ({t['hash']!r})")
+        if t["counts"]:
+            checks.append(f"tab: {t['counts']} .tab-count — tab tidak membawa angka")
+        if t["label"] != "Saring status":
+            checks.append(f"tab: aria-label tablist {t['label']!r}")
+        if not t["panel_ok"]:
+            checks.append("tab: aria-controls tidak menunjuk kartu daftar")
+        if t["on_color"] != t["primary"]:
+            checks.append(f"tab: tab menyala berwarna {t['on_color']!r}, bukan --primary {t['primary']!r}")
+
+    click(pg, "#view .list-tabs [role=tab][data-tab='draft']")
+    pg.wait_for_function("() => location.hash.includes('status=draft')", timeout=10000)
+    pg.wait_for_timeout(1200)
+    tab["draf"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] != ["Draf"] or t["select_value"] != "draft" or "Status: Draf" not in t["chips"]:
+        checks.append(f"tab: klik Draf — menyala {t['selected']!r}, select {t['select_value']!r}, chip {t['chips']!r}")
+    if [b for b in t["badges"] if b != "draft"]:
+        checks.append(f"tab: klik Draf — lencana {t['badges']!r}")
+
+    # × pada chip Status mengembalikan tab ke Semua (chip satu-satunya: Status).
+    click(pg, ".chips.active-filters .chip .chip-x")
+    pg.wait_for_function(f"() => location.hash === '{po}'", timeout=10000)
+    pg.wait_for_timeout(1000)
+    tab["chip_dibuang"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] != ["Semua"] or t["chips"]:
+        checks.append(f"tab: × chip — menyala {t['selected']!r}, chip {t['chips']!r} (harus Semua, tanpa chip)")
+
+    # Select di popover menggerakkan tab juga.
+    buka_saringan(pg)
+    pg.select_option(".filters select[aria-label='Status']", "submitted")
+    pg.wait_for_timeout(1200)
+    tab["dari_select"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] != ["Diajukan"]:
+        checks.append(f"tab: select Status=submitted — tab menyala {t['selected']!r}")
+    tutup_saringan(pg)
+
+    pg.goto(BASE + po + "?status=approved")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    tab["seed_url"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] != ["Disetujui"] or t["focusable"] != ["Disetujui"]:
+        checks.append(f"tab: ?status=approved menyalakan {t['selected']!r}")
+    if not t["rows"] or [b for b in t["badges"] if b != "approved"]:
+        checks.append(f"tab: ?status=approved — {t['rows']} baris, lencana {t['badges']!r}")
+
+    # Tiga panah kanan cepat dari Diajukan: Disetujui (ditunda 1,8 s), Ditolak, Selesai.
+    # Tiga muatan; hanya yang terakhir boleh melukis, dan hash/tab/select/chip/isi sepakat.
+    # Subjeknya harus BISA gagal: Disetujui membawa baris (seed), Selesai kosong.
+    pg.goto(BASE + po + "?status=submitted")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    tab["patch"] = pg.evaluate(S55_DELAY_MIDDLE)
+    pg.focus("#view .list-tabs [role=tab][data-tab='submitted']")
+    for _ in range(3):
+        pg.keyboard.press("ArrowRight")
+        pg.wait_for_timeout(90)
+    pg.wait_for_timeout(2600)
+    tab["panah"] = t = pg.evaluate(S55_TABS)
+    agree = (t["selected"] == ["Selesai"] and t["focus_tab"] == "Selesai" and "status=closed" in t["hash"]
+             and t["select_value"] == "closed" and "Status: Selesai" in t["chips"])
+    if not agree:
+        checks.append(f"tab: tiga panah kanan — menyala {t['selected']!r}, fokus {t['focus_tab']!r}, hash {t['hash']!r}, "
+                      f"select {t['select_value']!r}, chip {t['chips']!r} (harus semuanya Selesai)")
+    if t["badges"] or t["rows"] or not t["empty"]:
+        checks.append(f"tab: tiga panah kanan — jawaban usang melukis {t['rows']} baris, lencana {t['badges']!r} di bawah Selesai")
+    if tab["seed_url"]["rows"] == 0:
+        checks.append("tab: subjek hilang — tidak ada PO disetujui, balapan tab tidak bisa gagal")
+
+    # Panah yang DITAHAN: auto-repeat memindahkan sorotan, dan hanya tekanan pertama serta
+    # pelepasannya yang memuat — bukan satu permintaan per ulangan (batas laju 120/menit).
+    sent = []
+    on_req = lambda r: sent.append(r.url) if r.method == "GET" and re.search(r"/api/procurement/purchase-orders\?.*per_page=20", r.url) else None
+    pg.on("request", on_req)
+    pg.focus("#view .list-tabs [role=tab][aria-selected=true]")
+    for _ in range(6):
+        pg.keyboard.down("ArrowLeft")  # kedua dan seterusnya: repeat=true
+        pg.wait_for_timeout(40)
+    pg.keyboard.up("ArrowLeft")
+    pg.wait_for_timeout(2600)
+    pg.remove_listener("request", on_req)
+    tab["tahan"] = t = pg.evaluate(S55_TABS)
+    t["requests"] = len(sent)
+    # Dari Selesai, enam kali kiri (tujuh tab, berputar): Ditolak, Disetujui, Diajukan, Draf, Semua, Dibatalkan.
+    if t["requests"] > 2:
+        checks.append(f"tab: menahan ← mengirim {t['requests']} permintaan daftar (harus ≤ 2: tekanan pertama + pelepasan)")
+    if t["selected"] != ["Dibatalkan"] or "status=cancelled" not in t["hash"] or "Status: Dibatalkan" not in t["chips"]:
+        checks.append(f"tab: sesudah menahan ← — menyala {t['selected']!r}, hash {t['hash']!r}, chip {t['chips']!r} (harus Dibatalkan, dimuat saat dilepas)")
+
+    # Panah bermodifier bukan milik tab: Shift+→ tidak memindahkan apa pun.
+    before = pg.evaluate("location.hash")
+    pg.keyboard.press("Shift+ArrowRight")
+    pg.wait_for_timeout(700)
+    tab["shift"] = t = pg.evaluate(S55_TABS)
+    if t["hash"] != before or t["selected"] != ["Dibatalkan"]:
+        checks.append(f"tab: Shift+→ memindahkan tab ({before!r} → {t['hash']!r}, menyala {t['selected']!r})")
+
+    # Nilai URL basi: tidak ada tab yang menyala, tetapi satu tab tetap bisa dicapai Tab.
+    pg.goto(BASE + po + "?status=bogus")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(900)
+    tab["basi"] = t = pg.evaluate(S55_TABS)
+    if t["selected"] or len(t["focusable"]) != 1:
+        checks.append(f"tab: ?status=bogus — menyala {t['selected']!r}, tabIndex 0 {t['focusable']!r} (harus nihil, tepat satu)")
+
+    # Kertas: tab tidak tercetak; status yang dipilih tercetak sebagai chip-nya.
+    pg.goto(BASE + po + "?status=draft")
+    pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+    pg.wait_for_timeout(2200)
+    pg.emulate_media(media="print")
+    tab["cetak"] = pg.evaluate("""() => ({
+      tabs: getComputedStyle(document.querySelector('#view .list-tabs')).display,
+      chip: [...document.querySelectorAll('.chips.active-filters .chip')].filter((c) => getComputedStyle(c).display !== 'none').map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
+    })""")
+    pg.emulate_media(media="screen")
+    if tab["cetak"]["tabs"] != "none" or "Status: Draf" not in tab["cetak"]["chip"]:
+        checks.append(f"tab: cetak — tab display {tab['cetak']['tabs']!r}, chip tercetak {tab['cetak']['chip']!r}")
+    pg.screenshot(path=f"{OUT}/s55-tab-1440.png")
+    # Tema gelap: tab menyala tetap --primary (token tema gelap), dan buktinya tergambar.
+    pg.evaluate("document.documentElement.dataset.theme = 'dark'")
+    pg.wait_for_timeout(200)
+    tab["gelap"] = t = pg.evaluate(S55_TABS)
+    if t["on_color"] != t["primary"]:
+        checks.append(f"tab: tema gelap — tab menyala {t['on_color']!r}, bukan --primary {t['primary']!r}")
+    pg.screenshot(path=f"{OUT}/s55-tab-1440-dark.png")
+    pg.evaluate("delete document.documentElement.dataset.theme")
+
+    # Layar tanpa pintu keputusan tidak membawa tab, termasuk yang punya saringan status.
+    tab["tanpa"] = {}
+    for route in ("crm/customers", "servicedesk/field-reports", "servicedesk/tickets"):
+        pg.goto(BASE + f"#/r/{route}")
+        pg.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        pg.wait_for_timeout(500)
+        tab["tanpa"][route] = pg.evaluate("() => !!document.querySelector('#view .list-tabs')")
+        if tab["tanpa"][route]:
+            checks.append(f"tab: {route} membawa .list-tabs padahal tidak punya pintu keputusan")
+
+    # 390 px: tab menggulir di dalam stripnya, halamannya tidak bergeser ke samping.
+    ctx390 = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        p390 = ctx390.new_page()
+        p390.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(p390, "admin@nusantara.test")
+        p390.goto(BASE + po)
+        p390.wait_for_selector("#view table.data tbody tr, #view .empty", timeout=20000)
+        p390.wait_for_timeout(900)
+        tab["ponsel"] = m = p390.evaluate(S55_TABS)
+        if not m["present"] or m["overflow_x"] > 0 or not (m["strip_scroll"] or 0) > 0:
+            checks.append(f"tab: 390 px — strip ada={m['present']}, luber halaman {m['overflow_x']} px, gulir strip {m['strip_scroll']} px "
+                          "(harus: halaman tidak luber, strip yang menggulir)")
+        p390.screenshot(path=f"{OUT}/s55-tab-390.png")
+        p390.evaluate("document.documentElement.dataset.theme = 'dark'")
+        p390.wait_for_timeout(200)
+        p390.screenshot(path=f"{OUT}/s55-tab-390-dark.png")
+    finally:
+        ctx390.close()
+    out["tab"] = tab
+
+    # ------------------------------------------------------------ sensus tab (E1.8)
+    # Setiap layar r/<kunci>: tab ada TEPAT di layar yang dipilih aturannya, dengan teks dari enum
+    # saringannya. Endpoint DAFTAR layar-layar itu dijawab stub kosong — subjeknya strip tab, bukan
+    # datanya, dan 100+ kunjungan nyata menabrak batas 120 permintaan/menit.
+    sen = {"salah": [], "dilewati": []}
+    ctx_c = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        pc = ctx_c.new_page()
+        perr = []
+        pc.on("pageerror", lambda e: perr.append(str(e)[:200]))
+        login(pc, "admin@nusantara.test")
+        rows = pc.evaluate(S55_CENSUS)
+        apis = {r["api"] for r in rows}
+        empty = json.dumps({"data": [], "meta": {"total": 0, "current_page": 1, "last_page": 1, "per_page": 20,
+                                                 "from": None, "to": None, "sortable": []}})
+        def stub(route):
+            path = urllib.parse.urlparse(route.request.url).path
+            if route.request.method == "GET" and path.startswith("/api/") and path[5:] in apis:
+                route.fulfill(status=200, content_type="application/json", body=empty)
+            else:
+                route.continue_()
+        pc.route(re.compile(r"/api/"), stub)
+        for r in rows:
+            if not r["can_view"]:
+                sen["dilewati"].append(r["key"])
+                continue
+            pc.goto(BASE + f"#/r/{r['key']}")
+            pc.wait_for_selector("#view .card", timeout=15000)
+            pc.wait_for_timeout(120)
+            seen = pc.evaluate("() => { const s = document.querySelector('#view > .list-tabs'); return s ? [...s.querySelectorAll('[role=tab]')].map((t) => t.innerText.trim()) : null; }")
+            if seen != r["tabs"]:
+                sen["salah"].append({"key": r["key"], "harus": r["tabs"], "tampil": seen})
+        sen["quickfilters_mati"] = sorted(r["key"] for r in rows if r["declared_dead"])
+        sen["dengan_tab"] = sorted(r["key"] for r in rows if r["tabs"])
+        sen["status_tanpa_tab"] = sorted(r["key"] for r in rows if r["status_filter"] and not r["tabs"])
+        sen["layar"] = len(rows)
+        sen["pageerrors"] = perr
+    finally:
+        ctx_c.close()
+    out["sensus"] = sen
+    if sen["salah"]:
+        checks.append(f"sensus: {len(sen['salah'])} layar tidak sesuai aturan tab: {sen['salah'][:4]!r}")
+    if sen.get("quickfilters_mati"):
+        checks.append(f"sensus: quickFilters dideklarasikan tanpa saringan ber-enum yang cocok: {sen['quickfilters_mati']!r}")
+    if sen["dilewati"]:
+        checks.append(f"sensus: admin tidak bisa membuka {sen['dilewati']!r} — sensusnya tidak lengkap")
+    if "finance/payments" not in sen["dengan_tab"] or "procurement/purchase-orders" not in sen["dengan_tab"]:
+        checks.append("sensus: finance/payments atau PO tanpa tab")
+    if sen["pageerrors"]:
+        checks.append(f"sensus: {len(sen['pageerrors'])} pageerror: {sen['pageerrors'][:3]!r}")
 
     out["console_errors"] = errors
     if errors:
@@ -14817,7 +15140,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
