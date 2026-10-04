@@ -109,7 +109,7 @@ class StatusVocabularyTest extends ErpTestCase
         $this->assertStringContainsString('return { tone, iconName, text, sub };', $strip,
             'statusStrip() tidak lagi mengembalikan data; kalimatnya tidak bisa dipakai layar lain.');
         $this->assertStringNotContainsString("el('.alert", $strip, 'statusStrip() menggambar .alert sendiri lagi, bukan lewat actionPanel.');
-        $this->assertStringContainsString("actionPanel({ tone: strip.tone, iconName: strip.iconName, title: strip.text, text: strip.sub })", $detail);
+        $this->assertStringContainsString("actionPanel({ tone: strip.tone, iconName: strip.iconName, title: strip.text, text: strip.sub, actions: next })", $detail);
 
         // "Budi a.n. Sari" tetap datang dari jejak persetujuan, bukan dari kalimat statis.
         $this->assertStringContainsString('actorName(entry)', $strip);

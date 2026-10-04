@@ -274,7 +274,7 @@ def s2(pg):
     pg.wait_for_timeout(600)
     t_done = int((time.time() - t0) * 1000)
     toast = toasts(pg)
-    after = pg.evaluate("() => ({ url: location.hash, status: (document.querySelector('.page-head .badge')||{}).innerText, nextOffer: [...document.querySelectorAll('.toast')].map(t=>t.innerText.slice(0,140)), strip: (document.querySelector('.page-head + .action-panel, .page-head + .alert')||{}).innerText })")
+    after = pg.evaluate("() => ({ url: location.hash, status: (document.querySelector('.page-head .badge')||{}).innerText, nextOffer: [...document.querySelectorAll('.toast')].map(t=>t.innerText.slice(0,140)), strip: (document.querySelector('.page-head + .action-panel, .page-head + .alert')||{}).innerText, next_link: (document.querySelector('.page-head + .action-panel .action-panel-actions a')||{}).innerText || null })")
     if pg.locator(".toast button:has-text('Buka')").count():
         click(pg, ".toast button:has-text('Buka')"); pg.wait_for_timeout(1500)
         after["opened_next"] = pg.evaluate("() => (document.querySelector('.page-head h1')||{}).innerText")
@@ -9807,9 +9807,15 @@ def s29(pg):
       const input = box.querySelector('input, select');
       return input ? input.className : null;
     }""")
-    # Combobox proyek: ketik kodenya lalu pilih usulan pertama.
-    pg.fill(".modal .field:has(label:text-is('Proyek')) input", "PRJ-2026-001")
-    pg.wait_for_timeout(900)
+    # Combobox proyek: ketik kodenya lalu pilih usulan pertama. Formulir PO adalah HALAMAN
+    # (.form-page) sejak UI-4d, bukan .modal — selector lama menunggu 30 s lalu mati, dan
+    # skenario ini merah sejak itu (OQ-16; diperbaiki UX-E2.1 dengan idiom pick_combo S3).
+    pg.wait_for_selector(".form-page", timeout=10000)
+    proyek = pg.locator(".form-page .field", has=pg.locator("label", has_text="Proyek")).first \
+        .locator("input.combo-input, input, select").first
+    proyek.click()
+    proyek.type("PRJ-2026-001", delay=20)
+    pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000)
     pg.keyboard.press("ArrowDown")
     pg.keyboard.press("Enter")
     pg.wait_for_timeout(2500)
@@ -9826,8 +9832,14 @@ def s29(pg):
         click(pg, ".modal button:has-text('Buang isian')")
         pg.wait_for_timeout(600)
 
-    # (7) RIWAYAT REVISI di layar RAP.
+    # (7) RIWAYAT REVISI di layar RAP. Formulir HALAMAN memasang penjaga tinggalkan
+    # (app.js setLeaveGuard): isian yang kotor membuka "Tinggalkan formulir ini?" pada
+    # navigasi berikutnya dan menahan rute lama — layar RAP tidak pernah tergambar
+    # (terukur UX-E2.1: revision_chain {found: False}). Dijawab "Tinggalkan" di sini.
     pg.goto(BASE + f"#/d/estimation/cost-budgets/{rev_id}")
+    pg.wait_for_timeout(800)
+    if pg.locator(".modal button:has-text('Tinggalkan')").count():
+        click(pg, ".modal button:has-text('Tinggalkan')")
     pg.wait_for_timeout(3000)
     out["revision_chain"] = pg.evaluate(REVISION_CHAIN)
     pg.screenshot(path=f"{OUT}/s29-riwayat-revisi-f2.png", full_page=False)
@@ -9881,7 +9893,9 @@ def s29(pg):
         "the_monthly_budget_is_labelled_derived": (
             "TURUNAN" in (monthly.get("derivation") or "")
             and "RAP/2026/0001" in (monthly.get("derivation") or "")
-            and "BSL/2026/VIII/0001" in (monthly.get("derivation") or "")),
+            # Nomor baseline mengikuti bulan seed dibuat (BSL/2026/VIII/… pada demo September,
+            # BSL/2026/X/… pada seed Oktober) — yang dipaku adalah nomornya disebut, bukan bulannya.
+            and re.search(r"BSL/2026/[IVX]+/0001", monthly.get("derivation") or "") is not None),
         "the_monthly_table_has_a_derived_budget_column": any(
             "turunan" in h.lower() for h in (monthly.get("headers") or [])),
         # Lembar tercetak menyebut proyeknya — diuji di media cetak sungguhan,
@@ -15977,6 +15991,141 @@ def s46(browser):
     return out
 
 
+S57_INFO = """() => {
+  const info = [...document.querySelectorAll('.card')]
+    .find((c) => { const h = c.querySelector('h2'); return h && h.innerText.trim() === 'Informasi'; });
+  const t = (sel) => { const n = document.querySelector(sel); return n ? n.innerText.replace(/\\s+/g, ' ').trim() : null; };
+  // textContent, bukan innerText: dt di dalam <details> tertutup tidak tergambar, dan
+  // innerText-nya kosong — buktinya harus MENYEBUT kunci yang terlipat (uji mutasi E2.2).
+  const dts = info ? [...info.querySelectorAll('dt')] : [];
+  const texts = dts.map((d) => d.textContent.trim());
+  const seen = {}; const dupl = [];
+  for (const d of texts) { seen[d] = (seen[d] || 0) + 1; if (seen[d] === 2) dupl.push(d); }
+  return {
+    h1: t('.page-head h1'),
+    labels: texts,
+    di_luar_lipatan: dts.filter((d) => !d.closest('details')).map((d) => d.textContent.trim()),
+    lainnya: info ? [...info.querySelectorAll('details.kv-more')].map((d) => ({
+      summary: ((d.querySelector('summary') || {}).textContent || '').trim(),
+      dt: [...d.querySelectorAll('dt')].map((x) => x.textContent.trim()),
+    })) : null,
+    dupl,
+    // E2.3: ubin nilai kunci (.kv-tiles) dan sisa strip uang lama (.stat-row langsung di .main).
+    // Label lewat textContent: .kv-tile-label memakai text-transform uppercase, innerText-nya 'SUBTOTAL'.
+    ubin: [...document.querySelectorAll('.kv-tiles .kv-tile')].map((tile) => [
+      tile.querySelector('.kv-tile-label').textContent.trim(), tile.querySelector('.kv-tile-value').innerText.trim()]),
+    strip_lama: document.querySelectorAll('.main > .stat-row').length,
+    // E2.4: kepala dokumen lewat docHeader() di dalam .page-head.
+    jenis: ((document.querySelector('.page-head .doc-kind') || {}).innerText || '').trim(),
+    lencana_di_jenis: !!document.querySelector('.page-head .doc-kind .badge'),
+    kode_h1: !!document.querySelector('.page-head h1.doc-code'),
+    pihak: ((document.querySelector('.page-head .doc-party') || {}).innerText || '').trim(),
+    lencana_n: document.querySelectorAll('.page-head .badge').length,
+  };
+}"""
+
+@scenario("S57_layar_dokumen")
+def s57(pg):
+    """UX-E2: layar dokumen generik — label Informasi (E2.2: formulir → LABELS → "Bidang lainnya"),
+    dibaca dari DOM yang benar-benar tergambar, dengan pendengar peringatan konsol `titleize:`.
+    Skenario pembaca: tidak satu pun selector S2/S49 diubah untuknya."""
+    out, checks, errors, warnings = {}, [], [], []
+    pg.on("console", lambda m: (warnings.append(m.text[:200]) if m.type == "warning" and m.text.startswith("titleize:")
+                                else errors.append(m.text[:200]) if m.type == "error" else None))
+    pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
+    login(pg, "admin@nusantara.test")
+
+    def open_doc(route, key):
+        warnings.clear()
+        pg.goto(BASE + f"#/d/{route}")
+        pg.wait_for_selector(".card h2", timeout=20000)
+        pg.wait_for_timeout(1500)
+        out[key] = pg.evaluate(S57_INFO)
+        out[key]["titleize_warnings"] = list(warnings)
+        return out[key]
+
+    # ------------------------------------------------------------ label (E2.2)
+    po = open_doc("procurement/purchase-orders/1", "po")
+    inv = open_doc("finance/ar-invoices/1", "inv")
+    pg.screenshot(path=f"{OUT}/s57-po-informasi.png")
+    if po["titleize_warnings"]:
+        checks.append(f"konsol memperingatkan kunci PO tanpa label: {po['titleize_warnings'][:3]!r}")
+    for key, doc in (("po", po), ("inv", inv)):
+        if doc["lainnya"] is None:
+            checks.append(f"{key}: kartu Informasi tidak ditemukan")
+        elif doc["lainnya"]:
+            checks.append(f"{key}: medan tanpa label Indonesia dilipat ke Bidang lainnya: {doc['lainnya']!r}")
+        if doc["dupl"]:
+            checks.append(f"{key}: label Informasi tampil dua kali: {doc['dupl']!r}")
+    # Kunci yang HANYA LABELS kenal (PurchaseOrderResource mengirimnya, formulir tidak
+    # mendeklarasikannya) tampil dengan teks LABELS-nya, di luar lipatan — gerbang UX-E2.
+    for label in ("Tarif PPN", "Perlu persetujuan direktur", "Ditutup"):
+        if label not in po["di_luar_lipatan"]:
+            checks.append(f"PO/1: '{label}' (kunci LABELS-saja) tidak tampil di kartu Informasi di luar lipatan: {po['labels']!r}")
+    # Label formulir menang atas LABELS (E-7): tiga kunci PO yang kedua sumbernya berbeda kata.
+    for label in ("Gudang tujuan",):
+        if label not in po["labels"]:
+            checks.append(f"PO/1: label formulir '{label}' tidak dipakai kartu Informasi: {po['labels']!r}")
+
+    # ------------------------------------------------------------ ubin nilai kunci (E2.3)
+    if [u[0] for u in po["ubin"]] != ["Subtotal", "Diskon", "DPP", "PPN", "Total"]:
+        checks.append(f"PO/1: label ubin bukan Subtotal · Diskon · DPP · PPN · Total: {po['ubin']!r}")
+    if any(not u[1].startswith("Rp") for u in po["ubin"]):
+        checks.append(f"PO/1: nilai ubin tidak berformat rupiah: {po['ubin']!r}")
+    if len(inv["ubin"]) != 8 or any(u[1] == "—" for u in inv["ubin"]):
+        checks.append(f"INV/1: ubin bukan 8 nilai terisi (seluruh summary, bukan lima pertama): {inv['ubin']!r}")
+    for key, doc in (("po", po), ("inv", inv)):
+        if doc["strip_lama"]:
+            checks.append(f"{key}: strip uang lama (.stat-row) masih tergambar: {doc['strip_lama']}")
+    if inv["titleize_warnings"]:
+        checks.append(f"INV/1: konsol memperingatkan kunci tanpa label: {inv['titleize_warnings'][:3]!r}")
+
+    # ------------------------------------------------------------ kepala dokumen (E2.4)
+    if not po["jenis"].startswith("Pesanan Pembelian"):
+        checks.append(f"PO/1: baris jenis tidak menyebut jenis dokumennya: {po['jenis']!r}")
+    if not po["lencana_di_jenis"] or po["lencana_n"] != 1:
+        checks.append(f"PO/1: lencana status bukan tepat satu di baris jenis: {po['lencana_di_jenis']} / {po['lencana_n']}")
+    if not po["kode_h1"] or po["h1"] != "PO/2026/II/0001":
+        checks.append(f"PO/1: nomor dokumen bukan h1.doc-code: {po['kode_h1']} {po['h1']!r}")
+    if "VND-" not in po["pihak"]:
+        checks.append(f"PO/1: baris pihak tidak menyebut vendornya: {po['pihak']!r}")
+
+    # ------------------------------------------------------------ tautan lanjutan (E2.5)
+    # PO/1 disetujui pada seed → panel success. Tiga pembaca yang BOLEH membuka PO (prc.view):
+    # direktur dan procurement memegang inv.view dan melihat "Buka Penerimaan Barang (GRN)";
+    # finance (prc.view tanpa inv.view) tidak; kalimat panelnya sama. warehouse memegang inv.view
+    # tetapi ditolak di PO (tanpa prc.view, terukur UX-E2.0) — bukan bagian matriks.
+    out["matriks"] = {}
+    for email in ("direktur", "procurement", "finance"):
+        pg.context.clear_cookies()
+        pg.goto(BASE); pg.evaluate("() => localStorage.clear()")
+        login(pg, f"{email}@nusantara.test")
+        pg.goto(BASE + "#/d/procurement/purchase-orders/1")
+        pg.wait_for_selector(".page-head + .action-panel", timeout=20000)
+        pg.wait_for_timeout(600)
+        out["matriks"][email] = pg.evaluate("""() => {
+          const p = document.querySelector('.page-head + .action-panel');
+          const a = p && p.querySelector('.action-panel-actions a');
+          return { panel: ((p.querySelector('.action-panel-body') || {}).innerText || '').replace(/\\s+/g, ' ').trim(),
+                   tautan: a ? { text: a.innerText.trim(), href: a.getAttribute('href') } : null };
+        }""")
+    m = out["matriks"]
+    for email in ("direktur", "procurement"):
+        t = m[email]["tautan"]
+        if not t or t["text"] != "Buka Penerimaan Barang (GRN)" or t["href"] != "#/r/inventory/goods-receipts":
+            checks.append(f"{email}: tautan GRN tidak tampil di panel PO terkunci: {t!r}")
+    if m["finance"]["tautan"]:
+        checks.append(f"finance: tautan GRN tampil bagi pembaca yang menunya tidak punya layar itu: {m['finance']['tautan']!r}")
+    if len({v["panel"] for v in m.values()}) != 1:
+        checks.append(f"kalimat panel berbeda antar pembaca: {[v['panel'][:60] for v in m.values()]!r}")
+
+    if errors:
+        checks.append(f"{len(errors)} galat konsol: {errors[:3]!r}")
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -15987,7 +16136,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

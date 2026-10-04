@@ -1,7 +1,7 @@
 /* Generic document detail: header, key/value panel, line tables, approvals. */
 
 import { api, session } from '../api.js';
-import { el, clear, button, badge, statusBadge, actionPanel, icon, errorState, emptyState, pluck, toast, menuButton } from '../ui.js';
+import { el, clear, button, badge, statusBadge, actionPanel, icon, errorState, emptyState, pluck, toast, menuButton, keyValueTile, docHeader } from '../ui.js';
 import { renderCell, sumColumn } from '../cells.js';
 import * as fmt from '../format.js';
 import { attachmentsCard } from './attachments.js';
@@ -9,7 +9,7 @@ import { activitiesCard, ACTIVITY_DOCUMENTS } from './activities.js';
 import { externalApprovalsCard } from './external.js';
 import { preload, labelFor } from '../lookup.js';
 import { openForm, startForm } from './form.js';
-import { RESOURCES } from '../schema.js';
+import { RESOURCES, visibleNav } from '../schema.js';
 import { actionButtons } from './actions.js';
 import { downloadPdf, openPrintable, pdfName, xlsxName } from '../print.js';
 import { loadPrintForms, printButtonsFor, printablePath, printableFor, xlsxPath } from '../printcatalog.js';
@@ -99,6 +99,12 @@ const NAME_SHADOWED = {
   // P7: QuotationResource meratakan metode pelaksanaan yang dikutip penawaran.
   // Tanpa baris ini kartu Informasi menuliskan "Method Library Id: 3".
   method_library_id: 'method_library_title',
+  /* UX-E2.2 (ERRATA E-7): label formulir menang atas LABELS. Formulir kontrak
+     memberi quotation_id label 'Dari penawaran' — persis label LABELS untuk
+     quotation_code, dan ContractResource mengirim KEDUANYA. Tanpa bayangan ini
+     kartu Informasi kontrak memajang dt 'Dari penawaran' dua kali (S17 membaca
+     dl.kv dt per label). Kode penawarannya yang tampil; id mentahnya diam. */
+  quotation_id: 'quotation_code',
   // F-3: pemilik prospek. Nama ratanya TIDAK PERNAH kosong (LeadResource
   // mengirim "Belum ditugaskan"), jadi baris id mentahnya selalu tergantikan —
   // dan prospek tanpa pemilik membaca kalimat itu, bukan "—" yang bisa berarti
@@ -416,7 +422,9 @@ const LABELS = {
   is_fully_depreciated: 'Habis disusutkan', current_project_id: 'Proyek saat ini',
   item_type: 'Jenis item', tax_type: 'Jenis pajak', object_code: 'Kode objek pajak',
   rate: 'Tarif', daily_rate_internal: 'Tarif harian internal', minutes_spent: 'Menit dikerjakan',
-  terbilang: 'Terbilang', roles: 'Peran', type: 'Jenis', depreciation_run_id: 'Run penyusutan',
+  terbilang: 'Terbilang', total_terbilang: 'Terbilang', roles: 'Peran',
+  // Kunci summary tanpa label formulir (UX-E2.3): ubinnya dulu memperingatkan lewat titleize().
+  ppn_change: 'Perubahan PPN', period_amount: 'Nilai periode ini', cumulative_amount: 'Nilai kumulatif', type: 'Jenis', depreciation_run_id: 'Run penyusutan',
   asset_account_hint: 'Akun aset (petunjuk)', accum_account_hint: 'Akun akumulasi (petunjuk)',
   depreciation_account_hint: 'Akun penyusutan (petunjuk)',
   // Tiga izin lapangan (P0-C): IKL, ILB, IMK.
@@ -470,6 +478,25 @@ function titleize(key) {
     .replace(/_id$/, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+/**
+ * Label kartu Informasi, urutan ERRATA E-7: label medan FORMULIR sumber daya ini
+ * (schema.js def.form.sections[].fields[].label — kata yang sama dengan yang
+ * dilihat orang saat mengetiknya), lalu kamus LABELS (medan hitungan yang tidak
+ * pernah dideklarasikan formulir mana pun: dpp, ppn_amount, required_levels …),
+ * lalu null — pemanggil melipat kunci tanpa label ke "Bidang lainnya (n)" dan
+ * baru di situ titleize() (dengan peringatannya) memberi teks. README E2 ingin
+ * titleize() dicabut sebagai sumber label; E-7 mempertahankannya sebagai
+ * peringatan — keduanya terpenuhi bila ia hanya tampil di dalam lipatan.
+ */
+function formLabels(def) {
+  const sections = (def.form && def.form.sections) || [];
+  return new Map(sections.flatMap((section) => section.fields || []).map((field) => [field.key, field.label]));
+}
+
+function fieldLabel(key, labels) {
+  return labels.get(key) || LABELS[key] || null;
 }
 
 /**
@@ -605,17 +632,36 @@ function autoValue(record, key) {
   return el('span', { text: String(value) });
 }
 
-/** Money summary strip (dpp / ppn / total …) driven by detail.summary. */
-function summaryStrip(record, keys) {
-  return el('.stat-row', keys.map((key) => el('.stat', [
-    el('.label', { text: titleize(key) }),
-    el('.value.sm', { text: fmt.rupiah(record[key]) }),
-  ])));
+/*
+ * Ubin nilai kunci (UX-E2.3, README E2): `def.detail.headline` — tanpa kunci itu
+ * SELURUH `detail.summary` (bukan lima pertama: PANDUAN menjanjikan Total ·
+ * Sudah dibayar · Sisa pada invoice dan "seluruh rantai angkanya" pada opname).
+ * Nilai diformat per kunci dengan regex yang autoValue pakai — PERCENT sebelum
+ * MONEY karena `ppn_rate` cocok keduanya; strip lama mencetak "Rp 11" untuk PPK.
+ * Kosong → null, dan keyValueTile mencetak '—', bukan Rp 0.
+ */
+function headlineKeys(detail) {
+  return detail.headline || detail.summary || [];
+}
+
+function headlineValue(record, key) {
+  const value = record[key];
+  if (value === null || value === undefined || value === '') return null;
+  if (PERCENT_KEY.test(key)) return fmt.percent(value);
+  if (DATE_KEY.test(key)) return String(value).length > 10 ? fmt.dateTime(value) : fmt.date(value);
+  if (MONEY_KEY.test(key) && !Number.isNaN(Number(value))) return fmt.rupiah(value);
+  return String(value);
+}
+
+function headlineTiles(record, keys, labels) {
+  return keys.length
+    ? el('.kv-tiles', keys.map((key) => keyValueTile({ label: fieldLabel(key, labels) || titleize(key), value: headlineValue(record, key) })))
+    : null;
 }
 
 function linesTable(rows, table, record) {
   if (!rows || !rows.length) {
-    return el('.card-body', el('p.muted', { text: 'Belum ada baris.', style: { margin: 0 } }));
+    return el('.card-body', el('p.muted', { text: 'Belum ada baris.' }));
   }
 
   const totalKeys = table.totals || (table.totalKey ? [table.totalKey] : []);
@@ -688,7 +734,7 @@ function nestedTable(sections, table) {
   }
 
   if (!body.childElementCount) {
-    return el('.card-body', el('p.muted', { text: 'Belum ada bagian atau item.', style: { margin: 0 } }));
+    return el('.card-body', el('p.muted', { text: 'Belum ada bagian atau item.' }));
   }
 
   // Baris section dan tfoot memakai colspan penuh — dan justru karena itu
@@ -726,6 +772,20 @@ function nestedTable(sections, table) {
  * Nilainya digambar `renderCell` — bukan format sendiri — supaya angka di
  * kepala dokumen tidak pernah berbeda dari angka yang sama di tabel daftarnya.
  */
+/*
+ * Pihak dokumen untuk baris .doc-party (UX-E2.4): kolom teks pertama yang kuncinya
+ * berakhir '.name' dan terisi — dibaca lewat pluck, cara renderCell membacanya
+ * (aturan kejujuran documentMeta di bawah) — plus `sub`-nya (kode) bila terisi.
+ * 21 sumber daya menyatakan kolom seperti itu (PO: vendor.name · vendor.code).
+ */
+function partyText(def, record) {
+  const column = (def.columns || []).find((one) => one.type === 'text' && String(one.key).endsWith('.name')
+    && pluck(record, one.key) !== null && pluck(record, one.key) !== undefined && pluck(record, one.key) !== '');
+  if (!column) return '';
+  const sub = column.sub ? pluck(record, column.sub) : null;
+  return `${pluck(record, column.key)}${sub ? ` · ${sub}` : ''}`;
+}
+
 function documentMeta(def, record) {
   const columns = def.columns || [];
   /* `pluck`, bukan record[key]: sebagian kolom memakai kunci bertitik
@@ -766,6 +826,24 @@ function documentMeta(def, record) {
  * kalimat yang sama. Nama orang dan tingkat datang dari record.approvals dan
  * required_levels — tidak ada yang dikarang di klien (E-3 butir 5).
  */
+/*
+ * Tautan lanjutan tampilan-saja (UX-E2.5, README E2 / ERRATA E-7): `def.detail.next`
+ * { label, route } — hanya pada panel dokumen TERKUNCI (tone success), dan hanya bila
+ * layar tujuannya ada di menu pembaca: saringan yang sama dengan bilah sisi dan Ctrl+K
+ * (visibleNav), bukan izin yang dikarang di view (aturan dasar 2). Tautan sungguhan ke
+ * daftarnya; ia TIDAK menyatakan apakah dokumen lanjutannya sudah dibuat — itu urusan
+ * daftar yang dibukanya. Di kertas ia kontrol dan disembunyikan; kalimat panel tetap.
+ */
+function canOpenRoute(route) {
+  return visibleNav((perm) => session.can(perm)).some((group) => (group.items || []).some((item) => item.route === route));
+}
+
+function nextLink(def, strip) {
+  const next = (def.detail || {}).next;
+  if (!next || !next.route || !strip || strip.tone !== 'success' || !canOpenRoute(next.route)) return null;
+  return el('a.btn', { href: `#/${next.route}` }, [icon('arrow-right', 15), el('span', { text: `Buka ${next.label}` })]);
+}
+
 function statusStrip(def, record, canEdit, { canDecide = false } = {}) {
   const status = String(record.status || '');
   const approvals = Array.isArray(record.approvals) ? record.approvals : [];
@@ -1044,15 +1122,21 @@ export async function renderDetail(host, { key, def, id }) {
   ].filter(Boolean);
   decisions.filter((node) => node.classList.contains('primary')).slice(1).forEach((node) => node.classList.remove('primary'));
 
+  /*
+   * Kepala dokumen lewat docHeader() (UX-E2.4, README E2): jenis · lencana · nomor
+   * (h1 mono) · pihak · proyek/nilai. `.page-head` TETAP wadahnya — S2/S49/S56
+   * dan SpaPageHeadStandardTest membaca `.page-head h1/.badge/.actions`, dan bilah
+   * tiga zona di kanan tidak berubah sebyte pun (OQ-23). Judul dokumen (subtitle)
+   * menang atas pihak supaya tidak satu layar pun kehilangan judulnya.
+   */
   host.appendChild(el('.page-head', [
-    el('div', [
-      el('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } }, [
-        el('h1', { text: title }),
-        record.status ? statusBadge(record.status, statusEnum, { label: record.status_label || undefined }) : null,
-      ]),
-      subtitle ? el('.desc', { text: subtitle }) : null,
-      documentMeta(def, record),
-    ]),
+    docHeader({
+      kind: def.label,
+      code: title,
+      status: record.status ? statusBadge(record.status, statusEnum, { label: record.status_label || undefined }) : null,
+      party: subtitle || partyText(def, record) || null,
+      context: documentMeta(def, record),
+    }),
     el('.actions', [
       el('.zone.navigasi', [button('', { iconName: 'back', title: 'Kembali', onClick: () => back() })]),
       el('.zone.keluaran', [printMenu(def, key, record)]),
@@ -1082,7 +1166,8 @@ export async function renderDetail(host, { key, def, id }) {
     canDecide: (def.actions || []).some((action) => session.isDecisionDoor(action)
       && session.canAct(action) && (!action.when || action.when(record))),
   });
-  if (strip) host.appendChild(actionPanel({ tone: strip.tone, iconName: strip.iconName, title: strip.text, text: strip.sub }));
+  const next = nextLink(def, strip);
+  if (strip) host.appendChild(actionPanel({ tone: strip.tone, iconName: strip.iconName, title: strip.text, text: strip.sub, actions: next }));
 
   /* P8 — revisi generik (D9): the superseded banner, speaking the 422's own
      words (Revisable::assertRevisiBerlaku) BEFORE anybody presses a button.
@@ -1092,7 +1177,7 @@ export async function renderDetail(host, { key, def, id }) {
   if (def.revisable && record.is_current === false && record.superseded_by_id) {
     host.appendChild(el('.alert.warn', [
       icon('warn', 15),
-      el('div', { style: { flex: '1' } }, [
+      el('.spacer', [
         el('div', {
           text: `${def.labelOne} ini telah digantikan revisi ${record.superseded_by_code || `#${record.superseded_by_id}`} `
             + 'dan tidak dapat diubah, diajukan, atau diputus lagi.',
@@ -1108,7 +1193,10 @@ export async function renderDetail(host, { key, def, id }) {
     ]));
   }
 
-  if (detail.summary) host.appendChild(summaryStrip(record, detail.summary));
+  const tileKeys = headlineKeys(detail);
+  const labels = formLabels(def);
+  const tiles = headlineTiles(record, tileKeys, labels);
+  if (tiles) host.appendChild(tiles);
 
   const main = el('div');
   const side = el('div');
@@ -1121,11 +1209,12 @@ export async function renderDetail(host, { key, def, id }) {
   // panel instead of being repeated as a bare id.
   const coveredIds = new Set(relatedObjects.map((name) => `${name}_id`));
 
+  const drawnBelow = new Set([...(detail.tables || []), ...(detail.lists || [])].map((block) => block.key));
   const fieldKeys = Object.keys(record).filter((fieldKey) =>
     !HIDDEN_KEYS.has(fieldKey) &&
     !fieldKey.endsWith('_label') &&
     !coveredIds.has(fieldKey) &&
-    !(detail.summary || []).includes(fieldKey) &&
+    !tileKeys.includes(fieldKey) &&
     // Sebuah koleksi kosong tidak punya apa pun untuk ditampilkan; barisnya
     // hanya menyisakan label menggantung ("Retensi" tanpa nilai).
     !(Array.isArray(record[fieldKey]) && record[fieldKey].length === 0) &&
@@ -1136,7 +1225,11 @@ export async function renderDetail(host, { key, def, id }) {
     // (P0-C — lihat NAME_SHADOWED), dan tidak meninggalkan baris "—" saat kosong.
     !(NAME_SHADOWED[fieldKey] && record[NAME_SHADOWED[fieldKey]]) &&
     !(NAME_KEYS.has(fieldKey) && (record[fieldKey] === null || record[fieldKey] === '')) &&
-    !(typeof record[fieldKey] === 'object' && record[fieldKey] !== null && !Array.isArray(record[fieldKey]) && record[fieldKey].id));
+    !(typeof record[fieldKey] === 'object' && record[fieldKey] !== null && !Array.isArray(record[fieldKey]) && record[fieldKey].id) &&
+    // Kunci yang sudah digambar sebuah kartu tabel/daftar di bawah (detail.tables[].key,
+    // detail.lists[].key) tidak diulang sebagai baris Informasi — sebelum UX-E2.2 WO
+    // memajang "Billings" (array objek) di atas kartu "Tagihan periode yang sudah dibuat".
+    !drawnBelow.has(fieldKey));
 
   /*
    * Pengelompokan panel Informasi lewat kunci schema OPSIONAL `detail.groups`
@@ -1162,10 +1255,29 @@ export async function renderDetail(host, { key, def, id }) {
   const grouped = new Set(groups.flatMap((group) => group.keys));
   const ungrouped = fieldKeys.filter((fieldKey) => !grouped.has(fieldKey));
 
+  /*
+   * Label: formulir → LABELS → "Bidang lainnya (n)" (UX-E2.2, ERRATA E-7).
+   * Kunci yang disebut sebuah kelompok tetap di kelompoknya walau tanpa label
+   * (skema yang menempatkannya); kunci di luar kelompok yang tidak berlabel
+   * di formulir maupun kamus dilipat ke <details> di DASAR kartu yang sama —
+   * tetap di dalam kartu Informasi supaya penghitung dt-nya (S49) dan pembaca
+   * dl.kv (S17, S30) tetap menemukannya, dan tetap ada supaya medan yang
+   * lupa diberi label terlihat, bukan lenyap. Diukur 4 Okt 2026 (ux-e2-probes
+   * pada 11c19dc): PO/1 13 dt, 0 peringatan titleize; INV/1 3 peringatan.
+   */
+  const unlabelled = ungrouped.filter((fieldKey) => !fieldLabel(fieldKey, labels));
+  const rest = ungrouped.filter((fieldKey) => fieldLabel(fieldKey, labels));
+
   const kv = (keys) => el('dl.kv', keys.flatMap((fieldKey) => [
-    el('dt', { text: titleize(fieldKey) }),
+    el('dt', { text: fieldLabel(fieldKey, labels) || titleize(fieldKey) }),
     el('dd', autoValue(record, fieldKey)),
   ]));
+  const fold = unlabelled.length
+    ? el('details.kv-more', [
+      el('summary', { text: `Bidang lainnya (${unlabelled.length})` }),
+      kv(unlabelled),
+    ])
+    : null;
 
   main.appendChild(el('.card', [
     el('.card-head', el('h2', { text: 'Informasi' })),
@@ -1178,9 +1290,10 @@ export async function renderDetail(host, { key, def, id }) {
         // Blok sisa tidak berjudul: ia bukan kelompok, ia yang belum
         // dikelompokkan. Memberinya judul ("Lain-lain") akan membuatnya tampak
         // sengaja, dan menyembunyikan bahwa skemanya belum selesai.
-        ungrouped.length ? el('.info-group', kv(ungrouped)) : null,
+        rest.length ? el('.info-group', kv(rest)) : null,
+        fold,
       ]
-      : kv(fieldKeys)),
+      : [kv(rest), fold]),
   ]));
 
   for (const table of detail.tables || []) {
@@ -1205,9 +1318,9 @@ export async function renderDetail(host, { key, def, id }) {
     main.appendChild(el('.card', [
       el('.card-head', el('h2', { text: list.label })),
       el('.card-body', values.length
-        ? el('ul', { style: { margin: 0, paddingLeft: '20px', lineHeight: '1.9' } },
+        ? el('ul.plain-list',
           values.map((value) => el('li', { text: String(value) })))
-        : el('p.muted', { text: 'Kosong.', style: { margin: 0 } })),
+        : el('p.muted', { text: 'Kosong.' })),
     ]));
   }
 
@@ -1217,7 +1330,7 @@ export async function renderDetail(host, { key, def, id }) {
       el('.card-body', el('dl.kv', relatedObjects.flatMap((fieldKey) => {
         const related = record[fieldKey];
         return [
-          el('dt', { text: titleize(fieldKey) }),
+          el('dt', { text: fieldLabel(fieldKey, labels) || titleize(fieldKey) }),
           el('dd', [
             el('div', { text: related.name || related.title || related.site_name || `#${related.id}` }),
             related.code ? el('.cell-sub.mono', { text: related.code }) : null,

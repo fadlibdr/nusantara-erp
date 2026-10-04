@@ -849,10 +849,11 @@ Anda terhubung ke baris asalnya** (§6.4).
 
 ### 2.4 Halaman dokumen
 
-Kepala halaman: kode dokumen sebagai judul, **lencana status** di sebelahnya, lalu baris
-tombol: panah kembali, ikon **Cetak halaman**, tombol **`PDF`** pada empat dokumen yang
-punya, satu tombol **`Cetak <nama formulir>`** per formulir rumah (plus **`XLSX`** pada
-sepuluh formulir tersering, §13.2a), **`Ubah`**, lalu tombol-tombol siklus hidup.
+Kepala halaman: jenis dokumen dan **lencana status** di baris kecil, nomor dokumen
+sebagai judul (huruf mono), pihak (vendor/pelanggan) atau judul dokumen, lalu proyek ·
+nilai; di kanan baris tombol: panah kembali, **Cetak ▾** (Cetak halaman · Unduh PDF pada
+dokumen yang punya · satu baris per formulir rumah, plus **XLSX** pada sepuluh formulir
+tersering, §13.2a), **`Ubah`**, lalu tombol-tombol siklus hidup.
 
 Kode dokumen diterbitkan sistem mengikuti format yang disetel administrator — sejak P8
 format sebuah jenis boleh memuat **kode proyek** (token `{PROJ}`), sehingga nomor
@@ -860,7 +861,14 @@ seperti `IPP/GSP-T1/2026/0001` berjalan urut **per proyek**. Itu keputusan Penga
 bukan pilihan di formulir; lihat `PANDUAN-ADMINISTRATOR.md` §4.8.
 
 Isi kolom kiri: kartu **Informasi** (semua kolom dokumen), lalu satu kartu per tabel
-baris. Kolom kanan: **Terkait**, **Riwayat Persetujuan**, **Lampiran**, **Metadata**
+baris. Setiap kolom di kartu Informasi berlabel kata yang sama dengan formulirnya
+(mis. "Gudang tujuan", "Dari PR"); kolom hitungan yang tidak ada di formulir (DPP, PPN,
+tingkat persetujuan) memakai kamus label aplikasi. Kolom yang tidak berlabel di
+keduanya tidak hilang: ia dilipat di bawah **Bidang lainnya (n)** di dasar kartu yang
+sama — klik judulnya untuk membuka. Pada PO tidak ada yang terlipat. Pada dokumen yang
+sudah dikunci, panel keadaan dapat menampilkan tombol **Buka <layar lanjutan>** (mis. PO →
+**Buka Penerimaan Barang (GRN)**) bila layar itu ada di menu Anda; tombol ini hanya membuka
+daftarnya — ERP tidak menyatakan apakah dokumen lanjutannya sudah atau belum dibuat. Kolom kanan: **Terkait**, **Riwayat Persetujuan**, **Lampiran**, **Metadata**
 (ID, Dibuat, Diperbarui).
 
 **Warna lencana status:**
@@ -1374,7 +1382,7 @@ Lingkup pekerjaan: **Konstruksi Gedung · Integrasi Sistem (ELV/ICT) · Pemeliha
 
 Hitungannya: `Subtotal` = jumlah baris; `Diskon` dipotong dan **dibatasi tidak melebihi
 subtotal**; `DPP` = subtotal − diskon; `PPN` = DPP × tarif ÷ 100; `Total` = DPP + PPN.
-Keenam angka itu tampil sebagai strip ringkasan di halaman penawaran.
+Keenam angka itu tampil sebagai baris ubin nilai kunci di halaman penawaran.
 
 **Menyimpan penawaran mengganti SELURUH barisnya** dan menomori ulang sesuai urutan di
 layar. Tidak ada penambahan baris "di belakang" — apa yang ada di tabel saat Anda menekan
@@ -2162,7 +2170,7 @@ Kolom: Kode · Pelanggan (dengan kode kontrak) · Tgl invoice · Jatuh tempo · 
 **Sisa** (hijau bila nol) · Status. Kotak cari mencakup kode, keterangan, dan **nomor
 faktur pajak**. Nomor `INV/…`.
 
-Strip ringkasan di halaman invoice: **DPP · PPN · Retensi ditahan · Potongan uang muka ·
+Baris ubin nilai kunci di halaman invoice: **DPP · PPN · Retensi ditahan · Potongan uang muka ·
 Denda · Total · Sudah dibayar · Sisa**.
 
 **Tiga pintu, pilih satu.** Bantuan di formulirnya menyebut ketiganya: *"Tiga pintu, pilih
@@ -3159,7 +3167,7 @@ prakualifikasi**.
 Baris **Item pesanan** (minimal 1): Item · **Uraian** (wajib) · **Qty** (wajib) ·
 Satuan · **Harga satuan** (wajib).
 
-Strip ringkasan halaman PO: subtotal, diskon, DPP, PPN, total. Tabel barisnya
+Baris ubin nilai kunci halaman PO: Subtotal, Diskon, DPP, PPN, Total. Tabel barisnya
 memperlihatkan Qty, **Diterima**, Satuan, Harga satuan, Jumlah.
 
 **PPN dihitung, tidak pernah diketik:** subtotal − diskon = DPP; PPN = DPP × tarif
@@ -5848,7 +5856,7 @@ dari selisih terhadap progres sebelumnya."*
 **Anda memasukkan progres KUMULATIF, bukan progres periode ini.** Nilai periodenya
 dihitung sistem sebagai selisih terhadap progres yang tercatat sebelumnya.
 
-Strip ringkasan di halaman opname memperlihatkan seluruh rantai angkanya: **Bruto ·
+Baris ubin nilai kunci di halaman opname memperlihatkan seluruh rantai angkanya: **Bruto ·
 Retensi · Netto sebelum pajak · PPN · PPh · Potongan uang muka · Netto dibayar**. Tabel
 rinciannya: Uraian · Progres lalu · Progres kini · Periode ini · Nilai.
 
@@ -6102,7 +6110,7 @@ ulang SP3 yang ada. **PPN** mengikuti status PKP mandornya (non-PKP = tanpa PPN,
 yang sama dengan SPK); mandor PKP praktis tidak ada, tetapi aturannya milik master
 vendor, bukan tebakan layar ini.
 
-**Halaman SP3** menampilkan strip Nilai/PPN/PPh dan tabel **Baris upah** dengan kolom
+**Halaman SP3** menampilkan ubin nilai kunci Nilai/PPN/PPh dan tabel **Baris upah** dengan kolom
 **ID**. **Kolom ID itu penting** — angka itulah yang Anda ketik ke kolom "ID baris SP3"
 pada formulir opname mandor (§8.10), sama seperti pasangan ID di halaman SPK (§8.2).
 

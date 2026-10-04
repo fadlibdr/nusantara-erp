@@ -110,7 +110,7 @@ public/app/
                         controls, active-filter chips with Hapus semua, CSV), saved views,
                         table, pagination
       form.js           generic create/edit modal incl. repeatable line items
-      detail.js         generic document detail: fields, lines, approvals
+      detail.js         generic document detail: head, status panel, Informasi (label: form → LABELS → "Bidang lainnya"), lines, approvals
       actions.js        lifecycle actions (submit/approve/post/…)
       dashboard.js      cross-module dashboard + approval inbox
       home.js           app launcher #/home: search (same screen index as Ctrl+K), Favorit and
@@ -253,6 +253,33 @@ N rows SAYS SO and takes its totals from `meta` — which is why it calls `api.l
 load: measured 8 Sep 2026, "100 terbuka." on a document holding 110, next to a board card that
 said 110 (verifikasi F-3).
 
+### Informasi labels (`fieldLabel`, UX-E2.2, ERRATA E-7)
+
+The Informasi card names a field in this order: the label of the resource's own FORM field
+(`def.form.sections[].fields[].label` — the words the person saw when typing it), then the
+`LABELS` dictionary in `views/detail.js` (computed fields no form declares: `dpp`,
+`ppn_amount`, `required_levels` …), then nothing. A key with no label in either is not drawn
+as an auto-English title between the labelled rows; `renderDetail` folds every such key into a
+closed `details.kv-more` — "Bidang lainnya (n)" — as the LAST child of the same card, and only
+there does `titleize()` give it a text, together with its console warning. README E2 asked for
+`titleize()` to go as a label source and ERRATA E-7 asked to keep `LABELS` and the warning;
+both hold when the auto title can only appear inside the fold. A key named by a `detail.groups`
+entry stays in its group even unlabelled: the schema placed it. The fold lives inside the card
+so `.card:has(h2 'Informasi') dt` counters and `dl.kv dt` readers keep finding it, and it never
+prints "(0)". `DetailViewWiringTest` pins the order, the fold's position and, statically, that
+no key `PurchaseOrderResource` emits can reach the fold.
+
+Below the status panel the document shows its key values as `.kv-tiles` (`keyValueTile`, UX-E2.3):
+`def.detail.headline`, or, when a resource declares none, the WHOLE `detail.summary` — never a
+first-five cut, because the invoice guide promises Total · Sudah dibayar · Sisa. Each value is
+formatted by the same key regexes `autoValue` uses (percent before money, so `ppn_rate` reads
+"11%" and not "Rp 11"), and an empty value prints "—". The keys drawn as tiles are exactly the
+keys the Informasi card leaves out. PO is the pilot of `headline`, identical to its summary.
+`def.detail.next` `{ label, route }` (UX-E2.5) adds a display-only link "Buka <label>" to the LOCKED
+(success) panel's `actions` slot, and only for readers whose sidebar lists that route — `visibleNav()`
+with `session.can`, the same filter the sidebar and Ctrl+K use; it never claims the follow-up document
+exists or not. PO → Penerimaan Barang (GRN) is the only user; the link is hidden on paper as a control.
+
 ### Kanban hooks (`board.api`, `board.card.fields`, `action.body`, `action.boardOnly`, F-3)
 
 `views/board.js` (P1-G) gained three hooks so the pipeline board could stand on it unchanged.
@@ -365,7 +392,11 @@ reading, in another shape. There is no `print` action anywhere in the permission
   `docHeader`, `statusBadge`, `actionPanel`, `tabs`, `filterChip`, `overflowMenu`, `keyValueTile`, `stepper`,
   `drawer`, `errorSummary` — each with its rules in the `primitif UX-C.3` section at the end of `app.css` and
   pinned by `UiPrimitivesTest` (exported, no hex literal in `ui.js`, every class it writes has a stylesheet
-  rule). `statusBadge(status, enumName, { label })` is **icon + word**, never colour alone: tone from
+  rule). `docHeader()` has its first caller since UX-E2.4, `views/detail.js`: it renders the document
+  number as `h1.doc-code.mono` (the number is the page title; harness and a11y read `.page-head h1`),
+  and `.page-head` remains the container because the harness and `SpaPageHeadStandardTest` pin it; the
+  code's size follows `.page-head h1` (`--fs-page`), not `.doc-code`'s 26 px (OQ-25).
+  `statusBadge(status, enumName, { label })` is **icon + word**, never colour alone: tone from
   `fmt.statusTone()`, glyph from `fmt.statusIcon()` (the enum's own fourth tuple element in `enums.js`, else
   the shared word map). `overflowMenu(items)` is `menuButton` with an ellipsis trigger; items may carry
   `{ divider: true }` and `danger: true` so "Hapus…" stands after a rule in `--danger`. `actionPanel({ tone })`

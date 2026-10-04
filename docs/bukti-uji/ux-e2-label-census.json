@@ -1,0 +1,2074 @@
+{
+ "base": "http://127.0.0.1:8001/app/",
+ "labels_count": 581,
+ "forms": 92,
+ "forms_with_detail": 42,
+ "differ_count": 212,
+ "missing_count": 96,
+ "differ_count_with_detail": 84,
+ "missing_count_with_detail": 37,
+ "differ": [
+  {
+   "resource": "assets/assets",
+   "key": "name",
+   "form": "Nama aset",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "assets/assets",
+   "key": "serial_no",
+   "form": "Nomor seri",
+   "has_detail": false,
+   "labels": "No. seri"
+  },
+  {
+   "resource": "assets/assets",
+   "key": "depreciation_start_date",
+   "form": "Mulai disusutkan",
+   "has_detail": false,
+   "labels": "Mulai penyusutan"
+  },
+  {
+   "resource": "assets/assets",
+   "key": "vendor_id",
+   "form": "Vendor rental (lessor)",
+   "has_detail": false,
+   "labels": "Vendor"
+  },
+  {
+   "resource": "assets/categories",
+   "key": "name",
+   "form": "Nama kategori",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "assets/categories",
+   "key": "useful_life_months_default",
+   "form": "Umur manfaat default (bulan)",
+   "has_detail": false,
+   "labels": "Umur manfaat bawaan (bulan)"
+  },
+  {
+   "resource": "assets/categories",
+   "key": "depreciation_account_hint",
+   "form": "Kode akun beban penyusutan",
+   "has_detail": false,
+   "labels": "Akun penyusutan (petunjuk)"
+  },
+  {
+   "resource": "assets/categories",
+   "key": "accum_account_hint",
+   "form": "Kode akun akumulasi",
+   "has_detail": false,
+   "labels": "Akun akumulasi (petunjuk)"
+  },
+  {
+   "resource": "assets/categories",
+   "key": "asset_account_hint",
+   "form": "Kode akun harga perolehan",
+   "has_detail": false,
+   "labels": "Akun aset (petunjuk)"
+  },
+  {
+   "resource": "assets/deployments",
+   "key": "deployed_from",
+   "form": "Mulai",
+   "has_detail": true,
+   "labels": "Ditempatkan sejak"
+  },
+  {
+   "resource": "assets/deployments",
+   "key": "daily_rate_internal",
+   "form": "Tarif internal per hari",
+   "has_detail": true,
+   "labels": "Tarif harian internal"
+  },
+  {
+   "resource": "assets/maintenances",
+   "key": "maintenance_date",
+   "form": "Tanggal",
+   "has_detail": false,
+   "labels": "Tanggal perawatan"
+  },
+  {
+   "resource": "assets/maintenances",
+   "key": "next_due_date",
+   "form": "Jadwal berikutnya (tanggal)",
+   "has_detail": false,
+   "labels": "Jatuh tempo berikutnya"
+  },
+  {
+   "resource": "assets/maintenances",
+   "key": "description",
+   "form": "Uraian pekerjaan",
+   "has_detail": false,
+   "labels": "Keterangan"
+  },
+  {
+   "resource": "core/method-library",
+   "key": "title",
+   "form": "Judul metode",
+   "has_detail": false,
+   "labels": "Judul"
+  },
+  {
+   "resource": "core/method-library",
+   "key": "effective_date",
+   "form": "Berlaku sejak",
+   "has_detail": false,
+   "labels": "Tanggal efektif"
+  },
+  {
+   "resource": "crm/contract-change-orders",
+   "key": "reason",
+   "form": "Sebab",
+   "has_detail": true,
+   "labels": "Alasan"
+  },
+  {
+   "resource": "crm/contract-change-orders",
+   "key": "description",
+   "form": "Uraian",
+   "has_detail": true,
+   "labels": "Keterangan"
+  },
+  {
+   "resource": "crm/contracts",
+   "key": "quotation_id",
+   "form": "Dari penawaran",
+   "has_detail": true,
+   "labels": "Penawaran"
+  },
+  {
+   "resource": "crm/contracts",
+   "key": "title",
+   "form": "Judul kontrak",
+   "has_detail": true,
+   "labels": "Judul"
+  },
+  {
+   "resource": "crm/contracts",
+   "key": "value",
+   "form": "Nilai kontrak (DPP)",
+   "has_detail": true,
+   "labels": "Nilai"
+  },
+  {
+   "resource": "crm/contracts",
+   "key": "ppn_rate",
+   "form": "Tarif PPN (%)",
+   "has_detail": true,
+   "labels": "Tarif PPN"
+  },
+  {
+   "resource": "crm/contracts",
+   "key": "sign_date",
+   "form": "Tanggal tanda tangan",
+   "has_detail": true,
+   "labels": "Tanggal TTD"
+  },
+  {
+   "resource": "crm/contracts",
+   "key": "retention_pct",
+   "form": "Retensi (%)",
+   "has_detail": true,
+   "labels": "Retensi"
+  },
+  {
+   "resource": "crm/customers",
+   "key": "name",
+   "form": "Nama pelanggan",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "crm/customers",
+   "key": "is_pkp",
+   "form": "Pengusaha Kena Pajak (PKP)",
+   "has_detail": false,
+   "labels": "PKP"
+  },
+  {
+   "resource": "crm/customers",
+   "key": "payment_term_days",
+   "form": "Termin pembayaran (hari)",
+   "has_detail": false,
+   "labels": "Termin bayar (hari)"
+  },
+  {
+   "resource": "crm/guarantees",
+   "key": "guarantee_type",
+   "form": "Jenis",
+   "has_detail": false,
+   "labels": "Jenis jaminan"
+  },
+  {
+   "resource": "crm/guarantees",
+   "key": "number",
+   "form": "Nomor (dari penerbit)",
+   "has_detail": false,
+   "labels": "Nomor"
+  },
+  {
+   "resource": "crm/guarantees",
+   "key": "start_date",
+   "form": "Mulai berlaku",
+   "has_detail": false,
+   "labels": "Mulai"
+  },
+  {
+   "resource": "crm/guarantees",
+   "key": "end_date",
+   "form": "Berakhir",
+   "has_detail": false,
+   "labels": "Selesai"
+  },
+  {
+   "resource": "crm/leads",
+   "key": "name",
+   "form": "Nama kontak",
+   "has_detail": true,
+   "labels": "Nama"
+  },
+  {
+   "resource": "crm/leads",
+   "key": "estimated_value",
+   "form": "Estimasi nilai",
+   "has_detail": true,
+   "labels": "Nilai estimasi"
+  },
+  {
+   "resource": "crm/leads",
+   "key": "owner_user_id",
+   "form": "Pemilik prospek (sales)",
+   "has_detail": true,
+   "labels": "Pemilik prospek"
+  },
+  {
+   "resource": "crm/quotations",
+   "key": "lead_id",
+   "form": "Dari prospek",
+   "has_detail": true,
+   "labels": "Prospek"
+  },
+  {
+   "resource": "crm/quotations",
+   "key": "title",
+   "form": "Judul penawaran",
+   "has_detail": true,
+   "labels": "Judul"
+  },
+  {
+   "resource": "crm/quotations",
+   "key": "scope_type",
+   "form": "Lingkup pekerjaan",
+   "has_detail": true,
+   "labels": "Lingkup"
+  },
+  {
+   "resource": "crm/quotations",
+   "key": "ppn_rate",
+   "form": "Tarif PPN (%)",
+   "has_detail": true,
+   "labels": "Tarif PPN"
+  },
+  {
+   "resource": "crm/rkk-documents",
+   "key": "title",
+   "form": "Judul RKK",
+   "has_detail": false,
+   "labels": "Judul"
+  },
+  {
+   "resource": "crm/rkk-documents",
+   "key": "project_id",
+   "form": "Proyek sumber IBPRP",
+   "has_detail": false,
+   "labels": "Proyek"
+  },
+  {
+   "resource": "crm/rkk-documents",
+   "key": "boq_id",
+   "form": "BoQ / RAB",
+   "has_detail": false,
+   "labels": "BOQ"
+  },
+  {
+   "resource": "crm/tender-packages",
+   "key": "title",
+   "form": "Paket pekerjaan",
+   "has_detail": true,
+   "labels": "Judul"
+  },
+  {
+   "resource": "crm/tender-packages",
+   "key": "owner_name",
+   "form": "Pemberi tugas / instansi",
+   "has_detail": true,
+   "labels": "Pemberi tugas"
+  },
+  {
+   "resource": "engineering/drawing-submittals",
+   "key": "drawing_id",
+   "form": "Gambar (register)",
+   "has_detail": false,
+   "labels": "Gambar"
+  },
+  {
+   "resource": "engineering/drawings",
+   "key": "number",
+   "form": "Nomor gambar",
+   "has_detail": false,
+   "labels": "Nomor"
+  },
+  {
+   "resource": "engineering/drawings",
+   "key": "title",
+   "form": "Judul gambar",
+   "has_detail": false,
+   "labels": "Judul"
+  },
+  {
+   "resource": "engineering/ipp",
+   "key": "wbs_task_id",
+   "form": "Paket pekerjaan (WBS)",
+   "has_detail": true,
+   "labels": "Tugas WBS"
+  },
+  {
+   "resource": "engineering/ipp",
+   "key": "description",
+   "form": "Uraian pekerjaan",
+   "has_detail": true,
+   "labels": "Keterangan"
+  },
+  {
+   "resource": "engineering/material-submittals",
+   "key": "item_id",
+   "form": "Item persediaan",
+   "has_detail": false,
+   "labels": "Item"
+  },
+  {
+   "resource": "engineering/transmittals",
+   "key": "to_party",
+   "form": "Kepada (pihak penerima)",
+   "has_detail": true,
+   "labels": "Kepada"
+  },
+  {
+   "resource": "estimation/ahsp",
+   "key": "name",
+   "form": "Uraian pekerjaan",
+   "has_detail": true,
+   "labels": "Nama"
+  },
+  {
+   "resource": "estimation/ahsp",
+   "key": "overhead_pct",
+   "form": "Overhead & profit (%)",
+   "has_detail": true,
+   "labels": "Overhead"
+  },
+  {
+   "resource": "estimation/cost-budgets",
+   "key": "boq_id",
+   "form": "BOQ sumber",
+   "has_detail": true,
+   "labels": "BOQ"
+  },
+  {
+   "resource": "estimation/cost-budgets",
+   "key": "target_margin_pct",
+   "form": "Target margin (%)",
+   "has_detail": true,
+   "labels": "Target margin"
+  },
+  {
+   "resource": "finance/accounts",
+   "key": "name",
+   "form": "Nama akun",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "finance/accounts",
+   "key": "account_type",
+   "form": "Tipe akun",
+   "has_detail": false,
+   "labels": "Jenis akun"
+  },
+  {
+   "resource": "finance/accounts",
+   "key": "parent_id",
+   "form": "Akun induk",
+   "has_detail": false,
+   "labels": "Induk"
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "purchase_order_id",
+   "form": "Dari PO",
+   "has_detail": true,
+   "labels": "PO"
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "subcontract_claim_id",
+   "form": "Dari opname subkon",
+   "has_detail": true,
+   "labels": "Opname subkon"
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "labor_claim_id",
+   "form": "Dari opname mandor",
+   "has_detail": true,
+   "labels": "Opname mandor"
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "is_advance",
+   "form": "Tagihan uang muka (DP) atas PO",
+   "has_detail": true,
+   "labels": "Klaim uang muka"
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "goods_receipt_id",
+   "form": "Atas penerimaan barang (GRN)",
+   "has_detail": true,
+   "labels": "Penerimaan barang"
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "ppn_amount",
+   "form": "PPN masukan",
+   "has_detail": true,
+   "labels": "PPN"
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "pph_tax_id",
+   "form": "Jenis PPh dipotong",
+   "has_detail": true,
+   "labels": "Jenis PPh"
+  },
+  {
+   "resource": "finance/ar-invoices",
+   "key": "termin_id",
+   "form": "Termin kontrak (ID)",
+   "has_detail": true,
+   "labels": "Termin"
+  },
+  {
+   "resource": "finance/ar-invoices",
+   "key": "ppn_rate",
+   "form": "Tarif PPN (%)",
+   "has_detail": true,
+   "labels": "Tarif PPN"
+  },
+  {
+   "resource": "finance/ar-invoices",
+   "key": "is_advance",
+   "form": "Invoice uang muka (DP)",
+   "has_detail": true,
+   "labels": "Klaim uang muka"
+  },
+  {
+   "resource": "finance/bank-accounts",
+   "key": "name",
+   "form": "Nama rekening",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "finance/bank-accounts",
+   "key": "account_no",
+   "form": "Nomor rekening",
+   "has_detail": false,
+   "labels": "No. rekening"
+  },
+  {
+   "resource": "finance/overhead-budgets",
+   "key": "period_year",
+   "form": "Tahun buku",
+   "has_detail": true,
+   "labels": "Tahun"
+  },
+  {
+   "resource": "finance/payments",
+   "key": "payment_date",
+   "form": "Tanggal",
+   "has_detail": false,
+   "labels": "Tanggal bayar"
+  },
+  {
+   "resource": "finance/payments",
+   "key": "reference",
+   "form": "Referensi transfer",
+   "has_detail": false,
+   "labels": "Referensi"
+  },
+  {
+   "resource": "finance/taxes",
+   "key": "name",
+   "form": "Nama pajak",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "finance/taxes",
+   "key": "tax_type",
+   "form": "Jenis",
+   "has_detail": false,
+   "labels": "Jenis pajak"
+  },
+  {
+   "resource": "finance/taxes",
+   "key": "rate",
+   "form": "Tarif (%)",
+   "has_detail": false,
+   "labels": "Tarif"
+  },
+  {
+   "resource": "hr/attendance-recaps",
+   "key": "sick_days",
+   "form": "Sakit",
+   "has_detail": false,
+   "labels": "Hari sakit"
+  },
+  {
+   "resource": "hr/attendance-recaps",
+   "key": "leave_days",
+   "form": "Cuti",
+   "has_detail": false,
+   "labels": "Hari cuti"
+  },
+  {
+   "resource": "hr/attendance-recaps",
+   "key": "alpha_days",
+   "form": "Alpa",
+   "has_detail": false,
+   "labels": "Hari alpa"
+  },
+  {
+   "resource": "hr/certificates",
+   "key": "certificate_type",
+   "form": "Jenis",
+   "has_detail": false,
+   "labels": "Jenis sertifikat"
+  },
+  {
+   "resource": "hr/certificates",
+   "key": "name",
+   "form": "Nama sertifikat",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "hr/employees",
+   "key": "name",
+   "form": "Nama lengkap",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "hr/employees",
+   "key": "bpjs_tk_no",
+   "form": "No. BPJS Ketenagakerjaan",
+   "has_detail": false,
+   "labels": "No. BPJS TK"
+  },
+  {
+   "resource": "hr/leave-requests",
+   "key": "leave_type",
+   "form": "Jenis",
+   "has_detail": false,
+   "labels": "Jenis cuti"
+  },
+  {
+   "resource": "hr/leave-requests",
+   "key": "start_date",
+   "form": "Tanggal mulai",
+   "has_detail": false,
+   "labels": "Mulai"
+  },
+  {
+   "resource": "hr/leave-requests",
+   "key": "end_date",
+   "form": "Tanggal selesai",
+   "has_detail": false,
+   "labels": "Selesai"
+  },
+  {
+   "resource": "hr/leave-requests",
+   "key": "reason",
+   "form": "Alasan / keperluan",
+   "has_detail": false,
+   "labels": "Alasan"
+  },
+  {
+   "resource": "hr/payroll-runs",
+   "key": "run_type",
+   "form": "Jenis",
+   "has_detail": false,
+   "labels": "Jenis run"
+  },
+  {
+   "resource": "hr/payroll-runs",
+   "key": "payment_date",
+   "form": "Tanggal pembayaran",
+   "has_detail": false,
+   "labels": "Tanggal bayar"
+  },
+  {
+   "resource": "iam/roles",
+   "key": "name",
+   "form": "Nama peran",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "iam/users",
+   "key": "employee_id",
+   "form": "Karyawan terkait",
+   "has_detail": false,
+   "labels": "Karyawan"
+  },
+  {
+   "resource": "inventory/goods-receipts",
+   "key": "warehouse_id",
+   "form": "Gudang penerima",
+   "has_detail": true,
+   "labels": "Gudang"
+  },
+  {
+   "resource": "inventory/goods-receipts",
+   "key": "purchase_order_id",
+   "form": "PO terkait",
+   "has_detail": true,
+   "labels": "PO"
+  },
+  {
+   "resource": "inventory/issue-returns",
+   "key": "issue_id",
+   "form": "Bon pengeluaran asal",
+   "has_detail": true,
+   "labels": "Pengeluaran barang"
+  },
+  {
+   "resource": "inventory/issue-returns",
+   "key": "return_date",
+   "form": "Tanggal kembali",
+   "has_detail": true,
+   "labels": "Tanggal retur"
+  },
+  {
+   "resource": "inventory/issue-returns",
+   "key": "reason",
+   "form": "Alasan retur",
+   "has_detail": true,
+   "labels": "Alasan"
+  },
+  {
+   "resource": "inventory/issues",
+   "key": "warehouse_id",
+   "form": "Gudang asal",
+   "has_detail": true,
+   "labels": "Gudang"
+  },
+  {
+   "resource": "inventory/issues",
+   "key": "project_id",
+   "form": "Proyek tujuan",
+   "has_detail": true,
+   "labels": "Proyek"
+  },
+  {
+   "resource": "inventory/issues",
+   "key": "ipp_id",
+   "form": "IPP (ijin pelaksanaan)",
+   "has_detail": true,
+   "labels": "IPP"
+  },
+  {
+   "resource": "inventory/issues",
+   "key": "wbs_task_id",
+   "form": "Paket pekerjaan (WBS)",
+   "has_detail": true,
+   "labels": "Tugas WBS"
+  },
+  {
+   "resource": "inventory/item-categories",
+   "key": "name",
+   "form": "Nama kategori",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "inventory/item-categories",
+   "key": "parent_id",
+   "form": "Kategori induk",
+   "has_detail": false,
+   "labels": "Induk"
+  },
+  {
+   "resource": "inventory/items",
+   "key": "name",
+   "form": "Nama item",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "inventory/purchase-returns",
+   "key": "goods_receipt_id",
+   "form": "Penerimaan (GRN) asal",
+   "has_detail": true,
+   "labels": "Penerimaan barang"
+  },
+  {
+   "resource": "inventory/purchase-returns",
+   "key": "reason",
+   "form": "Alasan retur",
+   "has_detail": true,
+   "labels": "Alasan"
+  },
+  {
+   "resource": "inventory/warehouses",
+   "key": "name",
+   "form": "Nama gudang",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "inventory/warehouses",
+   "key": "project_id",
+   "form": "Proyek (gudang site)",
+   "has_detail": false,
+   "labels": "Proyek"
+  },
+  {
+   "resource": "procurement/award-decisions",
+   "key": "vendor_id",
+   "form": "Vendor pemenang",
+   "has_detail": true,
+   "labels": "Vendor"
+  },
+  {
+   "resource": "procurement/award-decisions",
+   "key": "deviation_reason",
+   "form": "Alasan deviasi (bila di atas RAB)",
+   "has_detail": true,
+   "labels": "Alasan deviasi"
+  },
+  {
+   "resource": "procurement/negotiation-minutes",
+   "key": "meeting_date",
+   "form": "Tanggal pertemuan",
+   "has_detail": false,
+   "labels": "Tanggal negosiasi"
+  },
+  {
+   "resource": "procurement/negotiation-minutes",
+   "key": "location",
+   "form": "Tempat",
+   "has_detail": false,
+   "labels": "Lokasi"
+  },
+  {
+   "resource": "procurement/purchase-orders",
+   "key": "purchase_requisition_id",
+   "form": "Dari PR",
+   "has_detail": true,
+   "labels": "PR"
+  },
+  {
+   "resource": "procurement/purchase-orders",
+   "key": "warehouse_id",
+   "form": "Gudang tujuan",
+   "has_detail": true,
+   "labels": "Gudang"
+  },
+  {
+   "resource": "procurement/purchase-orders",
+   "key": "qualification_override_reason",
+   "form": "Alasan override prakualifikasi",
+   "has_detail": true,
+   "labels": "Alasan override kualifikasi"
+  },
+  {
+   "resource": "procurement/purchase-requisitions",
+   "key": "warehouse_id",
+   "form": "Gudang tujuan",
+   "has_detail": true,
+   "labels": "Gudang"
+  },
+  {
+   "resource": "procurement/purchase-requisitions",
+   "key": "needed_date",
+   "form": "Dibutuhkan tanggal",
+   "has_detail": true,
+   "labels": "Dibutuhkan"
+  },
+  {
+   "resource": "procurement/rfqs",
+   "key": "purchase_requisition_id",
+   "form": "Dari PR (disetujui)",
+   "has_detail": false,
+   "labels": "PR"
+  },
+  {
+   "resource": "procurement/rfqs",
+   "key": "due_date",
+   "form": "Batas masuk penawaran",
+   "has_detail": false,
+   "labels": "Jatuh tempo"
+  },
+  {
+   "resource": "procurement/vendor-documents",
+   "key": "doc_type",
+   "form": "Jenis",
+   "has_detail": false,
+   "labels": "Jenis dokumen"
+  },
+  {
+   "resource": "procurement/vendor-documents",
+   "key": "name",
+   "form": "Nama dokumen",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "procurement/vendor-documents",
+   "key": "issued_date",
+   "form": "Terbit",
+   "has_detail": false,
+   "labels": "Tanggal terbit"
+  },
+  {
+   "resource": "procurement/vendor-documents",
+   "key": "valid_until",
+   "form": "Berlaku s/d",
+   "has_detail": false,
+   "labels": "Berlaku sampai"
+  },
+  {
+   "resource": "procurement/vendor-documents",
+   "key": "is_mandatory",
+   "form": "Wajib untuk PO/SPK",
+   "has_detail": false,
+   "labels": "Wajib"
+  },
+  {
+   "resource": "procurement/vendor-evaluations",
+   "key": "quality_score",
+   "form": "Kualitas (1-5)",
+   "has_detail": false,
+   "labels": "Skor kualitas"
+  },
+  {
+   "resource": "procurement/vendor-evaluations",
+   "key": "delivery_score",
+   "form": "Ketepatan kirim (1-5)",
+   "has_detail": false,
+   "labels": "Skor pengiriman"
+  },
+  {
+   "resource": "procurement/vendor-evaluations",
+   "key": "price_score",
+   "form": "Harga (1-5)",
+   "has_detail": false,
+   "labels": "Skor harga"
+  },
+  {
+   "resource": "procurement/vendor-evaluations",
+   "key": "service_score",
+   "form": "Layanan (1-5)",
+   "has_detail": false,
+   "labels": "Skor layanan"
+  },
+  {
+   "resource": "procurement/vendors",
+   "key": "name",
+   "form": "Nama vendor",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "procurement/work-orders",
+   "key": "vendor_id",
+   "form": "Vendor rental/jasa",
+   "has_detail": true,
+   "labels": "Vendor"
+  },
+  {
+   "resource": "procurement/work-orders",
+   "key": "title",
+   "form": "Judul pekerjaan",
+   "has_detail": true,
+   "labels": "Judul"
+  },
+  {
+   "resource": "procurement/work-orders",
+   "key": "qualification_override_reason",
+   "form": "Alasan override prakualifikasi",
+   "has_detail": true,
+   "labels": "Alasan override kualifikasi"
+  },
+  {
+   "resource": "projects",
+   "key": "contract_id",
+   "form": "Dari kontrak",
+   "has_detail": false,
+   "labels": "Kontrak"
+  },
+  {
+   "resource": "projects",
+   "key": "name",
+   "form": "Nama proyek",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "projects",
+   "key": "type",
+   "form": "Jenis proyek",
+   "has_detail": false,
+   "labels": "Jenis"
+  },
+  {
+   "resource": "projects",
+   "key": "retention_pct",
+   "form": "Retensi (%)",
+   "has_detail": false,
+   "labels": "Retensi"
+  },
+  {
+   "resource": "projects",
+   "key": "start_date",
+   "form": "Rencana mulai",
+   "has_detail": false,
+   "labels": "Mulai"
+  },
+  {
+   "resource": "projects",
+   "key": "end_date",
+   "form": "Rencana selesai",
+   "has_detail": false,
+   "labels": "Selesai"
+  },
+  {
+   "resource": "projects/bast",
+   "key": "handover_date",
+   "form": "Tanggal serah terima",
+   "has_detail": false,
+   "labels": "Serah terima"
+  },
+  {
+   "resource": "projects/bast",
+   "key": "retention_release_due",
+   "form": "Retensi dibayar setelah",
+   "has_detail": false,
+   "labels": "Jatuh tempo pencairan retensi"
+  },
+  {
+   "resource": "projects/contract-variations",
+   "key": "boq_item_id",
+   "form": "ID item BOQ",
+   "has_detail": false,
+   "labels": "Item BOQ"
+  },
+  {
+   "resource": "projects/contract-variations",
+   "key": "notes",
+   "form": "Keterangan",
+   "has_detail": false,
+   "labels": "Catatan"
+  },
+  {
+   "resource": "projects/daily-reports",
+   "key": "activities",
+   "form": "Kegiatan hari ini",
+   "has_detail": true,
+   "labels": "Kegiatan"
+  },
+  {
+   "resource": "projects/defects",
+   "key": "title",
+   "form": "Temuan",
+   "has_detail": false,
+   "labels": "Judul"
+  },
+  {
+   "resource": "projects/defects",
+   "key": "source",
+   "form": "Sumber temuan",
+   "has_detail": false,
+   "labels": "Sumber"
+  },
+  {
+   "resource": "projects/defects",
+   "key": "subcontract_id",
+   "form": "SPK subkon",
+   "has_detail": false,
+   "labels": "SPK"
+  },
+  {
+   "resource": "projects/defects",
+   "key": "description",
+   "form": "Uraian",
+   "has_detail": false,
+   "labels": "Keterangan"
+  },
+  {
+   "resource": "projects/defects",
+   "key": "responsible_employee_id",
+   "form": "Penanggung jawab perbaikan",
+   "has_detail": false,
+   "labels": "Penanggung jawab"
+  },
+  {
+   "resource": "projects/defects",
+   "key": "due_date",
+   "form": "Target perbaikan",
+   "has_detail": false,
+   "labels": "Jatuh tempo"
+  },
+  {
+   "resource": "projects/defects",
+   "key": "reported_on",
+   "form": "Tanggal temuan",
+   "has_detail": false,
+   "labels": "Dilaporkan pada"
+  },
+  {
+   "resource": "projects/gate-passes",
+   "key": "direction",
+   "form": "Arah barang",
+   "has_detail": true,
+   "labels": "Arah"
+  },
+  {
+   "resource": "projects/gate-passes",
+   "key": "driver_name",
+   "form": "Nama pengemudi",
+   "has_detail": true,
+   "labels": "Pengemudi"
+  },
+  {
+   "resource": "projects/gate-passes",
+   "key": "vendor_id",
+   "form": "Vendor (bila terdaftar)",
+   "has_detail": true,
+   "labels": "Vendor"
+  },
+  {
+   "resource": "projects/gate-passes",
+   "key": "counterparty",
+   "form": "Asal/tujuan (teks bebas)",
+   "has_detail": true,
+   "labels": "Asal/tujuan barang"
+  },
+  {
+   "resource": "projects/hse-daily",
+   "key": "report_date",
+   "form": "Tanggal",
+   "has_detail": true,
+   "labels": "Tanggal laporan"
+  },
+  {
+   "resource": "projects/manpower-assignments",
+   "key": "assigned_from",
+   "form": "Ditugaskan dari",
+   "has_detail": false,
+   "labels": "Ditugaskan sejak"
+  },
+  {
+   "resource": "projects/manpower-assignments",
+   "key": "assigned_until",
+   "form": "Sampai",
+   "has_detail": false,
+   "labels": "Ditugaskan sampai"
+  },
+  {
+   "resource": "projects/milestones",
+   "key": "name",
+   "form": "Nama milestone",
+   "has_detail": false,
+   "labels": "Nama"
+  },
+  {
+   "resource": "projects/milestones",
+   "key": "due_date",
+   "form": "Target tanggal",
+   "has_detail": false,
+   "labels": "Jatuh tempo"
+  },
+  {
+   "resource": "projects/milestones",
+   "key": "termin_id",
+   "form": "ID termin terkait",
+   "has_detail": false,
+   "labels": "Termin"
+  },
+  {
+   "resource": "projects/overtime-permits",
+   "key": "reason",
+   "form": "Alasan lembur",
+   "has_detail": true,
+   "labels": "Alasan"
+  },
+  {
+   "resource": "projects/risk-register",
+   "key": "severity",
+   "form": "Keparahan (A, 1–5)",
+   "has_detail": false,
+   "labels": "Keparahan"
+  },
+  {
+   "resource": "projects/safety-incidents",
+   "key": "location",
+   "form": "Lokasi di site",
+   "has_detail": false,
+   "labels": "Lokasi"
+  },
+  {
+   "resource": "projects/safety-incidents",
+   "key": "category",
+   "form": "Jenis kejadian",
+   "has_detail": false,
+   "labels": "Kategori"
+  },
+  {
+   "resource": "projects/safety-incidents",
+   "key": "description",
+   "form": "Uraian kejadian",
+   "has_detail": false,
+   "labels": "Keterangan"
+  },
+  {
+   "resource": "projects/safety-incidents",
+   "key": "people_involved",
+   "form": "Jumlah orang terlibat",
+   "has_detail": false,
+   "labels": "Orang terlibat"
+  },
+  {
+   "resource": "projects/safety-incidents",
+   "key": "immediate_action",
+   "form": "Tindakan segera di lokasi",
+   "has_detail": false,
+   "labels": "Tindakan segera"
+  },
+  {
+   "resource": "projects/safety-incidents",
+   "key": "due_date",
+   "form": "Target selesai",
+   "has_detail": false,
+   "labels": "Jatuh tempo"
+  },
+  {
+   "resource": "projects/safety-incidents",
+   "key": "is_reportable",
+   "form": "Wajib dilaporkan ke Disnaker/pemberi kerja",
+   "has_detail": false,
+   "labels": "Wajib dilaporkan"
+  },
+  {
+   "resource": "projects/safety-incidents",
+   "key": "reported_to_authority_at",
+   "form": "Tanggal dilaporkan",
+   "has_detail": false,
+   "labels": "Dilaporkan ke instansi"
+  },
+  {
+   "resource": "projects/weekly-progress",
+   "key": "planned_pct",
+   "form": "Rencana kumulatif (%)",
+   "has_detail": false,
+   "labels": "Rencana"
+  },
+  {
+   "resource": "projects/weekly-progress",
+   "key": "actual_pct",
+   "form": "Aktual kumulatif (%)",
+   "has_detail": false,
+   "labels": "Aktual"
+  },
+  {
+   "resource": "projects/work-permits",
+   "key": "wbs_task_id",
+   "form": "Paket WBS",
+   "has_detail": false,
+   "labels": "Tugas WBS"
+  },
+  {
+   "resource": "projects/work-permits",
+   "key": "requested_by",
+   "form": "Pemohon (pelaksana/mandor)",
+   "has_detail": false,
+   "labels": "Diminta oleh"
+  },
+  {
+   "resource": "projects/zone-certificates",
+   "key": "location_id",
+   "form": "Zona/lokasi",
+   "has_detail": false,
+   "labels": "Lokasi tapak"
+  },
+  {
+   "resource": "quality/concrete-samples",
+   "key": "location_id",
+   "form": "Lokasi",
+   "has_detail": true,
+   "labels": "Lokasi tapak"
+  },
+  {
+   "resource": "quality/inspections",
+   "key": "location_id",
+   "form": "Lokasi",
+   "has_detail": true,
+   "labels": "Lokasi tapak"
+  },
+  {
+   "resource": "quality/inspections",
+   "key": "ipp_id",
+   "form": "IPP terkait",
+   "has_detail": true,
+   "labels": "IPP"
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "location_id",
+   "form": "Lokasi",
+   "has_detail": false,
+   "labels": "Lokasi tapak"
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "description",
+   "form": "Uraian ketidaksesuaian",
+   "has_detail": false,
+   "labels": "Keterangan"
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "root_cause",
+   "form": "Akar masalah",
+   "has_detail": false,
+   "labels": "Penyebab dasar"
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "corrective_action",
+   "form": "Tindakan koreksi",
+   "has_detail": false,
+   "labels": "Tindakan korektif"
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "responsible_employee_id",
+   "form": "Penanggung jawab (karyawan)",
+   "has_detail": false,
+   "labels": "Penanggung jawab"
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "subcontract_id",
+   "form": "Penanggung jawab (subkontraktor)",
+   "has_detail": false,
+   "labels": "SPK"
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "due_date",
+   "form": "Batas waktu",
+   "has_detail": false,
+   "labels": "Jatuh tempo"
+  },
+  {
+   "resource": "servicedesk/contracts",
+   "key": "contract_id",
+   "form": "Kontrak CRM",
+   "has_detail": true,
+   "labels": "Kontrak"
+  },
+  {
+   "resource": "servicedesk/contracts",
+   "key": "name",
+   "form": "Nama kontrak",
+   "has_detail": true,
+   "labels": "Nama"
+  },
+  {
+   "resource": "servicedesk/contracts",
+   "key": "period_end",
+   "form": "Periode berakhir",
+   "has_detail": true,
+   "labels": "Periode selesai"
+  },
+  {
+   "resource": "servicedesk/field-reports",
+   "key": "report_date",
+   "form": "Tanggal kunjungan",
+   "has_detail": true,
+   "labels": "Tanggal laporan"
+  },
+  {
+   "resource": "servicedesk/field-reports",
+   "key": "customer_sign_name",
+   "form": "Nama penandatangan",
+   "has_detail": true,
+   "labels": "TTD pelanggan"
+  },
+  {
+   "resource": "servicedesk/field-reports",
+   "key": "warehouse_id",
+   "form": "Gudang suku cadang",
+   "has_detail": true,
+   "labels": "Gudang"
+  },
+  {
+   "resource": "servicedesk/preventive-schedules",
+   "key": "name",
+   "form": "Nama jadwal",
+   "has_detail": true,
+   "labels": "Nama"
+  },
+  {
+   "resource": "servicedesk/preventive-schedules",
+   "key": "assigned_to",
+   "form": "Teknisi",
+   "has_detail": true,
+   "labels": "Ditugaskan ke"
+  },
+  {
+   "resource": "servicedesk/tickets",
+   "key": "reported_at",
+   "form": "Waktu dilaporkan",
+   "has_detail": false,
+   "labels": "Dilaporkan"
+  },
+  {
+   "resource": "servicedesk/tickets",
+   "key": "assigned_to",
+   "form": "Teknisi",
+   "has_detail": false,
+   "labels": "Ditugaskan ke"
+  },
+  {
+   "resource": "servicedesk/tickets",
+   "key": "description",
+   "form": "Deskripsi",
+   "has_detail": false,
+   "labels": "Keterangan"
+  },
+  {
+   "resource": "subcontract/addenda",
+   "key": "addendum_date",
+   "form": "Tanggal",
+   "has_detail": true,
+   "labels": "Tanggal addendum"
+  },
+  {
+   "resource": "subcontract/addenda",
+   "key": "reason",
+   "form": "Sebab",
+   "has_detail": true,
+   "labels": "Alasan"
+  },
+  {
+   "resource": "subcontract/addenda",
+   "key": "description",
+   "form": "Uraian",
+   "has_detail": true,
+   "labels": "Keterangan"
+  },
+  {
+   "resource": "subcontract/handovers",
+   "key": "handover_date",
+   "form": "Tanggal serah terima",
+   "has_detail": false,
+   "labels": "Serah terima"
+  },
+  {
+   "resource": "subcontract/handovers",
+   "key": "retention_release_due",
+   "form": "Retensi dapat dilepas mulai",
+   "has_detail": false,
+   "labels": "Jatuh tempo pencairan retensi"
+  },
+  {
+   "resource": "subcontract/handovers",
+   "key": "received_by",
+   "form": "Menerima (wakil kami)",
+   "has_detail": false,
+   "labels": "Diterima oleh"
+  },
+  {
+   "resource": "subcontract/labor-claims",
+   "key": "kasbon_id",
+   "form": "ID kasbon dipotong",
+   "has_detail": true,
+   "labels": "Kasbon"
+  },
+  {
+   "resource": "subcontract/labor-contracts",
+   "key": "vendor_id",
+   "form": "Mandor",
+   "has_detail": true,
+   "labels": "Vendor"
+  },
+  {
+   "resource": "subcontract/labor-contracts",
+   "key": "title",
+   "form": "Judul pekerjaan",
+   "has_detail": true,
+   "labels": "Judul"
+  },
+  {
+   "resource": "subcontract/labor-contracts",
+   "key": "pph_scheme",
+   "form": "Skema PPh upah",
+   "has_detail": true,
+   "labels": "Skema PPh"
+  },
+  {
+   "resource": "subcontract/labor-contracts",
+   "key": "qualification_override_reason",
+   "form": "Alasan override prakualifikasi",
+   "has_detail": true,
+   "labels": "Alasan override kualifikasi"
+  },
+  {
+   "resource": "subcontract/subcontracts",
+   "key": "vendor_id",
+   "form": "Subkontraktor",
+   "has_detail": false,
+   "labels": "Vendor"
+  },
+  {
+   "resource": "subcontract/subcontracts",
+   "key": "title",
+   "form": "Judul pekerjaan",
+   "has_detail": false,
+   "labels": "Judul"
+  },
+  {
+   "resource": "subcontract/subcontracts",
+   "key": "pph_scheme",
+   "form": "Skema PPh final konstruksi",
+   "has_detail": false,
+   "labels": "Skema PPh"
+  },
+  {
+   "resource": "subcontract/subcontracts",
+   "key": "retention_pct",
+   "form": "Retensi (%)",
+   "has_detail": false,
+   "labels": "Retensi"
+  },
+  {
+   "resource": "subcontract/subcontracts",
+   "key": "defect_liability_until",
+   "form": "Masa pemeliharaan s/d",
+   "has_detail": false,
+   "labels": "Masa pemeliharaan sampai"
+  },
+  {
+   "resource": "subcontract/subcontracts",
+   "key": "scope",
+   "form": "Lingkup pekerjaan",
+   "has_detail": false,
+   "labels": "Lingkup"
+  },
+  {
+   "resource": "subcontract/subcontracts",
+   "key": "qualification_override_reason",
+   "form": "Alasan override prakualifikasi",
+   "has_detail": false,
+   "labels": "Alasan override kualifikasi"
+  }
+ ],
+ "missing_from_labels": [
+  {
+   "resource": "assets/assets",
+   "key": "ownership",
+   "form": "Kepemilikan",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/assets",
+   "key": "status",
+   "form": "Status",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/assets",
+   "key": "rental_rate",
+   "form": "Tarif sewa",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/assets",
+   "key": "rate_basis",
+   "form": "Basis tarif",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/assets",
+   "key": "rental_start",
+   "form": "Mulai sewa",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/assets",
+   "key": "rental_end",
+   "form": "Selesai sewa",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/categories",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/depreciation-runs",
+   "key": "year",
+   "form": "Tahun",
+   "has_detail": true
+  },
+  {
+   "resource": "assets/depreciation-runs",
+   "key": "month",
+   "form": "Bulan",
+   "has_detail": true
+  },
+  {
+   "resource": "assets/equipment-logs",
+   "key": "deployment_id",
+   "form": "Mobilisasi",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/equipment-logs",
+   "key": "log_date",
+   "form": "Tanggal",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/equipment-logs",
+   "key": "hour_meter",
+   "form": "Hour meter (jam)",
+   "has_detail": false
+  },
+  {
+   "resource": "assets/equipment-logs",
+   "key": "fuel_liters",
+   "form": "BBM diisi (liter)",
+   "has_detail": false
+  },
+  {
+   "resource": "core/locations",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "core/method-library",
+   "key": "work_package",
+   "form": "Paket pekerjaan",
+   "has_detail": false
+  },
+  {
+   "resource": "core/method-library",
+   "key": "summary",
+   "form": "Ringkasan",
+   "has_detail": false
+  },
+  {
+   "resource": "crm/contract-change-orders",
+   "key": "change_date",
+   "form": "Tanggal",
+   "has_detail": true
+  },
+  {
+   "resource": "crm/contract-change-orders",
+   "key": "customer_ref",
+   "form": "No. CCO pelanggan",
+   "has_detail": true
+  },
+  {
+   "resource": "crm/customers",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "crm/customers",
+   "key": "status",
+   "form": "Status",
+   "has_detail": false
+  },
+  {
+   "resource": "crm/guarantees",
+   "key": "status",
+   "form": "Status",
+   "has_detail": false
+  },
+  {
+   "resource": "crm/leads",
+   "key": "status",
+   "form": "Tahap awal",
+   "has_detail": true
+  },
+  {
+   "resource": "crm/rkk-documents",
+   "key": "tender_package_id",
+   "form": "Paket tender",
+   "has_detail": false
+  },
+  {
+   "resource": "crm/rkk-documents",
+   "key": "policy",
+   "form": "Kebijakan keselamatan konstruksi",
+   "has_detail": false
+  },
+  {
+   "resource": "crm/rkk-documents",
+   "key": "program",
+   "form": "Program & sasaran keselamatan konstruksi",
+   "has_detail": false
+  },
+  {
+   "resource": "crm/tender-packages",
+   "key": "tender_number",
+   "form": "Nomor pengumuman lelang",
+   "has_detail": true
+  },
+  {
+   "resource": "crm/tender-packages",
+   "key": "registered_at",
+   "form": "Tanggal pendaftaran",
+   "has_detail": true
+  },
+  {
+   "resource": "crm/tender-packages",
+   "key": "submission_deadline",
+   "form": "Batas pemasukan penawaran",
+   "has_detail": true
+  },
+  {
+   "resource": "crm/tender-packages",
+   "key": "aanwijzing_date",
+   "form": "Tanggal aanwijzing",
+   "has_detail": true
+  },
+  {
+   "resource": "crm/tender-packages",
+   "key": "aanwijzing_notes",
+   "form": "Catatan berita acara aanwijzing",
+   "has_detail": true
+  },
+  {
+   "resource": "crm/tkdn-worksheets",
+   "key": "tender_package_id",
+   "form": "Paket tender",
+   "has_detail": false
+  },
+  {
+   "resource": "estimation/ahsp",
+   "key": "code",
+   "form": "Kode AHSP",
+   "has_detail": true
+  },
+  {
+   "resource": "finance/accounts",
+   "key": "code",
+   "form": "Kode akun",
+   "has_detail": false
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "work_order_billing_id",
+   "form": "Dari tagihan periode PPK",
+   "has_detail": true
+  },
+  {
+   "resource": "finance/ap-bills",
+   "key": "goods_receipt_ids",
+   "form": "Tagihan parsial: GRN yang ditagih",
+   "has_detail": true
+  },
+  {
+   "resource": "finance/ar-invoices",
+   "key": "measurement_id",
+   "form": "Opname ke pemilik (OPN)",
+   "has_detail": true
+  },
+  {
+   "resource": "finance/ar-invoices",
+   "key": "withhold_retention",
+   "form": "Tahan retensi sesuai kontrak",
+   "has_detail": true
+  },
+  {
+   "resource": "finance/ar-invoices",
+   "key": "penalty_amount",
+   "form": "Denda / potongan",
+   "has_detail": true
+  },
+  {
+   "resource": "finance/ar-invoices",
+   "key": "penalty_reason",
+   "form": "Alasan denda",
+   "has_detail": true
+  },
+  {
+   "resource": "finance/bank-accounts",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "finance/taxes",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "hr/employees",
+   "key": "status",
+   "form": "Status",
+   "has_detail": false
+  },
+  {
+   "resource": "iam/users",
+   "key": "password",
+   "form": "Kata sandi",
+   "has_detail": false
+  },
+  {
+   "resource": "iam/users",
+   "key": "phone_e164",
+   "form": "Nomor WhatsApp (E.164)",
+   "has_detail": false
+  },
+  {
+   "resource": "iam/users",
+   "key": "whatsapp_opt_in",
+   "form": "Opt-in WhatsApp tercatat",
+   "has_detail": false
+  },
+  {
+   "resource": "inventory/item-categories",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "inventory/items",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "inventory/reorder-rules",
+   "key": "reorder_point",
+   "form": "Titik pesan ulang",
+   "has_detail": false
+  },
+  {
+   "resource": "inventory/reorder-rules",
+   "key": "reorder_qty",
+   "form": "Jumlah pesan",
+   "has_detail": false
+  },
+  {
+   "resource": "inventory/warehouses",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "procurement/procurement-plans",
+   "key": "status",
+   "form": "Status",
+   "has_detail": false
+  },
+  {
+   "resource": "procurement/vendors",
+   "key": "code",
+   "form": "Kode",
+   "has_detail": false
+  },
+  {
+   "resource": "procurement/vendors",
+   "key": "status",
+   "form": "Status",
+   "has_detail": false
+  },
+  {
+   "resource": "procurement/work-order-billings",
+   "key": "work_order_id",
+   "form": "PPK",
+   "has_detail": true
+  },
+  {
+   "resource": "projects",
+   "key": "status",
+   "form": "Status",
+   "has_detail": false
+  },
+  {
+   "resource": "projects",
+   "key": "consultant_name",
+   "form": "Konsultan MK / pengawas",
+   "has_detail": false
+  },
+  {
+   "resource": "projects",
+   "key": "consultant_role",
+   "form": "Sebutan konsultan",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/contract-variations",
+   "key": "change_order_id",
+   "form": "Pekerjaan tambah-kurang (CCO)",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/contract-variations",
+   "key": "qty_change",
+   "form": "Perubahan volume",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/hse-daily",
+   "key": "toolbox_topic",
+   "form": "Topik toolbox meeting",
+   "has_detail": true
+  },
+  {
+   "resource": "projects/hse-daily",
+   "key": "toolbox_attendees",
+   "form": "Peserta toolbox",
+   "has_detail": true
+  },
+  {
+   "resource": "projects/risk-register",
+   "key": "activity",
+   "form": "Uraian pekerjaan / aktivitas",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/risk-register",
+   "key": "hazard",
+   "form": "Identifikasi bahaya",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/risk-register",
+   "key": "impact",
+   "form": "Dampak / tipe kecelakaan",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/risk-register",
+   "key": "likelihood",
+   "form": "Kemungkinan (F, 1–5)",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/risk-register",
+   "key": "controls",
+   "form": "Pengendalian",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/risk-register",
+   "key": "residual_likelihood",
+   "form": "Kemungkinan sisa (F′, 1–5)",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/risk-register",
+   "key": "residual_severity",
+   "form": "Keparahan sisa (A′, 1–5)",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/zone-certificates",
+   "key": "status",
+   "form": "Hasil pemeriksaan",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/zone-certificates",
+   "key": "certified_at",
+   "form": "Tanggal pemeriksaan",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/zone-certificates",
+   "key": "certified_by_party",
+   "form": "Pihak pemeriksa",
+   "has_detail": false
+  },
+  {
+   "resource": "projects/zone-certificates",
+   "key": "certified_by_name",
+   "form": "Nama pemeriksa",
+   "has_detail": false
+  },
+  {
+   "resource": "quality/concrete-samples",
+   "key": "pour_date",
+   "form": "Tanggal cor",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/concrete-samples",
+   "key": "grade",
+   "form": "Mutu (mis. K-350)",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/concrete-samples",
+   "key": "slump_cm",
+   "form": "Slump (cm)",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/concrete-samples",
+   "key": "truck_no",
+   "form": "No. truk mixer",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/concrete-samples",
+   "key": "volume_m3",
+   "form": "Volume (m³)",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/concrete-samples",
+   "key": "sample_count",
+   "form": "Jumlah benda uji",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/inspection-templates",
+   "key": "code",
+   "form": "Kode katalog (mis. Q7, 5R1)",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/inspection-templates",
+   "key": "work_package",
+   "form": "Paket pekerjaan",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/inspection-templates",
+   "key": "stage",
+   "form": "Tahap (titik henti mutu)",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/inspection-templates",
+   "key": "jenis",
+   "form": "Jenis checklist",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/inspections",
+   "key": "template_id",
+   "form": "Template checklist",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/inspections",
+   "key": "inspected_at",
+   "form": "Tanggal inspeksi",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/inspections",
+   "key": "inspector_employee_id",
+   "form": "Inspektor",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/inspections",
+   "key": "witness_party",
+   "form": "Disaksikan",
+   "has_detail": true
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "inspection_id",
+   "form": "Inspeksi asal",
+   "has_detail": false
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "stage",
+   "form": "Tahap",
+   "has_detail": false
+  },
+  {
+   "resource": "quality/ncr",
+   "key": "preventive_action",
+   "form": "Tindakan pencegahan",
+   "has_detail": false
+  },
+  {
+   "resource": "servicedesk/contracts",
+   "key": "status",
+   "form": "Status",
+   "has_detail": true
+  },
+  {
+   "resource": "servicedesk/preventive-schedules",
+   "key": "site_id",
+   "form": "ID lokasi",
+   "has_detail": true
+  },
+  {
+   "resource": "servicedesk/preventive-schedules",
+   "key": "checklist",
+   "form": "Checklist",
+   "has_detail": true
+  },
+  {
+   "resource": "servicedesk/tickets",
+   "key": "site_id",
+   "form": "ID lokasi",
+   "has_detail": false
+  },
+  {
+   "resource": "subcontract/handovers",
+   "key": "handover_type",
+   "form": "Jenis serah terima",
+   "has_detail": false
+  },
+  {
+   "resource": "subcontract/handovers",
+   "key": "handed_over_by",
+   "form": "Menyerahkan (wakil subkon)",
+   "has_detail": false
+  },
+  {
+   "resource": "subcontract/handovers",
+   "key": "scope_notes",
+   "form": "Lingkup yang diserahterimakan",
+   "has_detail": false
+  }
+ ]
+}

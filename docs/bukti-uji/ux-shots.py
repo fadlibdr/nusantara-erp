@@ -18,7 +18,13 @@ langsung jatuh dengan NameError — tangkapan UX-D dibuat dari salinan kerja di 
 UX-E1 (argumen keempat "e1"): daftar PO dalam lima keadaan — polos, tab + chip, popover Filter,
 menu ⋯ baris, popover Atur kolom — terang dan gelap, 390 dan 1440 px, sebagai procurement@ (yang
 boleh mengubah PO draf; satu PO draf dibuat lewat API untuk menu ⋯ dan dihapus lagi di akhir).
-Berkas keluaran e1-<n>-<keadaan>-<tema>-<lebar>.jpg."""
+Berkas keluaran e1-<n>-<keadaan>-<tema>-<lebar>.jpg.
+
+UX-E2 (argumen keempat "e2"): layar dokumen — PO/1 sebagai procurement@ (baris jenis, ubin nilai kunci,
+panel sukses dengan tautan GRN), PO fixture yang DIAJUKAN sebagai direktur@ (panel attn, bilah dengan
+Setujui/Tolak; di 390 px juga dengan panel catatan terbuka), INV/1 sebagai finance@ (8 ubin, Informasi
+rata) — terang dan gelap, 390 dan 1440 px. Fixture dibuat lewat API sebagai procurement dan dihapus di
+akhir (PO yang diajukan mungkin ditolak server — dicatat). Berkas keluaran e2-<n>-<layar>-<tema>-<lebar>.jpg."""
 import json, sqlite3, sys, time, urllib.request
 from playwright.sync_api import sync_playwright
 DB=sys.argv[1]; OUT=sys.argv[2]; BASE=sys.argv[3] if len(sys.argv)>3 else "http://127.0.0.1:8000/app/"; ONLY=sys.argv[4] if len(sys.argv)>4 else None
@@ -31,7 +37,7 @@ SCREENS=[ # name, role, hash (None = whatever the app lands on after login)
  ("6-pengadaan-modul","procurement@nusantara.test","#/m/prc"),
  ("7-lapangan","site-manager@nusantara.test","#/lapangan"),
 ]
-SCREENS=[x for x in SCREENS if not ONLY or x[0]==ONLY or ONLY=="e1"]
+SCREENS=[x for x in SCREENS if not ONLY or x[0]==ONLY or ONLY in ("e1","e2")]
 VIEWS={"390":dict(viewport={"width":390,"height":844},is_mobile=True,has_touch=True,device_scale_factor=1),
        "1440":dict(viewport={"width":1440,"height":900})}
 con=sqlite3.connect(DB)
@@ -91,10 +97,51 @@ def e1_shots(b):
             ctx.close()
     finally:
         api(f"procurement/purchase-orders/{po['id']}",tok,"DELETE")
+def e2_shots(b):
+    """UX-E2 — layar dokumen (lihat docstring)."""
+    emails=("procurement@nusantara.test","direktur@nusantara.test","finance@nusantara.test")
+    con=sqlite3.connect(DB)
+    for e in emails: con.execute("UPDATE users SET onboarding_status='skipped', onboarding_seen_at=datetime('now') WHERE email=? AND onboarding_status IS NULL",(e,))
+    con.commit(); con.close()
+    tok=api("iam/auth/login","", "POST", {"email":emails[0],"password":"password"})["data"]["token"]
+    vendor=next(v for v in api("procurement/vendors?status=active&per_page=20",tok)["data"] if v.get("vendor_type") in (None,"supplier"))
+    po=api("procurement/purchase-orders",tok,"POST",{"vendor_id":vendor["id"],"order_date":"2026-10-01","expected_date":"2026-10-15",
+        "pr_bypass_reason":"Tangkapan UX-E2 — PO diajukan untuk panel attn","items":[{"description":"Kabel NYY 4x16","qty":50,"unit":"m","unit_price":185000}]})["data"]
+    api(f"procurement/purchase-orders/{po['id']}/submit",tok,"POST",{})
+    def open_note(pg):
+        if pg.locator(".page-head .actions details.action-note > summary").count():
+            pg.click(".page-head .actions details.action-note > summary"); pg.wait_for_selector(".page-head .actions details.action-note[open]")
+    SHOTS=[ # name, email, hash, action, only-view
+     ("1-po-terkunci", emails[0], "#/d/procurement/purchase-orders/1", None, None),
+     ("2-po-diajukan", emails[1], f"#/d/procurement/purchase-orders/{po['id']}", None, None),
+     ("3-po-diajukan-catatan", emails[1], f"#/d/procurement/purchase-orders/{po['id']}", open_note, "390"),
+     ("4-invoice", emails[2], "#/d/finance/ar-invoices/1", None, None),
+    ]
+    try:
+        for vname,opts in VIEWS.items():
+            for email in emails:
+                ctx=b.new_context(**opts); pg=ctx.new_page(); errs=[]
+                pg.on("pageerror",lambda e:errs.append(str(e)[:160]))
+                login(pg,email)
+                for name,e,h,action,only in SHOTS:
+                    if e!=email or (only and only!=vname): continue
+                    for theme in ("light","dark"):
+                        pg.goto(BASE+"#/home"); pg.wait_for_timeout(300)
+                        pg.goto(BASE+h); pg.wait_for_selector(".page-head + .action-panel",timeout=20000); pg.wait_for_timeout(1500)
+                        pg.evaluate("(t)=>{document.documentElement.dataset.theme=t}",theme); pg.wait_for_timeout(300)
+                        if action: action(pg); pg.wait_for_timeout(400)
+                        pg.screenshot(path=f"{OUT}/e2-{name}-{theme}-{vname}.jpg",type="jpeg",quality=82)
+                    print(vname,name,"errs",errs[-2:],flush=True)
+                ctx.close()
+    finally:
+        try: api(f"procurement/purchase-orders/{po['id']}",tok,"DELETE"); print("fixture dihapus",flush=True)
+        except Exception as ex: print("fixture tidak terhapus (PO diajukan):",str(ex)[:80],flush=True)
 with sync_playwright() as p:
     b=p.chromium.launch()
     if ONLY=="e1":
         e1_shots(b); b.close(); sys.exit(0)
+    if ONLY=="e2":
+        e2_shots(b); b.close(); sys.exit(0)
     for vname,opts in VIEWS.items():
         for email in sorted({e for _,e,_h in SCREENS}):
             ctx=b.new_context(**opts); pg=ctx.new_page(); errs=[]
