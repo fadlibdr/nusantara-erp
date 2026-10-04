@@ -163,7 +163,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    → **`Tambah Penyesuaian Stok`** → **Gudang**, **Tanggal opname**, **Alasan** (Stock
    Opname / Barang Rusak / Barang Hilang) → **Hasil hitung fisik**: Item · **Qty
    terhitung** — Anda memasukkan hasil hitungan, **tidak pernah selisihnya** →
-   **`Simpan`** → **`Ajukan`**. Nomor: `ADJ/2026/IX/0001`. Penyetuju: **direktur atau
+   **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali). Nomor: `ADJ/2026/IX/0001`. Penyetuju: **direktur atau
    admin**, dan **`Setujui` memposting seketika**: selisihnya menjadi beban operasional.
    Qty sistem dan Selisih dibekukan saat lembar **disimpan** — bila ada bon keluar antara
    simpan dan setujui, selisih lama diterapkan pada saldo baru. Selesaikan persetujuannya

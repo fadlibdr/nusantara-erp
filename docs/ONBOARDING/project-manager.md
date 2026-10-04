@@ -169,7 +169,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
 7. **Opname ke pemilik.** Pemicu: akhir periode pengukuran dengan MK. Layar: `Proyek ›
    Opname Owner (OPN)` → **`Tambah Opname ke Pemilik`** → Proyek, Periode → baris **ID
    item BOQ** (angka mentah dari halaman BOQ / RAB kontrak ini) + **Volume periode ini**
-   → **`Simpan`** → **`Ajukan`**. Nomor: `OPN/2026/IX/0001`. Penyetuju: pemegang
+   → **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali). Nomor: `OPN/2026/IX/0001`. Penyetuju: pemegang
    setujui proyek **selain pengaju**, atau Konsultan MK lewat kartu **Persetujuan
    Eksternal** (tautan sekali-pakai / lembar fisik — §15). Akibat: kolom Aktual pada
    Progres Mingguan untuk minggu yang dicakup **diganti** dengan volume terukur, dan

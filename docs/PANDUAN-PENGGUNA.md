@@ -1971,7 +1971,7 @@ tidak menyentuh rupiah** — waktu dan nilai tidak pernah bergerak di satu lemba
    **Perubahan waktu (hari)** (hanya untuk Addendum Waktu — bertanda, tidak boleh 0;
    bantuan: *"Hanya untuk Addendum Waktu: bertanda dan tidak boleh 0 — negatif
    memendekkan. Kosongkan pada jenis lain."*), Sebab, No. CCO pelanggan, Uraian.
-3. **`Simpan`**, lalu **`Ajukan`**.
+3. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**.
 
 Ditolak bila kontraknya belum disetujui:
 > "Kontrak {kode} berstatus {status}. Pekerjaan tambah-kurang hanya berlaku atas kontrak

@@ -153,7 +153,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    **`Tambah Ijin Pelaksanaan Pekerjaan`** → Proyek, Lingkup, Rencana mulai, Durasi,
    **Lokasi tapak**, **Paket pekerjaan (WBS)** (paket daun ber-BOQ; menetes ke bon
    gudang), baris **bahan**, **alat**, **gambar** (menunjuk SDS), **material** (menunjuk
-   SMS) → **`Simpan`** → **`Ajukan`** — gerbangnya menolak selama ada gambar/material yang
+   SMS) → **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali) — gerbangnya menolak selama ada gambar/material yang
    belum berstempel pembuka. Nomor: `IPP/2026/IX/0001`. Penyetuju: **manajer proyek**.
    Metode berubah setelah disetujui: **`Buat Revisi`** → IPP baru yang melewati gerbang
    lagi. → PANDUAN §16.5. Lokasi tapak (Tower › Lantai › Zona › As › Ruang) Anda susun
@@ -163,7 +163,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
 6. **Inspeksi mutu, NCR, benda uji.** Layar: `Mutu › Inspeksi Mutu (QCI)` → **`Tambah
    Inspeksi Mutu`** → Proyek, **Template checklist**, Lokasi, IPP terkait, Tanggal,
    Inspektor, Disaksikan → **`Muat butir dari template`** → Hasil per butir (Sesuai /
-   Tidak sesuai / Tidak berlaku) → **`Simpan`** → **`Ajukan`**. Nomor:
+   Tidak sesuai / Tidak berlaku) → **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali). Nomor:
    `QCI/2026/IX/0001`. Lulus/tidak dihitung dari butirnya; penyetuju: **manajer proyek**.
    Ketidaksesuaian: `Mutu › Ketidaksesuaian (NCR)` → **`Tambah NCR`** → Inspeksi asal
    (mengisi Tahap dan Lokasi), Uraian, **tepat satu penanggung jawab** (karyawan ATAU

@@ -42,7 +42,7 @@ Bab PANDUAN yang menjadi milik Anda (PANDUAN §0): **1, 2, 3** — dan bab 3 ber
 
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2) —
-penawaran 40 baris disimpan bertahap, lalu dibuka lagi lewat `Ubah`.
+penawaran 40 baris pun aman: drafnya ikut bertahan di peramban.
 
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
@@ -101,7 +101,7 @@ yang paling cepat habis. Batas pemasukan tender adalah satu-satunya tenggat di s
 4. Yang sudah diposting tidak punya tombol batal — di lajur Anda, `Tandai Kalah` dan
    `Aktifkan Kontrak` (oleh direktur) adalah titik tanpa jalan kembali.
 5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
-6. Sesi 12 jam; penawaran panjang disimpan bertahap.
+6. Sesi 12 jam; isian yang belum disimpan bertahan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2).
 
 ## 3. Pekerjaan Anda
 
@@ -144,7 +144,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    pekerjaan** (Konstruksi Gedung / Integrasi Sistem (ELV/ICT) / Pemeliharaan), Dari
    prospek, **Metode pelaksanaan** (hanya versi berlaku dari Pustaka Metode Kerja),
    Berlaku sampai, Tarif PPN → tabel **Rincian penawaran** (**Uraian** · **Qty** · Satuan
-   · **Harga satuan**) → **`Simpan`** → **`Ajukan`**. Nomor: `QTN/2026/IX/0001`.
+   · **Harga satuan**) → **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali). Nomor: `QTN/2026/IX/0001`.
    Penyetuju: **direktur** (semua direktur mendapat pemberitahuan). Setelah Disetujui:
    **`Tandai Menang`** — konfirmasinya hanya *"Tandai penawaran ini sebagai
    dimenangkan?"*, tetapi satu klik itu **menerbitkan kontrak berstatus Draf** dengan
@@ -190,7 +190,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    Tambah-Kurang`** → **Kontrak**, **Tanggal**, **Judul**, **Jenis perubahan**
    (Tambah-Kurang / Eskalasi Harga / Addendum Waktu), **Perubahan nilai** (tidak boleh 0
    pada CCO nilai; **wajib 0** pada Addendum Waktu), **Perubahan waktu (hari)** (hanya
-   Addendum Waktu, bertanda) → **`Simpan`** → **`Ajukan`**. Nomor: `CCO/2026/IX/0001`.
+   Addendum Waktu, bertanda) → **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali). Nomor: `CCO/2026/IX/0001`.
    Penyetuju: **direktur**; menyetujui CCO nilai langsung menggerakkan Nilai (DPP)
    kontrak, menyetujui addendum waktu menggeser Selesai kontrak dan proyeknya. Sesudah
    CCO nilai positif Disetujui: **`Jadwalkan Termin Nilai Tambah`** → **Rencana tagih**

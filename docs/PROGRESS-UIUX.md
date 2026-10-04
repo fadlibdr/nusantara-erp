@@ -584,6 +584,13 @@ Branch `feat/ux-redesign-e3` from `80245eb` (the E2 merge). The plan came from t
 - §35: 'lebih dari delapan kolom' 0 → 2 (PANDUAN Buat ▾ and §2.3); 'formulir halaman' 12 → 12; 'jendela berjudul' 1 → 1 (now scoped to short forms).
 - Deviations: none against the plan. No resource declares `form.layout` (pinned at 0) — an owner can keep a 9-field master form in a dialog without code (OQ). Core green (1501 passed, 11 skipped).
 
+### UX-E3.9 — Docs: the guides describe the page form as built
+- Commit: see the commit that adds this entry (docs only; no `public/app` or `tests` change).
+- Files: `docs/PANDUAN-PENGGUNA.md` (§3.7 CCO step — CCO is a page since E3.8), `docs/ONBOARDING/{estimator,procurement,project-manager,sales,site-manager,teknisi,warehouse}.md` (eight "Simpan → Ajukan" step lines on paged resources whose submit has no dialog gain "Simpan draf → Ajukan (atau Simpan & ajukan sekali)"; four "disimpan bertahap" sentences → the draft sentence), `docs/CONVENTIONS.md` §15 (drafts named as the allowed localStorage mirror, with the `keepDraft` rule), this file
+- What: a consolidation pass over the sentences each task already changed. PANDUAN §2.3 now reads as one text — container rule (lines or > 8 fields → page), crumbs, numbered sections + nav + Lanjutan, required check + summary, 422 + summary + focus, lookups and rupiah (unchanged), line tables + DPP + mobile cards, both guards and drafts, the footer with Simpan & ajukan and the refusal sentence. The PPK/SPK/SP3 step lines keep "Simpan → Ajukan" (their submit opens its own dialog) and the Cuti line stays a dialog form. The eleven ONBOARDING closing boxes stay for UX-F2 (E3.7 note).
+- §35 (merge base `80245eb` → gate tree, `git grep -F` over docs minus handoff/bukti-uji/PROGRESS/prompt): 'Simpan & ajukan' 0 → 22; 'Simpan draf' 0 → 17; 'kaki formulir' 0 → 11; 'ringkasan galat' 0 → 2; 'lebih dari delapan kolom' 0 → 2; 'Tinggalkan formulir ini' 1 → 2; '#/f/' 2 → 5; 'Pulihkan' 14 → 16; 'Buang isian' 8 → 9; 'disimpan bertahap' 5 → 0; 'Tidak ada draf otomatis' 1 → 0; 'tanda `×` menghapus baris' 1 → 0; 'hilang saat sesi habis' 12 → 2 (direktur's approval window, a dated assessment); 'selalu membuka dialog' 3 → 1 (SPK, true); '#/e/' 4 → 4 (history); 'Bidang lainnya' 3 → 3. Every label on one Markdown line.
+- Deviations: none.
+
 ---
 
 ## Metrics

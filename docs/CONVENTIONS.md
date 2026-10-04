@@ -505,7 +505,10 @@ deploy terbaca sebagai bintang yang rusak.
 **Sisi SPA** — `js/prefs.js`, dan hanya berkas itu yang boleh menyentuh kunci warisan (dipaku
 `LauncherWiringTest`). Server adalah kebenaran; `localStorage` adalah CERMIN, untuk tiga hal yang
 butuh jawaban seketika: kepadatan dipasang sebelum shell digambar (tanpa cermin ada kedipan), antrean
-Lapangan yang luring, dan sesi yang berakhir di tengah kerja. Migrasi satu kali dijalankan **per
+Lapangan yang luring, dan sesi yang berakhir di tengah kerja. Draf formulir (`drafts.js`, awalan `nusantara_erp_draft:`) adalah cermin
+itu: ia dibuang saat dokumen tersimpan atau dialognya dibuang, dan DIPERTAHANKAN saat orang
+meninggalkan formulir halaman lewat "Tinggalkan" (`onClose({ keepDraft: true })`, UX-E3.7) —
+kalimat dialognya berjanji begitu. Migrasi satu kali dijalankan **per
 kunci**: server yang sudah punya barisnya MENANG, dan kunci lokal hanya dihapus setelah server
 benar-benar punya nilainya. `set()` optimistis (cermin dulu, PUT menyusul); PUT yang tidak pernah
 sampai dicoba lagi pada boot berikutnya. `load()` mengumumkan `erp:prefs-loaded`, dan layar yang

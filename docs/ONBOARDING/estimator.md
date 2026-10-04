@@ -38,7 +38,7 @@ menyusun AHSP/BOQ/RAP, dan drafter yang mendaftarkan gambar serta menyiapkan sub
 
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2) —
-AHSP 40 baris disimpan bertahap.
+AHSP 40 baris pun aman: drafnya ikut bertahan di peramban.
 
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:

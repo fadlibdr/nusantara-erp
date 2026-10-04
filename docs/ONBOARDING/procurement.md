@@ -122,7 +122,7 @@ yang jatuh tempo (§5.9) — keuangan akan menanyakannya kepada Anda, bukan seba
 4. Yang sudah diposting tidak punya tombol batal — di lajur Anda, `Tutup RFQ` dan
    `Tutup PO` adalah titik tanpa jalan kembali.
 5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
-6. Sesi 12 jam; dokumen panjang disimpan bertahap, lalu dibuka lagi lewat `Ubah`.
+6. Sesi 12 jam; isian yang belum disimpan bertahan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2).
 
 ## 3. Pekerjaan Anda
 
@@ -148,7 +148,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    Permintaan (PR)` → **`Tambah PR`** → Proyek, Gudang tujuan, **Dibutuhkan tanggal**
    (wajib — inilah yang diawasi Tenggat), Keperluan → tabel **Item yang diminta** (Item ·
    Uraian · **Qty** · Satuan · Estimasi harga; Uraian wajib bila Item kosong) →
-   **`Simpan`** → **`Ajukan`**. Nomor: `PR/2026/IX/0001`. Penyetuju: **direktur**.
+   **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali). Nomor: `PR/2026/IX/0001`. Penyetuju: **direktur**.
    Setelah Disetujui, tombol **`Buat PO`** muncul di halaman PR: dialognya meminta
    **Vendor**, Tanggal PO, **Perkiraan kirim**, dan kotak *Alasan override
    prakualifikasi*; ia menyalin setiap baris PR pada estimasi harganya, membawa tautan
