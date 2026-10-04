@@ -680,6 +680,15 @@ Susunannya dari atas ke bawah:
    tidak ikut dihitung. Panelnya tetap terbuka selama Anda memilih, dan tertutup dengan
    **Esc** (bila daftar pilihan Vendor/Proyek sedang terbuka, Esc pertama menutup daftar
    itu dulu), dengan klik di luar panel, atau dengan menekan **`Filter`** lagi.
+   **`Atur kolom`** (di samping **`Ekspor CSV`**, pada layar yang punya lebih dari dua
+   kolom) membuka daftar centang kolom: lepas centangnya untuk menyembunyikan kolom itu,
+   **`Tampilkan semua`** untuk mengembalikannya; angka di tombol menyebut berapa kolom
+   yang sedang disembunyikan. Kolom pertama (identitas barisnya — pada PO, Kode) dan kolom
+   yang sedang dipakai mengurutkan tidak bisa disembunyikan. Pilihan ini **berlaku sampai
+   halaman dimuat ulang** di tab itu: ia bertahan saat Anda berpindah layar, tetapi F5 —
+   atau **Muat ulang** pada pemberitahuan versi baru — menampilkan semua kolom lagi, dan ia
+   tidak ikut ke tautan yang dibagikan, ke tampilan tersimpan, ke perangkat lain, atau ke
+   jendela baru. (Keluar lalu masuk lagi di tab yang sama tidak mengembalikannya.)
 3. **Tabel**. Kolom uang mendapat baris kaki berlabel **"Total halaman ini"**. Di ponsel
    beberapa kolom disembunyikan supaya tabelnya muat; pada Pesanan Pembelian nilainya
    tidak hilang — sel Kode membawa baris kecil abu-abu *Proyek: …* dan *Tgl PO: …* di
@@ -759,8 +768,10 @@ Yang perlu diketahui sebelum menekannya:
 
 - **Ia mengekspor seluruh hasil saringan, semua halaman** — bukan hanya 20 baris yang
   tampak, dan bukan pula seluruh tabel tanpa saringan.
-- **Kolomnya persis kolom yang tampil di layar itu**, dengan judul yang sama. Bukan
-  seluruh kolom dokumen.
+- **Kolomnya persis kolom yang tampil di layar itu**, dengan judul yang sama — termasuk
+  pilihan **`Atur kolom`** Anda: kolom yang disembunyikan tidak ikut terekspor. Bukan
+  seluruh kolom dokumen. (Saat daftar dicetak, lembarnya menyebut kolom yang
+  disembunyikan: *Kolom yang disembunyikan di layar: Proyek.*)
 - Nilainya berbentuk data, bukan tampilan: angka mentah tanpa "Rp", tanggal
   `yyyy-mm-dd`, waktu `yyyy-mm-dd hh:mm`, ya/tidak sebagai `Ya`/`Tidak`.
 - Nama berkas: `<nama-layar>_yyyy-mm-dd.csv`.

@@ -1098,7 +1098,7 @@ table.data tr.emphasis td { background: var(--surface-2); }
 .filter-pop input.filter-w, .filter-pop select.filter-w, .filter-pop .combo { width: 100%; min-width: 0; max-width: none; }
 /* Jumlah saringan aktif di tombol Filter: angka saja; pembaca layar mendengar
    "2 saringan aktif" lewat .sr-only di dalamnya. Hilang pada nol. */
-.filter-count {
+.filter-count, .col-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 20px; height: 20px; padding: 0 var(--space-1);
   border-radius: var(--radius-pill);
@@ -1107,10 +1107,32 @@ table.data tr.emphasis td { background: var(--surface-2); }
   font-variant-numeric: tabular-nums; line-height: 1;
 }
 .filter-count[hidden] { display: none; }
+.col-count[hidden] { display: none; }
+/* Atur kolom (UX-E1.12): popover yang sama rupanya dengan Filter, berlabuh di KANAN bilah
+   (tombolnya di ujung kanan, sesudah Ekspor CSV). */
+.col-pop {
+  position: absolute; top: calc(100% + 4px); right: 12px; z-index: 25;
+  width: min(300px, calc(100vw - 32px));
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+.col-pop[hidden] { display: none; }
+.col-list { display: grid; gap: 2px; max-height: min(50vh, 360px); overflow-y: auto; }
+.col-item { display: flex; align-items: center; gap: 8px; min-height: 30px; font-size: var(--fs-body); cursor: pointer; }
+.col-item input { width: auto; height: auto; margin: 0; }
+.col-item:has(input:disabled) { color: var(--muted); cursor: default; }
+.col-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: var(--space-2); }
+.col-note { margin: 0; color: var(--muted); font-size: var(--fs-secondary); }
+@media (pointer: coarse) { .col-item { min-height: 40px; } }
+/* Catatan kertas: kolom yang disembunyikan di layar (lihat @media print). */
+.list-print-note { display: none; }
 /* "N PO · tersaring" (UX-E1.6) — angka dari meta.total, abu-abu, tidak pernah dipatah. */
 .list-count { color: var(--muted); font-size: var(--fs-secondary); white-space: nowrap; }
 @media (max-width: 760px) {
-  .filter-pop { left: 12px; right: 12px; width: auto; }
+  .filter-pop, .col-pop { left: 12px; right: 12px; width: auto; }
   .filter-pop .filters { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -2176,6 +2198,8 @@ table.lines .row-total { padding: 8px 8px; font-variant-numeric: tabular-nums; f
 }
 
 @media print {
+  /* Atur kolom (UX-E1.12): lembar yang dicetak tanpa sebagian kolomnya menyebutnya. */
+  .list-print-note:not([hidden]) { display: block; margin: 0 0 6px; color: var(--muted); font-size: var(--fs-secondary); }
   /* Lipatan kolom utama (UX-E1.11): kertas A4 tegak (±718 px) jatuh di blok ≤ 760 px, jadi
      lipatannya tercetak — tanpa jepit dua garis: di kertas tidak ada title untuk sisanya. */
   table.data .cell-fold > span { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; }

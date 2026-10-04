@@ -2470,7 +2470,7 @@ S55_CENSUS = """async () => {
 
 @scenario("S55_jumlah_dan_tab")
 def s55(pg):
-    """UX-E1.8: tab status cepat — tampilan kedua dari saringan Status yang dideklarasikan."""
+    """UX-E1.8 tab status cepat (tampilan kedua saringan Status) dan UX-E1.12 Atur kolom."""
     out, checks, errors = {}, [], []
     pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
     pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
@@ -2649,6 +2649,169 @@ def s55(pg):
     finally:
         ctx390.close()
     out["tab"] = tab
+
+    # ------------------------------------------------------------ kolom (E1.12)
+    # Atur kolom: menyembunyikan Proyek menurunkan jumlah sel th, td, dan tfoot BERSAMA-SAMA; kolom
+    # utama dan kolom pengurut terkunci; keadaannya bertahan selama sesi (pindah layar lalu kembali)
+    # tetapi tidak ke konteks baru; CSV mengikuti kolom yang tampil; kertas menyebut yang disembunyikan.
+    kol = {}
+    COLS = """() => {
+      const heads = [...document.querySelectorAll('#view table.data thead th')].filter((th) => !th.matches('.pick, .col-min'));
+      const body = [...document.querySelectorAll('#view table.data tbody tr')].map((tr) => tr.children.length);
+      const foot = document.querySelector('#view table.data tfoot tr');
+      const pop = document.querySelector('.col-pop');
+      const boxes = pop ? [...pop.querySelectorAll('.col-item')].map((item) => ({ label: item.innerText.trim(), checked: item.querySelector('input').checked, disabled: item.querySelector('input').disabled })) : [];
+      const pill = document.querySelector('.col-toggle .col-count');
+      const note = document.querySelector('.list-print-note');
+      return {
+        heads: heads.map((th) => th.textContent.trim()),
+        th: document.querySelectorAll('#view table.data thead th').length,
+        td: [...new Set(body)],
+        tfoot: foot ? foot.children.length : null,
+        foot_label: foot ? [...foot.children].map((td) => td.textContent.trim()).filter(Boolean) : [],
+        boxes, open: !!pop && !pop.hidden,
+        pill: pill && !pill.hidden ? pill.firstChild.textContent : null,
+        note: note && !note.hidden ? note.textContent : null,
+        hash: location.hash,
+      };
+    }"""
+    def open_cols(p):
+        if p.get_attribute(".list-toolbar .col-toggle", "aria-expanded") == "false":
+            p.click(".list-toolbar .col-toggle")
+        p.wait_for_selector(".col-pop:not([hidden])", timeout=5000)
+    pg.goto(BASE + po + "?page=1")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(900)
+    kol["awal"] = a = pg.evaluate(COLS)
+    open_cols(pg)
+    kol["popover"] = b = pg.evaluate(COLS)
+    kode = next((x for x in b["boxes"] if x["label"] == "Kode"), None)
+    if not kode or not kode["disabled"] or not kode["checked"]:
+        checks.append(f"kolom: Kode (kolom utama) tidak terkunci di popover ({kode!r})")
+    if any(not x["checked"] for x in b["boxes"]) or a["pill"]:
+        checks.append(f"kolom: daftar baru tidak menampilkan semua kolom ({b['boxes']!r}, lencana {a['pill']!r})")
+    pg.click(".col-pop .col-item:has-text('Proyek') input")
+    pg.wait_for_timeout(500)
+    kol["tanpa_proyek"] = c = pg.evaluate(COLS)
+    if "Proyek" in c["heads"] or c["th"] != a["th"] - 1 or c["td"] != [x - 1 for x in a["td"]] or (a["tfoot"] and c["tfoot"] != a["tfoot"] - 1):
+        checks.append(f"kolom: sembunyikan Proyek — th {a['th']}→{c['th']}, td {a['td']}→{c['td']}, tfoot {a['tfoot']}→{c['tfoot']} (harus turun satu bersama)")
+    if "Total halaman ini" not in c["foot_label"]:
+        checks.append(f"kolom: label 'Total halaman ini' hilang ({c['foot_label']!r})")
+    if c["pill"] != "1" or not c["open"]:
+        checks.append(f"kolom: lencana {c['pill']!r} (harus '1'), popover terbuka={c['open']}")
+    if c["hash"] != po + "?page=1" and c["hash"] != po:
+        checks.append(f"kolom: menyembunyikan kolom menulis ke URL ({c['hash']!r})")
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(200)
+
+    # CSV: judulnya persis judul kolom yang tampil.
+    with pg.expect_download(timeout=15000) as dl:
+        pg.click(".list-toolbar button:has-text('Ekspor CSV')")
+    raw = open(dl.value.path(), encoding="utf-8-sig").read()
+    header = [h.strip().strip('"') for h in raw.splitlines()[0].split(";")]
+    kol["csv_header"] = header
+    if header != c["heads"]:
+        checks.append(f"kolom: judul CSV {header!r} ≠ kolom yang tampil {c['heads']!r}")
+
+    # Kertas menyebut kolom yang disembunyikan.
+    pg.emulate_media(media="print")
+    kol["cetak"] = pg.evaluate("() => { const n = document.querySelector('.list-print-note'); return n ? { shown: getComputedStyle(n).display !== 'none', text: n.textContent } : null; }")
+    pg.emulate_media(media="screen")
+    if not kol["cetak"] or not kol["cetak"]["shown"] or "Proyek" not in kol["cetak"]["text"]:
+        checks.append(f"kolom: cetak tidak menyebut kolom yang disembunyikan ({kol['cetak']!r})")
+
+    # Bertahan selama sesi: pindah layar lalu kembali.
+    pg.goto(BASE + "#/home")
+    pg.wait_for_timeout(700)
+    pg.goto(BASE + po + "?page=1")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(900)
+    kol["kembali"] = d2 = pg.evaluate(COLS)
+    if "Proyek" in d2["heads"] or d2["pill"] != "1":
+        checks.append(f"kolom: kembali ke daftar — Proyek tampil lagi ({d2['heads']!r}, lencana {d2['pill']!r})")
+
+    # Kolom pengurut terkunci: urutkan menurut Total, lalu Total tidak bisa dicentang lepas.
+    pg.click("#view table.data thead th button.th-sort:has-text('Total')")
+    pg.wait_for_selector("#view table.data thead th[aria-sort]", timeout=10000)
+    pg.wait_for_timeout(700)
+    open_cols(pg)
+    kol["urut"] = e = pg.evaluate(COLS)
+    total = next((x for x in e["boxes"] if x["label"] == "Total"), None)
+    if not total or not total["disabled"]:
+        checks.append(f"kolom: kolom pengurut (Total) tidak terkunci ({total!r})")
+
+    # Tampilkan semua.
+    pg.click(".col-pop button:has-text('Tampilkan semua')")
+    pg.wait_for_timeout(500)
+    kol["semua"] = f = pg.evaluate(COLS)
+    if f["th"] != a["th"] or f["pill"] or f["note"]:
+        checks.append(f"kolom: Tampilkan semua — th {f['th']} (harus {a['th']}), lencana {f['pill']!r}, catatan {f['note']!r}")
+    pg.keyboard.press("Escape")
+
+    # Muat ulang (F5) di konteks yang SAMA mengembalikan semua kolom: pilihan ini hidup di memori
+    # halaman, bukan di penyimpanan peramban — localStorage/sessionStorage bertahan melewati muat
+    # ulang, jadi menyimpannya di sana akan membuat cek ini merah.
+    open_cols(pg)
+    pg.click(".col-pop .col-item:has-text('Proyek') input")
+    pg.keyboard.press("Escape")
+    pg.reload()
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    pg.wait_for_timeout(900)
+    kol["muat_ulang"] = r_ = pg.evaluate(COLS)
+    if r_["pill"] or r_["th"] != a["th"]:
+        checks.append(f"kolom: sesudah muat ulang kolom tersembunyi bertahan (lencana {r_['pill']!r}, th {r_['th']}) — tersimpan di peramban?")
+
+    # Konteks baru (= sesi baru) melihat semua kolom, walau sesi lain menyembunyikannya.
+    pg.goto(BASE + po + "?page=1")
+    pg.wait_for_selector("#view table.data tbody tr", timeout=20000)
+    open_cols(pg)
+    pg.click(".col-pop .col-item:has-text('Proyek') input")
+    pg.keyboard.press("Escape")
+    ctx_k = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        pk = ctx_k.new_page()
+        pk.on("pageerror", lambda e: errors.append(str(e)[:200]))
+        login(pk, "admin@nusantara.test")
+        pk.goto(BASE + po + "?page=1")
+        pk.wait_for_selector("#view table.data tbody tr", timeout=20000)
+        pk.wait_for_timeout(900)
+        kol["sesi_baru"] = g = pk.evaluate(COLS)
+        if g["pill"]:
+            checks.append(f"kolom: konteks baru mewarisi kolom tersembunyi (lencana {g['pill']!r})")
+        # Lipatan (UX-E1.11) mengikuti Atur kolom: Proyek yang disembunyikan tidak dilipat kembali,
+        # dan Tgl PO yang disembunyikan TETAPI sedang mengurutkan tetap terlipat (kolom terkunci).
+        FOLDS = "() => [...document.querySelectorAll('#view table.data tbody td .cell-fold')].map((f) => [...f.children].map((n) => n.textContent.split(':')[0]))"
+        open_cols(pk)
+        pk.click(".col-pop .col-item:has-text('Proyek') input")
+        pk.wait_for_timeout(400)
+        kol["lipat_tanpa_proyek"] = lp = pk.evaluate(FOLDS)
+        if not lp or any("Proyek" in x for x in lp) or not all("Tgl PO" in x for x in lp):
+            checks.append(f"kolom: 390 — lipatan sesudah menyembunyikan Proyek {lp!r} (harus hanya Tgl PO)")
+        pk.click(".col-pop .col-item:has-text('Tgl PO') input")
+        pk.keyboard.press("Escape")
+        pk.goto(BASE + po + "?sort=order_date&dir=desc")
+        pk.wait_for_selector("#view table.data tbody tr", timeout=20000)
+        pk.wait_for_timeout(900)
+        kol["lipat_urut"] = lu = {"folds": pk.evaluate(FOLDS), "note": pk.evaluate("() => document.querySelector('.list-print-note').textContent")}
+        if not lu["folds"] or not all(x == ["Tgl PO"] for x in lu["folds"]):
+            checks.append(f"kolom: 390 — diurutkan menurut Tgl PO yang disembunyikan, lipatannya {lu['folds']!r} (harus Tgl PO: kolom pengurut terkunci tampil)")
+        if "Proyek" not in lu["note"] or "Tgl PO" in lu["note"]:
+            checks.append(f"kolom: catatan kertas {lu['note']!r} — harus menyebut Proyek saja (Tgl PO terkunci oleh urutan)")
+        open_cols(pk)
+        kol["ponsel"] = pk.evaluate("""() => { const r = document.querySelector('.col-pop').getBoundingClientRect();
+          return { left: Math.round(r.left), right: Math.round(r.right), vw: document.documentElement.clientWidth,
+                   overflow_x: document.documentElement.scrollWidth - document.documentElement.clientWidth }; }""")
+        m = kol["ponsel"]
+        if m["left"] < 0 or m["right"] > m["vw"] or m["overflow_x"] > 0:
+            checks.append(f"kolom: 390 px — popover {m['left']}..{m['right']} dalam {m['vw']}, luber {m['overflow_x']} px")
+        pk.screenshot(path=f"{OUT}/s55-kolom-390.png")
+    finally:
+        ctx_k.close()
+    # Bersihkan sesi utama untuk blok berikutnya.
+    open_cols(pg)
+    pg.click(".col-pop button:has-text('Tampilkan semua')")
+    pg.keyboard.press("Escape")
+    out["kolom"] = kol
 
     # ------------------------------------------------------------ sensus tab (E1.8)
     # Setiap layar r/<kunci>: tab ada TEPAT di layar yang dipilih aturannya, dengan teks dari enum

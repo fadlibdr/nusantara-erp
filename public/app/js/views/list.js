@@ -54,7 +54,7 @@ function stateFor(key, def) {
      */
     const defaults = (def && def.defaultFilters) || {};
     state.set(key, {
-      q: '', page: 1, filters: { ...defaults }, perPage: null, sort: null, dir: null, dateFrom: '', dateTo: '',
+      q: '', page: 1, filters: { ...defaults }, perPage: null, hiddenColumns: [], sort: null, dir: null, dateFrom: '', dateTo: '',
     });
   }
   return state.get(key);
@@ -1081,12 +1081,105 @@ export async function renderList(host, { key, def }) {
     if (listCount.textContent !== count) listCount.textContent = count;
   }
 
+  /*
+   * ============================ ATUR KOLOM (UX-E1.12) ===========================
+   *
+   * Kolom yang disembunyikan pemakainya, sampai halaman dimuat ulang: disimpan di
+   * Map keadaan yang sama yang sudah mengingat baris-per-halaman (stateFor), tidak
+   * pernah ke URL, stateQuery, tampilan tersimpan, maupun penyimpanan peramban.
+   * Tidak ada kunci preferensi server untuknya (UserPreferencesTest memaku
+   * daftar kuncinya) dan CONVENTIONS §15 menolak localStorage sebagai kebenaran;
+   * menyimpannya lebih lama adalah pertanyaan terbuka, dan popover-nya
+   * mengatakan batas itu terang-terangan.
+   *
+   * Dua kolom tidak bisa disembunyikan: kolom utama (def.primaryColumn, atau
+   * kolom pertama — identitas barisnya) dan kolom yang sedang mengurutkan
+   * daftar (urutan yang tidak terlihat adalah urutan yang tidak bisa dibaca).
+   * Ekspor CSV mengikuti kolom yang tampil, dan kertas menyebut yang
+   * disembunyikan. Layar dengan dua kolom atau kurang tidak menawarkannya.
+   */
+  const lockedKey = def.primaryColumn || (def.columns[0] && def.columns[0].key);
+  const isLocked = (column) => column.key === lockedKey || column.key === ui.sort;
+  function visibleColumns() {
+    return def.columns.filter((column) => isLocked(column) || !ui.hiddenColumns.includes(column.key));
+  }
+
+  const colCount = el('span.col-count', { hidden: true });
+  const colToggle = button('Atur kolom', { size: 'sm', variant: 'ghost', iconName: 'sliders-horizontal' });
+  colToggle.classList.add('col-toggle');
+  colToggle.appendChild(colCount);
+  const colPop = el('.col-pop', {
+    id: `kolom-${key.replace(/[^a-z0-9]+/gi, '-')}`,
+    role: 'dialog',
+    'aria-label': 'Atur kolom',
+    hidden: true,
+  });
+  colToggle.setAttribute('aria-haspopup', 'dialog');
+  colToggle.setAttribute('aria-expanded', 'false');
+  colToggle.setAttribute('aria-controls', colPop.id);
+  const colBoxes = def.columns.map((column) => {
+    const box = el('input', { type: 'checkbox' });
+    const item = el('label.col-item', [box, el('span', { text: column.label })]);
+    box.addEventListener('change', () => {
+      const hidden = new Set(ui.hiddenColumns);
+      if (box.checked) hidden.delete(column.key);
+      else hidden.add(column.key);
+      ui.hiddenColumns = [...hidden];
+      syncColumns();
+      renderRows();
+    });
+    return { column, box, item };
+  });
+  colPop.append(
+    el('.col-list', colBoxes.map(({ item }) => item)),
+    el('.col-foot', [
+      button('Tampilkan semua', {
+        size: 'sm',
+        variant: 'ghost',
+        onClick: () => {
+          ui.hiddenColumns = [];
+          syncColumns();
+          renderRows();
+        },
+      }),
+      el('p.col-note', { text: 'Berlaku sampai halaman dimuat ulang; Ekspor CSV mengikuti kolom yang tampil.' }),
+    ]),
+  );
+  const colWrap = def.columns.length > 2 ? el('span.col-wrap', [colToggle, colPop]) : null;
+  if (colWrap) listPopover({ wrap: colWrap, toggle: colToggle, panel: colPop });
+
+  /* Kertas tidak punya tombol Atur kolom: yang dicetak tanpa sebagian kolomnya harus
+     MENGATAKAN begitu, atau lembarnya terbaca sebagai seluruh isi daftar. */
+  const printNote = el('p.list-print-note', { hidden: true });
+
+  function syncColumns() {
+    const hiddenNow = def.columns.filter((column) => !visibleColumns().includes(column));
+    printNote.hidden = hiddenNow.length === 0;
+    printNote.textContent = hiddenNow.length
+      ? `Kolom yang disembunyikan di layar: ${hiddenNow.map((column) => column.label).join(', ')}.`
+      : '';
+    if (!colWrap) return;
+    colCount.hidden = hiddenNow.length === 0;
+    colCount.replaceChildren(String(hiddenNow.length), el('span.sr-only', { text: ' kolom disembunyikan' }));
+    for (const { column, box, item } of colBoxes) {
+      const locked = isLocked(column);
+      box.checked = locked || !ui.hiddenColumns.includes(column.key);
+      box.disabled = locked;
+      item.title = !locked
+        ? ''
+        : column.key === lockedKey
+          ? 'Kolom utama baris — selalu tampil.'
+          : 'Daftar sedang diurutkan menurut kolom ini — ia tampil selama urutannya berlaku.';
+    }
+  }
+
   const toolbar = el('.list-toolbar', [
     el('.search', [icon('search', 14), searchInput]),
     filterWrap,
     chipRow,
     el('span.spacer'),
     csvButton,
+    colWrap,
     listCount,
   ]);
   const listBody = el('.list-body');
@@ -1187,6 +1280,7 @@ export async function renderList(host, { key, def }) {
     filterCount.replaceChildren(String(set), el('span.sr-only', { text: ' saringan aktif' }));
     syncCsv();
     syncCount();
+    syncColumns(); // kolom pengurut terkunci: urutan baru = gembok baru
   }
 
   function dateFilterInput(label, value, apply) {
@@ -1235,6 +1329,8 @@ export async function renderList(host, { key, def }) {
          * menjamin berkasnya utuh milik daftar SAAT ekspor dimulai.
          */
         const params = queryParams();
+        // Kolom yang TAMPIL, dibekukan bersama parameternya (UX-E1.12, PANDUAN §2.2).
+        const columns = visibleColumns();
         const rows = [];
         let page = 1;
         let lastPage = 1;
@@ -1246,8 +1342,8 @@ export async function renderList(host, { key, def }) {
         } while (page <= lastPage);
 
         const csv = toCsv(
-          def.columns.map((column) => column.label),
-          rows.map((row) => def.columns.map((column) => csvValue(row, column))),
+          columns.map((column) => column.label),
+          rows.map((row) => columns.map((column) => csvValue(row, column))),
         );
         downloadCsv(csvFilename(def.label), csv);
       });
@@ -1650,11 +1746,15 @@ export async function renderList(host, { key, def }) {
 
   function bodyCell(row, column) {
     const tag = `td${column.align ? `.${column.align}` : ''}${column.type === 'code' ? '.code' : ''}${narrowOf(column)}`;
-    if (column.key !== def.primaryColumn || !foldedColumns.length) return el(tag, renderCell(row, column));
+    // Kolom yang disembunyikan pemakainya (Atur kolom) tidak dilipat kembali ke sini — kecuali
+    // yang terkunci tampil (kolom pengurut): aturan yang SAMA dengan visibleColumns(), atau di
+    // ponsel dan kertas daftar terurut menurut kolom yang tidak tampil di mana pun.
+    const folded = foldedColumns.filter((column2) => isLocked(column2) || !ui.hiddenColumns.includes(column2.key));
+    if (column.key !== def.primaryColumn || !folded.length) return el(tag, renderCell(row, column));
     /* Satu blok per nilai, paling banyak dua garis lalu elipsis (app.css): kolom utama di
        ponsel sempit, dan nama proyek yang dibiarkan membungkus membuat SATU baris PO
        setinggi tujuh garis teks (terukur S56, 4 Okt 2026). Teks utuhnya di title. */
-    const lines = foldedColumns.map((column2) => `${column2.label}: ${renderCell(row, column2).textContent.trim()}`);
+    const lines = folded.map((column2) => `${column2.label}: ${renderCell(row, column2).textContent.trim()}`);
     return el(tag, [
       renderCell(row, column),
       el('span.cell-fold', { title: lines.join(' · ') }, lines.map((text) => el('span', { text }))),
@@ -1725,7 +1825,11 @@ export async function renderList(host, { key, def }) {
        di layar, karena total seluruh hasil filter butuh dukungan API yang
        belum ada. Labelnya menyebut cakupannya supaya angka Rp di kaki tabel
        tidak pernah terbaca sebagai total outstanding seluruh filter. */
-    const moneyColumns = def.columns.filter((column) => column.type === 'currency' || column.type === 'currency2');
+    const columns = visibleColumns();
+    const moneyColumns = columns.filter((column) => column.type === 'currency' || column.type === 'currency2');
+    // Label kaki di kolom TAMPIL pertama yang bukan uang (UX-E1.12): dulu "indeks 0", yang
+    // diam-diam tidak menulis apa pun bila kolom pertama sebuah layar kolom uang.
+    const footLabelColumn = columns.find((column) => column.type !== 'currency' && column.type !== 'currency2');
 
     /* Baris yang bisa dikenai SETIDAKNYA satu aksi massal. Kotak centang baris
        lain digambar mati dengan alasannya di title: menyembunyikannya membuat
@@ -1735,7 +1839,7 @@ export async function renderList(host, { key, def }) {
     const table = el('table.data', [
       el('thead', el('tr', [
         picking ? el('th.pick', pickAllBox(pickable)) : null,
-        ...def.columns.map((column) => headerCell(column, sortable)),
+        ...columns.map((column) => headerCell(column, sortable)),
         // th sticky = berposisi, jadi ia menampung span sr-only-nya sendiri.
         hasActions ? el('th.right.col-min', el('span.sr-only', { text: 'Aksi' })) : null,
       ])),
@@ -1743,7 +1847,7 @@ export async function renderList(host, { key, def }) {
         const chosen = picking && picked.has(row.id);
         const tr = el(`tr${openable ? '.clickable' : ''}${chosen ? '.selected' : ''}`, [
           picking ? el('td.pick', pickBox(row)) : null,
-          ...def.columns.map((column) => bodyCell(row, column)),
+          ...columns.map((column) => bodyCell(row, column)),
           hasActions ? (menus.get(row.id) ? el('td.right.row-menu', menus.get(row.id)) : el('td.right')) : null,
         ]);
         if (openable) {
@@ -1766,14 +1870,14 @@ export async function renderList(host, { key, def }) {
       moneyColumns.length
         ? el('tfoot', el('tr', [
           picking ? el('td.pick') : null,
-          ...def.columns.map((column, index) => {
+          ...columns.map((column) => {
             const narrow = narrowOf(column);
             if (column.type === 'currency' || column.type === 'currency2') {
               return el(`td.right${narrow}`, {
                 text: rupiah(sumColumn(rows, column.key), column.type === 'currency2' ? { decimals: 2 } : {}),
               });
             }
-            return el(`td${column.align ? `.${column.align}` : ''}${narrow}`, { text: index === 0 ? 'Total halaman ini' : '' });
+            return el(`td${column.align ? `.${column.align}` : ''}${narrow}`, { text: column === footLabelColumn ? 'Total halaman ini' : '' });
           }),
           hasActions ? el('td') : null,
         ]))
@@ -1927,7 +2031,7 @@ export async function renderList(host, { key, def }) {
 
     clear(listBody);
     if (loading) {
-      listBody.appendChild(skeletonTable(6, Math.min(def.columns.length, 6)));
+      listBody.appendChild(skeletonTable(6, Math.min(visibleColumns().length, 6)));
       return;
     }
     if (error) {
@@ -1941,6 +2045,6 @@ export async function renderList(host, { key, def }) {
      (UX-E1.5): kotak Cari tidak pernah bergeser saat baris tampilan muncul.
      UI-4c menaruh tampilan di atas chip; urutan itu dibalik dengan sengaja —
      dicatat sebagai penyimpangan di PROGRESS-UIUX. */
-  tableHost.append(toolbar, viewRow, listBody);
+  tableHost.append(toolbar, viewRow, printNote, listBody);
   await load();
 }

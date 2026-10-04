@@ -103,8 +103,9 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertStringContainsString('clear(listBody);', $render);
         $this->assertStringNotContainsString('function filterBar(', $list);
 
-        // Dipasang SEKALI, di luar renderAll. (UX-E1.5: baris chip pindah ke DALAM bilah alat.)
-        $this->assertStringContainsString('tableHost.append(toolbar, viewRow, listBody);', $list);
+        // Dipasang SEKALI, di luar renderAll. (UX-E1.5: baris chip pindah ke DALAM bilah alat;
+        // UX-E1.12: catatan kertas kolom tersembunyi di antara baris tampilan dan badan daftar.)
+        $this->assertStringContainsString('tableHost.append(toolbar, viewRow, printNote, listBody);', $list);
         $this->assertStringNotContainsString('tableHost.append(toolbar', $render);
 
         $sync = $this->functionBody($list, 'function syncToolbar() {');
@@ -208,7 +209,8 @@ class ListViewWiringTest extends ErpTestCase
 
         // Anak terakhir bilah alat, live region sopan, disegarkan oleh syncToolbar().
         $this->assertStringContainsString("const listCount = el('span.list-count', { 'aria-live': 'polite' });", $list);
-        $this->assertMatchesRegularExpression("/csvButton,\\n\\s*listCount,\\n\\s*\\]\\);/", $list);
+        // UX-E1.12: Atur kolom duduk di antara Ekspor CSV dan angkanya — angkanya tetap anak terakhir.
+        $this->assertMatchesRegularExpression("/csvButton,\\n\\s*colWrap,\\n\\s*listCount,\\n\\s*\\]\\);/", $list);
         // UX-E1.7: penulisannya pindah ke syncCount(), yang juga dipanggil jawaban "dari M".
         $sync = $this->functionBody($list, 'function syncToolbar() {');
         $this->assertStringContainsString('syncCount();', (string) $sync);
@@ -495,10 +497,61 @@ class ListViewWiringTest extends ErpTestCase
         $this->assertMatchesRegularExpression('/table\.data \.cell-fold \{\s*display: block;/', $narrow, 'Lipatan tidak tampil di blok ≤ 760 px tempat kolomnya disembunyikan.');
     }
 
+    /* ------------------------------------------------------------ E1.12 */
+
+    /** Atur kolom: hanya sesi ini (tanpa URL, tampilan tersimpan, kunci server, atau penyimpanan peramban), dua kolom terkunci, CSV dan kertas mengikutinya. */
+    public function test_column_settings_live_for_the_session_only(): void
+    {
+        $list = $this->spa('views/list.js');
+        $this->assertStringContainsString("perPage: null, hiddenColumns: [], sort: null,", $list);
+        // Tidak ada penyimpanan peramban — CONVENTIONS §15.
+        $this->assertDoesNotMatchRegularExpression('/\b(localStorage|sessionStorage)\s*\./', $list, 'list.js menulis ke penyimpanan peramban.');
+        // Tidak ke URL maupun tampilan tersimpan.
+        foreach (['function stateQuery({ withPage } = {}) {', 'function seedFromUrl(key, def, ui) {', 'function applyView(view) {', 'function resetFilters() {'] as $signature) {
+            $this->assertStringNotContainsString('hiddenColumns', (string) $this->functionBody($list, $signature), "{$signature} menyentuh kolom tersembunyi.");
+        }
+        $this->assertStringNotContainsString("'list.columns'", (string) file_get_contents(base_path('Modules/Core/Support/UserPreferences.php')),
+            'Kolom tersembunyi mendapat kunci preferensi server — keputusan pemilik (pertanyaan terbuka), bukan paket ini.');
+
+        // Kolom utama dan kolom pengurut tidak pernah bisa disembunyikan.
+        $this->assertStringContainsString('const lockedKey = def.primaryColumn || (def.columns[0] && def.columns[0].key);', $list);
+        $this->assertStringContainsString('const isLocked = (column) => column.key === lockedKey || column.key === ui.sort;', $list);
+        $this->assertStringContainsString('return def.columns.filter((column) => isLocked(column) || !ui.hiddenColumns.includes(column.key));', $list);
+        $sync = (string) $this->functionBody($list, 'function syncColumns() {');
+        $this->assertStringContainsString('box.disabled = locked;', $sync);
+        $this->assertStringContainsString("el('span.sr-only', { text: ' kolom disembunyikan' })", $sync);
+        $this->assertStringContainsString('Kolom yang disembunyikan di layar: ', $sync);
+        $this->assertStringContainsString('syncColumns();', (string) $this->functionBody($list, 'function syncToolbar() {'));
+        $this->assertStringContainsString("const colWrap = def.columns.length > 2 ? el('span.col-wrap', [colToggle, colPop]) : null;", $list);
+        $this->assertStringContainsString("el('p.col-note', { text: 'Berlaku sampai halaman dimuat ulang; Ekspor CSV mengikuti kolom yang tampil.' })", $list);
+
+        // CSV, tabel, kaki, kerangka, dan lipatan memakai kolom yang TAMPIL.
+        $csv = (string) $this->functionBody($list, 'async function exportCsv(trigger) {');
+        $this->assertStringContainsString('const columns = visibleColumns();', $csv);
+        $this->assertStringNotContainsString('def.columns', $csv, 'Ekspor CSV kembali ke seluruh kolom skema.');
+        $rows = (string) $this->functionBody($list, 'function renderRows() {');
+        $this->assertStringContainsString('const columns = visibleColumns();', $rows);
+        $this->assertStringNotContainsString('def.columns', $rows, 'Tabel kembali menggambar seluruh kolom skema.');
+        $this->assertStringContainsString("column === footLabelColumn ? 'Total halaman ini' : ''", $rows);
+        $this->assertStringContainsString('skeletonTable(6, Math.min(visibleColumns().length, 6))', $list);
+        // Lipatan memakai aturan tampil yang SAMA (kolom pengurut terkunci tetap terlipat di ponsel).
+        $cell = (string) $this->functionBody($list, 'function bodyCell(row, column) {');
+        $this->assertStringContainsString('const folded = foldedColumns.filter((column2) => isLocked(column2) || !ui.hiddenColumns.includes(column2.key));', $cell);
+        $this->assertStringContainsString('const lines = folded.map(', $cell);
+
+        $css = $this->css();
+        $this->assertStringContainsString('.col-pop[hidden] { display: none; }', $css);
+        $this->assertStringContainsString('.col-count[hidden] { display: none; }', $css);
+        $this->assertStringContainsString('.list-print-note { display: none; }', $css);
+        $print = substr($css, (int) strrpos(substr($css, 0, (int) strpos($css, '.list-print-note:not([hidden]) { display: block;')), '@media print {'));
+        $this->assertStringStartsWith('@media print {', $print);
+        $this->assertStringContainsString('.list-print-note:not([hidden]) { display: block;', substr($print, 0, 400), 'Catatan kolom tersembunyi tidak berada di blok cetak.');
+    }
+
     public function test_the_shell_version_went_up_with_the_list(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(58, (int) $version[1],
+        $this->assertGreaterThanOrEqual(59, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa daftar UX-E1: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
