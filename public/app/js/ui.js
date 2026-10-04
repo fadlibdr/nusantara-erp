@@ -1393,9 +1393,12 @@ export function keyValueTile({ label, value, note, tone = '' } = {}) {
 }
 
 /**
- * Peta proses (README Fase F). steps: [{ label, href, count, active, done }].
+ * Peta proses (README Fase F). steps: [{ label, href, count, active, done, onClick, error }].
  * `count` tidak disebut → tanpa angka; null → '—' (kunci ModuleCounts gagal dimuat,
  * CONVENTIONS §16); angka → angka. Tahap tanpa kunci terdaftar tidak pernah memamerkan 0.
+ * `onClick` (UX-E3.5, navigasi bagian formulir): tahapnya tombol, bukan tautan — ia
+ * melompat di dalam halaman, bukan ke rute. `error`: tahap membawa isian bermasalah
+ * (`li.has-error`, titik merah lewat CSS, judul yang mengatakannya).
  */
 export function stepper(steps) {
   return el('ol.stepper', (steps || []).filter(Boolean).map((step, index) => {
@@ -1404,8 +1407,10 @@ export function stepper(steps) {
       el('span.step-label', { text: step.label ?? '' }),
       step.count === undefined ? null : el('span.step-count.mono', { text: step.count === null ? '—' : String(step.count) }),
     ];
-    return el(`li.step${step.active ? '.active' : ''}${step.done ? '.done' : ''}`, { 'aria-current': step.active ? 'step' : undefined }, [
-      step.href ? el('a.step-link', { href: step.href, title: step.title || undefined }, body) : el('span.step-link', body),
+    const title = step.error ? 'Ada isian yang perlu diperbaiki di bagian ini' : (step.title || undefined);
+    return el(`li.step${step.active ? '.active' : ''}${step.done ? '.done' : ''}${step.error ? '.has-error' : ''}`, { 'aria-current': step.active ? 'step' : undefined }, [
+      step.onClick ? el('button.step-link', { type: 'button', onclick: step.onClick, title }, body)
+        : step.href ? el('a.step-link', { href: step.href, title }, body) : el('span.step-link', body),
     ]);
   }));
 }

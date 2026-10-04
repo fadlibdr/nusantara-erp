@@ -109,9 +109,9 @@ public/app/
                         focus across reloads, Filter popover holding the screen's filter
                         controls, active-filter chips with Hapus semua, CSV), saved views,
                         table, pagination
-      form.js           generic create/edit modal incl. repeatable line items
+      form.js           generic create/edit form — dialog or page (#/f/, sticky .form-foot), repeatable line items, Simpan & ajukan on the page (route-passed `submit`)
       detail.js         generic document detail: head, status panel, Informasi (label: form → LABELS → "Bidang lainnya"), lines, approvals
-      actions.js        lifecycle actions (submit/approve/post/…)
+      actions.js        lifecycle actions (submit/approve/post/…); withConfirmResubmit() is the one confirm-resubmit engine (runAction and the page form's Simpan & ajukan), toastActionDone() the one success sentence
       dashboard.js      cross-module dashboard + approval inbox
       home.js           app launcher #/home: search (same screen index as Ctrl+K), Favorit and
                         Terakhir dibuka rows from server prefs, one tile per module the caller may
@@ -183,7 +183,7 @@ Add an entry to `RESOURCES` in `js/schema.js` and a link in `NAV`:
   labelOne: 'Pelanggan',
   columns: [ { key: 'name', label: 'Nama', type: 'text', sub: 'legal_name' }, … ],
   filters: [ { key: 'status', label: 'Status', enum: 'activeStatus' } ],
-  form: { sections: [ { title: '…', fields: [ … ] } ], lines: [ … ] },
+  form: { sections: [ { title: '…', fields: [ … ] }, { title: 'Lanjutan', advanced: true, fields: [ … ] } ], lines: [ { …, total, discountField } ] },  // advanced → folded <details> (UX-E3.5); discountField → live DPP under the lines, PPN/Total stay the server's (UX-E3.6)
   detail: { summary: ['dpp', 'total'], tables: [ … ] },
   actions: [ … ],                // lifecycle buttons
 }
@@ -195,7 +195,8 @@ instead of the generic detail screen.
 
 ### A live note under a field (`liveNote`, F-2)
 
-A field spec may carry `liveNote: '<key>'`. `views/form.js` keeps the providers in one
+A field spec may carry `liveNote: '<key>'`. The note carries `.tone-warn` / `.tone-neg` (a class,
+never an inline colour — UX-E3.4; S29 reads the class). `views/form.js` keeps the providers in one
 registry (`LIVE_NOTES`) and renders a `.help` line under that field, refreshed whenever the
 form changes:
 
@@ -275,6 +276,13 @@ first-five cut, because the invoice guide promises Total · Sudah dibayar · Sis
 formatted by the same key regexes `autoValue` uses (percent before money, so `ppn_rate` reads
 "11%" and not "Rp 11"), and an empty value prints "—". The keys drawn as tiles are exactly the
 keys the Informasi card leaves out. PO is the pilot of `headline`, identical to its summary.
+Routes: `#/f/<resource>` and `#/f/<resource>/new` both open the create page, `#/f/<resource>/<id>`
+the edit page (the route fetches the record once and passes `fetched: true` to `openForm`);
+`formIsPaged()` = `form.layout` if declared, else lines OR more than eight fields (README E3; UX-E3.8 moved the 20 long forms to the page — the static census pin in FormViewWiringTest lists them). On the
+page, "Tinggalkan" keeps the browser draft (`onClose({ keepDraft: true })`); the dialog's
+"Buang isian" still discards; `offerDrafts` reopens through `startForm`, so line resources come
+back as their page. The page focuses its first real input like the modal.
+
 `def.detail.next` `{ label, route }` (UX-E2.5) adds a display-only link "Buka <label>" to the LOCKED
 (success) panel's `actions` slot, and only for readers whose sidebar lists that route — `visibleNav()`
 with `session.can`, the same filter the sidebar and Ctrl+K use; it never claims the follow-up document

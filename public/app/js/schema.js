@@ -5,7 +5,14 @@
    column  { key, label, type, align, width, sub, lookup, enum, hideOnNarrow }
    field   { key, label, type, required, span, options, enum, lookup, help,
              default, hideWhen(record) }
-   line    { key, label, columns[], min, prefill, importPick }
+   form.layout 'page' | 'modal' — pengganti aturan "berbaris → halaman" (README E3, UX-E3.7);
+           belum ada yang menyatakannya; pemanggil dengan prefill/endpoint tetap dialog.
+   section { title, help, fields[], advanced }
+           advanced: true → dilipat sebagai <details> "Lanjutan" di formulir (UX-E3.5);
+           wajib-isi di dalamnya tetap diperiksa dan lipatannya dibuka saat ada galat.
+   line    { key, label, columns[], min, prefill, importPick, discountField }
+           discountField: kunci field kepala yang dikurangkan dari Subtotal untuk baris DPP
+           hidup (UX-E3.6); PPN/Total tidak dihitung klien.
            prefill MENGGANTI seluruh baris dari dokumen sumber tanpa bertanya;
            importPick membuka dialog centang lalu MENAMBAHKAN baris terpilih —
            lihat buildLines di views/form.js untuk kedua bentuknya.
@@ -2667,8 +2674,15 @@ export const RESOURCES = {
           // pernah disebut pengawas — tanggalnya kosong karena formulir tidak
           // memintanya. Server menolak 422 "Perkiraan kirim wajib diisi.".
           { key: 'expected_date', label: 'Perkiraan kirim', type: 'date', required: true },
-          { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', help: 'Kosongkan untuk memakai termin vendor.' },
           { key: 'discount_amount', label: 'Diskon', type: 'currency', default: 0 },
+        ],
+      }, {
+        /* Pilot `advanced` (UX-E3.5): bagian yang jarang perlu diubah dilipat sebagai
+           "Lanjutan" — termin, alamat kirim, catatan, alasan override. Diskon tetap di
+           bagian pertama: ia memberi makan DPP hidup di bawah tabel baris (E3.6). */
+        title: 'Lanjutan', advanced: true,
+        fields: [
+          { key: 'payment_term_days', label: 'Termin bayar (hari)', type: 'number', help: 'Kosongkan untuk memakai termin vendor.' },
           { key: 'delivery_address', label: 'Alamat pengiriman', type: 'textarea', span: 2 },
           { key: 'notes', label: 'Catatan', type: 'textarea', span: 2 },
           { key: 'qualification_override_reason', label: 'Alasan override prakualifikasi', type: 'textarea', span: 2, help: 'Isi hanya bila vendor terblokir prakualifikasi (nonaktif / dokumen wajib kedaluwarsa) dan PO tetap harus dibuat.' },
@@ -2684,6 +2698,8 @@ export const RESOURCES = {
           { key: 'unit_price', label: 'Harga satuan', type: 'currency', required: true, width: '20%' },
         ],
         total: (row) => Number(row.qty || 0) * Number(row.unit_price || 0),
+        // DPP hidup = Subtotal − Diskon (UX-E3.6); PPN/Total milik server (tarif dari status PKP vendor).
+        discountField: 'discount_amount',
       }],
     },
     detail: {

@@ -1,7 +1,7 @@
 /* Schema-driven create/edit form, including repeatable line-item tables. */
 
 import { api } from '../api.js';
-import { el, clear, button, badge, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog } from '../ui.js';
+import { el, clear, button, badge, icon, modal, field, setFieldError, toast, toastError, withBusy, confirmDialog, errorSummary, stepper } from '../ui.js';
 import { renderCell } from '../cells.js';
 import { ENUMS } from '../enums.js';
 import { loadSource, optionsFor, preload, invalidateByPath, invalidate, sourceState, noticeFor } from '../lookup.js';
@@ -428,15 +428,28 @@ function buildLines(lineDef, initialRows, headerValues, record) {
   const hasTotal = typeof lineDef.total === 'function';
   const hasBalance = Boolean(lineDef.balance);
 
-  const totalsRow = el('div.lines-total', {
-    style: { display: 'flex', justifyContent: 'flex-end', gap: '18px', padding: '10px 4px 0', fontSize: '13px', fontWeight: '600' },
-  });
+  const totalsRow = el('div.lines-total');
+  /*
+   * DPP hidup (UX-E3.6, README E3 "live totals"): Subtotal − min(Diskon, Subtotal) — rumus
+   * PoService::recalcTotals yang sama, dari dua angka yang memang ada di peramban.
+   * `lineDef.discountField` menyebut field kepala diskonnya. PPN dan Total TIDAK dihitung
+   * di sini: tarifnya `vendor.is_pkp ? tax.ppn_rate : 0` ada di server (config + status
+   * vendor), dan menebak 11 di peramban adalah aturan bisnis kedua (aturan dasar 2/3).
+   * Satu kalimat jujur menggantikannya.
+   */
+  const discountField = lineDef.discountField || null;
 
   function refreshTotals() {
     clear(totalsRow);
     if (hasTotal) {
       const sum = controls.reduce((acc, row) => acc + (Number(lineDef.total(row.read())) || 0), 0);
       totalsRow.appendChild(el('span', [el('span.muted', { text: 'Subtotal: ' }), el('span.num', { text: rupiah(sum) })]));
+      if (discountField && headerValues) {
+        const discount = Math.min(Number(headerValues()[discountField]) || 0, sum);
+        totalsRow.appendChild(el('span', [el('span.muted', { text: 'Diskon: ' }), el('span.num', { text: rupiah(discount) })]));
+        totalsRow.appendChild(el('span', [el('span.muted', { text: 'DPP: ' }), el('span.num', { text: rupiah(sum - discount) })]));
+        totalsRow.appendChild(el('span.muted.lines-note', { text: 'PPN dan total dihitung server saat disimpan.' }));
+      }
     }
     if (hasBalance) {
       const debit = controls.reduce((acc, row) => acc + (Number(row.read()[lineDef.balance.debit]) || 0), 0);
@@ -445,13 +458,23 @@ function buildLines(lineDef, initialRows, headerValues, record) {
       totalsRow.append(
         el('span', [el('span.muted', { text: 'Debit: ' }), el('span.num', { text: rupiah(debit) })]),
         el('span', [el('span.muted', { text: 'Kredit: ' }), el('span.num', { text: rupiah(credit) })]),
-        el('span', {
+        el(`span.${balanced ? 'tone-pos' : 'tone-neg'}`, {
           text: balanced ? 'Seimbang ✓' : `Selisih ${rupiah(Math.abs(debit - credit))}`,
-          style: { color: balanced ? 'var(--success)' : 'var(--danger)' },
         }),
       );
     }
   }
+
+  /*
+   * Baris TERISI = baris yang pernah disentuh orang (atau datang membawa data), DAN
+   * punya nilai. Kolom dengan `default` (qty: 1 pada PO, penawaran, PR) membuat baris
+   * yang baru lahir langsung "bernilai" — sebelum UX-E3.3 baris kosong dengan qty 1
+   * ikut terkirim dan ditolak "Wajib diisi." pada uraian/harganya (terukur 4 Okt 2026,
+   * S3/S4 pada baris otomatis). `touched` dipasang pada 'input'/'change' di fase
+   * tangkap, sebelum pendengar lain pada baris yang sama membacanya.
+   */
+  const hasValue = (values) => Object.values(values).some((value) => value !== null && value !== '' && value !== false);
+  const isFilled = (entry) => entry.touched && hasValue(entry.read());
 
   function addRow(data = {}) {
     const inputs = {};
@@ -471,14 +494,15 @@ function buildLines(lineDef, initialRows, headerValues, record) {
 
       (control.input || control.node).addEventListener('input', refreshTotals);
       (control.input || control.node).addEventListener('change', refreshTotals);
-      cells.push(el('td', { style: column.width ? { width: column.width } : {} }, control.node));
+      // data-label: judul kolom untuk kartu baris di ≤ 760 px (UX-E3.6, CSS ::before) — DOM tabelnya tetap.
+      cells.push(el('td', { 'data-label': column.label, style: column.width ? { width: column.width } : {} }, control.node));
     }
 
     if (hiddenNodes.length && cells.length) cells[0].append(...hiddenNodes.splice(0));
 
     const row = el('tr', [
       ...cells,
-      hasTotal ? el('td.right.row-total', { text: '—' }) : null,
+      hasTotal ? el('td.right.row-total', { text: '—', 'data-label': 'Jumlah' }) : null,
       el('td.right', button('', {
         size: 'sm', variant: 'ghost', iconName: 'trash', title: 'Hapus baris',
         onClick: () => {
@@ -494,7 +518,11 @@ function buildLines(lineDef, initialRows, headerValues, record) {
       read: () => Object.fromEntries(Object.entries(inputs).map(([key, control]) => [key, control.read()])),
       row,
       inputs,
+      touched: Object.values(data || {}).some((value) => value !== null && value !== undefined && value !== ''),
     };
+    const touch = () => { entry.touched = true; };
+    row.addEventListener('input', touch, true);
+    row.addEventListener('change', touch, true);
 
     if (hasTotal) {
       const cell = row.querySelector('.row-total');
@@ -503,6 +531,21 @@ function buildLines(lineDef, initialRows, headerValues, record) {
       row.addEventListener('change', update);
       update();
     }
+
+    /*
+     * Baris kosong berikutnya lahir sendiri begitu baris TERAKHIR terisi (UX-E3.3) —
+     * diukur 4 Okt 2026 (results-ux-e3-base.json S3): satu klik "Tambah baris" per
+     * baris kedua pada setiap dokumen dua baris. Baris kosong tidak pernah ikut
+     * terkirim, diperiksa, atau dipetakan 422: entries() menyaringnya (isFilled).
+     * "Tambah baris" tetap ada untuk yang mengetik dari bawah; baris baru tidak
+     * merebut fokus. Kotak pilihan mengirim 'change' saat Enter, teks 'input'
+     * pada huruf pertama.
+     */
+    const appendIfLast = () => {
+      if (controls[controls.length - 1] === entry && isFilled(entry)) addRow();
+    };
+    row.addEventListener('input', appendIfLast);
+    row.addEventListener('change', appendIfLast);
 
     controls.push(entry);
     body.appendChild(row);
@@ -612,7 +655,7 @@ function buildLines(lineDef, initialRows, headerValues, record) {
       importPick,
       button('Tambah baris', { size: 'sm', iconName: 'plus', onClick: () => addRow() }),
     ]),
-    lineDef.help ? el('.help', { text: lineDef.help, style: { marginBottom: '8px' } }) : null,
+    lineDef.help ? el('.help.lines-help', { text: lineDef.help }) : null,
     el('.table-wrap', el('table.lines', [
       el('thead', el('tr', [
         ...lineDef.columns.filter((column) => column.type !== 'hidden').map((column) => el('th', { text: column.label })),
@@ -624,20 +667,19 @@ function buildLines(lineDef, initialRows, headerValues, record) {
     totalsRow,
   ]);
 
-  const isFilled = (values) => Object.values(values).some((value) => value !== null && value !== '' && value !== false);
-
   /*
    * Baris TERISI, dalam urutan tampil — filternya SAMA PERSIS dengan read(),
    * sehingga indeks server == indeks payload == indeks entries(). Itulah yang
    * membuat 'items.6.qty' dari 422 selalu jatuh ke baris terlihat ke-7, bukan
    * ke baris kosong yang tidak ikut terkirim.
    */
-  const entries = () => controls.filter((entry) => isFilled(entry.read()));
+  const entries = () => controls.filter((entry) => isFilled(entry));
 
   return {
     node,
     read: () => entries().map((entry) => entry.read()),
     entries,
+    refresh: refreshTotals,
   };
 }
 
@@ -694,7 +736,18 @@ export function presentModal(spec) {
  * (ASESMEN-UX §1.2: tabel baris mulai y = 843 di modal 960 px, 754 di halaman).
  */
 export function formIsPaged(def) {
-  return Boolean(def && def.form && (def.form.lines || []).length);
+  /*
+   * Aturan README E3 (UX-E3.8): `form.layout` bila dinyatakan; selain itu halaman bila
+   * berbaris ATAU punya lebih dari delapan medan. Sensus 4 Okt 2026 (ux-e3-form-census.json):
+   * 35 formulir berbaris (halaman sejak UI-4d) + 20 formulir panjang tanpa baris — di dialog
+   * 640 px badannya menggulir 572 px (pelanggan, 14 medan) sampai 1 249 px (karyawan, 21)
+   * pada 390 px. Pemanggil dengan prefill/endpoint tetap dialog (startForm, ERRATA E-6).
+   */
+  const form = def && def.form;
+  if (!form) return false;
+  if (form.layout) return form.layout === 'page';
+  const fields = (form.sections || []).reduce((n, section) => n + (section.fields || []).length, 0);
+  return (form.lines || []).length > 0 || fields > 8;
 }
 
 /*
@@ -715,7 +768,15 @@ export function startForm({ def, key, row, prefill, onSaved, endpoint = null }) 
   return openForm({ def, key, row, prefill, onSaved, endpoint });
 }
 
-export async function openForm({ def, key, row, prefill, onSaved, endpoint = null, present = presentModal }) {
+/*
+ * `submit` (UX-E3.2, README E3 / ERRATA E-6): hanya rute halaman f/* yang memberinya —
+ * { action, run(saved), done(code, result) } yang dirakit app.js dari actions.js
+ * (withConfirmResubmit + postAction + toastActionDone). form.js TIDAK mengimpor
+ * actions.js: actions.js mengimpor form.js, dan sebuah siklus modul adalah utang yang
+ * tidak perlu dibayar. Pemanggil dialog (prefill/endpoint/onSaved, S16/S17) tidak
+ * mengenal opsi ini, jadi dialognya sebyte pun tidak berubah.
+ */
+export async function openForm({ def, key, row, prefill, onSaved, endpoint = null, present = presentModal, submit = null, fetched = false }) {
   const isEdit = Boolean(row);
   const sections = def.form.sections || [];
   const lineDefs = def.form.lines || [];
@@ -724,7 +785,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
   // A create can still arrive with values the caller already knows — "Tagih
   // termin ini" knows the contract, the customer and which termin.
   let record = row || prefill || null;
-  if (isEdit && lineDefs.length) {
+  if (isEdit && lineDefs.length && !fetched) {  // rute f/ memberi dokumen lengkap (UX-E3.7): satu GET, bukan dua
     try {
       record = await api.get(`${def.api}/${row.id}`);
     } catch (error) {
@@ -786,7 +847,10 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
 
   const noteWatchers = [];
 
-  for (const section of sections) {
+  const steps = [];
+  const numbered = sections.filter((section) => (section.fields || []).some((spec) => (isEdit ? !spec.createOnly : !spec.editOnly))).length + lineDefs.length > 1;
+  // Bagian `advanced` digambar SESUDAH tabel baris (README E3: sections + Item + Lanjutan).
+  const renderSection = (section) => {
     const fields = section.fields
       .filter((spec) => (isEdit ? !spec.createOnly : !spec.editOnly))
       /*
@@ -799,7 +863,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
        * dan server mengartikan absennya sebagai "tidak ada klaim baru".
        */
       .filter((spec) => !spec.hideWhen || !spec.hideWhen(record, isEdit));
-    if (!fields.length) continue;
+    if (!fields.length) return;
 
     const grid = el('.form-grid');
     const sectionWatchers = [];
@@ -819,17 +883,37 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       if (spec.liveNote && LIVE_NOTES[spec.liveNote]) noteWatchers.push({ spec, wrapper, control });
     }
 
-    const sectionNode = el('.form-section', [
-      sections.length > 1 && section.title ? el('h3', { text: section.title }) : null,
-      section.help ? el('.alert.info', { style: { marginBottom: '12px' } }, section.help) : null,
-      grid,
-    ]);
+    /*
+     * Bagian bernomor dan "Lanjutan" yang dilipat (UX-E3.5, README E3). Langkah
+     * (steps) = bagian kepala + satu per tabel baris + bagian `advanced`; bila
+     * langkahnya ≥ 2 judulnya bernomor ("1 · Pesanan pembelian") dan halaman
+     * memasang navigasi bagian (stepper) di ≥ 1024 px. `section.advanced` menjadi
+     * <details> tertutup berjudul "Lanjutan": wajib-isi di dalamnya TETAP diperiksa,
+     * dan lipatannya dibuka begitu ada galat (focusField/markSteps). Bagian kepala
+     * tanpa judul memakai nama dokumennya sebagai label langkah.
+     */
+    const stepIndex = steps.length + 1;
+    const title = section.title || (section.advanced ? 'Lanjutan' : def.labelOne);
+    const heading = numbered ? `${stepIndex} · ${title}` : title;
+    const sectionNode = section.advanced
+      ? el('details.form-section.advanced', [
+        el('summary', [el('h3', { text: heading }), el('span.muted', { text: `${fields.length} isian` })]),
+        section.help ? el('.alert.info', section.help) : null,
+        grid,
+      ])
+      : el('.form-section', [
+        numbered || (sections.length > 1 && section.title) ? el('h3', { text: heading }) : null,
+        section.help ? el('.alert.info', section.help) : null,
+        grid,
+      ]);
+    steps.push({ label: title, node: sectionNode });
     body.appendChild(sectionNode);
 
     for (const watcher of sectionWatchers) {
       visibilityWatchers.push({ ...watcher, sectionNode, sectionSpecs: fields });
     }
-  }
+  };
+  sections.filter((section) => !section.advanced).forEach(renderSection);
 
   const headerValues = () => Object.fromEntries(
     Object.entries(controls)
@@ -882,7 +966,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
      catatan. Delegasi adalah pola yang sama yang sudah dipakai visibleWhen di
      atas, dengan alasan yang persis sama. */
   const noteRefreshers = noteWatchers.map((watcher) => {
-    const note = el('.help');
+    const note = el('.help', { role: 'status' });
     note.hidden = true;
     watcher.wrapper.appendChild(note);
 
@@ -901,8 +985,9 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
         if (mine !== seq) return;
         note.hidden = !result;
         note.textContent = result ? result.text : '';
-        note.style.color = result && result.tone === 'danger' ? 'var(--danger)'
-          : (result && result.tone === 'warning' ? 'var(--warning)' : '');
+        // Warna lewat kelas, bukan gaya sebaris (UX-E3.4; CONVENTIONS §13a).
+        note.classList.toggle('tone-neg', Boolean(result && result.tone === 'danger'));
+        note.classList.toggle('tone-warn', Boolean(result && result.tone === 'warning'));
       } catch {
         // Diam: peringatan yang gagal dimuat tidak boleh menghalangi dokumen.
         if (mine !== seq) return;
@@ -919,15 +1004,89 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
 
   const lineControls = lineDefs.map((lineDef) => {
     const control = buildLines(lineDef, record ? record[lineDef.key] : null, headerValues, isEdit ? record : null);
+    if (numbered) control.node.querySelector('.lines-head h3').textContent = `${steps.length + 1} · ${lineDef.label}`;
+    steps.push({ label: lineDef.label, node: control.node });
     body.appendChild(control.node);
     return { def: lineDef, control };
   });
 
-  if (def.form.note) {
-    body.appendChild(el('.alert.info', { style: { marginTop: '16px' } }, def.form.note));
+  sections.filter((section) => section.advanced).forEach(renderSection);
+
+  // Diskon diketik di kepala → DPP di bawah tabel mengikuti (didelegasikan di badan, seperti liveNote).
+  if (lineControls.some(({ def: lineDef }) => lineDef.discountField)) {
+    const refreshLines = () => lineControls.forEach(({ control }) => control.refresh());
+    body.addEventListener('input', refreshLines);
+    body.addEventListener('change', refreshLines);
   }
 
-  const save = button(isEdit ? 'Simpan Perubahan' : 'Simpan', { variant: 'primary', type: 'submit' });
+  if (def.form.note) {
+    body.appendChild(el('.alert.info.form-note', def.form.note));
+  }
+
+  /*
+   * Navigasi bagian (UX-E3.5): stepper vertikal yang menempel di kiri pada ≥ 1024 px,
+   * hanya bila langkahnya ≥ 2 — satu tombol per bagian melompat ke bagiannya dan
+   * memfokuskan kontrol pertamanya; `aria-current="step"` mengikuti gulir; titik merah
+   * (li.has-error) mengikuti penanda galat. Dialog mengabaikannya (present() dialog tidak
+   * membaca `nav`): 640/960 px tidak punya ruang untuknya.
+   */
+  const jumpTo = (step) => {
+    if (step.node.tagName === 'DETAILS') step.node.toggleAttribute('open', true);
+    step.node.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    const target = step.node.querySelector('input:not([type=hidden]), select, textarea, button');
+    if (target) target.focus({ preventScroll: true });
+  };
+  const nav = numbered
+    ? el('nav.form-nav', { 'aria-label': 'Bagian formulir' }, stepper(steps.map((step) => ({ label: step.label, onClick: () => jumpTo(step) }))))
+    : null;
+  const stepItems = nav ? [...nav.querySelectorAll('li.step')] : [];
+  function markSteps() {
+    steps.forEach((step, index) => {
+      const bad = Boolean(step.node.querySelector('.field.invalid, td.cell-invalid'));
+      if (bad && step.node.tagName === 'DETAILS') step.node.toggleAttribute('open', true);
+      if (stepItems[index]) {
+        stepItems[index].classList.toggle('has-error', bad);
+        const link = stepItems[index].querySelector('.step-link');
+        if (link) link.title = bad ? 'Ada isian yang perlu diperbaiki di bagian ini' : '';
+      }
+    });
+  }
+  function markActive() {
+    if (!nav) return;
+    const limit = 96;
+    let current = 0;
+    steps.forEach((step, index) => { if (step.node.getBoundingClientRect().top <= limit) current = index; });
+    stepItems.forEach((item, index) => {
+      item.classList.toggle('active', index === current);
+      if (index === current) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current');
+    });
+  }
+  if (nav) {
+    let ticking = false;
+    const onScroll = () => { if (ticking) return; ticking = true; requestAnimationFrame(() => { ticking = false; markActive(); }); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    document.querySelector('.main')?.addEventListener('scroll', onScroll, { passive: true });
+    requestAnimationFrame(markActive);
+  }
+
+  /*
+   * Simpan & ajukan (README E3). Diukur 4 Okt 2026 (results-ux-e3-base.json S3): 12 klik
+   * buat→ajukan, dua yang terakhir Simpan lalu Ajukan di halaman dokumen — satu keputusan
+   * yang dibayar dua klik dan satu perpindahan layar. Tombolnya ada hanya bila rute
+   * memberi `submit` (halaman), dokumennya baru atau statusnya masih mengizinkan
+   * (action.when), dan pembacanya boleh menjalankan aksinya (session.canAct di app.js —
+   * tidak ada nama izin yang ditulis di sini, aturan dasar 2). Aksi submit yang membawa
+   * `fields`/`confirm`/`inlineNote` butuh dialognya sendiri dan tetap lewat Ajukan di
+   * halaman dokumen (app.js menyaringnya). Label Simpan menjadi "Simpan draf" hanya bila
+   * ada Simpan & ajukan di sampingnya dan dokumennya memang (akan) berstatus draf —
+   * PO yang ditolak lalu disimpan ulang bukan draf, labelnya tetap "Simpan Perubahan".
+   */
+  const canSubmit = Boolean(submit && submit.action) && !prefill && !endpoint
+    && (!isEdit || !submit.action.when || submit.action.when(record));
+  const isDraftLike = !isEdit || !record || record.status === 'draft';
+  const saveLabel = canSubmit && isDraftLike ? 'Simpan draf' : (isEdit ? 'Simpan Perubahan' : 'Simpan');
+  const save = button(saveLabel, { variant: canSubmit ? '' : 'primary', type: 'submit' });
+  const saveSubmit = canSubmit ? button('Simpan & ajukan', { variant: 'primary', type: 'submit', iconName: 'send' }) : null;
 
   /*
    * Unsaved-data guard: one snapshot of every control at open, compared on
@@ -989,11 +1148,16 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     body,
     // Batal sits right beside Simpan in .modal-foot; a mis-aimed click there
     // loses the same 15 lines a mis-aimed Escape does.
-    footer: [button('Batal', { onClick: () => dialog.requestClose() }), save],
+    footer: [button('Batal', { onClick: () => dialog.requestClose() }), save, saveSubmit].filter(Boolean),
+    nav,
     dirty: () => snapshot() !== pristine,
-    onClose: () => {
+    onClose: ({ keepDraft = false } = {}) => {
       clearTimeout(draftTimer);
       unregisterFlush();
+      // Tinggalkan (halaman): simpan isian yang masih tertunda (debounce 1,2 s), dan biarkan
+      // persistDraft membuang drafnya sendiri bila formulirnya ternyata bersih. Dialog "Buang
+      // isian" (ui.js) memanggil onClose() tanpa argumen → membuang, sesuai kalimatnya.
+      if (keepDraft) { persistDraft(); return; }
       if (!draftRemovalSuspended()) removeDraft(key, draftRowId);
     },
   });
@@ -1022,7 +1186,108 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
     return true;
   }
 
-  save.addEventListener('click', async () => {
+  /*
+   * Ringkasan galat di atas formulir (UX-E3.4, README E3 / ERRATA E-6 + A-3): satu baris
+   * per galat — pemeriksaan wajib-isi di klien maupun 422 server — yang melompat ke
+   * kolom atau sel barisnya. Tanda merah per kolom tetap; fokus ke galat pertama tetap
+   * (dan kini juga untuk kunci KEPALA dari 422, yang dulu hanya dilukis tanpa gulir
+   * maupun fokus — pembaca reader E3). Dirakit primitif errorSummary() (ui.js),
+   * dipasang sebagai anak PERTAMA badan formulir: di halaman maupun dialog, di dalam
+   * .form-page / .modal-body, sehingga pembaca `.form-page .field .err` harness tidak
+   * berubah. Kunci yang tidak punya kontrol tampil dengan nama kuncinya tanpa lompatan —
+   * toast kunci-tak-terpetakan tetap menyebutnya (aturan di paintErrors).
+   */
+  let summaryNode = null;
+  function clearSummary() {
+    if (summaryNode) summaryNode.remove();
+    summaryNode = null;
+  }
+  function resolveControl(fieldKey) {
+    const match = /^([A-Za-z_]\w*)\.(\d+)\.(\w+)$/.exec(fieldKey);
+    if (match) {
+      const line = lineControls.find(({ def: lineDef }) => lineDef.key === match[1]);
+      const entry = line && line.control.entries()[Number(match[2])];
+      const cell = entry && entry.inputs[match[3]];
+      return cell ? (cell.input || cell.node) : null;
+    }
+    const control = controls[fieldKey.split('.')[0]];
+    return control && !hiddenKeys.has(fieldKey.split('.')[0]) ? (control.input || control.node) : null;
+  }
+  function focusField(fieldKey) {
+    const target = resolveControl(fieldKey);
+    if (!target) return;
+    const fold = target.closest('details');
+    if (fold) fold.toggleAttribute('open', true);
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    target.focus({ preventScroll: true });
+  }
+  function labelFor(fieldKey) {
+    const match = /^([A-Za-z_]\w*)\.(\d+)\.(\w+)$/.exec(fieldKey);
+    if (match) {
+      const line = lineControls.find(({ def: lineDef }) => lineDef.key === match[1]);
+      const column = line && line.def.columns.find((one) => one.key === match[3]);
+      return line ? `${line.def.label} · baris ${Number(match[2]) + 1} · ${column ? column.label : match[3]}` : fieldKey;
+    }
+    const found = fieldControls.find(({ spec }) => spec.key === fieldKey.split('.')[0]);
+    return found ? found.spec.label : fieldKey;
+  }
+  function showSummary(items) {
+    clearSummary();
+    if (!items.length) return;
+    summaryNode = errorSummary(items, { onJump: (fieldKey) => focusField(fieldKey) });
+    body.prepend(summaryNode);
+  }
+
+  /*
+   * Satu jalan simpan untuk dua tombol: `trigger` yang sibuk, `afterSave` yang (bila ada)
+   * menggantikan finish() sesudah dokumen tersimpan. Tombol kembarannya dinonaktifkan
+   * selama berjalan — withBusy hanya mengunci tombol yang diklik (ui.js), dan dua POST
+   * pembuatan berarti dua dokumen bernomor (tidak ada idempotensi di server).
+   */
+  const attempt = async (trigger, afterSave) => {
+    const siblings = [save, saveSubmit].filter((node) => node && node !== trigger);
+    siblings.forEach((node) => { node.disabled = true; });
+    try {
+      await attemptSave(trigger, afterSave);
+    } finally {
+      siblings.forEach((node) => { node.disabled = false; });
+    }
+  };
+  save.addEventListener('click', () => attempt(save, null));
+  if (saveSubmit) saveSubmit.addEventListener('click', () => attempt(saveSubmit, submitAfterSave));
+
+  /*
+   * Simpan & ajukan, babak kedua (ERRATA E-6): dokumen SUDAH tersimpan — `saved` ada —
+   * lalu aksi submit lewat mesin jawaban yang sama dengan Ajukan (withConfirmResubmit:
+   * prakualifikasi, kendali harga, gate anggaran). Ditolak server, atau dialognya
+   * dibatalkan: pergi ke halaman dokumennya dan katakan dengan kalimat server —
+   * "<kode> tersimpan sebagai draf — belum diajukan: <alasan>" — dan JANGAN pernah
+   * mengulang POST pembuatan. Alasan disusun dari pesan pertama tiap kunci (seperti
+   * actions.js), bukan error.message yang Laravel beri ekor "(and N more errors)"
+   * berbahasa Inggris (S10).
+   */
+  async function submitAfterSave(saved) {
+    invalidateByPath(def.api);
+    removeDraft(key, draftRowId);
+    const code = (saved && saved.code) || def.labelOne;
+    try {
+      const result = await submit.run(saved);
+      if (result === undefined) {
+        toast(`${code} tersimpan sebagai draf — belum diajukan: pengajuan dibatalkan.`, { tone: 'warn', timeout: 0 });
+      } else {
+        submit.done(code, result);
+      }
+    } catch (error) {
+      const reason = error.errors
+        ? Object.values(error.errors).map((messages) => [].concat(messages)[0]).join(' ')
+        : (error.message || 'server menolak pengajuan.');
+      toast(`${code} tersimpan sebagai draf — belum diajukan: ${reason}`, { tone: 'warn', timeout: 0 });
+    }
+    dialog.close();
+    if (onSaved) onSaved(saved);
+  }
+
+  async function attemptSave(trigger, afterSave) {
     // Bersihkan penanda putaran sebelumnya dulu — kegagalan lama tidak boleh
     // menumpuk dengan hasil putaran ini.
     body.querySelectorAll('.field.invalid').forEach((node) => {
@@ -1030,6 +1295,8 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       node.querySelectorAll('.err').forEach((err) => err.remove());
     });
     body.querySelectorAll('td.cell-invalid').forEach((cell) => clearCellError(cell));
+    clearSummary();
+    markSteps();
 
     /*
      * Wajib-isi diperiksa SEBELUM request — hanya wajib-isi: format sudah
@@ -1039,6 +1306,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
      * baris yang tidak ikut terkirim.
      */
     const invalid = [];
+    const summaryItems = [];
     for (const { spec, control } of fieldControls) {
       if (!spec.required) continue;
       // Field yang sedang tersembunyi (visibleWhen) tidak dikirim, jadi
@@ -1048,10 +1316,11 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       if (value === null || value === '') {
         setFieldError(control.input || control.node, 'Wajib diisi.');
         invalid.push(control);
+        summaryItems.push({ field: spec.key, label: spec.label, message: 'Wajib diisi.' });
       }
     }
     for (const { def: lineDef, control } of lineControls) {
-      for (const entry of control.entries()) {
+      control.entries().forEach((entry, index) => {
         for (const column of lineDef.columns) {
           if (!column.required) continue;
           const cell = entry.inputs[column.key];
@@ -1059,11 +1328,15 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
           if (value === null || value === '') {
             setCellError(cell, 'Wajib diisi.');
             invalid.push(cell);
+            const fieldKey = `${lineDef.key}.${index}.${column.key}`;
+            summaryItems.push({ field: fieldKey, label: labelFor(fieldKey), message: 'Wajib diisi.' });
           }
         }
-      }
+      });
     }
     if (invalid.length) {
+      showSummary(summaryItems);
+      markSteps();
       toast('Periksa isian yang ditandai.', { tone: 'err' });
       const first = invalid[0].input || invalid[0].node;
       first.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -1084,10 +1357,11 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       payload[lineDef.key] = control.read();
     }
 
-    await withBusy(save, async () => {
-      const submit = () => (isEdit
+    await withBusy(trigger, async () => {
+      const send = () => (isEdit
         ? api.put(`${def.api}/${record.id}`, payload)
         : api.post(endpoint || def.api, payload));
+      const settle = (saved) => (afterSave ? afterSave(saved) : finish(saved));
 
       const finish = (saved) => {
         invalidateByPath(def.api);
@@ -1123,17 +1397,31 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
         }
         const scrolled = { done: false };
         const unmapped = [];
+        const items = [];
+        let firstPainted = null;
         for (const [fieldKey, messages] of Object.entries(error.errors)) {
           const message = [].concat(messages)[0];
-          if (applyLineError(fieldKey, message, scrolled)) continue;
+          if (applyLineError(fieldKey, message, scrolled)) {
+            items.push({ field: fieldKey, label: labelFor(fieldKey), message });
+            firstPainted = firstPainted || fieldKey;
+            continue;
+          }
           const headKey = fieldKey.split('.')[0];
           const control = controls[headKey];
           if (control && !hiddenKeys.has(headKey)) {
             setFieldError(control.input || control.node, message);
+            items.push({ field: fieldKey, label: labelFor(fieldKey), message });
+            firstPainted = firstPainted || fieldKey;
             continue;
           }
           unmapped.push(`${fieldKey}: ${message}`);
+          items.push({ field: fieldKey, label: fieldKey, message });
         }
+        showSummary(items);
+        markSteps();
+        // Galat 422 pertama yang dilukis difokuskan seperti galat wajib-isi (UX-E3.4);
+        // dulu kunci kepala hanya dilukis, tanpa gulir dan fokus.
+        if (firstPainted) focusField(firstPainted);
         if (!unmapped.length) {
           toast('Periksa isian yang ditandai.', { tone: 'err' });
           return;
@@ -1143,7 +1431,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
       };
 
       try {
-        finish(await submit());
+        await settle(await send());
       } catch (error) {
         /*
          * Alur konfirmasi-lanjut (def.form.confirmResubmit — GRN harga 0
@@ -1165,7 +1453,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
           if (!ok) return;
           payload[rule.flag] = true;
           try {
-            finish(await submit());
+            await settle(await send());
           } catch (retryError) {
             paintErrors(retryError);
           }
@@ -1174,7 +1462,7 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
         paintErrors(error);
       }
     });
-  });
+  }
 }
 
 /**

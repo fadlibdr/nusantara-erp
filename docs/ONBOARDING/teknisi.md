@@ -39,7 +39,7 @@ izin posting stok — §6.1 dan tombol posting di bab 6.
 ## 2. Hari pertama
 
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
-tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan hilang saat sesi habis (§1.2).
+tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2)
 
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 sidebar Anda pendek, dan itu normal. Layar yang akan Anda pakai minggu ini:
@@ -122,7 +122,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    selesai di lokasi. Layar: `Layanan › Berita Acara` → **`Tambah Berita Acara`** →
    Tiket, Tanggal kunjungan, Teknisi, **Gudang suku cadang** (wajib dalam praktik begitu
    ada satu baris sparepart), Temuan, Tindakan, Rekomendasi, tabel **Sparepart terpakai**
-   (Item, Qty) → **`Simpan`** → **`Ajukan`** — pengajuan mencoba seluruh pengeluaran
+   (Item, Qty) → **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali) — pengajuan mencoba seluruh pengeluaran
    stoknya lebih dulu lalu membatalkannya, dan menolak dengan kalimat yang sama yang
    nanti dipakai pengesahan. Nomor: `PM/2026/IX/0001`. Setelah pelanggan menandatangani:
    **`Sahkan Pelanggan`** → **Nama penandatangan pelanggan** (wajib). Yang terjadi:

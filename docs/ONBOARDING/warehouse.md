@@ -40,7 +40,7 @@ pengeluaran bisa menunjuk IPP dan mewarisi paket pekerjaannya).
 ## 2. Hari pertama
 
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
-tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan hilang saat sesi habis (§1.2).
+tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2)
 
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
@@ -163,7 +163,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    → **`Tambah Penyesuaian Stok`** → **Gudang**, **Tanggal opname**, **Alasan** (Stock
    Opname / Barang Rusak / Barang Hilang) → **Hasil hitung fisik**: Item · **Qty
    terhitung** — Anda memasukkan hasil hitungan, **tidak pernah selisihnya** →
-   **`Simpan`** → **`Ajukan`**. Nomor: `ADJ/2026/IX/0001`. Penyetuju: **direktur atau
+   **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali). Nomor: `ADJ/2026/IX/0001`. Penyetuju: **direktur atau
    admin**, dan **`Setujui` memposting seketika**: selisihnya menjadi beban operasional.
    Qty sistem dan Selisih dibekukan saat lembar **disimpan** — bila ada bon keluar antara
    simpan dan setujui, selisih lama diterapkan pada saldo baru. Selesaikan persetujuannya

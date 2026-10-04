@@ -38,7 +38,7 @@ Bab PANDUAN yang menjadi milik Anda (PANDUAN §0): **1, 2, 7, 8, 16, 17**, ditam
 ## 2. Hari pertama
 
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
-tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan hilang saat sesi habis (§1.2).
+tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2)
 
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
@@ -169,7 +169,7 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
 7. **Opname ke pemilik.** Pemicu: akhir periode pengukuran dengan MK. Layar: `Proyek ›
    Opname Owner (OPN)` → **`Tambah Opname ke Pemilik`** → Proyek, Periode → baris **ID
    item BOQ** (angka mentah dari halaman BOQ / RAB kontrak ini) + **Volume periode ini**
-   → **`Simpan`** → **`Ajukan`**. Nomor: `OPN/2026/IX/0001`. Penyetuju: pemegang
+   → **`Simpan draf`** → **`Ajukan`** (atau **`Simpan & ajukan`** sekali). Nomor: `OPN/2026/IX/0001`. Penyetuju: pemegang
    setujui proyek **selain pengaju**, atau Konsultan MK lewat kartu **Persetujuan
    Eksternal** (tautan sekali-pakai / lembar fisik — §15). Akibat: kolom Aktual pada
    Progres Mingguan untuk minggu yang dicakup **diganti** dengan volume terukur, dan

@@ -83,7 +83,7 @@ dibaca tidak menyelesaikan apa pun; baris Tenggat hilang hanya ketika sebabnya d
 3. Pengaju tidak boleh menyetujui dokumennya sendiri — peran Anda memang tidak menyetujui.
 4. Yang terposting tidak bisa dibatalkan — hanya dibalik, dua jurnal berdampingan.
 5. Anda tidak bisa mengganti kata sandi sendiri — minta administrator (bab 14).
-6. Sesi 12 jam; isian yang belum disimpan hilang saat sesi habis — simpan bertahap.
+6. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2).
 
 ## 3. Pekerjaan Anda
 

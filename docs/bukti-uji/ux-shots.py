@@ -24,7 +24,13 @@ UX-E2 (argumen keempat "e2"): layar dokumen — PO/1 sebagai procurement@ (baris
 panel sukses dengan tautan GRN), PO fixture yang DIAJUKAN sebagai direktur@ (panel attn, bilah dengan
 Setujui/Tolak; di 390 px juga dengan panel catatan terbuka), INV/1 sebagai finance@ (8 ubin, Informasi
 rata) — terang dan gelap, 390 dan 1440 px. Fixture dibuat lewat API sebagai procurement dan dihapus di
-akhir (PO yang diajukan mungkin ditolak server — dicatat). Berkas keluaran e2-<n>-<layar>-<tema>-<lebar>.jpg."""
+akhir (PO yang diajukan mungkin ditolak server — dicatat). Berkas keluaran e2-<n>-<layar>-<tema>-<lebar>.jpg.
+
+UX-E3 (argumen keempat "e3"): formulir halaman — PO baru sebagai procurement@ (navigasi bagian,
+kaki lengket, Lanjutan terlipat), PO baru sesudah "Simpan draf" kosong (ringkasan galat, titik
+merah), PO baru dengan satu baris dan Diskon (DPP hidup; di 390 kartu baris), Pelanggan baru
+sebagai sales@ (formulir panjang sebagai halaman) — terang dan gelap, 390 dan 1440 px. Tidak ada
+yang disimpan ke server. Berkas keluaran e3-<n>-<layar>-<tema>-<lebar>.jpg."""
 import json, sqlite3, sys, time, urllib.request
 from playwright.sync_api import sync_playwright
 DB=sys.argv[1]; OUT=sys.argv[2]; BASE=sys.argv[3] if len(sys.argv)>3 else "http://127.0.0.1:8000/app/"; ONLY=sys.argv[4] if len(sys.argv)>4 else None
@@ -37,7 +43,7 @@ SCREENS=[ # name, role, hash (None = whatever the app lands on after login)
  ("6-pengadaan-modul","procurement@nusantara.test","#/m/prc"),
  ("7-lapangan","site-manager@nusantara.test","#/lapangan"),
 ]
-SCREENS=[x for x in SCREENS if not ONLY or x[0]==ONLY or ONLY in ("e1","e2")]
+SCREENS=[x for x in SCREENS if not ONLY or x[0]==ONLY or ONLY in ("e1","e2","e3")]
 VIEWS={"390":dict(viewport={"width":390,"height":844},is_mobile=True,has_touch=True,device_scale_factor=1),
        "1440":dict(viewport={"width":1440,"height":900})}
 con=sqlite3.connect(DB)
@@ -136,8 +142,52 @@ def e2_shots(b):
     finally:
         try: api(f"procurement/purchase-orders/{po['id']}",tok,"DELETE"); print("fixture dihapus",flush=True)
         except Exception as ex: print("fixture tidak terhapus (PO diajukan):",str(ex)[:80],flush=True)
+def e3_shots(b):
+    """UX-E3 — formulir halaman (lihat docstring)."""
+    emails=("procurement@nusantara.test","sales@nusantara.test")
+    con=sqlite3.connect(DB)
+    for e in emails: con.execute("UPDATE users SET onboarding_status='skipped', onboarding_seen_at=datetime('now') WHERE email=? AND onboarding_status IS NULL",(e,))
+    con.commit(); con.close()
+    def empty_save(pg):
+        pg.click(".form-page .form-foot button:has-text('Simpan draf')"); pg.wait_for_selector(".form-page .error-summary", timeout=5000)
+    def one_line(pg):
+        row=pg.locator(".form-page table.lines tbody tr").first
+        row.locator("td:nth-child(2) input").first.fill("Kabel NYY 4x16"); row.locator("td:nth-child(3) input").first.fill("50")
+        row.locator("td:nth-child(4) input").first.fill("m"); row.locator("td:nth-child(5) input").first.fill("185000")
+        pg.locator(".form-page .field", has=pg.locator("label", has_text="Diskon")).first.locator("input").first.fill("250000")
+        pg.evaluate("() => { const t = document.querySelector('.form-page .lines-total'); t && t.scrollIntoView({ block: 'center' }); }")
+    SHOTS=[ # name, email, hash, action
+     ("1-po-baru", emails[0], "#/f/procurement/purchase-orders", None),
+     ("2-po-ringkasan-galat", emails[0], "#/f/procurement/purchase-orders", empty_save),
+     ("3-po-baris-dpp", emails[0], "#/f/procurement/purchase-orders", one_line),
+     ("4-pelanggan-halaman", emails[1], "#/f/crm/customers", None),
+    ]
+    for vname,opts in VIEWS.items():
+        for email in emails:
+            ctx=b.new_context(**opts); pg=ctx.new_page(); errs=[]
+            pg.on("pageerror",lambda e:errs.append(str(e)[:160]))
+            login(pg,email)
+            for name,e,h,action in SHOTS:
+                if e!=email: continue
+                for theme in ("light","dark"):
+                    pg.goto(BASE+"#/home"); pg.wait_for_timeout(300)
+                    if pg.locator(".modal button:has-text('Tinggalkan')").count(): pg.click(".modal button:has-text('Tinggalkan')")
+                    pg.goto(BASE+h); pg.wait_for_selector(".form-page .form-foot",timeout=20000); pg.wait_for_timeout(1200)
+                    pg.evaluate("() => Object.keys(localStorage).filter((k) => k.startsWith('nusantara_erp_draft:')).forEach((k) => localStorage.removeItem(k))")  # hanya draf — token sesi juga di localStorage
+                    pg.evaluate("(t)=>{document.documentElement.dataset.theme=t}",theme); pg.wait_for_timeout(300)
+                    if action: action(pg); pg.wait_for_timeout(500)
+                    pg.screenshot(path=f"{OUT}/e3-{name}-{theme}-{vname}.jpg",type="jpeg",quality=82)
+                    # Tinggalkan formulir yang kotor tanpa dialog: bersihkan draf dan lepas penjaga lewat navigasi + jawab dialog.
+                    pg.evaluate("() => { location.hash = '#/home'; }"); pg.wait_for_timeout(500)
+                    if pg.locator(".modal button:has-text('Tinggalkan')").count(): pg.click(".modal button:has-text('Tinggalkan')"); pg.wait_for_timeout(400)
+                    pg.evaluate("() => Object.keys(localStorage).filter((k) => k.startsWith('nusantara_erp_draft:')).forEach((k) => localStorage.removeItem(k))")  # hanya draf — token sesi juga di localStorage
+                print(vname,name,"errs",errs[-2:],flush=True)
+            ctx.close()
+
 with sync_playwright() as p:
     b=p.chromium.launch()
+    if ONLY=="e3":
+        e3_shots(b); b.close(); sys.exit(0)
     if ONLY=="e1":
         e1_shots(b); b.close(); sys.exit(0)
     if ONLY=="e2":

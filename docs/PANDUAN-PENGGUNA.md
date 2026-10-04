@@ -89,8 +89,9 @@ panduan ini milik orang lain.
    *Ganti kata sandi*; sandi lama wajib). "Lupa kata sandi" lewat email hanya ada
    bila server memang mengirim surat — kalau tidak, halaman masuk menyebut nama
    administrator yang harus Anda mintai (bab 14).
-6. **Sesi Anda berumur 12 jam.** Bila habis di tengah formulir, seluruh isian hilang
-   tanpa bisa dipulihkan. Dokumen panjang disimpan bertahap.
+6. **Sesi Anda berumur 12 jam.** Bila habis di tengah formulir, isian yang sedang diketik
+   tersimpan sebagai **draf di peramban ini** dan ditawarkan kembali setelah Anda masuk lagi
+   (paling lama 7 hari).
 
 ---
 
@@ -127,10 +128,11 @@ Begitu sesi berakhir — atau bila administrator mencabut token Anda — layar a
 sedang terbuka **langsung berganti menjadi halaman masuk** dengan banner
 *"Sesi Anda berakhir. Silakan masuk kembali."*
 
-**Apa pun yang sedang Anda ketik pada saat itu hilang.** Tidak ada draf otomatis dan
-tidak ada pemulihan. Bila Anda sedang menyusun BOQ 40 baris atau kontrak dengan sepuluh
-termin, tekan **`Simpan`** setiap kali satu bagian selesai, lalu buka lagi lewat
-**`Ubah`**.
+**Yang sedang Anda ketik tidak hilang.** Formulir menyimpan drafnya di peramban ini setiap
+1–2 detik; sesudah masuk kembali muncul tawaran **Draf tersimpan di peramban ini** dengan
+tombol **`Pulihkan`** / **`Buang`**, dan formulirnya (halaman untuk dokumen berbaris, jendela
+untuk yang pendek) bertanya *"Pulihkan isian yang belum tersimpan?"* (**`Pulihkan`** /
+**`Mulai kosong`**). Draf hidup 7 hari dan hanya di peramban tempat ia diketik.
 
 Bila server tidak terjangkau saat membuka aplikasi, banner-nya berbunyi
 *"Tidak dapat menghubungi server. Coba masuk kembali."*
@@ -222,7 +224,8 @@ bilah ini, bukan di belakangnya, dan laci yang terbuka menutupinya.
 **`Tambah …`** dari daftar-daftar yang boleh Anda buka, dikumpulkan di satu tempat. Saat Anda
 berada di sebuah modul, formulir modul itu yang tampil lebih dulu (paling banyak delapan);
 di luar modul, yang tampil adalah jenis dokumen yang baru-baru ini Anda buka. Formulir
-berbaris (PO, PR, dan sejenisnya) terbuka sebagai halaman, yang pendek sebagai dialog —
+berbaris (PO, PR, dan sejenisnya) dan formulir panjang (lebih dari delapan kolom — pelanggan,
+vendor, karyawan, proyek, aset, tiket, NCR, …) terbuka sebagai halaman, yang pendek sebagai dialog —
 sama persis dengan tombol Tambah di daftarnya. Di bawah 1200 px tombol ini hanya ikon `+`.
 Kalau Anda tidak boleh membuat apa pun, tombolnya tidak ada.
 
@@ -789,18 +792,38 @@ setelan wilayah Windows Anda.
 
 ### 2.3 Formulir
 
-Formulir terbuka sebagai jendela berjudul **Tambah <dokumen>** atau **Ubah <dokumen>**,
-dibagi menjadi beberapa bagian berjudul. Kolom wajib bertanda `*` merah; keterangan abu
+Formulir berbaris dan formulir panjang (lebih dari delapan kolom) terbuka sebagai **halaman**
+dengan remah `<Modul> › <Daftar> › <Dokumen> baru` (atau `Ubah #<nomor>`); formulir pendek
+sebagai jendela berjudul **Tambah <dokumen>** atau **Ubah <dokumen>**. Keduanya dibagi
+menjadi beberapa bagian berjudul. Kolom wajib bertanda `*` merah; keterangan abu
 di bawah kolom adalah bantuan resmi layar itu — bacalah, ia sering menyimpan aturan yang
 tidak ada di tempat lain.
 
-Tombolnya **`Batal`** dan **`Simpan`** (**`Simpan Perubahan`** saat mengubah).
+Pada formulir halaman, bagian-bagiannya **bernomor** (pada PO: **1 · Pesanan pembelian**,
+**2 · Item pesanan**, **3 · Lanjutan**); di layar ≥ 1024 px daftar bagian menempel di kiri —
+klik untuk melompat; titik merah menandai bagian yang punya isian bermasalah. **Lanjutan**
+dilipat: buka bila perlu (pada PO: termin bayar, alamat pengiriman, catatan, alasan override
+prakualifikasi). Kolom wajib di dalamnya tetap diperiksa, dan lipatannya terbuka sendiri bila
+ada galat.
+
+Tombolnya **`Batal`** dan **`Simpan`** (**`Simpan Perubahan`** saat mengubah). Pada formulir
+**halaman**, tombol-tombol itu ada di **kaki formulir yang menempel di dasar layar** — tetap
+terlihat saat Anda menggulir ke tabel baris. Bila dokumennya bisa diajukan, kakinya berbunyi
+**`Batal`** · **`Simpan draf`** · **`Simpan & ajukan`**: yang terakhir menyimpan lebih dulu, lalu
+mengajukan lewat jalur **`Ajukan`** yang sama — dialog konfirmasi harga, anggaran, atau alasan
+override prakualifikasi tetap muncul bila server memintanya. Bila pengajuannya ditolak server atau
+Anda membatalkan dialognya, dokumen **tetap tersimpan sebagai draf**: Anda dibawa ke halaman
+dokumennya dengan pesan *"`<kode>` tersimpan sebagai draf — belum diajukan: `<alasan server>`"*.
+Simpan tidak pernah diulang.
 
 **Yang diperiksa peramban sebelum mengirim**: hanya kolom wajib yang kosong. Masing-masing
 ditandai `Wajib diisi.`, muncul pesan **"Periksa isian yang ditandai."**, dan layar
-menggulir ke kolom pertama yang bermasalah.
+menggulir ke kolom pertama yang bermasalah. Di atas formulir muncul **ringkasan galat**
+(*"N isian perlu diperbaiki"*): satu baris per galat, masing-masing tombol yang melompat ke
+kolom atau sel barisnya; tanda merah per kolom tetap ada.
 
-**Yang diperiksa server** ditandai langsung pada kolom yang disebutnya. Pada tabel baris,
+**Yang diperiksa server** ditandai langsung pada kolom yang disebutnya — dan masuk ke
+ringkasan galat yang sama; kolom pertama yang bermasalah difokuskan. Pada tabel baris,
 kesalahan mendarat pada **sel baris yang bersangkutan**, berwarna merah, dan barisnya
 digulirkan ke tengah layar. Tanda merah hilang begitu Anda mengetik ulang di sel itu.
 
@@ -808,6 +831,10 @@ digulirkan ke tengah layar. Tanda merah hilang begitu Anda mengetik ulang di sel
 semuanya bertanya lebih dulu: judul **"Tutup tanpa menyimpan?"**, isi *"Formulir ini
 punya isian yang belum tersimpan — termasuk baris yang sudah diketik. Kalau ditutup
 sekarang, semuanya hilang."*, tombol **`Buang isian`** / **`Kembali mengisi`**.
+**Formulir halaman** (dokumen berbaris) dijaga saat Anda berpindah layar: judul
+**"Tinggalkan formulir ini?"**, tombol **`Tinggalkan`** / **`Tetap di sini`**. **`Tinggalkan`**
+menyimpan isian sebagai draf di peramban ini — membuka formulir yang sama lagi menawarkannya
+kembali. Alamat `#/f/<layar>` dan `#/f/<layar>/new` sama-sama membuka formulir buat.
 
 **Kolom pencarian (lookup)** — setiap kolom yang menunjuk data lain (proyek, vendor,
 item, karyawan, akun): ketik untuk menyaring, ↑/↓ berpindah, Enter atau Tab mengambil
@@ -839,9 +866,13 @@ bereaksi terhadap roda tetikus, dan Anda boleh menempel `Rp 15.000.000.000` lang
 portal bank.
 
 **Tabel baris** (item, termin, entri jurnal): tombol **`Tambah baris`**, ikon tong sampah
-per baris, dan **Subtotal** hidup di bawah tabel. Pada jurnal, kakinya menampilkan
+per baris, dan **Subtotal** hidup di bawah tabel; pada PO juga **Diskon** dan **DPP**
+(Subtotal − Diskon) — PPN dan Total dihitung server saat disimpan (tarifnya mengikuti status
+PKP vendor) dan tampil di halaman dokumen. Begitu baris terakhir terisi, satu baris kosong
+baru muncul di bawahnya — **`Tambah baris`** tetap ada. Pada jurnal, kakinya menampilkan
 **Debit / Kredit / Seimbang ✓** atau **Selisih Rp …**. Baris yang seluruhnya kosong tidak
-ikut dikirim.
+ikut dikirim. Di ponsel (≤ 760 px) setiap baris tampil sebagai **kartu** berjudul kolom —
+tidak ada gulir mendatar.
 
 Beberapa tabel punya tombol salin — mis. **`Salin baris dari PO`** pada penerimaan barang.
 Pada dokumen-dokumen itu, tombol salin bukan kemudahan: **hanya lewat tombol itu baris
@@ -1940,7 +1971,7 @@ tidak menyentuh rupiah** — waktu dan nilai tidak pernah bergerak di satu lemba
    **Perubahan waktu (hari)** (hanya untuk Addendum Waktu — bertanda, tidak boleh 0;
    bantuan: *"Hanya untuk Addendum Waktu: bertanda dan tidak boleh 0 — negatif
    memendekkan. Kosongkan pada jenis lain."*), Sebab, No. CCO pelanggan, Uraian.
-3. **`Simpan`**, lalu **`Ajukan`**.
+3. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**.
 
 Ditolak bila kontraknya belum disetujui:
 > "Kontrak {kode} berstatus {status}. Pekerjaan tambah-kurang hanya berlaku atas kontrak
@@ -2560,7 +2591,7 @@ MEP / ELV / ICT).
    (wajib), **Uraian pekerjaan** (wajib), **Kategori** (wajib), **Overhead & profit (%)**
    (bawaan 10, batas 0–100), Catatan.
 3. Isi tabel **Komponen (upah / bahan / alat)** dengan tombol **`Tambah baris`**;
-   tanda `×` menghapus baris. Kolomnya: **Jenis** (wajib: Upah/Bahan/Alat) · **Uraian**
+   ikon tong sampah menghapus baris. Kolomnya: **Jenis** (wajib: Upah/Bahan/Alat) · **Uraian**
    (wajib) · *Item stok* (pencarian ke daftar Item, boleh kosong) · **Satuan** (wajib) ·
    **Koefisien** (wajib) · **Harga satuan** (wajib). Jumlah per baris = koefisien ×
    harga satuan.
@@ -3005,7 +3036,7 @@ Dibutuhkan · Status. Bisa diubah/dihapus hanya saat Draf atau Ditolak.
    (dikosongkan berarti Anda sendiri), Keperluan, Catatan.
 3. Isi tabel **Item yang diminta** (minimal 1): Item · Uraian · **Qty** (wajib) · Satuan ·
    Estimasi harga. **Uraian menjadi wajib bila kolom Item dikosongkan.**
-4. **`Simpan`**, lalu **`Ajukan`**.
+4. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**.
 
 Setelah direktur menekan **`Setujui`**, tombol **`Buat PO`** muncul.
 
@@ -3179,10 +3210,9 @@ perusahaan **hanya bila vendor PKP**, selain itu 0; total = DPP + PPN.
 > harganya sedang dinegosiasi ulang — persis PO yang gerbang itu ada untuknya. Bila
 > harganya berubah, pertimbangkan membuat PO baru dari PR-nya alih-alih mengubah.
 
-**Mengajukan PO.** Tombol **`Ajukan`** **selalu membuka dialog lebih dulu**, berisi satu
-kotak **Alasan override prakualifikasi** (*"Kosongkan bila vendor sehat. Isi hanya bila
-pengajuan ditolak gate prakualifikasi dan tetap harus jalan (mis. pembelian darurat ke
-pemegang lisensi tunggal)."*).
+**Mengajukan PO.** **`Ajukan`** di halaman dokumen — atau **`Simpan & ajukan`** langsung dari
+kaki formulirnya — mengajukan **tanpa dialog pembuka**; kotak **Alasan override prakualifikasi**
+hanya muncul bila server menolak pada gerbang prakualifikasi (langkah 2 di bawah).
 
 Yang diperiksa `Ajukan`, berurutan:
 
@@ -4244,7 +4274,7 @@ Gudang · Alasan · Diposting · Status. Bisa diubah/dihapus saat Draf atau Dito
    Barang Rusak / Barang Hilang), Catatan.
 3. Isi **Hasil hitung fisik**: Item · **Qty terhitung**. **Anda hanya memasukkan hasil
    hitungan Anda — tidak pernah selisihnya.**
-4. **`Simpan`**, **`Ajukan`**, lalu direktur/admin menekan **`Setujui`**.
+4. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), **`Ajukan`**, lalu direktur/admin menekan **`Setujui`**.
 
 Halaman opname memperlihatkan **Hasil opname**: Item · Qty sistem · Qty fisik ·
 **Selisih** (bertanda) · HPP satuan.
@@ -5535,7 +5565,7 @@ Status. Saringan: Proyek, Status. Bisa diubah/dihapus hanya saat Draf atau Ditol
 3. Tabel baris **Volume terukur per item BOQ**, minimal satu: **ID item BOQ** (wajib) ·
    Lokasi/zona (opsional, **harus lokasi proyek ini**) · **Volume periode ini** (wajib) ·
    Keterangan.
-4. **`Simpan`** → **`Ajukan`** → **`Setujui`** / **`Tolak`**.
+4. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya) → **`Ajukan`** → **`Setujui`** / **`Tolak`**.
 
 > **Anda hanya mengisi volume PERIODE INI.** Volume lalu dan kumulatif dihitung server
 > dari opname yang **sudah disetujui** pada kontrak yang sama. Bantuan di layar
@@ -5851,7 +5881,7 @@ dari selisih terhadap progres sebelumnya."*
 3. Isi tabel **Progres per baris pekerjaan**: **ID baris SPK** (wajib — **angka mentah**,
    salin dari kolom **ID** pada tabel Rincian pekerjaan di halaman SPK) dan **Progres
    kumulatif (%)** (wajib).
-4. **`Simpan`**, lalu **`Ajukan`**, lalu direktur **`Setujui`**.
+4. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**, lalu direktur **`Setujui`**.
 
 **Anda memasukkan progres KUMULATIF, bukan progres periode ini.** Nilai periodenya
 dihitung sistem sebagai selisih terhadap progres yang tercatat sebelumnya.
@@ -6143,7 +6173,7 @@ Potongan kasbon tidak boleh melebihi sisa kasbon maupun upah yang terbayarkan."*
 4. Bila ada kasbon yang mau dipotong dari upah periode ini: isi **ID kasbon dipotong**
    (bantuan: *"Kasbon berstatus cair milik proyek SP3 ini."* — angkanya dari layar
    Kasir Kas Kecil, §10.7) dan **Potongan kasbon**.
-5. **`Simpan`**, lalu **`Ajukan`**, lalu **`Setujui`**.
+5. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**, lalu **`Setujui`**.
 
 Matematikanya, semuanya kolom tersimpan yang dihitung server:
 
@@ -8712,7 +8742,7 @@ dokumen Engineering yang memakai siklus `Ajukan` → `Setujui`/`Tolak` biasa.
    tapak** (§16.7), **Paket pekerjaan (WBS)**, **Uraian pekerjaan**.
 2. Isi baris **bahan** (item, qty, satuan), **alat**, **gambar** (menunjuk submittal SDS),
    dan **material** (menunjuk submittal SMS).
-3. **`Simpan`**, lalu **`Ajukan`**.
+3. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**.
 
 **Paket pekerjaan (WBS) di IPP menetes ke bon.** Bila diisi, ia harus paket **daun** ber-BOQ
 pada proyek yang sama (tiga penolakan sama persis dengan pemilih WBS pada bon, §6.5) —
@@ -8856,7 +8886,7 @@ pada satu tanggal. Kolom daftar: Kode · Paket · Tahap · Tgl Inspeksi · Lulus
 2. Tekan **`Muat butir dari template`** untuk menarik seluruh butir checklist ke bawah
    formulir. Butir dan kriteria terkunci (milik template); Anda mengisi **Hasil** tiap butir
    — **Sesuai / Tidak sesuai / Tidak berlaku** — dan **Catatan** bila perlu.
-3. **`Simpan`**, lalu **`Ajukan`**.
+3. **`Simpan draf`** (atau **`Simpan & ajukan`** di kaki formulirnya), lalu **`Ajukan`**.
 
 **Hasil keseluruhan dihitung, bukan diketik.** Satu butir **Tidak sesuai** menggagalkan
 lembar (kolom Lulus menjadi tidak); **Tidak berlaku** tak pernah menggagalkan — butir yang

@@ -18,6 +18,7 @@ DB = os.environ.get("ERP_DB", "/home/claude/nusantara-erp/database/database.sqli
 OUT = os.environ.get("UXTEST_OUT", "/home/claude/uxtest")
 R = {}          # results
 CLICKS = [0]    # click counter for the current scenario
+CLICK_LOG = []  # selector per klik yang dihitung (UX-E3.0: buku besar klik S3 — bukti komposisi angkanya)
 # Skenario yang JATUH (ERROR atau ok:false). Dibaca di akhir: sebuah harness yang selalu
 # keluar dengan status 0 tidak bisa dipakai gerbang apa pun (verifikasi kedua P1-D).
 FAILED = []
@@ -38,6 +39,7 @@ def token_for(email):
 
 def click(page, sel, **kw):
     CLICKS[0] += 1
+    CLICK_LOG.append(sel)
     page.click(sel, **kw)
 
 def login(page, email, onboarding="decide"):
@@ -119,6 +121,7 @@ def scenario(name):
     def deco(fn):
         def wrapper(*a, **k):
             CLICKS[0] = 0
+            CLICK_LOG.clear()
             t0 = time.time()
             try:
                 R[name] = fn(*a, **k) or {}
@@ -126,6 +129,7 @@ def scenario(name):
                 R[name] = {"ERROR": str(e)[:400], "trace": traceback.format_exc()[-600:]}
             R[name]["_ms"] = int((time.time() - t0) * 1000)
             R[name]["_clicks"] = CLICKS[0]
+            R[name]["_ledger"] = list(CLICK_LOG)
             # SKIPPED dicetak apa adanya: sebuah skenario yang tidak menemukan fixture-nya bukan "ok"
             # (verifikasi P1-B putaran 3, 6 Sep 2026 — S16 pada salinan DB hidup).
             #
@@ -380,10 +384,13 @@ def s3(pg):
         width: m.getBoundingClientRect().width, bodyScroll: m.scrollHeight,
         bodyClient: m.clientHeight,
         linesTop: (m.querySelector('table.lines')||{getBoundingClientRect:()=>({top:null})}).getBoundingClientRect().top,
-        foot: [...m.querySelectorAll('.page-head .actions button')].map(b=>b.innerText.trim()) } }""")
+        foot: [...m.querySelectorAll('.form-foot button')].map(b=>b.innerText.trim()) } }""")
     pg.screenshot(path=f"{OUT}/s3-form-empty.png")
-    # 1) Save empty -> client-side validation
-    click(pg, ".page-head .actions button:has-text('Simpan')")
+    # 1) Save empty -> client-side validation. UX-E3.2: tombol simpan ada di kaki formulir
+    # (.form-foot, anak terakhir .form-page), berlabel "Simpan draf" karena PO bisa diajukan;
+    # has-text dengan label penuh ("Simpan draf" / "Simpan & ajukan"): "Simpan" saja cocok keduanya,
+    # dan :text-is tidak cocok karena teks tombol berada di <span> di samping ikonnya.
+    click(pg, ".form-page .form-foot button:has-text('Simpan draf')")
     pg.wait_for_timeout(700)
     client_errors = pg.evaluate("() => [...document.querySelectorAll('.form-page .field .err, .form-page td .err')].map(e=>e.innerText.trim()).filter(Boolean)")
     pg.screenshot(path=f"{OUT}/s3-client-errors.png")
@@ -393,9 +400,9 @@ def s3(pg):
         inp = f.locator("input.combo-input, select").first
         tag = inp.evaluate("e => e.tagName")
         if tag == "SELECT":
-            inp.select_option(index=1); CLICKS[0] += 1
+            inp.select_option(index=1); CLICKS[0] += 1; CLICK_LOG.append(f"S3 combo-select {label_text}")
         else:
-            inp.click(); CLICKS[0] += 1
+            inp.click(); CLICKS[0] += 1; CLICK_LOG.append(f"S3 combo {label_text}")
             inp.type(typed, delay=20)
             pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000)
             pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
@@ -417,16 +424,13 @@ def s3(pg):
     # (visibleWhen) dan Simpan berhenti di klien tanpa isian ini. Sebuah isian, bukan klik.
     pg.locator(".form-page .field", has=pg.locator("label", has_text="Alasan tanpa PR")).first.locator("textarea").first.fill(
         "UJI-UX — pembelian langsung tanpa PR")
-    # lines: add 2 rows
+    # lines: baris kedua LAHIR SENDIRI begitu baris pertama terisi (UX-E3.3) — bukan lagi klik orang.
     rows = pg.locator(".form-page table.lines tbody tr")
-    while rows.count() < 2:
-        click(pg, ".form-page button:has-text('Tambah baris')")
-        pg.wait_for_timeout(200)
     line_inputs = pg.evaluate("() => [...document.querySelectorAll('.form-page table.lines tbody tr:first-child td')].map(td => { const i=td.querySelector('input,select,textarea'); return i ? (i.className||i.tagName)+':'+(i.type||'') : 'na' })")
     def fill_line(row, i, qty):
         combo = row.locator("td:nth-child(1) input.combo-input")
         if combo.count():
-            combo.first.click(); CLICKS[0] += 1
+            combo.first.click(); CLICKS[0] += 1; CLICK_LOG.append(f"S3 item combo row {i+1}")
             combo.first.type("kabel" if i == 0 else "cctv", delay=20)
             try:
                 pg.wait_for_selector(".combo-pop .combo-opt", timeout=5000)
@@ -437,18 +441,21 @@ def s3(pg):
         row.locator("td:nth-child(3) input").first.fill(qty)
         row.locator("td:nth-child(4) input").first.fill("unit")
         row.locator("td:nth-child(5) input").first.fill("1500000")
-    for i in range(2):
-        fill_line(rows.nth(i), i, "0" if i == 0 else "10")
+    fill_line(rows.nth(0), 0, "0")
+    pg.wait_for_function("() => document.querySelectorAll('.form-page table.lines tbody tr').length >= 2", timeout=5000)
+    rows_after_first = rows.count()
+    fill_line(rows.nth(1), 1, "10")
     pg.screenshot(path=f"{OUT}/s3-form-filled.png")
     # 3) Save with qty 0 on line 1 -> server 422 text as rendered
-    click(pg, ".page-head .actions button:has-text('Simpan')")
+    click(pg, ".form-page .form-foot button:has-text('Simpan draf')")
     pg.wait_for_timeout(1500)
     server_errors = pg.evaluate("() => [...document.querySelectorAll('.form-page .field .err, .form-page td .err')].map(e=>e.innerText.trim()).filter(Boolean)")
     toast_422 = toasts(pg)
     pg.screenshot(path=f"{OUT}/s3-server-errors.png")
-    # 4) Fix qty and save
+    # 4) Fix qty and SAVE & SUBMIT in one click (UX-E3.2): buat 201 lalu aksi submit 200 — klik
+    # Ajukan di halaman dokumen (langkah 5 lama) tidak ada lagi; bilahnya hanya dibaca.
     rows.nth(0).locator("td:nth-child(3) input").first.fill("5")
-    click(pg, ".page-head .actions button:has-text('Simpan')")
+    click(pg, ".form-page .form-foot button:has-text('Simpan & ajukan')")
     try:
         pg.wait_for_selector(".form-page", state="detached", timeout=15000)
         saved = True
@@ -462,7 +469,7 @@ def s3(pg):
     result = {"form": form, "client_errors": client_errors, "line_inputs_row1": line_inputs,
               "server_errors_rendered": server_errors, "toast_on_422": toast_422, "saved": saved,
               "toast_after_save": toast_save, "landing_after_save": where, "create_ms": t_saved, "api_calls": len(reqs),
-              "nav_group_opened": nav_group_opened}
+              "nav_group_opened": nav_group_opened, "rows_after_first_line": rows_after_first}
     if not saved:
         return result
     # 5) Submit (Ajukan) from wherever we landed
@@ -473,7 +480,9 @@ def s3(pg):
     bar = pg.evaluate("() => [...document.querySelectorAll('.page-head .actions button')].map(b => (b.innerText.trim() || b.title))")
     code = pg.evaluate("() => (document.querySelector('.page-head h1')||{}).innerText")
     pg.screenshot(path=f"{OUT}/s3-po-detail.png")
+    result["submit_via"] = "Simpan & ajukan"
     if "Ajukan" in bar:
+        # Jalur lama (bila dokumen mendarat masih draf): Ajukan dari halaman dokumen.
         click(pg, ".page-head .actions button:has-text('Ajukan')")
         pg.wait_for_timeout(1200)
         if pg.locator(".modal").count():
@@ -481,10 +490,11 @@ def s3(pg):
             click(pg, ".modal .modal-foot button.primary, .modal .modal-foot button:has-text('Ajukan')")
         pg.wait_for_selector(".toast", timeout=15000)
         pg.wait_for_timeout(600)
-        result["toast_after_submit"] = toasts(pg)
-        result["status_after_submit"] = pg.evaluate("() => (document.querySelector('.page-head .badge')||{}).innerText")
-        result["bar_after_submit"] = pg.evaluate("() => [...document.querySelectorAll('.page-head .actions button')].map(b => (b.innerText.trim() || b.title))")
-        pg.screenshot(path=f"{OUT}/s3-after-submit.png")
+        result["submit_via"] = "Ajukan di halaman dokumen"
+    result["toast_after_submit"] = toasts(pg)
+    result["status_after_submit"] = pg.evaluate("() => (document.querySelector('.page-head .badge')||{}).innerText")
+    result["bar_after_submit"] = pg.evaluate("() => [...document.querySelectorAll('.page-head .actions button')].map(b => (b.innerText.trim() || b.title))")
+    pg.screenshot(path=f"{OUT}/s3-after-submit.png")
     result["po_code"] = code
     result["detail_action_bar"] = bar
     result["total_ms_create_to_submit"] = int((time.time() - t0) * 1000)
@@ -506,7 +516,7 @@ def s4(pg):
     if ta.count():
         ta.fill("UJI-UX — isian yang akan hilang bila sesi berakhir.")
     vf = pg.locator(".form-page .field", has=pg.locator("label", has_text="Vendor")).first.locator("input.combo-input").first
-    vf.click(); CLICKS[0] += 1; vf.type("PT", delay=20)
+    vf.click(); CLICKS[0] += 1; CLICK_LOG.append("S4 combo Vendor"); vf.type("PT", delay=20)
     pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000); pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
     rows = pg.locator(".form-page table.lines tbody tr")
     while rows.count() < 3:
@@ -527,7 +537,7 @@ def s4(pg):
     con = sqlite3.connect(DB)
     n = con.execute("DELETE FROM personal_access_tokens WHERE tokenable_id IN (SELECT id FROM users WHERE email='procurement@nusantara.test')").rowcount
     con.commit(); con.close()
-    click(pg, ".page-head .actions button:has-text('Simpan')")
+    click(pg, ".form-page .form-foot button:has-text('Simpan draf')")  # UX-E3.2: kaki formulir
     pg.wait_for_timeout(2500)
     state = pg.evaluate("""() => ({ loginVisible: !!document.querySelector('.login'), modalVisible: !!document.querySelector('.modal'),
         banner: (document.querySelector('.login .alert')||{}).innerText || null, toasts: [...document.querySelectorAll('.toast')].map(t=>t.innerText),
@@ -554,7 +564,9 @@ def s4(pg):
             pg.wait_for_selector(".modal", timeout=10000); pg.wait_for_timeout(800)
             if pg.locator(".modal .modal-foot button:has-text('Pulihkan')").count():
                 click(pg, ".modal .modal-foot button:has-text('Pulihkan')"); pg.wait_for_timeout(1500)
-            state["restored"] = pg.evaluate("() => ({ title: (document.querySelector('.modal-head h2')||{}).innerText, filled: [...document.querySelectorAll('.modal input, .modal textarea')].filter(e=>e.value).length, lines: document.querySelectorAll('.modal table.lines tbody tr').length, vendor: (document.querySelector('.modal .combo-input')||{}).value, textarea: (document.querySelector('.modal textarea')||{}).value })")
+            # UX-E3.7: PO dipulihkan di HALAMANNYA (#/f/) — pembacaan menerima .form-page maupun .modal.
+            pg.wait_for_selector(".form-page, .modal", timeout=10000); pg.wait_for_timeout(500)
+            state["restored"] = pg.evaluate("() => { const root = document.querySelector('.form-page') || document.querySelector('.modal'); return { container: root.classList.contains('form-page') ? 'page' : 'modal', title: (document.querySelector('.form-page') ? (document.querySelector('.page-head h1')||{}) : (document.querySelector('.modal-head h2')||{})).innerText, filled: [...root.querySelectorAll('input, textarea')].filter(e=>e.value).length, lines: root.querySelectorAll('table.lines tbody tr').length, vendor: (root.querySelector('.combo-input')||{}).value, textarea: (root.querySelector('textarea')||{}).value }; }")
             pg.screenshot(path=f"{OUT}/s4-restored.png")
     state["fields_typed_before_expiry"] = typed
     return {"tokens_revoked": n, **state}
@@ -1087,7 +1099,7 @@ def s47(pg):
       hash: location.hash,
       crumbs: [...document.querySelectorAll('#crumbs > *')].map(n => (n.innerText || '').trim()).filter(Boolean),
       judul: ((document.querySelector('.page-head h1') || {}).innerText || '').trim(),
-      tombol: [...document.querySelectorAll('.page-head .actions .btn')].map(b => b.innerText.trim()),
+      tombol: [...document.querySelectorAll('.form-page .form-foot .btn')].map(b => b.innerText.trim()),  // UX-E3.2: kaki formulir
       gulir_dalam: (() => { const m = document.querySelector('.modal-body');
                             return m ? m.scrollHeight - m.clientHeight : 0; })(),
     })"""
@@ -1097,10 +1109,16 @@ def s47(pg):
     # Berbaris -> halaman.
     pg.goto(BASE + "#/f/procurement/purchase-orders"); pg.wait_for_timeout(2600)
     out["berbaris"] = pg.evaluate(SURFACE)
+    # UX-E3.7: fokus awal pada medan nyata pertama; dan alias #/f/<sumber daya>/new membuka formulir buat.
+    out["fokus_awal"] = pg.evaluate("() => !!document.activeElement.closest('.form-page') && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)")
+    pg.goto(BASE + "#/f/procurement/purchase-orders/new"); pg.wait_for_selector(".form-page", timeout=15000); pg.wait_for_timeout(600)
+    out["alias_new"] = pg.evaluate(SURFACE)
     pg.screenshot(path=f"{OUT}/s45-formulir-halaman.png")
 
     # Tanpa baris -> dialog, lewat tombol Tambah daftarnya.
-    pg.goto(BASE + "#/r/crm/customers"); pg.wait_for_timeout(2200)
+    # UX-E3.8: pelanggan (14 medan) menjadi HALAMAN oleh aturan "> 8 medan"; sumber daya pendek yang
+    # tetap dialog adalah Kategori Item (3 medan). Makna pemeriksaannya tetap: formulir pendek = dialog.
+    pg.goto(BASE + "#/r/inventory/item-categories"); pg.wait_for_timeout(2200)
     if pg.locator(".page-head .btn.primary").count():
         click(pg, ".page-head .btn.primary")
         pg.wait_for_timeout(2400)
@@ -1134,6 +1152,9 @@ def s47(pg):
         click(pg, ".modal button:has-text('Tinggalkan')")
         pg.wait_for_timeout(1500)
     out["tinggalkan"] = {"hash": pg.evaluate("() => location.hash"), "halaman": pg.locator(".form-page").count()}
+    # UX-E3.7: dialog Tinggalkan berjanji drafnya bertahan di peramban — kuncinya harus ada.
+    out["draf_tertinggal"] = pg.evaluate("() => Object.keys(localStorage).filter((k) => k.startsWith('nusantara_erp_draft:procurement/purchase-orders:'))")
+    pg.evaluate("() => localStorage.removeItem('nusantara_erp_draft:procurement/purchase-orders:new')")
     pg.evaluate("() => { location.hash = '#/tugas'; }"); pg.wait_for_timeout(1300)
     out["penjaga_dilepas"] = {"hash": pg.evaluate("() => location.hash"), "dialog": pg.locator(".modal").count()}
 
@@ -1165,6 +1186,12 @@ def s47(pg):
         checks.append(f"'Tetap di sini' kehilangan isiannya: {out['tetap']['isian']!r}")
     if out["tinggalkan"]["hash"] != "#/dashboard" or out["tinggalkan"]["halaman"]:
         checks.append(f"'Tinggalkan' tidak pergi: {out['tinggalkan']}")
+    if not out.get("draf_tertinggal"):
+        checks.append("'Tinggalkan' membuang draf yang dijanjikan dialognya")
+    if not out.get("alias_new", {}).get("halaman") or (out.get("alias_new", {}).get("crumbs") or [""])[-1] != "PO baru":
+        checks.append(f"#/f/<sumber daya>/new tidak membuka formulir buat: {out.get('alias_new')!r}")
+    if not out.get("fokus_awal"):
+        checks.append("halaman formulir tidak memfokuskan medan pertamanya")
     if out["penjaga_dilepas"]["hash"] != "#/tugas" or out["penjaga_dilepas"]["dialog"]:
         checks.append(f"penjaga tertinggal sesudah halaman formulir ditinggalkan: {out['penjaga_dilepas']}")
 
@@ -3707,6 +3734,23 @@ def s12(pg):
         pg.screenshot(path=f"{OUT}/s12-blocked-failed.png")
     finally:
         con = sqlite3.connect(DB); con.execute("UPDATE prc_vendors SET status='active' WHERE id=?", (vendor["id"],)); con.commit(); con.close()
+    # Pemeriksaan (UX-E3.1): sampai 4 Okt 2026 skenario ini hanya MENCATAT — uji mutasi (runAction tanpa
+    # putaran konfirmasi-lanjut) tetap "ok" karena tidak satu pun nilai dibaca. Yang dipaku: Ajukan pada
+    # vendor terblokir membuka dialog alasan (bukan toast galat), alasan kosong ditahan di klien,
+    # alasan yang diketik sampai ke server dan PO-nya terkirim.
+    prompt = out.get("prompt") or {}
+    checks = {
+        "a_blocked_vendor_opens_the_override_prompt": any("override" in f.lower() for f in prompt.get("fields", [])),
+        "the_prompt_speaks_the_servers_sentence": "prakualifikasi" in (prompt.get("message") or "").lower(),
+        "an_empty_reason_is_held_in_the_browser": out.get("empty_reason", {}).get("modal_open") is True
+            and any("wajib" in e.lower() for e in out.get("empty_reason", {}).get("errors", [])),
+        "the_reason_reaches_the_server_and_the_po_is_submitted": (out.get("stored") or {}).get("status") == "submitted"
+            and bool((out.get("stored") or {}).get("qualification_override_reason")),
+        "a_healthy_vendor_submits_without_a_dialog": (out.get("healthy") or {}).get("modal_opened") is False,
+    }
+    out["checks"] = checks
+    out["failed_checks"] = [k for k, v in checks.items() if not v]
+    out["ok"] = not out["failed_checks"]
     return out
 
 @scenario("S13_approve_with_note")
@@ -9644,7 +9688,9 @@ FORM_NOTE = """() => {
   const labels = [...document.querySelectorAll('.modal .field, .field')];
   const box = labels.find(f => /^Proyek/.test((f.querySelector('label') || {}).innerText || ''));
   if (!box) return { found: false, labels: labels.map(f => ((f.querySelector('label') || {}).innerText || '').trim()).slice(0, 20) };
-  const help = [...box.querySelectorAll('.help')].map(h => ({ text: h.innerText.replace(/\\s+/g, ' ').trim(), hidden: h.hidden, color: h.style.color }));
+  // UX-E3.4: warnanya kelas (.tone-warn/.tone-neg), bukan gaya sebaris — dibaca kelas + warna terhitung.
+  const help = [...box.querySelectorAll('.help')].map(h => ({ text: h.innerText.replace(/\\s+/g, ' ').trim(), hidden: h.hidden,
+    tone: [...h.classList].filter(c => c.startsWith('tone-')).join(' '), color: getComputedStyle(h).color }));
   return { found: true, help };
 }"""
 
@@ -9950,7 +9996,7 @@ def s29(pg):
         "the_po_form_warns_before_a_single_line_is_typed": any(
             "terpakai" in t for t in note_texts),
         "the_po_form_note_is_coloured_at_the_threshold": any(
-            h.get("color") for h in (out["po_form"].get("help") or []) if not h["hidden"]),
+            h.get("tone") for h in (out["po_form"].get("help") or []) if not h["hidden"]),
         # 5 — riwayat revisi
         "the_revision_history_shows_both_revisions": len((out["revision_chain"].get("rows") or [])) == 2,
         "and_the_difference_between_them": any(
@@ -16126,6 +16172,219 @@ def s57(pg):
     return out
 
 
+@scenario("S58_simpan_ajukan")
+def s58(pg):
+    """UX-E3.2: Simpan & ajukan di kaki formulir halaman PO — SATU klik: POST pembuatan lalu POST
+    pengajuan lewat mesin konfirmasi-lanjut yang sama dengan Ajukan; mendarat di halaman dokumen
+    berstatus Diajukan. Dihitung dari permintaan jaringan: tepat satu POST pembuatan, satu POST submit."""
+    out, checks, posts = {}, [], []
+    pg.on("request", lambda r: posts.append(r.url) if r.method == "POST" else None)
+    login(pg, "procurement@nusantara.test")
+    pg.goto(BASE + "#/f/procurement/purchase-orders")
+    pg.wait_for_selector(".form-page .form-foot", timeout=15000)
+    pg.wait_for_timeout(800)
+    out["tombol"] = pg.evaluate("() => [...document.querySelectorAll('.form-page .form-foot .btn')].map(b => b.innerText.trim())")
+    out["primary"] = pg.evaluate("() => ((document.querySelector('.form-page .form-foot .btn.primary') || {}).innerText || '').trim()")
+    out["kaki"] = pg.evaluate("""() => { const f = document.querySelector('.form-page .form-foot'); const r = f.getBoundingClientRect();
+        return { position: getComputedStyle(f).position, on_screen: r.top >= 0 && r.bottom <= innerHeight, h: Math.round(r.height) }; }""")
+    if out["tombol"] != ["Batal", "Simpan draf", "Simpan & ajukan"]:
+        checks.append(f"kaki formulir bukan Batal · Simpan draf · Simpan & ajukan: {out['tombol']!r}")
+    if out["primary"] != "Simpan & ajukan":
+        checks.append(f"tombol utama bukan Simpan & ajukan: {out['primary']!r}")
+    if out["kaki"]["position"] != "fixed" or not out["kaki"]["on_screen"]:
+        checks.append(f"kaki formulir tidak lengket/terlihat: {out['kaki']!r}")
+
+    # ------------------------------------------------------------ navigasi bagian (E3.5), 1440
+    out["nav"] = pg.evaluate("""() => { const nav = document.querySelector('.form-page .form-nav'); if (!nav) return null;
+        return { steps: [...nav.querySelectorAll('.step-label')].map((n) => n.innerText.trim()),
+                 active: ((nav.querySelector('[aria-current=step] .step-label') || {}).innerText || '').trim(),
+                 position: getComputedStyle(nav).position, display: getComputedStyle(nav).display,
+                 h3: [...document.querySelectorAll('.form-page .form-section > h3, .form-page .lines-head h3')].map((n) => n.textContent.trim()),  // textContent: h3 memakai text-transform uppercase
+                 lanjutan: ((document.querySelector('details.form-section.advanced > summary h3') || {}).textContent || '').trim(),
+                 lanjutan_open: !!document.querySelector('details.form-section.advanced[open]') }; }""")
+    nv = out["nav"]
+    if not nv:
+        checks.append("navigasi bagian (.form-nav) tidak ada pada formulir PO")
+    else:
+        if nv["steps"] != ["Pesanan pembelian", "Item pesanan", "Lanjutan"]:
+            checks.append(f"langkah navigasi bukan Pesanan pembelian · Item pesanan · Lanjutan: {nv['steps']!r}")
+        if nv["position"] != "sticky" or nv["display"] == "none":
+            checks.append(f"navigasi bagian tidak lengket/terlihat di 1440: {nv!r}")
+        if nv["h3"][:2] != ["1 · Pesanan pembelian", "2 · Item pesanan"] or not nv["lanjutan"].startswith("3 · Lanjutan"):
+            checks.append(f"judul bagian tidak bernomor: {nv['h3']!r} / {nv['lanjutan']!r}")
+        if nv["lanjutan_open"]:
+            checks.append("Lanjutan terbuka saat formulir dibuka")
+        # Klik langkah ketiga: lipatan terbuka dan fokus di dalamnya.
+        click(pg, ".form-page .form-nav li.step:nth-child(3) .step-link")
+        pg.wait_for_timeout(600)
+        out["lompat_nav"] = pg.evaluate("() => ({ open: !!document.querySelector('details.form-section.advanced[open]'), focus_inside: !!document.activeElement.closest('details.form-section.advanced') })")
+        if not out["lompat_nav"]["open"] or not out["lompat_nav"]["focus_inside"]:
+            checks.append(f"klik langkah Lanjutan tidak membuka lipatan/memfokuskan: {out['lompat_nav']!r}")
+        pg.evaluate("() => { document.querySelector('details.form-section.advanced').removeAttribute('open'); window.scrollTo(0, 0); }")
+        pg.wait_for_timeout(300)
+
+    # ------------------------------------------------------------ ringkasan galat (E3.4)
+    click(pg, ".form-page .form-foot button:has-text('Simpan draf')")
+    pg.wait_for_timeout(600)
+    out["ringkasan"] = pg.evaluate("""() => { const s = document.querySelector('.form-page .error-summary'); if (!s) return null;
+        const marked = document.querySelectorAll('.form-page .field.invalid, .form-page td.cell-invalid').length;
+        const first = document.querySelector('.form-page .field.invalid');
+        return { title: (s.querySelector('strong') || {}).innerText || null, role: s.getAttribute('role'), first_child: s === s.parentElement.firstElementChild,
+                 items: [...s.querySelectorAll('li')].map((li) => li.innerText.replace(/\\s+/g, ' ').trim()), marked,
+                 focused_in_first_invalid: !!(first && document.activeElement && first.contains(document.activeElement)) }; }""")
+    r = out["ringkasan"]
+    if not r:
+        checks.append("ringkasan galat tidak muncul sesudah Simpan draf pada formulir kosong")
+    else:
+        if not re.match(r"^\d+ isian perlu diperbaiki$", r["title"] or ""):
+            checks.append(f"judul ringkasan galat bukan 'N isian perlu diperbaiki': {r['title']!r}")
+        if len(r["items"]) != r["marked"] or not r["items"]:
+            checks.append(f"baris ringkasan ({len(r['items'])}) != kolom yang ditandai ({r['marked']}): {r['items']!r}")
+        if r["role"] != "alert" or not r["first_child"]:
+            checks.append(f"ringkasan bukan role=alert anak pertama: {r!r}")
+        if not r["focused_in_first_invalid"]:
+            checks.append("fokus tidak jatuh ke kolom pertama yang bermasalah")
+        if out.get("nav"):
+            out["titik_galat"] = pg.evaluate("() => [...document.querySelectorAll('.form-nav li.step.has-error .step-label')].map((n) => n.innerText.trim())")
+            if out["titik_galat"] != ["Pesanan pembelian"]:
+                checks.append(f"titik galat navigasi bukan hanya 'Pesanan pembelian': {out['titik_galat']!r}")
+        # Lompat lewat tautan TERAKHIR: fokus harus pindah ke kontrol kolom itu.
+        click(pg, ".form-page .error-summary li:last-child button.linkish")
+        pg.wait_for_timeout(500)
+        out["lompat"] = pg.evaluate("""() => { const a = document.activeElement; return { tag: a.tagName.toLowerCase(), in_invalid: !!a.closest('.field.invalid, td.cell-invalid') }; }""")
+        if not out["lompat"]["in_invalid"]:
+            checks.append(f"tautan ringkasan tidak memfokuskan kolomnya: {out['lompat']!r}")
+
+    def pick_combo(label_text, typed):
+        f = pg.locator(".form-page .field", has=pg.locator("label", has_text=label_text)).first
+        inp = f.locator("input.combo-input").first
+        click(pg, f"{'.form-page .field:has(label:has-text(' + repr(label_text) + ')) input.combo-input'}")
+        inp.type(typed, delay=20)
+        pg.wait_for_selector(".combo-pop .combo-opt", timeout=8000)
+        pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
+    pick_combo("Vendor", "PT")
+    pick_combo("Proyek", "Gedung")
+    from datetime import date, timedelta
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Perkiraan kirim")).first.locator("input[type=date]").fill((date.today() + timedelta(days=14)).isoformat())
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Alasan tanpa PR")).first.locator("textarea").fill("UJI-UX — Simpan & ajukan (S58)")
+    row = pg.locator(".form-page table.lines tbody tr").first
+    combo = row.locator("td:nth-child(1) input.combo-input")
+    if combo.count():
+        combo.first.click(); CLICKS[0] += 1; CLICK_LOG.append("S58 item combo row 1")
+        combo.first.type("kabel", delay=20)
+        try:
+            pg.wait_for_selector(".combo-pop .combo-opt", timeout=5000); pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
+        except Exception:
+            pg.keyboard.press("Escape")
+    row.locator("td:nth-child(2) input").first.fill("UJI-UX baris S58")
+    pg.wait_for_timeout(300)
+    out["baris_otomatis"] = pg.evaluate("""() => { const rows = [...document.querySelectorAll('.form-page table.lines tbody tr')];
+        const last = rows[rows.length - 1];
+        // Kosong = belum disentuh: kolom ber-`default` (qty: 1) memang bernilai pada baris baru; yang dibaca uraian dan harga.
+        return { rows: rows.length, last_empty: [...last.querySelectorAll('td:nth-child(2) input, td:nth-child(5) input')].every((i) => !i.value) }; }""")
+    if out["baris_otomatis"]["rows"] < 2 or not out["baris_otomatis"]["last_empty"]:
+        checks.append(f"baris kosong tidak lahir sesudah baris pertama terisi: {out['baris_otomatis']!r}")
+    row.locator("td:nth-child(3) input").first.fill("2")
+    row.locator("td:nth-child(4) input").first.fill("roll")
+    row.locator("td:nth-child(5) input").first.fill("1500000")
+    # ------------------------------------------------------------ DPP hidup (E3.6): Diskon 500000 → DPP = 2 × 1.500.000 − 500.000
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Diskon")).first.locator("input").first.fill("500000")
+    pg.wait_for_timeout(400)
+    out["total_hidup"] = pg.evaluate("() => ((document.querySelector('.form-page .lines-total') || {}).innerText || '').replace(/\\s+/g, ' ').trim()")
+    for needle in ("Subtotal: Rp 3.000.000", "Diskon: Rp 500.000", "DPP: Rp 2.500.000", "PPN dan total dihitung server saat disimpan."):
+        if needle not in out["total_hidup"]:
+            checks.append(f"kaki tabel tidak memuat {needle!r}: {out['total_hidup']!r}")
+    before = len(posts)
+    click(pg, ".form-page .form-foot button:has-text('Simpan & ajukan')")
+    # Gerbang anggaran: pada salinan DB yang sudah dilalui S29 (RAP proyek terlampaui) server menolak
+    # pengajuan dengan kunci `budget`, dan mesin konfirmasi-lanjut yang sama dengan Ajukan membuka
+    # "Melampaui sisa anggaran RAP — tetap ajukan?". Dijawab "Ya, tetap ajukan" dan dicatat —
+    # bukti bahwa Simpan & ajukan memakai putaran yang sama (UX-E3.2); pada seed segar dialognya tidak ada.
+    out["konfirmasi"] = None
+    for _ in range(40):  # ≤ 10 s: dialog konfirmasi ATAU formulir tertutup — toast sukses berumur pendek, jangan menunggu buta
+        pg.wait_for_timeout(250)
+        if pg.locator(".modal:has-text('tetap ajukan')").count():
+            out["konfirmasi"] = pg.evaluate("() => ((document.querySelector('.modal .modal-head h2') || {}).innerText || '').trim()")
+            click(pg, ".modal .modal-foot button:has-text('tetap ajukan')")
+            break
+        if not pg.locator(".form-page").count():
+            break
+    try:
+        pg.wait_for_selector(".form-page", state="detached", timeout=15000)
+    except Exception:
+        checks.append("formulir tidak tertutup dalam 15 s sesudah Simpan & ajukan")
+    pg.wait_for_timeout(600)
+    new_posts = posts[before:]
+    out["posts"] = [u.split("/api/")[-1] for u in new_posts]
+    out["after"] = pg.evaluate("() => ({ hash: location.hash, badge: ((document.querySelector('.page-head .badge') || {}).innerText || '').trim(), h1: ((document.querySelector('.page-head h1') || {}).innerText || '').trim() })")
+    out["toasts"] = toasts(pg)
+    creates = [u for u in new_posts if re.search(r"/purchase-orders$", u)]
+    submits = [u for u in new_posts if re.search(r"/purchase-orders/\d+/submit$", u)]
+    if len(creates) != 1:
+        checks.append(f"POST pembuatan dikirim {len(creates)} kali (harus 1): {out['posts']!r}")
+    # Satu POST pengajuan — plus satu per dialog konfirmasi yang dijawab (gerbang anggaran menolak
+    # yang pertama; yang kedua membawa confirm_over_budget — itulah putaran konfirmasi-lanjut).
+    expected_submits = 1 + (1 if out["konfirmasi"] else 0)
+    if len(submits) != expected_submits:
+        checks.append(f"POST pengajuan dikirim {len(submits)} kali (harus {expected_submits}): {out['posts']!r}")
+    if not out["after"]["hash"].startswith("#/d/procurement/purchase-orders/"):
+        checks.append(f"tidak mendarat di halaman dokumen: {out['after']!r}")
+    if out["after"]["badge"] != "Diajukan":
+        checks.append(f"status sesudah Simpan & ajukan bukan Diajukan: {out['after']!r} toasts {out['toasts']!r}")
+    if not any("diajukan" in t for t in out["toasts"]):
+        checks.append(f"toast tidak menyebut pengajuan: {out['toasts']!r}")
+    pg.screenshot(path=f"{OUT}/s58-sesudah-simpan-ajukan.png")
+    # 390 px: navigasi bagian tersembunyi, judul tetap bernomor (konteks ponsel baru).
+    ctx = pg.context.browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    try:
+        pm = ctx.new_page()
+        login(pm, "procurement@nusantara.test")
+        pm.goto(BASE + "#/f/procurement/purchase-orders")
+        pm.wait_for_selector(".form-page .form-foot", timeout=15000); pm.wait_for_timeout(600)
+        out["ponsel"] = pm.evaluate("() => { const nav = document.querySelector('.form-page .form-nav'); return { nav_display: nav ? getComputedStyle(nav).display : 'absent', h3: ((document.querySelector('.form-page .form-section > h3') || {}).innerText || '').trim() }; }")
+        if out["ponsel"]["nav_display"] != "none":
+            checks.append(f"navigasi bagian di 390 px bukan display:none (tampil, atau tidak dibangun): {out['ponsel']!r}")
+        # Kartu baris (E3.6): thead tersembunyi, tiap sel berjudul data-label, tidak ada gulir mendatar; isian td:nth-child tetap bisa.
+        pm.locator(".form-page table.lines tbody tr").first.locator("td:nth-child(2) input").first.fill("UJI-UX kartu 390")
+        out["kartu"] = pm.evaluate("""() => { const t = document.querySelector('.form-page table.lines'); const wrap = t.closest('.table-wrap'); const tr = t.querySelector('tbody tr');
+            return { thead: getComputedStyle(t.querySelector('thead')).display, tr_display: getComputedStyle(tr).display, tr_w: Math.round(tr.getBoundingClientRect().width),
+                     scroll_x: wrap.scrollWidth - wrap.clientWidth,
+                     labels: [...tr.querySelectorAll('td')].map((td) => getComputedStyle(td, '::before').content.replace(/"/g, '')).filter((c) => c && c !== 'none'),
+                     input_h: Math.round(tr.querySelector('td:nth-child(2) input').getBoundingClientRect().height),
+                     typed: tr.querySelector('td:nth-child(2) input').value }; }""")
+        k = out["kartu"]
+        if k["thead"] != "none" or k["tr_display"] != "block" or k["scroll_x"] > 0:
+            checks.append(f"baris tidak menjadi kartu di 390 px / masih bergulir mendatar: {k!r}")
+        if k["labels"][:5] != ["Item", "Uraian", "Qty", "Satuan", "Harga satuan"] or "Jumlah" not in k["labels"]:
+            checks.append(f"judul kolom kartu salah: {k['labels']!r}")
+        if k["input_h"] < 36 or k["typed"] != "UJI-UX kartu 390":
+            checks.append(f"isian kartu tidak bisa diketik / terlalu rendah: {k!r}")
+    finally:
+        ctx.close()
+    # ------------------------------------------------------------ formulir panjang tanpa baris (E3.8): pelanggan sebagai sales
+    ctx2 = pg.context.browser.new_context(viewport={"width": 1440, "height": 900})
+    try:
+        ps = ctx2.new_page()
+        login(ps, "sales@nusantara.test")
+        ps.goto(BASE + "#/r/crm/customers"); ps.wait_for_selector("#view .page-head .btn.primary", timeout=15000); ps.wait_for_timeout(500)
+        click(ps, "#view .page-head .btn.primary")
+        ps.wait_for_selector(".overlay .modal, #view .form-page", timeout=15000); ps.wait_for_timeout(800)
+        out["pelanggan"] = ps.evaluate("""() => ({ halaman: !!document.querySelector('#view .form-page'), modal: !!document.querySelector('.overlay .modal'), hash: location.hash,
+            tombol: [...document.querySelectorAll('.form-page .form-foot .btn')].map((b) => b.innerText.trim()),
+            langkah: [...document.querySelectorAll('.form-page .form-nav .step-label')].map((n) => n.innerText.trim()),
+            crumbs: [...document.querySelectorAll('#crumbs > *')].map((n) => (n.innerText || '').trim()).filter(Boolean).length })""")
+        pl = out["pelanggan"]
+        if not pl["halaman"] or pl["modal"] or not pl["hash"].startswith("#/f/crm/customers"):
+            checks.append(f"formulir pelanggan (14 medan) bukan halaman: {pl!r}")
+        if pl["tombol"] != ["Batal", "Simpan"] or pl["langkah"] != ["Identitas", "Alamat & kontak"] or pl["crumbs"] < 3:
+            checks.append(f"halaman pelanggan: kaki/langkah/remah tidak seperti dugaan: {pl!r}")
+    finally:
+        ctx2.close()
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -16136,7 +16395,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None)]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None),("S58",s58,None)]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
