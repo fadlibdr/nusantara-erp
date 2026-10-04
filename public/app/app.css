@@ -1809,6 +1809,37 @@ table.data tr.total-row td { font-weight: 700; background: var(--surface-2); }
 }
 .lines-head h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .lines-head .spacer { flex: 1; }
+.lines-help { margin-bottom: var(--space-2); }
+/* Kaki tabel baris (UX-E3.6): dulu gaya sebaris di form.js; 16/8 px = skala §13a (dulu 18/10). */
+.lines-total {
+  display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-4);
+  padding: var(--space-2) var(--space-1) 0; font-size: var(--fs-body); font-weight: var(--fw-semi);
+}
+.lines-total .lines-note { flex-basis: 100%; text-align: right; font-weight: var(--fw-medium); font-size: var(--fs-secondary); }
+/* Kartu baris di ponsel (UX-E3.6, README E3): tabel yang SAMA (td:nth-child tetap untuk harness),
+   tiap baris jadi kartu dan tiap sel memakai judul kolomnya lewat data-label. Terukur 4 Okt 2026
+   (ux-e3-probe-base.json): gulir mendatar 69 px pada PO baru dan 135 px pada PO ubah di 390 px. */
+@media (max-width: 760px) {
+  table.lines thead { display: none; }
+  table.lines, table.lines tbody, table.lines tr, table.lines td { display: block; width: 100%; }
+  table.lines tr {
+    padding: var(--space-3); margin-bottom: var(--space-3);
+    border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  }
+  table.lines td, table.lines td:first-child { padding: 0 0 var(--space-2); border: 0; }
+  table.lines td[data-label]::before {
+    content: attr(data-label); display: block; margin-bottom: var(--space-1);
+    font-size: var(--fs-caption); font-weight: var(--fw-semi); color: var(--muted);
+    text-transform: uppercase; letter-spacing: var(--tracking-caps);
+  }
+  table.lines td.row-total { display: flex; justify-content: space-between; align-items: baseline; }
+  table.lines td.row-total::before { margin-bottom: 0; }
+  table.lines td:last-child { text-align: right; padding-bottom: 0; }
+  /* Spesifisitas (0,4,3): mengalahkan aturan pointer:coarse `table.lines input:not(…)×4 { height: 31px }` (0,4,2)
+     yang datang belakangan — kartu bukan baris tabel meja yang dibekukan pemilik. */
+  table.lines td input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]),
+  table.lines td select, table.lines td .combo .combo-input { width: 100%; height: max(36px, var(--input-h)); font-size: var(--fs-body); }
+}
 
 table.lines { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.lines th {

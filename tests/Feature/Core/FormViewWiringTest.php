@@ -69,7 +69,7 @@ class FormViewWiringTest extends ErpTestCase
     public function test_the_shell_version_went_up_with_the_form(): void
     {
         $this->assertSame(1, preg_match("~const SHELL_VERSION = '(\\d+)';~", (string) file_get_contents(public_path('app/sw.js')), $version));
-        $this->assertGreaterThanOrEqual(70, (int) $version[1],
+        $this->assertGreaterThanOrEqual(71, (int) $version[1],
             'SHELL_VERSION turun di bawah versi yang membawa formulir UX-E3: perangkat yang memegang cangkang lama tidak pernah mengambilnya.');
     }
 
@@ -306,6 +306,52 @@ class FormViewWiringTest extends ErpTestCase
         $this->assertStringNotContainsString("style: { marginBottom: '12px' }", $form);
         $this->assertStringContainsString('.form-section > .alert.info { margin-bottom: var(--space-3); }', $css);
         $this->assertStringContainsString('.form-note.alert.info { margin-top: var(--space-4); }', $css);
+    }
+
+    /* ------------------------------------------------------------ E3.6 */
+
+    /** DPP hidup adalah rumus server (Subtotal − min(Diskon, Subtotal)) dan tidak lebih — tarif PPN tidak ditebak di peramban. */
+    public function test_dpp_is_the_servers_formula_and_nothing_more(): void
+    {
+        $form = $this->spa('views/form.js');
+        $lines = (string) $this->functionBody($form, 'function buildLines(');
+        $this->assertStringContainsString('Math.min(Number(headerValues()[discountField]) || 0, sum)', $lines);
+        $this->assertStringContainsString("text: 'DPP: '", $lines);
+        $this->assertStringContainsString("'PPN dan total dihitung server saat disimpan.'", $lines);
+        $this->assertStringNotContainsString('ppn_rate', $this->withoutComments($lines), 'Tarif PPN dibaca/ditebak di peramban — PoService::recalcTotals yang memutuskannya dari status PKP vendor.');
+        $this->assertDoesNotMatchRegularExpression('/\*\s*(11|12)\b|\b(11|12)\s*\//', $this->withoutComments($lines), 'Tarif PPN dikarang di peramban.');
+        $po = $this->resourceBlock('procurement/purchase-orders');
+        $this->assertMatchesRegularExpression("/total: \(row\) => Number\(row\.qty \|\| 0\) \* Number\(row\.unit_price \|\| 0\),\n(?:\s*\/\/[^\n]*\n)*\s+discountField: 'discount_amount',/", $po);
+        $this->assertStringContainsString('discountField', substr($this->spa('schema.js'), 0, 4000));
+        $this->assertStringContainsString('refresh: refreshTotals,', $lines);
+        $open = (string) $this->functionBody($form, 'export async function openForm(');
+        $this->assertStringContainsString("lineControls.some(({ def: lineDef }) => lineDef.discountField)", $open);
+    }
+
+    /** Kaki tabel baris dan nada saldo tanpa gaya sebaris; gaya sebaris form.js 11 → 8. */
+    public function test_lines_total_has_no_inline_style(): void
+    {
+        $form = $this->spa('views/form.js');
+        $this->assertStringContainsString("el('div.lines-total')", $form);
+        $this->assertStringNotContainsString("justifyContent: 'flex-end', gap: '18px'", $form);
+        $this->assertStringContainsString('el(`span.${balanced ? \'tone-pos\' : \'tone-neg\'}`', $form);
+        $this->assertLessThanOrEqual(8, preg_match_all('/style:\s*\{/', $form));
+        $css = $this->css();
+        $this->assertStringContainsString('.lines-total {', $css);
+        $this->assertMatchesRegularExpression('/\.lines-total \{[^}]*gap: var\(--space-4\)/', $css);
+        $this->assertStringContainsString('.lines-help { margin-bottom: var(--space-2); }', $css);
+    }
+
+    /** Kartu baris di ponsel adalah CSS di atas tabel yang sama; tinggi input tabel meja tetap beku 31 px. */
+    public function test_mobile_cards_are_css_over_the_same_table(): void
+    {
+        $lines = (string) $this->functionBody($this->spa('views/form.js'), 'function buildLines(');
+        $this->assertStringContainsString("'data-label': column.label", $lines);
+        $this->assertStringContainsString("'data-label': 'Jumlah'", $lines);
+        $css = $this->css();
+        $this->assertStringContainsString('table.lines td[data-label]::before {', $css);
+        $this->assertStringContainsString('table.lines thead { display: none; }', $css);
+        $this->assertStringContainsString('table.lines input, table.lines select { height: 31px; font-size: 12.5px; }', $css, 'Tinggi input tabel baris meja (beku, S21) berubah.');
     }
 
     /** Separuh penolakan. */

@@ -857,10 +857,13 @@ bereaksi terhadap roda tetikus, dan Anda boleh menempel `Rp 15.000.000.000` lang
 portal bank.
 
 **Tabel baris** (item, termin, entri jurnal): tombol **`Tambah baris`**, ikon tong sampah
-per baris, dan **Subtotal** hidup di bawah tabel. Begitu baris terakhir terisi, satu baris
-kosong baru muncul di bawahnya — **`Tambah baris`** tetap ada. Pada jurnal, kakinya menampilkan
+per baris, dan **Subtotal** hidup di bawah tabel; pada PO juga **Diskon** dan **DPP**
+(Subtotal − Diskon) — PPN dan Total dihitung server saat disimpan (tarifnya mengikuti status
+PKP vendor) dan tampil di halaman dokumen. Begitu baris terakhir terisi, satu baris kosong
+baru muncul di bawahnya — **`Tambah baris`** tetap ada. Pada jurnal, kakinya menampilkan
 **Debit / Kredit / Seimbang ✓** atau **Selisih Rp …**. Baris yang seluruhnya kosong tidak
-ikut dikirim.
+ikut dikirim. Di ponsel (≤ 760 px) setiap baris tampil sebagai **kartu** berjudul kolom —
+tidak ada gulir mendatar.
 
 Beberapa tabel punya tombol salin — mis. **`Salin baris dari PO`** pada penerimaan barang.
 Pada dokumen-dokumen itu, tombol salin bukan kemudahan: **hanya lewat tombol itu baris
@@ -2579,7 +2582,7 @@ MEP / ELV / ICT).
    (wajib), **Uraian pekerjaan** (wajib), **Kategori** (wajib), **Overhead & profit (%)**
    (bawaan 10, batas 0–100), Catatan.
 3. Isi tabel **Komponen (upah / bahan / alat)** dengan tombol **`Tambah baris`**;
-   tanda `×` menghapus baris. Kolomnya: **Jenis** (wajib: Upah/Bahan/Alat) · **Uraian**
+   ikon tong sampah menghapus baris. Kolomnya: **Jenis** (wajib: Upah/Bahan/Alat) · **Uraian**
    (wajib) · *Item stok* (pencarian ke daftar Item, boleh kosong) · **Satuan** (wajib) ·
    **Koefisien** (wajib) · **Harga satuan** (wajib). Jumlah per baris = koefisien ×
    harga satuan.

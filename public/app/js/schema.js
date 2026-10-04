@@ -8,7 +8,9 @@
    section { title, help, fields[], advanced }
            advanced: true → dilipat sebagai <details> "Lanjutan" di formulir (UX-E3.5);
            wajib-isi di dalamnya tetap diperiksa dan lipatannya dibuka saat ada galat.
-   line    { key, label, columns[], min, prefill, importPick }
+   line    { key, label, columns[], min, prefill, importPick, discountField }
+           discountField: kunci field kepala yang dikurangkan dari Subtotal untuk baris DPP
+           hidup (UX-E3.6); PPN/Total tidak dihitung klien.
            prefill MENGGANTI seluruh baris dari dokumen sumber tanpa bertanya;
            importPick membuka dialog centang lalu MENAMBAHKAN baris terpilih —
            lihat buildLines di views/form.js untuk kedua bentuknya.
@@ -2694,6 +2696,8 @@ export const RESOURCES = {
           { key: 'unit_price', label: 'Harga satuan', type: 'currency', required: true, width: '20%' },
         ],
         total: (row) => Number(row.qty || 0) * Number(row.unit_price || 0),
+        // DPP hidup = Subtotal − Diskon (UX-E3.6); PPN/Total milik server (tarif dari status PKP vendor).
+        discountField: 'discount_amount',
       }],
     },
     detail: {

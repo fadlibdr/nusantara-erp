@@ -16270,6 +16270,13 @@ def s58(pg):
     row.locator("td:nth-child(3) input").first.fill("2")
     row.locator("td:nth-child(4) input").first.fill("roll")
     row.locator("td:nth-child(5) input").first.fill("1500000")
+    # ------------------------------------------------------------ DPP hidup (E3.6): Diskon 500000 → DPP = 2 × 1.500.000 − 500.000
+    pg.locator(".form-page .field", has=pg.locator("label", has_text="Diskon")).first.locator("input").first.fill("500000")
+    pg.wait_for_timeout(400)
+    out["total_hidup"] = pg.evaluate("() => ((document.querySelector('.form-page .lines-total') || {}).innerText || '').replace(/\\s+/g, ' ').trim()")
+    for needle in ("Subtotal: Rp 3.000.000", "Diskon: Rp 500.000", "DPP: Rp 2.500.000", "PPN dan total dihitung server saat disimpan."):
+        if needle not in out["total_hidup"]:
+            checks.append(f"kaki tabel tidak memuat {needle!r}: {out['total_hidup']!r}")
     before = len(posts)
     click(pg, ".form-page .form-foot button:has-text('Simpan & ajukan')")
     # Gerbang anggaran: pada salinan DB yang sudah dilalui S29 (RAP proyek terlampaui) server menolak
@@ -16320,6 +16327,21 @@ def s58(pg):
         out["ponsel"] = pm.evaluate("() => { const nav = document.querySelector('.form-page .form-nav'); return { nav_display: nav ? getComputedStyle(nav).display : 'absent', h3: ((document.querySelector('.form-page .form-section > h3') || {}).innerText || '').trim() }; }")
         if out["ponsel"]["nav_display"] != "none":
             checks.append(f"navigasi bagian di 390 px bukan display:none (tampil, atau tidak dibangun): {out['ponsel']!r}")
+        # Kartu baris (E3.6): thead tersembunyi, tiap sel berjudul data-label, tidak ada gulir mendatar; isian td:nth-child tetap bisa.
+        pm.locator(".form-page table.lines tbody tr").first.locator("td:nth-child(2) input").first.fill("UJI-UX kartu 390")
+        out["kartu"] = pm.evaluate("""() => { const t = document.querySelector('.form-page table.lines'); const wrap = t.closest('.table-wrap'); const tr = t.querySelector('tbody tr');
+            return { thead: getComputedStyle(t.querySelector('thead')).display, tr_display: getComputedStyle(tr).display, tr_w: Math.round(tr.getBoundingClientRect().width),
+                     scroll_x: wrap.scrollWidth - wrap.clientWidth,
+                     labels: [...tr.querySelectorAll('td')].map((td) => getComputedStyle(td, '::before').content.replace(/"/g, '')).filter((c) => c && c !== 'none'),
+                     input_h: Math.round(tr.querySelector('td:nth-child(2) input').getBoundingClientRect().height),
+                     typed: tr.querySelector('td:nth-child(2) input').value }; }""")
+        k = out["kartu"]
+        if k["thead"] != "none" or k["tr_display"] != "block" or k["scroll_x"] > 0:
+            checks.append(f"baris tidak menjadi kartu di 390 px / masih bergulir mendatar: {k!r}")
+        if k["labels"][:5] != ["Item", "Uraian", "Qty", "Satuan", "Harga satuan"] or "Jumlah" not in k["labels"]:
+            checks.append(f"judul kolom kartu salah: {k['labels']!r}")
+        if k["input_h"] < 36 or k["typed"] != "UJI-UX kartu 390":
+            checks.append(f"isian kartu tidak bisa diketik / terlalu rendah: {k!r}")
     finally:
         ctx.close()
     out["failed_checks"] = checks

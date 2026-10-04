@@ -428,15 +428,28 @@ function buildLines(lineDef, initialRows, headerValues, record) {
   const hasTotal = typeof lineDef.total === 'function';
   const hasBalance = Boolean(lineDef.balance);
 
-  const totalsRow = el('div.lines-total', {
-    style: { display: 'flex', justifyContent: 'flex-end', gap: '18px', padding: '10px 4px 0', fontSize: '13px', fontWeight: '600' },
-  });
+  const totalsRow = el('div.lines-total');
+  /*
+   * DPP hidup (UX-E3.6, README E3 "live totals"): Subtotal − min(Diskon, Subtotal) — rumus
+   * PoService::recalcTotals yang sama, dari dua angka yang memang ada di peramban.
+   * `lineDef.discountField` menyebut field kepala diskonnya. PPN dan Total TIDAK dihitung
+   * di sini: tarifnya `vendor.is_pkp ? tax.ppn_rate : 0` ada di server (config + status
+   * vendor), dan menebak 11 di peramban adalah aturan bisnis kedua (aturan dasar 2/3).
+   * Satu kalimat jujur menggantikannya.
+   */
+  const discountField = lineDef.discountField || null;
 
   function refreshTotals() {
     clear(totalsRow);
     if (hasTotal) {
       const sum = controls.reduce((acc, row) => acc + (Number(lineDef.total(row.read())) || 0), 0);
       totalsRow.appendChild(el('span', [el('span.muted', { text: 'Subtotal: ' }), el('span.num', { text: rupiah(sum) })]));
+      if (discountField && headerValues) {
+        const discount = Math.min(Number(headerValues()[discountField]) || 0, sum);
+        totalsRow.appendChild(el('span', [el('span.muted', { text: 'Diskon: ' }), el('span.num', { text: rupiah(discount) })]));
+        totalsRow.appendChild(el('span', [el('span.muted', { text: 'DPP: ' }), el('span.num', { text: rupiah(sum - discount) })]));
+        totalsRow.appendChild(el('span.muted.lines-note', { text: 'PPN dan total dihitung server saat disimpan.' }));
+      }
     }
     if (hasBalance) {
       const debit = controls.reduce((acc, row) => acc + (Number(row.read()[lineDef.balance.debit]) || 0), 0);
@@ -445,9 +458,8 @@ function buildLines(lineDef, initialRows, headerValues, record) {
       totalsRow.append(
         el('span', [el('span.muted', { text: 'Debit: ' }), el('span.num', { text: rupiah(debit) })]),
         el('span', [el('span.muted', { text: 'Kredit: ' }), el('span.num', { text: rupiah(credit) })]),
-        el('span', {
+        el(`span.${balanced ? 'tone-pos' : 'tone-neg'}`, {
           text: balanced ? 'Seimbang ✓' : `Selisih ${rupiah(Math.abs(debit - credit))}`,
-          style: { color: balanced ? 'var(--success)' : 'var(--danger)' },
         }),
       );
     }
@@ -482,14 +494,15 @@ function buildLines(lineDef, initialRows, headerValues, record) {
 
       (control.input || control.node).addEventListener('input', refreshTotals);
       (control.input || control.node).addEventListener('change', refreshTotals);
-      cells.push(el('td', { style: column.width ? { width: column.width } : {} }, control.node));
+      // data-label: judul kolom untuk kartu baris di ≤ 760 px (UX-E3.6, CSS ::before) — DOM tabelnya tetap.
+      cells.push(el('td', { 'data-label': column.label, style: column.width ? { width: column.width } : {} }, control.node));
     }
 
     if (hiddenNodes.length && cells.length) cells[0].append(...hiddenNodes.splice(0));
 
     const row = el('tr', [
       ...cells,
-      hasTotal ? el('td.right.row-total', { text: '—' }) : null,
+      hasTotal ? el('td.right.row-total', { text: '—', 'data-label': 'Jumlah' }) : null,
       el('td.right', button('', {
         size: 'sm', variant: 'ghost', iconName: 'trash', title: 'Hapus baris',
         onClick: () => {
@@ -642,7 +655,7 @@ function buildLines(lineDef, initialRows, headerValues, record) {
       importPick,
       button('Tambah baris', { size: 'sm', iconName: 'plus', onClick: () => addRow() }),
     ]),
-    lineDef.help ? el('.help', { text: lineDef.help, style: { marginBottom: '8px' } }) : null,
+    lineDef.help ? el('.help.lines-help', { text: lineDef.help }) : null,
     el('.table-wrap', el('table.lines', [
       el('thead', el('tr', [
         ...lineDef.columns.filter((column) => column.type !== 'hidden').map((column) => el('th', { text: column.label })),
@@ -666,6 +679,7 @@ function buildLines(lineDef, initialRows, headerValues, record) {
     node,
     read: () => entries().map((entry) => entry.read()),
     entries,
+    refresh: refreshTotals,
   };
 }
 
@@ -986,6 +1000,13 @@ export async function openForm({ def, key, row, prefill, onSaved, endpoint = nul
   });
 
   sections.filter((section) => section.advanced).forEach(renderSection);
+
+  // Diskon diketik di kepala → DPP di bawah tabel mengikuti (didelegasikan di badan, seperti liveNote).
+  if (lineControls.some(({ def: lineDef }) => lineDef.discountField)) {
+    const refreshLines = () => lineControls.forEach(({ control }) => control.refresh());
+    body.addEventListener('input', refreshLines);
+    body.addEventListener('change', refreshLines);
+  }
 
   if (def.form.note) {
     body.appendChild(el('.alert.info.form-note', def.form.note));
