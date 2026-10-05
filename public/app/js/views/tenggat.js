@@ -11,7 +11,7 @@
    ada penyaringan izin lagi, dan "kosong" berarti benar-benar tidak ada
    tenggat pada modul yang boleh Anda lihat. */
 
-import { api } from '../api.js';
+import { loadDeadlines } from '../deadlines.js';
 import { el, clear, button, badge, errorState, skeletonTable } from '../ui.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
@@ -65,7 +65,8 @@ export async function renderTenggat(host) {
 
   let payload;
   try {
-    payload = await api.list('core/deadlines');
+    // Pemuat bersama (UX-F2.2): jawaban segar dari server, dan Beranda membaca yang sama sesudahnya.
+    payload = await loadDeadlines({ maxAge: 0 });
   } catch (error) {
     return clear(body).appendChild(errorState(error, reload));
   }

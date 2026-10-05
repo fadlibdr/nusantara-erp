@@ -39,12 +39,29 @@ jatuh tempo (ANALISIS §1.2, PANDUAN §5.9). Mengingatnya adalah pekerjaan Anda.
 dan **Kata sandi** yang diberikan administrator, tekan **`Masuk`** (PANDUAN §1.1). Sesi
 berumur 12 jam (§1.2).
 
+**Layar pertama** — sesudah masuk Anda mendarat di **Beranda** (`#/home`), di lebar layar
+mana pun; **Dasbor** satu klik dari sana, lewat tombol **`Dasbor`** di kepala Beranda.
+Di bawah kotak cari, Beranda memuat **Perlu tindakan Anda**, **Aksi cepat** (paling
+banyak enam tombol **`Buat <jenis>`**, sumbernya sama dengan tombol **`Buat`** di bilah
+atas), **Angka**, lalu **Bidang kerja** — satu ubin per modul yang boleh Anda buka. Anda
+tidak menyetujui apa pun, jadi **Perlu tindakan Anda** hanya memuat tenggat yang sudah
+lewat (tombol **`Tindak lanjuti`**) dan berbunyi *"Tidak ada tenggat yang lewat"* bila
+tidak ada. Invoice termin, tagihan vendor, dan pembayaran Anda yang ditolak atau masih
+menunggu orang lain tidak ada di Beranda, melainkan di **Pekerjaan Saya** — baris tetap di
+puncak sidebar, dengan tab **Perlu diperbaiki** (ditolak penyetuju; barisnya menyebut siapa
+yang menolak, kapan, dan catatannya, dan tombol **`Perbaiki`** membuka halaman dokumennya)
+dan tab **Menunggu orang lain** (belum diputuskan).
+
+**Di ponsel** (≤ 760 px), bilah bawah memuat empat tombol: **Beranda**, **Pekerjaan Saya**,
+**Cari**, **Menu** — **Pekerjaan Saya** menempati tempat yang bagi penyetuju diisi
+**Persetujuan**.
+
 **Sidebar Anda** memuat **tujuh kelompok** — kelompok yang izinnya tidak Anda pegang
 tidak digambar (§1.4). Yang penting di minggu pertama:
 
 | Kelompok | Layar yang akan Anda buka |
 |---|---|
-| Ringkasan | Dasbor · **Tenggat** · Kalender |
+| Ringkasan | **Beranda** · **Pekerjaan Saya** (dua baris tetap di puncak sidebar) · Dasbor · **Tenggat** · Kalender |
 | **Keuangan** (milik Anda, 20 layar) | Termin Siap Ditagih · Invoice Termin (AR) · Tagihan Vendor (AP) · Pembayaran · Piutang Retensi · Jurnal · Buku Besar · Rekonsiliasi Bank · Kasir Kas Kecil · Kas Kecil & Kasbon · Kalender Pajak · Ekspor Pajak · Periode Fiskal · Pengakuan Pendapatan · Laporan Keuangan · Bagan Akun · Pajak · Rekening Bank |
 | Penjualan (lihat saja) | Kontrak — tombol `Tagih termin ini` ada di halaman kontrak (§3.11) |
 | Pengadaan (lihat saja) | Pesanan (PO) · Baris PO Terbuka · Tagihan Periode PPK — konteks tagihan vendor |
@@ -52,12 +69,13 @@ tidak digambar (§1.4). Yang penting di minggu pertama:
 | SDM & Payroll (lihat saja) | Payroll — run yang disetujui menjadi kewajiban yang Anda bayar (§11.7) |
 | Aset | Penyusutan — tombol `Posting Penyusutan` milik Anda (§9.7) |
 
-**Dasbor Anda** menampilkan empat ubin: **Piutang belum tertagih**, **Hutang belum
-dibayar**, **Saldo bank** (negatif ditampilkan apa adanya), dan **Termin siap ditagih**
-(dengan umur tunggu terlama). Di bawahnya: kartu **Piutang jatuh tempo terdekat** dan
-**Kalender Acara**. Kartu **Menunggu persetujuan Anda** ikut digambar tetapi untuk peran
-Anda selalu berbunyi *"Tidak ada dokumen yang menunggu persetujuan."* — Anda memang tidak
-menyetujui apa pun.
+**Dasbor Anda** — satu klik dari Beranda — menampilkan empat ubin: **Piutang belum tertagih**,
+**Hutang belum dibayar**, **Saldo bank** (negatif ditampilkan apa adanya), dan
+**Termin siap ditagih** (dengan umur tunggu terlama). Di bawahnya: kartu
+**Piutang jatuh tempo terdekat** dan **Kalender Acara**. Kartu **Menunggu persetujuan Anda**
+tidak digambar untuk peran Anda: ia hanya untuk pemegang izin menyetujui atau penerima
+delegasi persetujuan (PANDUAN §1.7a), dan Anda tidak menyetujui apa pun. Invoice, tagihan,
+dan pembayaran Anda sendiri yang ditolak atau masih menunggu ada di **Pekerjaan Saya**.
 
 **Lonceng dan Tenggat.** Layar **Ringkasan › Tenggat** menghitung ulang setiap dibuka;
 untuk peran Anda ia mengawasi **empat** hal (§1.7):
@@ -82,7 +100,7 @@ dibaca tidak menyelesaikan apa pun; baris Tenggat hilang hanya ketika sebabnya d
 2. `Ubah` dan `Hapus` hilang begitu dokumen diajukan; jalan kembalinya `Tolak`.
 3. Pengaju tidak boleh menyetujui dokumennya sendiri — peran Anda memang tidak menyetujui.
 4. Yang terposting tidak bisa dibatalkan — hanya dibalik, dua jurnal berdampingan.
-5. Anda tidak bisa mengganti kata sandi sendiri — minta administrator (bab 14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (bab 14).
 6. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2).
 
 ## 3. Pekerjaan Anda
@@ -290,7 +308,7 @@ nol di kertas yang akan ditandatangani.
 
 | Situasi | Tanyakan ke |
 |---|---|
-| Kata sandi, akun nonaktif, menu yang tidak ada, izin | **administrator** — PANDUAN §14.1; tidak ada layar ganti sandi |
+| Kata sandi yang terlupa, akun nonaktif, menu yang tidak ada, izin | **administrator** — PANDUAN §14.1; sandi yang Anda ingat Anda ganti sendiri lewat **`Ganti kata sandi`** di menu akun |
 | Dokumen saya menunggu `Setujui` / ditolak tanpa alasan yang saya pahami | **manajer keuangan** (`finance-manager`) atau **direktur** — baca kartu Riwayat Persetujuan dulu (§2.5) |
 | Termin tidak muncul di Termin Siap Ditagih, milestone, BAST, retensi *"Belum ada BAST"* | **manajer proyek** (`project-manager`) — §3.10, §3.13 |
 | Tagihan ditolak karena barang belum diterima penuh, PO tertutup, GRN bukan milik PO | **pengadaan** (`procurement`) dan **gudang** (`warehouse`) — §5.9, §5.6 |
@@ -304,8 +322,13 @@ kode dokumen, teks merah persis, tombol yang ditekan (PANDUAN §14.5). Bila jawa
 
 ---
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Persetujuan** (dulu bernama Tugas Saya) dengan satu kotak masuk untuk
-> semua jenis dokumen; draf formulir bertahan di peramban saat sesi habis; catatan
-> persetujuan diketik langsung di halaman tanpa dialog; ganti kata sandi sendiri. Sampai
-> rilis itu tayang, panduan ini yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**
+>
+> Rilis redesain UX belum tayang; sampai ia tayang, panduan ini yang berlaku, dan bagian 2
+> di atas sudah menulis layar sesudahnya, jadi tampilan di erp1 bisa berbeda darinya. Yang
+> akan ditambahkannya bagi peran `finance`: **Beranda** menjadi ruang kerja —
+> **Perlu tindakan Anda** (bagi Anda tenggat yang sudah lewat), **Aksi cepat**, dan
+> **Angka** di atas ubin **Bidang kerja**; **Pekerjaan Saya** di puncak sidebar mengumpulkan
+> invoice termin, tagihan vendor, dan pembayaran Anda yang ditolak (tab **Perlu diperbaiki**)
+> atau masih menunggu orang lain (tab **Menunggu orang lain**); dan bilah bawah ponsel empat
+> tombol: **Beranda**, **Pekerjaan Saya**, **Cari**, **Menu**.

@@ -38,10 +38,30 @@ benda uji di lokasi Anda).
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2)
 
+**Layar pertama** — sesudah masuk Anda mendarat di **Beranda** (`#/home`), di lebar layar
+mana pun; **Dasbor** satu klik dari sana, lewat tombol **`Dasbor`** di kepala Beranda.
+Di bawah kotak cari, Beranda memuat **Perlu tindakan Anda**, **Aksi cepat** (paling
+banyak enam tombol **`Buat <jenis>`**, sumbernya sama dengan tombol **`Buat`** di bilah
+atas), **Angka**, lalu **Bidang kerja** — satu ubin per modul yang boleh Anda buka. Anda
+tidak menyetujui apa pun, jadi **Perlu tindakan Anda** hanya memuat tenggat yang sudah
+lewat (tombol **`Tindak lanjuti`**) dan berbunyi *"Tidak ada tenggat yang lewat"* bila
+tidak ada. Izin kerja (IKL, ILB, IMK), IPP, dan inspeksi mutu Anda yang ditolak atau masih
+menunggu orang lain tidak ada di Beranda, melainkan di **Pekerjaan Saya** — baris tetap
+di puncak sidebar, dengan tab **Perlu diperbaiki** (ditolak penyetuju; tombol **`Perbaiki`**
+membuka halaman dokumennya, tempat **`Ubah`** tersedia) dan tab **Menunggu orang lain**
+(belum diputuskan). Laporan harian, NCR, dan temuan tidak lewat persetujuan, jadi tidak
+tampil di sana.
+
+**Di ponsel** (≤ 760 px), bilah bawah memuat empat tombol: **Beranda**, **Pekerjaan Saya**,
+**Cari**, **Menu** — **Pekerjaan Saya** menempati tempat yang bagi penyetuju diisi
+**Persetujuan**.
+
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
 
-- **Ringkasan** — Dasbor · Tenggat · Kalender.
+- **Ringkasan** — Dasbor · Tenggat · Kalender. Baris tetap **Beranda** dan **Pekerjaan Saya**
+  tergambar di puncak sidebar, di atas semua kelompok; baris **Persetujuan** tidak ada
+  bagi Anda — ia hanya untuk pemegang izin menyetujui.
 - **Engineering** — Ijin Pelaksanaan (IPP) · Persetujuan Gambar (SDS) · Persetujuan
   Material (SMS) · Lokasi Tapak.
 - **Proyek** — Laporan Harian · Lapangan (mobile) · Formulir K3 Harian · Register K3
@@ -63,7 +83,7 @@ layar yang akan Anda pakai minggu ini, per kelompok:
 Kelompok Proyek Anda memuat 20 layar dan Engineering 6; yang di atas cukup untuk minggu
 pertama. Kelompok Estimasi, Subkontrak, Keuangan, dan Pengadaan tidak ada di sidebar Anda.
 
-**Dasbor Anda** (PANDUAN §1.7):
+**Dasbor Anda** — satu klik dari Beranda (PANDUAN §1.7):
 
 - Ubin **Proyek berjalan**. Sakelar **`Proyek saya`** mencocokkan akun dengan kolom
   **manajer proyek**, bukan site manager — untuk Anda ia mengembalikan nol baris. Biarkan
@@ -73,8 +93,10 @@ pertama. Kelompok Estimasi, Subkontrak, Keuangan, dan Pengadaan tidak ada di sid
   kalimatnya sendiri (*"Tidak ada pasangan gudang × item di bawah ambangnya."*), dan
   kakinya tetap ada: kartu yang menghilang saat tidak ada isinya membuat orang mengira
   layarnya rusak.
-- Kartu **Menunggu persetujuan Anda** — **selalu kosong untuk Anda**, karena Anda tidak
-  menyetujui apa pun. Kabar bahwa dokumen Anda disetujui atau ditolak datang lewat
+- Kartu **Menunggu persetujuan Anda** — **tidak digambar untuk peran Anda**: ia hanya
+  untuk pemegang izin menyetujui atau penerima delegasi persetujuan (PANDUAN §1.7a), dan
+  Anda tidak menyetujui apa pun. Dokumen Anda yang ditolak atau masih menunggu ada di
+  **Pekerjaan Saya**; kabar bahwa dokumen Anda disetujui atau ditolak datang lewat
   **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat lencana status di layar
   daftarnya.
 
@@ -96,7 +118,7 @@ kolom **Umur** dan lencana **Lewat target** di Register Defect (§7.6). Buka lay
 3. Anda tidak boleh menyetujui dokumen yang Anda ajukan sendiri — bagi Anda lebih
    sederhana: Anda tidak menyetujui apa pun.
 4. Yang sudah diposting tidak punya tombol batal — hanya pembalikan, dan itu permanen.
-5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (§14).
 6. Sesi 12 jam; laporan harian yang panjang disimpan dulu, lalu dibuka lagi lewat `Ubah`.
 
 ## 3. Pekerjaan Anda
@@ -342,9 +364,13 @@ alamat), **kode dokumen**, **teks merah persis**, dan **tombol yang Anda tekan**
 sekaligus. Bila yang hilang adalah tombolnya, sebutkan itu: tombol yang tidak ada hampir
 selalu berarti izin, bukan kerusakan.
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** yang menampilkan dokumen Anda
-> yang ditolak dan yang menunggu dalam satu permintaan; draf formulir (termasuk laporan
-> harian) yang bertahan di peramban saat sesi habis; catatan persetujuan inline tanpa
-> dialog; dan ganti kata sandi sendiri. Sampai rilis itu tayang, halaman ini menggambarkan
-> yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**
+>
+> Rilis redesain UX belum tayang; sampai ia tayang, panduan ini yang berlaku, dan bagian 2
+> di atas sudah menulis layar sesudahnya, jadi tampilan di erp1 bisa berbeda darinya. Yang
+> akan ditambahkannya bagi peran `site-manager`: **Beranda** menjadi ruang kerja —
+> **Perlu tindakan Anda** (bagi Anda tenggat yang sudah lewat), **Aksi cepat**, dan **Angka**
+> di atas ubin **Bidang kerja**; **Pekerjaan Saya** di puncak sidebar mengumpulkan izin
+> kerja, IPP, dan inspeksi mutu Anda yang ditolak (tab **Perlu diperbaiki**) atau masih
+> menunggu orang lain (tab **Menunggu orang lain**); dan bilah bawah ponsel empat
+> tombol: **Beranda**, **Pekerjaan Saya** di tempat kedua, **Cari**, **Menu**.

@@ -221,6 +221,17 @@ Acceptance: delegate sees the delegator's queue and can approve; trail records "
 > `docs/PROGRESS-UIUX.md` replace the research as evidence. T4.2's route `#/e/<resource>/<id>`
 > becomes `#/f/<resource>/new` and `#/f/<resource>/<id>` (ERRATA E-6). T4.3 and T4.4 are unchanged.
 
+> **Superseded in part, 5 Oct 2026 (UX-F2).** T2.11 (role-relevant first screen), T4.1 (role home) and
+> T4.3 (batch approval) name screens that UX-F2 has changed or renamed.
+> The first screen is now Beranda (`#/home`, every width): a workspace built from what the reader may open,
+> not from the role's name, with "Perlu tindakan Anda" (approvals only for readers who hold an approve
+> permission, plus overdue deadlines), "Aksi cepat" and "Angka"; T4.1's per-role tiles (S-curve deviation,
+> open NCR, …) are not built, and the dashboard itself is untouched until UX-F3. "Tugas Saya" in T2.11 and
+> T4.3 is today's **Persetujuan** (renamed in UX-D.2; T4.3's batch approval is its "Setujui terpilih",
+> CONVENTIONS §22, paragraph "Setujui massal") — not **Pekerjaan Saya** (`#/pekerjaan`), the new screen for the reader's OWN rejected
+> and waiting documents. The text of those tasks is left as written. Details:
+> `docs/PROGRESS-UIUX.md` § UX-F2.
+
 **T4.1 Role home dashboards** (3 d) — direktur/finance (current), PM (S-curve deviation, open NCR, late PO lines, opname waiting), site manager (big Lapangan button, today's IPP, permits), procurement (PR waiting, RFQ open, late PO lines), warehouse (low stock, GRN waiting, transfers). Read `session.user.roles[0]`; reuse the "Proyek saya" switch.
 
 **T4.2 Full-page forms for resources with `lines`** (3 d) — route `#/e/<resource>/<id>`; header left, lines right/below; sticky Simpan; Enter on last cell = new row; multi-line Ctrl+V pastes columns by header order. Keep the modal for line-less forms.

@@ -58,13 +58,18 @@ memuat blok **"Akun demo"** bawaan pemasangan; menanganinya adalah pekerjaan And
 | **Sistem** | **Pengguna** · **Peran & Hak Akses** · **Profil Perusahaan** · Impor Data Master · Impor Dokumen · **Pengaturan** |
 | Keuangan | Periode Fiskal · Bagan Akun · Rekening Bank · Pajak — penyiapan yang tidak punya importer |
 | Persediaan | Gudang · Kategori Item — FK nyata sebelum dokumen stok pertama |
-| Ringkasan | Dasbor · **Tenggat** · Kalender |
+| Ringkasan | **Beranda** · **Persetujuan** · **Pekerjaan Saya** (tiga baris tetap di puncak sidebar) · Dasbor · **Tenggat** · Kalender |
 | Sebelas kelompok lain | milik peran lain; Anda membukanya saat menjadi cadangan penyetuju atau pemosting |
+
+**Layar pertama setelah masuk adalah Beranda** (`#/home`), bukan Dasbor: kepalanya
+bertuliskan **Beranda** dan membawa tombol **`Dasbor`**. Dasbor tetap satu klik — tombol
+itu, atau baris **Dasbor** di kelompok Ringkasan (PANDUAN §1.4a).
 
 **Dasbor Anda** menampilkan semua ubin — **Proyek berjalan**, **Piutang belum tertagih**,
 **Hutang belum dibayar**, **Saldo bank**, **Termin siap ditagih**, **Tiket aktif** — dan
-semua kartu, termasuk **Menunggu persetujuan Anda** untuk 11 jenis dokumen. Anda akan
-tergoda menyetujui dari sana; pada susunan peran bawaan, untuk penawaran, BOQ/RAP,
+semua kartu, termasuk **Menunggu persetujuan Anda**, yang memuat seluruh 29 jenis dokumen
+berpersetujuan: lima baris teratas, sisanya lewat **`Lihat semua (n)`** ke **Persetujuan**.
+Anda akan tergoda menyetujui dari sana; pada susunan peran bawaan, untuk penawaran, BOQ/RAP,
 PR/PO, subkontrak, payroll, dan opname stok, Anda dan direktur adalah satu-satunya
 penyetuju (ADMINISTRATOR §3.2) — jadi kadang memang harus.
 
@@ -89,7 +94,7 @@ di sana (ADMINISTRATOR §5.13).
 2. `Ubah`/`Hapus` hilang begitu dokumen diajukan; obatnya `Tolak`, bukan ubah basis data.
 3. Pengaju tidak boleh menyetujui dokumennya sendiri — Anda pun; sakelarnya di Pengaturan.
 4. Yang terposting tidak bisa dibatalkan; ADMINISTRATOR §8.4 memuat empat kategorinya.
-5. Tidak ada layar ganti sandi — tiap permintaan sandi datang ke Anda (ADMINISTRATOR §3.4).
+5. Kata sandi diganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); sandi yang terlupa tetap datang ke Anda bila server tidak mengirim surat (ADMINISTRATOR §3.4, §3.10).
 6. Sesi 12 jam; token bertahan melewati ganti sandi — laptop hilang berarti **Nonaktifkan**.
 
 ## 3. Pekerjaan Anda
@@ -209,7 +214,7 @@ deploy yang menambah tabel, pastikan tabelnya benar-benar mendarat.
 | menjalankan `erp:harden-demo-logins` tanpa terminal | kedua entri sandi kosong dan ditolak pagar panjang minimal — butuh TTY | ADMINISTRATOR §5.9 |
 
 **Yang tidak ada, dan akan diminta orang kepada Anda** (ADMINISTRATOR §3.10,
-PANDUAN §14.3): layar ganti sandi sendiri, "Profil Saya", izin per orang, daftar sesi
+PANDUAN §14.3): "Profil Saya", izin per orang, daftar sesi
 aktif, "keluar dari semua perangkat", 2FA, layar Log Audit (endpointnya ada:
 `GET api/core/audit-log`), perintah artisan untuk membuat pengguna atau memberi peran.
 **Perubahan peran seseorang dan perubahan izin sebuah peran tidak tercatat di jejak
@@ -272,10 +277,15 @@ layar — jadwalkan rilis, jangan menyunting basis data hidup.
 
 ---
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung; menggabungkan dan men-deploy-nya keputusan pemilik):
-> layar **Persetujuan** (dulu bernama Tugas Saya) dengan satu kotak masuk untuk semua
-> jenis dokumen; draf formulir bertahan di peramban saat sesi habis; catatan persetujuan
-> diketik langsung di halaman tanpa dialog; **ganti kata sandi sendiri** — yang akan
-> mengurangi permintaan ADMINISTRATOR §3.4 kepada Anda. Sampai rilis itu tayang, panduan
-> ini yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**
+>
+> Rilis redesain UX belum tayang; sampai ia tayang, panduan ini yang berlaku, dan bagian 2
+> di atas sudah menulis layar sesudahnya, jadi tampilan di erp1 bisa berbeda darinya. Yang
+> akan ditambahkannya bagi peran `admin`: **Beranda** menjadi ruang kerja — bagian
+> **Perlu tindakan Anda** menaruh sampai dua dokumen yang paling lama menunggu keputusan
+> Anda dan sampai tiga tenggat yang sudah lewat di layar pertama, ditambah **Aksi cepat**
+> untuk formulir buat-baru; **Pekerjaan Saya** di puncak sidebar mengumpulkan dokumen yang
+> Anda ajukan sendiri (**Perlu diperbaiki** untuk yang ditolak, **Menunggu orang lain**
+> untuk yang belum diputuskan); dan halaman modul **Pengadaan**, tempat Anda ikut
+> menyetujui PR dan PO, menggambar urutan lazim Permintaan (PR) → RFQ → BA Negosiasi →
+> Keputusan Pemenang → Pesanan (PO) → Penerimaan (GRN).

@@ -41,10 +41,30 @@ izin posting stok — §6.1 dan tombol posting di bab 6.
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2)
 
+**Layar pertama** — sesudah masuk Anda mendarat di **Beranda** (`#/home`), di lebar layar
+mana pun; **Dasbor** satu klik dari sana, lewat tombol **`Dasbor`** di kepala Beranda.
+Di bawah kotak cari, Beranda memuat **Perlu tindakan Anda**, **Aksi cepat** (paling
+banyak enam tombol **`Buat <jenis>`**, sumbernya sama dengan tombol **`Buat`** di bilah
+atas), **Angka**, lalu **Bidang kerja** — satu ubin per modul yang boleh Anda buka. Anda
+tidak menyetujui apa pun, jadi **Perlu tindakan Anda** hanya memuat tenggat yang sudah
+lewat (tombol **`Tindak lanjuti`**) dan berbunyi *"Tidak ada tenggat yang lewat"* bila
+tidak ada. **Pekerjaan Saya** — baris tetap di puncak sidebar — memuat dokumen
+berpersetujuan yang Anda ajukan sendiri: tab **Perlu diperbaiki** (ditolak penyetuju) dan
+tab **Menunggu orang lain** (belum diputuskan). Tiket dan berita acara tidak lewat
+persetujuan, jadi tidak tampil di sana; satu-satunya jenis berpersetujuan yang boleh Anda
+lihat adalah opname stok, yang disiapkan gudang. Karena itu daftar ini biasanya kosong
+untuk Anda, dan itu benar.
+
+**Di ponsel** (≤ 760 px), bilah bawah memuat empat tombol: **Beranda**, **Pekerjaan Saya**,
+**Cari**, **Menu** — **Pekerjaan Saya** menempati tempat yang bagi penyetuju diisi
+**Persetujuan**.
+
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 sidebar Anda pendek, dan itu normal. Layar yang akan Anda pakai minggu ini:
 
-- **Ringkasan** — Dasbor · Tenggat · Kalender.
+- **Ringkasan** — Dasbor · Tenggat · Kalender. Baris tetap **Beranda** dan **Pekerjaan Saya**
+  tergambar di puncak sidebar, di atas semua kelompok; baris **Persetujuan** tidak ada
+  bagi Anda — ia hanya untuk pemegang izin menyetujui.
 - **Persediaan** — Saldo Stok · Penerimaan (GRN) · Pengeluaran · Transfer · Opname.
   Sejak F-6 tiga baris lagi ikut tampil untuk peran ini karena ia memegang `inv.view`:
   **Aturan Reorder** (titik pesan ulang per gudang × item), **Usulan Pesan Ulang** (PR
@@ -59,7 +79,7 @@ yang tidak digambar untuk peran `teknisi`. Layarnya sendiri terbuka untuk Anda: 
 `#/lapangan` di belakang alamat aplikasi, simpan sebagai markah atau ikon layar utama di
 ponsel. Anda hanya akan melihat tab **Tiket Servis** (§7.4).
 
-**Dasbor Anda** (PANDUAN §1.7):
+**Dasbor Anda** — satu klik dari Beranda (PANDUAN §1.7):
 
 - Ubin **Tiket aktif**, dengan sub-baris *"N melewati SLA"* atau *"SLA aman"*.
 - Kartu **Tiket layanan aktif** (judul, prioritas, lencana SLA *Terlampaui*), kartu
@@ -67,16 +87,22 @@ ponsel. Anda hanya akan melihat tab **Tiket Servis** (§7.4).
   lihat — kunjungan PM tampil di sini) — **ketiganya SELALU digambar**. Yang kosong
   berkata begitu dengan kalimatnya sendiri (*"Tidak ada pasangan gudang × item di bawah
   ambangnya."*), bukan menghilang.
-- Kartu **Menunggu persetujuan Anda** — **selalu kosong untuk Anda**, karena Anda tidak
-  menyetujui apa pun. Tiket dan berita acara tidak lewat `Setujui`; opname stok
+- Kartu **Menunggu persetujuan Anda** — **tidak digambar untuk peran Anda**: ia hanya
+  untuk pemegang izin menyetujui atau penerima delegasi persetujuan (PANDUAN §1.7a), dan
+  Anda tidak menyetujui apa pun. Tiket dan berita acara tidak lewat `Setujui`; opname stok
   disetujui direktur/admin.
 
-**Lonceng dan Tenggat:** **tidak ada satu pun tenggat yang ditujukan kepada peran Anda.**
-Sembilan belas tenggat di layar Tenggat disaring menurut izin, dan tidak satu pun memakai
-izin layanan atau posting stok — layar itu kosong untuk Anda. Kontrak layanan yang
-mendekati akhir periode diperingatkan kepada `sales`, bukan kepada Anda. **Alarm SLA Anda
-adalah layar `Layanan › Tiket Lewat SLA`** dan kolom **SLA selesai** yang memerah di
-daftar Tiket (§12.3, §12.4). Buka keduanya setiap pagi.
+**Lonceng dan Tenggat:** layar Tenggat disaring menurut izin, dan **satu tenggat ditujukan
+kepada peran Anda — `Tiket layanan`**: batas penyelesaian SLA tiket yang terikat kontrak
+pemeliharaan (izin `svc.update`, peringatan 0 hari). Tiket yang batasnya jatuh hari ini
+atau sudah lewat masuk ke layar **Ringkasan › Tenggat** sebagai baris **Lewat**, dan ke
+Beranda sebagai kartu **`Tindak lanjuti`** di **Perlu tindakan Anda**. Tiket tanpa kontrak
+tidak punya SLA, jadi tidak pernah masuk ke sana. Berkas lampiran di dokumen layanan yang
+diberi masa berlaku juga dikabarkan kepada Anda.
+Selebihnya layar itu kosong untuk Anda: kontrak layanan yang mendekati akhir periode
+diperingatkan kepada `sales`, bukan kepada Anda. **Alarm SLA utama Anda tetap layar
+`Layanan › Tiket Lewat SLA`** dan kolom **SLA selesai** yang memerah di daftar Tiket (§12.3,
+§12.4). Buka keduanya setiap pagi.
 
 **Enam kalimat untuk semua orang** (PANDUAN §0), satu baris masing-masing:
 
@@ -87,7 +113,7 @@ daftar Tiket (§12.3, §12.4). Buka keduanya setiap pagi.
    sederhana: Anda tidak menyetujui apa pun.
 4. Yang sudah diposting tidak punya tombol batal — hanya pembalikan, dan itu permanen.
    Bagi Anda kalimat ini nyata: `Sahkan Pelanggan` dan `Posting ke Stok` menggerakkan stok.
-5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (§14).
 6. Sesi 12 jam; berita acara yang panjang disimpan dulu, lalu dibuka lagi lewat `Ubah`.
 
 ## 3. Pekerjaan Anda
@@ -266,7 +292,8 @@ bukan 0.
 - [ ] Saya tahu bahwa `Kirim` transfer tidak bisa ditarik kembali, dan sudah memeriksa
       gudang tujuan sebelum menekannya.
 - [ ] Saya sudah mencetak satu Berita Acara Servis (F/BS).
-- [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu bahwa ia kosong untuk peran saya.
+- [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu bahwa satu-satunya tenggat yang
+      ditujukan kepada peran saya adalah `Tiket layanan` yang lewat batas SLA.
 
 ## 7. Bila tersangkut
 
@@ -287,8 +314,13 @@ alamat), **kode dokumen**, **teks merah persis**, dan **tombol yang Anda tekan**
 sekaligus. Bila yang hilang adalah tombolnya, sebutkan itu: tombol yang tidak ada hampir
 selalu berarti izin, bukan kerusakan.
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** yang mengumpulkan pekerjaan
-> yang menunggu Anda dalam satu permintaan; draf formulir (berita acara) yang bertahan di
-> peramban saat sesi habis; catatan persetujuan inline tanpa dialog; dan ganti kata sandi
-> sendiri. Sampai rilis itu tayang, halaman ini menggambarkan yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**
+>
+> Rilis redesain UX belum tayang; sampai ia tayang, panduan ini yang berlaku, dan bagian 2
+> di atas sudah menulis layar sesudahnya, jadi tampilan di erp1 bisa berbeda darinya. Yang
+> akan ditambahkannya bagi peran `teknisi`: **Beranda** menjadi ruang kerja —
+> **Perlu tindakan Anda** (bagi Anda tenggat yang sudah lewat), **Aksi cepat**, dan **Angka**;
+> **Pekerjaan Saya** di puncak sidebar mengumpulkan dokumen berpersetujuan yang Anda
+> ajukan sendiri (tab **Perlu diperbaiki**, tab **Menunggu orang lain**) — bukan tiket atau
+> berita acara, jadi daftar itu biasanya kosong; dan bilah bawah ponsel empat tombol:
+> **Beranda**, **Pekerjaan Saya** di tempat kedua, **Cari**, **Menu**.

@@ -825,6 +825,19 @@ table.data tr.emphasis td { background: var(--surface-2); }
 @media (pointer: coarse) {
   .nav-item .star { opacity: .45; width: 34px; height: 32px; }
 }
+/* Bintang kartu beranda modul (UX-F2.3): sampai sini hanya `.module-cell > .star`
+   (posisi) yang memukul tombolnya — ukuran, reset, dan keadaan `.on` hanya ada di
+   `.nav-item .star`, jadi ia tergambar sebagai tombol bawaan peramban dan
+   keadaan hidupnya tidak tampak. Selalu terlihat (tidak ada hover di kartu). */
+.module-cell > .star {
+  width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer;
+}
+.module-cell > .star:hover, .module-cell > .star:focus-visible { background: var(--surface-3); color: var(--text); }
+.module-cell > .star.on { color: var(--primary); background: var(--primary-soft); }
+@media (pointer: coarse) {
+  .module-cell > .star { width: 34px; height: 32px; }
+}
 
 /* ------------------------------------------------------------------ main */
 .main { grid-area: main; overflow-y: auto; padding: 20px 22px 60px; }
@@ -3853,3 +3866,117 @@ button.linkish:hover b { text-decoration: underline; }
 .search-hit .search-kind { flex: none; align-self: center; margin-right: calc(var(--space-2) - var(--space-4)); color: var(--muted); }
 .search-hit.action .cell-main { font-weight: var(--fw-medium); }
 .search-hit.action .search-kind { color: var(--primary); }
+
+/* UX-F2 — Pekerjaan Saya (views/pekerjaan.js). Hanya token; rel merah kiri
+   untuk baris yang ditolak sama artinya dengan lencananya, bukan aksen modul
+   (CONVENTIONS §12). */
+.work-banner { padding: var(--space-3) var(--space-4) 0; }
+.work-list { list-style: none; margin: 0; padding: 0; }
+.work-row {
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto; align-items: center;
+  gap: var(--space-4); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent; cursor: pointer;
+}
+.work-row:last-child { border-bottom: 0; }
+.work-row:hover { background: var(--surface-2); }
+.work-row[data-bucket="needs_fix"] { border-left-color: var(--danger); }
+.work-main { display: grid; gap: var(--space-1); min-width: 0; }
+.work-code { font-size: var(--fs-secondary); color: var(--muted); }
+.work-title { font-weight: var(--fw-semi); overflow-wrap: anywhere; }
+.work-type { font-size: var(--fs-secondary); color: var(--muted); }
+.work-state { display: grid; gap: var(--space-2); justify-items: start; min-width: 0; }
+.work-next { margin: 0; font-size: var(--fs-body); color: var(--text-2); }
+.work-side { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); }
+.work-amount { white-space: nowrap; }
+@media (max-width: 760px) {
+  .work-row { grid-template-columns: 1fr; gap: var(--space-2); }
+  .work-side { justify-content: space-between; }
+}
+@media (pointer: coarse) {
+  .work-row .btn { min-height: 44px; }
+}
+
+/* UX-F2.2 — Beranda sebagai ruang kerja (views/home.js). Hanya token. Rel `--attn`
+   dan `--danger` pada kartu sama artinya dengan pita tindakannya (CONVENTIONS §12:
+   aksen modul tidak pernah di sini); kartu BUKAN `.badge`, jadi `--attn` tetap
+   hanya milik actionPanel dan kartu beranda (UiPrimitivesTest). */
+.home-section-sub { margin: 0 0 var(--space-3); font-size: var(--fs-secondary); color: var(--muted); }
+.home-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-3); }
+.home-cards > li { min-width: 0; }
+.home-card {
+  display: grid; gap: var(--space-2); align-content: start; height: 100%; padding: var(--space-4);
+  border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius-lg); background: var(--surface);
+}
+.home-card[data-tone="attn"] { border-left-color: var(--attn); }
+.home-card[data-tone="danger"] { border-left-color: var(--danger); }
+.home-card-kind {
+  display: inline-flex; align-items: center; gap: var(--space-1); justify-self: start;
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-pill);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi);
+}
+.home-card[data-tone="attn"] .home-card-kind { background: var(--attn-soft); color: var(--attn); }
+.home-card[data-tone="danger"] .home-card-kind { background: var(--danger-soft); color: var(--danger); }
+.home-card-title { font-size: var(--fs-section); font-weight: var(--fw-semi); overflow-wrap: anywhere; }
+.home-card-meta { font-size: var(--fs-secondary); color: var(--muted); }
+.home-card .btn { justify-self: start; margin-top: var(--space-1); }
+.home-alert { margin-top: var(--space-3); }
+.home-more { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); font-size: var(--fs-secondary); }
+.home-quick { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--space-2); }
+.home-quick > li { min-width: 0; }
+.home-quick-tile {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 48px;
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); color: var(--text); font: inherit; font-weight: var(--fw-medium); text-align: left; cursor: pointer;
+}
+.home-quick-tile:hover { background: var(--surface-2); }
+.home-quick-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px;
+  border-radius: var(--radius-sm); background: var(--primary-soft); color: var(--primary);
+}
+.home-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: var(--space-2); }
+.home-stats > li { min-width: 0; }
+.home-stat { display: block; color: inherit; text-decoration: none; border-radius: var(--radius); }
+.home-stat:hover .kv-tile { background: var(--surface-2); }
+@media (max-width: 760px) {
+  .home-cards { grid-template-columns: 1fr; }
+  .home-quick, .home-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (pointer: coarse) {
+  .home-card .btn, .home-quick-tile { min-height: 44px; }
+}
+
+/* UX-F2.3 — beranda modul sebagai halaman proses (views/module.js). Hanya token. Aksen
+   modul tetap hanya di kepala (§12): titik dan rel di sini memakai warna semantik. */
+.module-flow, .module-attention, .module-all { margin-bottom: var(--space-4); }
+.module-block-title {
+  margin: 0 0 var(--space-2); font-size: var(--fs-caption); font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
+}
+.module-flow-note { margin: var(--space-2) 0 0; font-size: var(--fs-secondary); color: var(--muted); }
+.attn-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.attn-row {
+  display: flex; align-items: center; gap: var(--space-3); min-height: 48px; padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  color: var(--text); text-decoration: none;
+}
+.attn-row:hover { background: var(--surface-2); text-decoration: none; }
+.attn-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--warning); }
+.attn-row[data-tone="danger"] .attn-dot { background: var(--danger); }
+.attn-row[data-tone="attn"] .attn-dot { background: var(--attn); }
+.attn-text { display: grid; gap: var(--space-1); flex: 1; min-width: 0; }
+.attn-text b { font-weight: var(--fw-semi); overflow-wrap: anywhere; }
+.attn-sub { font-size: var(--fs-secondary); color: var(--muted); }
+@media (pointer: coarse) {
+  .attn-row { min-height: 52px; }
+}
+
+/* UX-F2 (tinjauan) — fokus papan ketik pada tahap peta proses: cincin luar 2 px terpotong oleh gulir
+   `.stepper` sendiri (overflow-x memaksa overflow-y), jadi cincinnya ditarik ke dalam, idiom yang sama
+   dengan tab. Cetak: peta tidak boleh terpotong di tepi kertas. Sasaran ketuk tautan "Semua …" di Beranda. */
+.step-link:focus-visible { outline-offset: -2px; }
+@media print {
+  .stepper { flex-wrap: wrap; overflow: visible; }
+}
+@media (pointer: coarse) {
+  .home-more a { display: inline-flex; align-items: center; min-height: 44px; }
+}

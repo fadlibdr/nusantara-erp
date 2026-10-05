@@ -66,6 +66,7 @@ import { renderGaleriProyek } from './views/galeriproyek.js';
 import { renderPipeline } from './views/pipeline.js';
 import { renderRfq } from './views/rfq.js';
 import { renderTugas } from './views/tugas.js';
+import { renderPekerjaan } from './views/pekerjaan.js';
 import { renderProfil } from './views/profil.js';
 import { renderWebhook } from './views/webhook.js';
 import { openForm, startForm, formIsPaged } from './views/form.js';
@@ -979,9 +980,10 @@ window.addEventListener('erp:inbox-changed', paintInboxCounts);
  * hamburger di pojok atas — sasaran yang paling jauh dari ibu jari. Isinya DATA, bukan
  * daftar kedua: dua slot pertama adalah baris tetap NAV (`pinned`) yang lolos
  * visibleNav() — Beranda, lalu Persetujuan bagi pemegang hak approve. ERRATA E-4
- * memberi slot itu kepada Pekerjaan Saya bagi yang lain; layar itu baru lahir di UX-F2,
- * dan begitu barisnya masuk NAV dengan `pinned: true` ia mengisi slot ini tanpa satu
- * baris pun berubah di sini. Sampai saat itu bilahnya tiga tombol bagi non-penyetuju.
+ * memberi slot itu kepada Pekerjaan Saya bagi yang lain: barisnya ada di NAV (UX-F2)
+ * dengan `pinned: true`, SESUDAH Persetujuan, jadi baris tetap pertama sesudah Beranda
+ * yang lolos visibleNav() adalah Persetujuan bagi penyetuju dan Pekerjaan Saya bagi
+ * yang lain — tanpa satu baris pun berubah di sini. Bilahnya empat tombol untuk semua.
  * Menu membuka laci yang SAMA dengan hamburger (ui.drawer()).
  */
 const shellDrawer = drawer();
@@ -1749,6 +1751,18 @@ function registerRoutes() {
     const host = view();
     // Tanpa gerbang izin: core/inbox menyaring per {modul}.approve pemanggil.
     return guard(host, () => renderTugas(host));
+  });
+
+  /* UX-F2 — Pekerjaan Saya: dokumen YANG DIAJUKAN PEMBACA sendiri (ditolak dan
+     menunggu), dari core/my-work. Tanpa gerbang izin: endpoint-nya menyaring per
+     {modul}.view dan hanya mengembalikan baris milik pemanggil. Remah roti diset
+     di sini karena hanya app.js yang boleh menulis label grup NAV
+     (SidebarNavWiringTest). */
+  route('pekerjaan', () => {
+    setCrumbs(['Ringkasan', 'Pekerjaan Saya']);
+    setActiveNav('pekerjaan');
+    const host = view();
+    return guard(host, () => renderPekerjaan(host));
   });
 
   /* P-3a — Profil & Notifikasi: kanal luar + jam tenang milik pemanggil

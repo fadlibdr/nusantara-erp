@@ -26,16 +26,30 @@
  *
  * Kejujuran angka mengikuti registrinya: entri yang tidak dikirim server (izin
  * hitungannya tidak dipegang) dan count null sama-sama '—', tidak pernah 0.
+ *
+ * UX-F2.3 menjadikannya halaman proses (README Fase F, ERRATA E-8): peta urutan
+ * lazim lewat stepper() untuk modul yang punya `flow` (FLOWS di schema.js; hari
+ * ini hanya Pengadaan), "Perlu perhatian" (dokumen modul ini yang menunggu
+ * keputusan pembaca + tenggat modul ini, lewat pemuat bersama inbox.js dan
+ * deadlines.js — tidak ada permintaan baru di halaman ini selain yang di atas),
+ * dan kisi kartu di bawah "Semua layar <modul>". Angka tahap dan angka utama
+ * datang dari jawaban yang SAMA; tahap tanpa kunci terdaftar tidak pernah
+ * memamerkan angka.
  */
 
 import { api, session } from '../api.js';
-import { el, svgIcon, icon, emptyState } from '../ui.js';
+import { el, svgIcon, icon, emptyState, stepper } from '../ui.js';
 import { NAV, RESOURCES, moduleFor, visibleNav } from '../schema.js';
 import { prefs } from '../prefs.js';
+import { loadInbox } from '../inbox.js';
+import { loadDeadlines } from '../deadlines.js';
 import * as fmt from '../format.js';
 
 /** Dua modul yang angka sekundernya SUDAH ada di jawaban dasbor. */
 const SUMMARY_PREFIXES = ['prj', 'fin'];
+
+/** Umur jawaban tenggat (ms) yang boleh dipakai Beranda dan beranda modul: tenggat yang baru diselesaikan tidak boleh bertahan semenit. */
+const DEADLINES_MAX_AGE = 15000;
 
 /** Entri "Terakhir dibuka" yang muat di kepala modul tanpa mendorong kartu ke bawah lipatan. */
 const RECENT_MAX = 6;
@@ -71,9 +85,26 @@ export function renderModuleHome(host, { prefix }) {
     return;
   }
 
+  /* UX-F2.3 (README Fase F, ERRATA E-8) — beranda modul sebagai halaman proses:
+     peta urutan lazim (hanya modul yang punya `flow`), angka utama, "Perlu
+     perhatian", Terakhir dibuka, lalu kisi kartu di bawah "Semua layar". Angka
+     tahap dan angka utama datang dari SATU jawaban (loadKpis); tahap tanpa kunci
+     terdaftar tidak pernah memamerkan angka. */
+  const flowHost = el('div');
+  host.appendChild(flowHost);
+  if (module.flow) paintFlow(flowHost, module, undefined);
+
   const kpis = el('.module-kpis');
   host.appendChild(kpis);
-  loadKpis(kpis, prefix);
+  loadKpis(kpis, prefix).then((payload) => {
+    if (module.flow && flowHost.isConnected) paintFlow(flowHost, module, payload);
+  });
+
+  /* "Perlu perhatian" menyaring ke modul INI lewat resource dan tautan temuan — grup Ringkasan tidak memiliki
+     dokumen maupun tautan tenggat mana pun (isinya Persetujuan, Tenggat, Pekerjaan Saya: lintas modul), jadi
+     di sana sebuah saringan akan SELALU menggambar "tidak ada yang perlu perhatian" di atas antrean yang
+     penuh. Lintas modul adalah pekerjaan Beranda ("Perlu tindakan Anda"), bukan halaman ini. */
+  if (prefix !== 'ringkasan') host.appendChild(attentionSection(prefix, module.label));
 
   const recentHost = el('div');
   recentHost.appendChild(recentSection(prefix, module.label));
@@ -87,7 +118,11 @@ export function renderModuleHome(host, { prefix }) {
       : grid;
   }));
   screens.addEventListener('keydown', arrowNavigation);
-  host.appendChild(screens);
+  // Judulnya BUKAN `.module-section` (pemisah NAV yang melabeli kisinya; S21 memeriksa itu).
+  host.appendChild(el('section.module-all', [
+    el('h2.module-block-title', { text: `Semua layar ${module.label}` }),
+    screens,
+  ]));
 
   watchFavorites(screens);
 
@@ -104,7 +139,8 @@ export function renderModuleHome(host, { prefix }) {
     recentHost.replaceChildren(recentSection(prefix, module.label));
     syncStars(screens);
   };
-  window.addEventListener('erp:prefs-loaded', onPrefs);
+  // Hanya bila jawaban server BELUM tiba: tanpa penjaga ini setiap kunjungan meninggalkan satu pendengar yatim.
+  if (!prefs.loaded()) window.addEventListener('erp:prefs-loaded', onPrefs);
 }
 
 /* ------------------------------------------------------------------ angka */
@@ -121,17 +157,170 @@ async function loadKpis(host, prefix) {
     payload = null;
   }
 
-  if (!host.isConnected) return; // halaman sudah berganti selagi menunggu
+  if (!host.isConnected) return payload; // halaman sudah berganti selagi menunggu
 
   if (payload === null) {
     host.appendChild(el('.muted.module-kpi-note', { text: 'Angka modul tidak dapat dimuat sekarang.' }));
-    return;
+    return null;
   }
 
   const headline = (payload.modules || []).find((one) => one.prefix === prefix) || null;
   const tiles = [headlineTile(headline), ...secondaryTiles(prefix, payload)].filter(Boolean);
-  if (!tiles.length) return;
   tiles.forEach((tile) => host.appendChild(tile));
+  return payload;
+}
+
+/* ------------------------------------------------------------ peta proses */
+
+/**
+ * Peta urutan lazim modul (FLOWS di schema.js) lewat stepper(). `payload`:
+ * undefined = jawabannya belum tiba (tanpa angka dulu); null = permintaan gagal
+ * ('—' pada tahap yang punya kunci); selain itu blok `modules` jawaban. Tahap
+ * tanpa kunci terdaftar, atau yang kuncinya tidak dikirim server (izin
+ * hitungannya tidak dipegang), tidak menampilkan angka — E-8, bukan 0.
+ */
+function paintFlow(host, module, payload) {
+  const open = new Set(visibleNav((perm) => session.can(perm)).flatMap((group) => group.items.map((item) => item.route)));
+  const entries = payload ? (payload.modules || []) : [];
+  const steps = module.flow.steps.map((step) => {
+    let count;
+    let title;
+    if (step.count && payload === null) {
+      count = null;
+    } else if (step.count && payload) {
+      const entry = entries.find((one) => one.prefix === step.count);
+      if (entry) {
+        count = entry.count === null || entry.count === undefined ? null : entry.count;
+        title = entry.label;
+      }
+    }
+    return { label: step.label, href: open.has(step.route) ? `#/${step.route}` : undefined, count, title };
+  });
+
+  const strip = host.querySelector('.stepper');
+  if (!strip) {
+    host.appendChild(el('section.module-flow', [
+      el('h2.module-block-title', { text: `Alur ${module.label}` }),
+      stepper(steps),
+      module.flow.note ? el('p.module-flow-note', { text: module.flow.note }) : null,
+    ]));
+    return;
+  }
+  // Sudah tergambar (jawaban angka baru tiba): hanya angkanya yang diperbarui DI TEMPAT. Mengganti seluruh
+  // stepper membuang fokus papan ketik di sebuah tahap dan menggulirkan stripnya kembali ke awal.
+  strip.querySelectorAll('.step').forEach((item, index) => {
+    const step = steps[index];
+    const link = item.querySelector('.step-link');
+    let node = item.querySelector('.step-count');
+    if (step.count === undefined) {
+      if (node) node.remove();
+      return;
+    }
+    if (!node) {
+      node = el('span.step-count.mono');
+      link.appendChild(node);
+    }
+    node.textContent = step.count === null ? '—' : String(step.count);
+    if (step.title) link.title = step.title;
+  });
+}
+
+/* ----------------------------------------------------------- perlu perhatian */
+
+/**
+ * "Perlu perhatian": yang menuntut pembaca DI MODUL INI — dokumen modul ini yang
+ * menunggu keputusannya (core/inbox lewat pemuat bersama; hanya penyetuju) dan
+ * tenggat modul ini yang lewat atau menipis (core/deadlines lewat pemuat
+ * bersama). Dua sumber, dua kegagalan terpisah, satu kalimat per kegagalan; yang
+ * gagal tidak pernah menjadi "tidak ada yang perlu perhatian".
+ */
+function attentionSection(prefix, moduleLabel) {
+  const content = el('div');
+  const node = el('section.module-attention', [el('h2.module-block-title', { text: 'Perlu perhatian' }), content]);
+  const state = { inbox: undefined, due: undefined }; // undefined = belum; null = tidak ditanyakan; 'failed'
+  const redraw = () => { if (node.isConnected) paintAttention(content, state, prefix, moduleLabel); };
+  const settle = async (key, load) => {
+    try {
+      state[key] = await load();
+    } catch {
+      state[key] = 'failed';
+    }
+    redraw();
+  };
+  settle('inbox', () => loadInbox());
+  // Jawaban 15 dtk boleh dipakai ulang (Beranda baru saja mengisinya); lebih lama dari itu diminta lagi.
+  settle('due', () => loadDeadlines({ maxAge: DEADLINES_MAX_AGE }));
+  return node;
+}
+
+/** Awalan modul sebuah temuan tenggat: `r/<kunci>` lewat resource-nya, `m/<p>` apa adanya, rute lain lewat grup NAV-nya. */
+function prefixOfLink(link) {
+  // Beberapa tautan membawa saringan (`r/crm/activities?state=open`): tanpa memotongnya temuan itu tidak
+  // pernah dikaitkan ke modulnya dan modulnya menulis "tidak ada yang perlu perhatian".
+  const path = String(link || '').split('?')[0];
+  if (path.startsWith('m/')) return path.slice(2);
+  if (path.startsWith('r/')) return groupPrefixFor(path.slice(2));
+  const group = NAV.find((one) => one.items.some((item) => item.route === path));
+  return group ? group.prefix : null;
+}
+
+function paintAttention(content, state, prefix, moduleLabel) {
+  content.replaceChildren();
+  const rows = [];
+  const inboxRows = state.inbox && state.inbox !== 'failed' ? (state.inbox.data || []) : [];
+  const inboxMeta = state.inbox && state.inbox !== 'failed' ? (state.inbox.meta || {}) : {};
+  const mine = inboxRows.filter((row) => groupPrefixFor(row.resource) === prefix);
+  if (mine.length) {
+    const more = inboxMeta.failed && inboxMeta.failed.length ? '+' : '';
+    rows.push(attentionRow('attn', `${mine.length}${more} dokumen ${moduleLabel} menunggu keputusan Anda`, 'Buka Persetujuan', '#/tugas'));
+  }
+  const dueOk = state.due && state.due !== 'failed';
+  const findings = dueOk ? (state.due.data || []) : [];
+  const dueMeta = dueOk ? (state.due.meta || {}) : {};
+  const ofModule = findings.filter((finding) => prefixOfLink(finding.link) === prefix);
+  ofModule
+    .filter((finding) => finding.tier !== 'tanpa_tanggal')
+    .sort((a, b) => (a.tier === b.tier ? 0 : a.tier === 'lewat' ? -1 : 1))
+    .forEach((finding) => rows.push(attentionRow(
+      finding.tier === 'lewat' ? 'danger' : 'warn',
+      finding.title || finding.label,
+      `${finding.count} ${finding.label} · ${finding.tier === 'lewat' ? 'sudah lewat' : 'segera jatuh tempo'}`,
+      `#/${finding.link}`,
+    )));
+
+  // Temuan TANPA tanggal bukan baris "perlu perhatian" di sini, tetapi juga bukan "tidak ada": satu kalimat
+  // yang menunjuk Tenggat, dan gambar "done" tidak boleh terlukis di atasnya.
+  const undated = ofModule.filter((finding) => finding.tier === 'tanpa_tanggal').reduce((sum, finding) => sum + rowsIn(finding), 0);
+  const notes = [];
+  if (state.inbox === 'failed') notes.push('Persetujuan tidak dapat dimuat sekarang.');
+  if (state.due === 'failed') notes.push('Tenggat tidak dapat dimuat sekarang.');
+  if (inboxMeta.failed && inboxMeta.failed.length) notes.push(`Gagal dimuat: ${inboxMeta.failed.join(', ')}. Daftar persetujuan ini belum lengkap.`);
+  if (dueMeta.skipped > 0) notes.push('Pemindaian tenggat belum lengkap: sebagian pemeriksaan dilewati.');
+  if (undated > 0) notes.push(`${undated} temuan tanpa tanggal — lihat Tenggat.`);
+
+  if (rows.length) content.appendChild(el('ul.attn-list', rows.map((row) => el('li', row))));
+  notes.forEach((text) => content.appendChild(el('.muted.module-kpi-note', { text })));
+
+  const settled = state.inbox !== undefined && state.due !== undefined;
+  if (settled && !rows.length && !notes.length) {
+    content.appendChild(emptyState(`Tidak ada tenggat menipis atau lewat yang bisa Anda tindak, dan tidak ada dokumen ${moduleLabel} yang menunggu keputusan Anda.`, {
+      title: 'Tidak ada yang perlu perhatian', kind: 'done', compact: true,
+    }));
+  }
+}
+
+/** Jumlah baris tenggat sebuah temuan (`count` dari server); temuan tanpa angka yang sah tidak menyumbang. */
+function rowsIn(finding) {
+  const n = Number(finding.count);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function attentionRow(tone, title, sub, href) {
+  return el('a.attn-row', { href, dataset: { tone } }, [
+    el('span.attn-dot'),
+    el('span.attn-text', [el('b', { text: title }), el('span.attn-sub', { text: sub })]),
+    icon('chevron-right', 15),
+  ]);
 }
 
 /**

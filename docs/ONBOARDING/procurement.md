@@ -45,10 +45,28 @@ anggaran RAP mengikat PO yang Anda ajukan).
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2) —
 lembar banding dengan lima vendor disimpan dulu kepalanya, harganya menyusul.
 
+**Layar pertama** — sesudah masuk Anda mendarat di **Beranda** (`#/home`), di lebar layar
+mana pun; **Dasbor** satu klik dari sana, lewat tombol **`Dasbor`** di kepala Beranda. Di
+bawah kotak cari, Beranda memuat **Perlu tindakan Anda**, **Aksi cepat** (paling banyak
+enam tombol **`Buat <jenis>`**, sumbernya sama dengan tombol **`Buat`** di bilah atas),
+**Angka**, baris Favorit dan Terakhir dibuka bila sudah ada isinya, lalu **Bidang kerja**
+— satu ubin per modul yang boleh Anda buka. Anda tidak menyetujui apa pun, jadi
+**Perlu tindakan Anda** hanya memuat tenggat yang sudah lewat (tombol
+**`Tindak lanjuti`**) dan berbunyi *"Tidak ada tenggat yang lewat"* bila tidak ada. PR/PO
+Anda yang ditolak atau masih menunggu orang lain tidak ada di Beranda, melainkan di
+**Pekerjaan Saya** — baris tetap di puncak sidebar, dengan tab **Perlu diperbaiki**
+(ditolak penyetuju) dan tab **Menunggu orang lain** (belum diputuskan).
+
+**Di ponsel** (≤ 760 px), bilah bawah memuat empat tombol: **Beranda**,
+**Pekerjaan Saya**, **Cari**, **Menu** — **Pekerjaan Saya** menempati tempat yang bagi
+penyetuju diisi **Persetujuan**.
+
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
 
-- **Ringkasan** — Dasbor · Tenggat · Kalender.
+- **Ringkasan** — Dasbor · Tenggat · Kalender. Baris tetap **Beranda** dan
+  **Pekerjaan Saya** tergambar di puncak sidebar, di atas semua kelompok; baris
+  **Persetujuan** tidak ada bagi Anda — ia hanya untuk pemegang izin menyetujui.
 - **Pengadaan** — ketiga belas layarnya milik Anda: Vendor & Subkon · Dokumen Vendor ·
   Permintaan (PR) · RFQ (Banding Penawaran) · Pesanan (PO) · Baris PO Terbuka · PPK Alat &
   Jasa · Tagihan Periode PPK · Rekap Tagihan Alat · BA Negosiasi · Keputusan Pemenang ·
@@ -71,14 +89,30 @@ layar yang akan Anda pakai minggu ini, per kelompok:
 Kelompok Penjualan, Proyek, Mutu, Subkontrak, Keuangan, SDM, Layanan, dan Aset tidak ada
 di sidebar Anda.
 
-**Dasbor Anda** (PANDUAN §1.7):
+**Halaman modul Pengadaan** (ubin **Pengadaan** di Beranda, atau remah roti pertama pada
+layar Pengadaan) membuka dengan **Alur Pengadaan** — strip enam tahap: Permintaan (PR) →
+RFQ → BA Negosiasi → Keputusan Pemenang → Pesanan (PO) → Penerimaan (GRN). Tiap tahap
+adalah tautan ke layarnya bila layar itu boleh Anda buka — bagi peran Anda keenamnya.
+Catatan di bawah strip berbunyi *"Urutan lazim, bukan wajib"* dan menyebut tiga aturan
+yang ditegakkan server: PO dari RFQ baru bisa disetujui setelah keputusan pemenang untuk
+vendornya disetujui; vendor yang belum lolos prakualifikasi hanya bisa dipesan dengan
+alasan yang tercatat; PO tanpa PR wajib menulis alasannya. Hanya tahap **Pesanan (PO)**
+yang memuat angka — PO terbuka, yaitu PO Disetujui yang barangnya belum lengkap diterima;
+tahap lain tanpa angka, dan angkanya berbunyi `—` bila gagal dimuat. Di bawah strip: ubin
+angka, **Perlu perhatian** (satu baris per jenis tenggat Pengadaan yang sudah lewat atau
+segera jatuh tempo, dengan jumlahnya — diambil dari layar Tenggat dan disaring ke
+Pengadaan, termasuk lampiran yang masa berlakunya menipis; tanpa baris persetujuan, karena
+Anda tidak menyetujui; kosong berbunyi *"Tidak ada yang perlu perhatian"*), baris
+Terakhir dibuka, dan **Semua layar Pengadaan** — kartu semua layar modul ini.
+
+**Dasbor Anda** — satu klik dari Beranda (PANDUAN §1.7):
 
 - **Tidak ada ubin angka** — barisnya berbunyi *"Peran Anda tidak memiliki akses ke
   ringkasan modul mana pun."* Ubin dasbor membaca izin proyek, keuangan, dan layanan;
   tidak satu pun Anda pegang. Itu bukan kerusakan.
-- Kartu **Menunggu persetujuan Anda** — **selalu berbunyi** *"Tidak ada dokumen yang
-  menunggu persetujuan."* untuk Anda, karena Anda tidak menyetujui apa pun. Kabar PR/PO
-  Anda disetujui atau ditolak datang lewat **lonceng** (lencana Disetujui hijau / Ditolak
+- Kartu **Menunggu persetujuan Anda** **tidak digambar untuk Anda** — kartu itu hanya ada
+  bagi pemegang izin `.approve`, dan Anda tidak menyetujui apa pun. Kabar PR/PO Anda
+  disetujui atau ditolak datang lewat **lonceng** (lencana Disetujui hijau / Ditolak
   merah) dan lewat lencana status di layar daftarnya.
 - Kartu **Kalender Acara** dan **Perlu dipesan ulang** — **keduanya SELALU digambar**.
   Kartu pesan ulang memuat pasangan **gudang × item** di bawah **ambang**-nya, dan bila
@@ -95,13 +129,15 @@ di sidebar Anda.
   **otomatis**: tidak ada penjadwal, dan tidak ada jalur yang mengajukan atau menyetujui
   (§6.10).
 
-**Lonceng dan Tenggat** — yang ditujukan kepada peran Anda (PANDUAN §1.7), tiga saja:
+**Lonceng dan Tenggat** — yang ditujukan kepada peran Anda (PANDUAN §1.7): tiga tenggat
+dokumen, ditambah satu pengawas lampiran:
 
 | Tenggat | Diperingatkan | Syaratnya |
 |---|---|---|
 | Permintaan pembelian mendekati tanggal dibutuhkan | 7 hari | hanya PR tanpa PO |
 | Pesanan pembelian lewat tanggal terima | 0 hari | hanya bila Perkiraan kirim terisi |
 | Dokumen vendor mendekati akhir masa berlaku | 30 hari | vendor berstatus Aktif |
+| Lampiran Pengadaan mendekati akhir masa berlaku (lalu: lewat masa berlaku) | 30 hari | hanya berkas yang diberi **`Masa berlaku (opsional)`** pada dokumen Pengadaan |
 
 "Hanya PR tanpa PO" berarti PR berstatus Diajukan atau Disetujui yang belum melahirkan
 PO; PO tanpa *Perkiraan kirim* tidak pernah dihitung telat, di Tenggat maupun di Baris PO
@@ -121,7 +157,7 @@ yang jatuh tempo (§5.9) — keuangan akan menanyakannya kepada Anda, bukan seba
    sederhana: Anda tidak menyetujui apa pun.
 4. Yang sudah diposting tidak punya tombol batal — di lajur Anda, `Tutup RFQ` dan
    `Tutup PO` adalah titik tanpa jalan kembali.
-5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (§14).
 6. Sesi 12 jam; isian yang belum disimpan bertahan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2).
 
 ## 3. Pekerjaan Anda
@@ -355,8 +391,8 @@ lampiran, bukan di tabel; delapan baris CV Mandor diisi tangan.
       kirim-nya kosong — PO itu tidak pernah dihitung telat.
 - [ ] Saya sudah membuka `Engineering › Persetujuan Material (SMS)` dan tahu mana material
       yang berstempel **Disetujui** penuh.
-- [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu tiga tenggat mana yang milik
-      peran saya.
+- [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu tenggat mana yang milik
+      peran saya (PR, PO, dokumen vendor, dan lampiran yang bertanggal).
 - [ ] Saya sudah mencetak satu Permintaan Pembelian (F/PP) dan satu Tabulasi Banding
       Penawaran (F/TBP), dan tahu sel mana yang bergaris.
 - [ ] Saya tahu bahwa PO Rp 100 juta ke atas hanya bisa disetujui direktur, dan award
@@ -387,9 +423,13 @@ alamat), **kode dokumen**, **teks merah persis**, dan **tombol yang Anda tekan**
 sekaligus. Bila yang hilang adalah tombolnya, sebutkan itu: tombol yang tidak ada hampir
 selalu berarti izin, bukan kerusakan.
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** yang menampilkan PR/PO Anda
-> yang ditolak dan yang menunggu dalam satu permintaan; draf formulir (termasuk lembar
-> banding) yang bertahan di peramban saat sesi habis; catatan persetujuan inline tanpa
-> dialog; dan ganti kata sandi sendiri. Sampai rilis itu tayang, halaman ini menggambarkan
-> yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**. Redesain itu
+> belum dirilis; bagian 2 di atas sudah menulis layar sesudahnya, jadi tampilan di erp1
+> bisa berbeda. Yang ia tambahkan untuk peran Anda: **Beranda** sebagai ruang kerja
+> (**Perlu tindakan Anda**, bagi Anda tenggat yang sudah lewat; **Aksi cepat**; **Angka**)
+> di atas ubin **Bidang kerja**; halaman modul **Pengadaan** dengan **Alur Pengadaan** —
+> strip enam tahap dari Permintaan (PR) sampai Penerimaan (GRN), angka PO terbuka pada
+> tahap Pesanan (PO); baris tetap **Pekerjaan Saya** di sidebar, yang mengumpulkan PR/PO
+> Anda yang ditolak (tab **Perlu diperbaiki**) dan yang masih menunggu orang lain (tab
+> **Menunggu orang lain**); dan bilah bawah ponsel berisi empat tombol (**Beranda**,
+> **Pekerjaan Saya**, **Cari**, **Menu**).

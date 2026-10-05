@@ -46,8 +46,9 @@ panduan berbeda tahu di mana mencari apa:
 1. **Siapa Anda di sistem** — peran, akun demo, pekerjaan dalam satu kalimat, tempat
    peran itu pada rantai proses (ANALISIS-PROSES-BISNIS-2026-09 §1), siapa menyerahkan
    pekerjaan kepada Anda dan kepada siapa Anda menyerahkannya.
-2. **Hari pertama** — masuk, sidebar *untuk peran ini* (bukan 121 layar), kartu dasbor,
-   tenggat yang benar-benar ditujukan kepada peran ini, dan enam kalimat PANDUAN §0.
+2. **Hari pertama** — masuk, layar pertama (**Beranda**), sidebar *untuk peran ini* (bukan
+   121 layar), kartu dasbor, tenggat yang benar-benar ditujukan kepada peran ini, dan enam
+   kalimat PANDUAN §0.
 3. **Pekerjaan Anda** — walkthrough bernomor: pemicu → layar → nomor dokumen → siapa yang
    menyetujui atau apa yang terjadi berikutnya → pasal PANDUAN.
 4. **Yang akan menolak Anda** — kalimat penolakan server, kata demi kata bila manual
@@ -60,10 +61,20 @@ panduan berbeda tahu di mana mencari apa:
 7. **Bila tersangkut** — kepada siapa bertanya per situasi, dan eskalasi dua baris
    (PANDUAN §14.5).
 
-Setiap panduan ditutup kotak **"Yang berubah pada rilis UX berikutnya"**: cabang
-`ux/p0-measured` yang **belum digabung dan belum tayang di erp1**. Yang berlaku hari ini
-adalah `main`; kotak itu ada supaya karyawan baru tidak mencari layar Persetujuan (dulu Tugas Saya) atau
-tombol ganti kata sandi yang belum ada.
+Setiap panduan ditutup kotak berjudul
+**Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**. Rilis redesain
+itu belum tayang, bagian 2 tiap panduan sudah menulis layar sesudahnya (jadi tampilan di
+erp1 bisa berbeda darinya), dan kotaknya hanya menyebut apa yang ia tambahkan
+**bagi peran itu**: Beranda sebagai ruang kerja dengan **Perlu tindakan Anda**,
+**Pekerjaan Saya** (dokumen yang peran itu ajukan sendiri — bukan antrean persetujuan, yang
+tetap di **Persetujuan**),
+halaman proses modul Pengadaan bagi peran yang bekerja di sana, dan bilah bawah ponsel
+empat tombol bagi peran yang tidak menyetujui apa pun. Kotak itu ada supaya karyawan baru
+tidak mencari layar yang belum ada. Yang sudah tayang tidak dijanjikan lagi: draf formulir
+yang bertahan saat sesi habis, catatan persetujuan yang diketik langsung di halaman, dan
+**`Ganti kata sandi`** dari menu akun berlaku hari ini. Panduan `direktur.md` memuat dua
+kotak: sebelum kotak di atas ada **Sudah tayang di erp1 sejak 5 September 2026**, yang
+mencatat rilis sebelumnya dan tetap benar.
 
 ## Cara menyerahkan panduan kepada karyawan baru
 

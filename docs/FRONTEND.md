@@ -71,6 +71,22 @@ public/app/
                         one-time lift of the P1-B keys, per key; announces
                         erp:favorites-changed / erp:recent-changed / erp:prefs-loaded so the
                         sidebar and the views redraw without importing app.js (CONVENTIONS §15)
+    inbox.js            the ONE loader of GET core/inbox (UX-D.2, ERRATA E-4): the sidebar and
+                        bottom-bar badge, the dashboard widget, Persetujuan, Beranda and the module
+                        page share one in-flight request and one answer keyed by user id; the badge,
+                        Beranda and the module page accept a 60 s-old answer, the dashboard widget and
+                        Persetujuan ask with `maxAge: 0` (and refresh the cache for the others);
+                        null (not an empty list) for a reader without an approve permission;
+                        `meta.failed` travels with the answer
+    deadlines.js        the view-level loader of GET core/deadlines (UX-F2.2, the inbox.js pattern):
+                        Beranda, the module page and Tenggat share one request and one 60 s answer
+                        keyed by user id (Tenggat asks with `maxAge: 0`); it THROWS when the server
+                        fails, so no caller turns "unknown" into "no deadlines". Dashboard widgets
+                        keep `safeList` from kit.js (CONVENTIONS §17)
+    create.js           the source of "Buat ▾" in the top bar, of the Aksi group in the Ctrl+K
+                        palette and of Beranda's "Aksi cepat" (UX-D.4): the lists' own "Tambah …"
+                        buttons, gathered; `canCreateResource()` is the one predicate it shares
+                        with list.js
     format.js           id-ID money/date/percent formatting
     ui.js               el() DOM builder, buttons, badges, modal, toast (with an optional single
                         action button), offlineRibbon()/networkDown(), fields, svgIcon(),
@@ -113,21 +129,59 @@ public/app/
       detail.js         generic document detail: head, status panel, Informasi (label: form → LABELS → "Bidang lainnya"), lines, approvals
       actions.js        lifecycle actions (submit/approve/post/…); withConfirmResubmit() is the one confirm-resubmit engine (runAction and the page form's Simpan & ajukan), toastActionDone() the one success sentence
       dashboard.js      cross-module dashboard + approval inbox
-      home.js           app launcher #/home: search (same screen index as Ctrl+K), Favorit and
-                        Terakhir dibuka rows from server prefs, one tile per module the caller may
-                        open (visibleNav()) with its ModuleCounts headline. Landing on <= 760 px
-                        (owner decision #3); "Beranda" is the first NAV row (marked `chrome: true`,
-                        so it is not counted as one of Ringkasan's screens) and a house button in
-                        the header. Unknown count = '—' AND the number's name from MODULES.kpi
-                        ("— Job gagal"), never 0 (LauncherWiringTest)
-      module.js         module home #/m/<prefix>: accent header + cards of the NAV screens the
-                        caller may open (same visibleNav() filter as the sidebar); breadcrumb target.
-                        Grid is auto-fill minmax(220px, 1fr): measured 4 columns at 1440 px, 1 at 390
-                        (S21 admin_modules[*].columns) — not "3 columns".
-                        P1-C: KPI tiles (ModuleCounts headline + up to 3 secondaries that are already
-                        in the same response — prj/fin read dashboard/summary?include=modules, so it
-                        stays ONE request), "Terakhir dibuka" for this module, and a favourite star
-                        BESIDE each card (never inside the <a>)
+      home.js           Beranda #/home (UX-F2.2): the landing at EVERY width (ERRATA D-2) and a
+                        workspace, in this order — head "Beranda" with a "Dasbor" button; the search
+                        box (same screen index as Ctrl+K); "Perlu tindakan Anda" (the two documents
+                        that have waited longest for the reader's decision, via js/inbox.js and for
+                        approvers only, plus up to three overdue deadlines, via js/deadlines.js; all
+                        cards oldest first, one button each — "Tinjau & putuskan" to the document,
+                        "Tindak lanjuti" to that deadline's list; the two sources settle and fail
+                        separately, a failed one is ONE sentence and never the `done` picture, and
+                        the other's cards still draw); "Aksi cepat" (create.js's own source, at most
+                        six, absent for a role that may create nothing); "Angka" (at most four
+                        headline numbers the reader holds, NAV order, `ringkasan` skipped, each
+                        linking to its module page — they repeat numbers the tiles carry); Favorit and
+                        "Terakhir dibuka" from server prefs; and "Bidang kerja" (titled "Modul" before
+                        UX-F2.2), one tile per module the caller may open (visibleNav()) with its
+                        ModuleCounts headline and "n layar". The quick actions, Favorit and
+                        "Terakhir dibuka" redraw on erp:prefs-loaded. "Beranda" is the first NAV row
+                        (marked `chrome: true`, so it is not counted as one of Ringkasan's screens)
+                        and a house button (`.home-btn`, title "Beranda") in the header that goes to
+                        #/home, at every width (app.js).
+                        Unknown count = '—' AND the number's name from MODULES.kpi ("— Job gagal"),
+                        never 0 (LauncherWiringTest). The page adds ONE request to the landing
+                        (core/deadlines, HomeWiringTest) and asks nothing of core/my-work
+                        (PekerjaanViewWiringTest allows no other caller): a non-approver's own
+                        rejected documents are Pekerjaan Saya's, not a card here
+      pekerjaan.js      Pekerjaan Saya #/pekerjaan (UX-F2.1): the reader's OWN submitted documents from
+                        one `core/my-work` request, two tabs "Perlu diperbaiki" and
+                        "Menunggu orang lain" (ERRATA D-3) — see Conventions, "Pekerjaan Saya"
+      tugas.js          Persetujuan #/tugas: the full approval queue — one `core/inbox` request through
+                        js/inbox.js, a filter per document type, the delegation banner and bulk
+                        approval (F-1, see Conventions). Not Pekerjaan Saya: this queue is what waits
+                        for the READER'S decision, Pekerjaan Saya is the reader's OWN documents
+      module.js         module PROCESS page #/m/<prefix> (UX-F2.3; the breadcrumb's module target and
+                        the Beranda tile's target): the accent head (eyebrow "Modul"); "Alur <Modul>"
+                        for a prefix that has an entry in FLOWS (schema.js, a data map kept OUTSIDE the
+                        MODULES lines — today only Pengadaan) drawn by stepper(), with a note that the
+                        sequence is "lazim, bukan wajib" and names three rules the server enforces
+                        (ERRATA E-8: a stage shows a number only from the module's OWN registered
+                        ModuleCounts key — today the PO stage, "PO terbuka"; "—" when that answer
+                        failed; no number on a stage without a key; a stage links only to a screen the
+                        reader may open, by the same visibleNav() filter as the sidebar); the KPI tiles
+                        (ModuleCounts headline + up to 3 secondaries that are already in the same
+                        response — prj/fin read dashboard/summary?include=modules, so it stays ONE
+                        request); "Perlu perhatian" (for approvers
+                        one row "N dokumen <Modul> menunggu keputusan Anda" — "N+" when the inbox is
+                        incomplete — plus one row per overdue
+                        or approaching deadline of this module, all read through js/inbox.js and
+                        js/deadlines.js so the page asks for nothing of its own; one sentence per failed
+                        source, never the `done` picture); "Terakhir dibuka" for this module; then the
+                        card grid of the NAV screens the caller may open under "Semua layar <Modul>",
+                        with a favourite star BESIDE each card (never inside the <a>; styled since
+                        UX-F2.3). Grid is auto-fill minmax(220px, 1fr): measured 4 columns at 1440 px,
+                        1 at 390 (S21 admin_modules[*].columns) — not "3 columns". "Terakhir dibuka"
+                        and the stars redraw on erp:prefs-loaded. ModuleFlowTest pins the strip
       project.js        project workspace: two tabs — "Ringkasan" (kurva-S, WBS tree, site
                         activity) and "Jadwal". The tab lives in a MODULE-level variable because
                         `reload` redraws the whole screen from six places, and a tab variable
@@ -360,9 +414,12 @@ reading, in another shape. There is no `print` action anywhere in the permission
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
 - **The shell (UX-D)**: the landing is `#/home` at every width (ERRATA D-2). NAV rows with `pinned: true`
-  (Beranda, Persetujuan; Pekerjaan Saya when UX-F2 adds it) are drawn as fixed rows above Favorit and as
-  the first slots of the ≤ 760 px bottom bar — still owned by their NAV group, still filtered by
-  `visibleNav()`, so the shell writes no permission. `icon` names their glyph; `count: 'inbox'` asks for
+  (Beranda, Persetujuan, Pekerjaan Saya — in that order) are drawn as fixed rows above Favorit, and the
+  first two that pass `visibleNav()` are the first slots of the ≤ 760 px bottom bar: Beranda, then
+  Persetujuan for approvers or Pekerjaan Saya for everyone else (ERRATA E-4, no shell code — the order in
+  NAV decides). The rows stay owned by their NAV group and filtered by `visibleNav()`, so the shell writes
+  no permission. `views/pekerjaan.js` (`#/pekerjaan`, no `perm`) makes ONE `core/my-work` request, shows
+  ERRATA D-3's two tabs, and takes its sentence from `statusStrip()` in `views/detail.js`. `icon` names their glyph; `count: 'inbox'` asks for
   the approval badge. Groups with more than 10 routes show 8 plus "Semua layar <modul> →"; the rest stay
   in the DOM (`.beyond-cap`) so the filter, the module-home comparison and the active route still reach
   them. **`js/inbox.js` is the only `core/inbox` caller**: badge, dashboard widget, the Persetujuan screen
@@ -545,14 +602,16 @@ reading, in another shape. There is no `print` action anywhere in the permission
 - **Module counts**: one headline number per module comes from `GET core/modules` (registry
   `ModuleCounts`, CONVENTIONS §16). A module the response does not mention, or one whose `count`
   is `null`, renders `—`. Never `count ?? 0`.
-- **Landing**: after login with no hash, `> 760 px` → `#/dashboard`, `<= 760 px` → `#/home` (owner
-  decision #3). Strictly greater, because `@media (max-width: 760px)` is inclusive: at exactly
-  760 px the sidebar is already a drawer, and `>= 760` gave that one width both the drawer and the
-  dashboard (S22 `landing_boundary` measures 759/760/761). The rule reads `location.hash`, not
-  `currentPath()` — the latter invents `dashboard` when the hash is empty, which would hijack every
-  deep link. The onboarding tour follows the same rule: its opening step visits `home` on mobile and
-  `dashboard` above the breakpoint, or step 1 would navigate the person off the launcher and collapse
-  the mobile sheet (S19).
+- **Landing**: after login with no hash the landing is `#/home` at EVERY width (ERRATA D-2, UX-D.1);
+  the earlier rule — `#/dashboard` above 760 px, `#/home` at or below it (owner decision #3) — is
+  withdrawn. The Dasbor is one click away: the **Dasbor** button in Beranda's head and the "Dasbor" row of
+  Ringkasan. 760 px is still where the sidebar folds into a drawer (`@media (max-width: 760px)` is
+  inclusive) and `LauncherWiringTest` still pins it; it no longer chooses the page, and S22
+  `landing_boundary` measures 759/760/761 and expects `#/home` at all three. The rule reads
+  `location.hash`, not `currentPath()` — the latter invents `dashboard` when the hash is empty, which
+  would hijack every deep link; a re-login in the same tab keeps the page the person was reading. The
+  onboarding tour follows the same rule: its opening step visits `home` at every width, or step 1 would
+  navigate the person off the landing page and collapse the mobile sheet (S19).
 - **Empty states**: always `ui.emptyState()` with the right `kind` — a failed source is
   `error`, never `inbox`/`done`; a filtered-out list offers "Hapus filter".
 - **Money and dates**: always through `format.js` (`Rp 1.234.567`, `26 Jul 2026`).
@@ -589,14 +648,25 @@ reading, in another shape. There is no `print` action anywhere in the permission
   Rp 62,39 rb · Rp 62,78 rb` — a ±1,3% band invented by the padding that keeps a flat line off
   the plot edge, then labelled. The padding stays; the labels go. The non-zero-based axis
   itself remains deliberate and is written for users in `PANDUAN-PENGGUNA` §4.6.
-- **Errors**: `GET core/my-work` (UX-F1, ERRATA E-9) is the caller's Pekerjaan Saya: own documents still
-`submitted` (`bucket: 'waiting'`) or `rejected` (`bucket: 'needs_fix'`, with `decided_at`,
-`decided_by` — "Budi a.n. Sari" when delegated — and `note`), the inbox row shape plus `status`,
-ordered needs_fix first (oldest decision), then waiting (oldest submission); `meta.failed` names
-types that threw. Ownership is `ApprovalQueue::ownerOf()`, the inbox's own function. The screen
-that reads it is UX-F2.
-
-`api.js` normalises `{ message, errors }` into an `ApiError`; forms map
+- **Pekerjaan Saya (UX-F1 endpoint, UX-F2.1 screen)**: `GET core/my-work` (ERRATA E-9) is the caller's own
+  documents still `submitted` (`bucket: 'waiting'`) or `rejected` (`bucket: 'needs_fix'`, with `decided_at`,
+  `decided_by` — "Budi a.n. Sari" when delegated — and `note`): the inbox row shape (including `submitted_by` and `submitted_by_id`) plus `status`, ordered
+  needs_fix first (oldest decision), then waiting (oldest submission); `meta.failed` names types that threw.
+  Ownership is `ApprovalQueue::ownerOf()`, the inbox's own function. **`views/pekerjaan.js` is its only
+  consumer**: one request per opening, ERRATA D-3's two tabs "Perlu diperbaiki" and "Menunggu orang lain"
+  (there is no "Draf saya" tab and none for "approved, waiting for a follow-up document": 25 of the 29
+  document tables carry none of the creator columns in `ApprovalQueue::OWNER_KEYS` — a draft there has
+  no owner, `hr_leave_requests` being owned through `employee_id` — and no API knows whether the
+  follow-up exists), and each row's sentence
+  is `statusStrip()` of `views/detail.js` — the document page's own sentence, fed a one-line trace built from
+  the row — followed by the static per-(enum, value) hint `enumHint()` from `enums.js`. The button of a
+  rejected row is **Perbaiki** only when the document page offers Ubah (`canFix()`: edit permission, a form,
+  `editableWhen`), otherwise **Lihat** like a waiting row; all of them open the document page, and so does
+  the row itself. The waiting sentence names the submitter from the row's `submitted_by` / `submitted_by_id`
+  ("Anda" only when the id is the reader's; no name and no date when the server has none). A source that did not answer is never "empty": a failed request leaves the tab counts
+  at "—" under the error panel, `meta.failed` writes one sentence and turns the counts into "n+", and an
+  empty tab draws `done` only when nothing failed (`error` otherwise; CONVENTIONS §14). `PekerjaanViewWiringTest` and harness S59 pin it.
+- **Errors**: `api.js` normalises `{ message, errors }` into an `ApiError`; forms map
   `errors` back onto their fields, everything else raises a toast. A view that throws
   renders an error panel rather than a blank page.
 - **Editability**: a document's own status decides it — `editableWhen` /

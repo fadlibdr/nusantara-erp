@@ -17,6 +17,7 @@ import { navigate, back } from '../router.js';
 import { fundPaymentPanels } from './kaskecil.js';
 import { csvValue, toCsv, downloadCsv, csvFilename } from '../csv.js';
 import { csatCard } from './csat.js';
+import { forgetInbox } from '../inbox.js';
 
 /* Label ringkas jenis potongan pajak pada baris alokasi penerimaan. Ini
    cerminan Modules/Finance/Enums/WithholdingType; jenis yang belum dikenal
@@ -915,6 +916,7 @@ export async function renderPayment(host, { id }) {
         try {
           clearRefusal();
           await api.post(`finance/payments/${id}/${path}`, { note: values.note || undefined });
+          forgetInbox(); // keputusan di layar ini tidak lewat runAction(): kartu Beranda dan lencana tidak boleh basi
           toast(path === 'approve'
             ? 'Pembayaran disetujui dan siap diposting.'
             : 'Pembayaran ditolak dan dikembalikan ke draf.');

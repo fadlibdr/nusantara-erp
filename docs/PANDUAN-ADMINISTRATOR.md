@@ -698,8 +698,10 @@ ini (§12(c)).
 > Siapa pun yang bisa memanggil API dengan token yang sah bisa membacanya.
 
 Yang `.view` benar-benar kendalikan di semua modul: apa yang tampil di sidebar, dan
-apa yang disertakan oleh empat endpoint yang menyaring diri sendiri — pencarian
-global, tenggat, kalender, dan ringkasan dasbor.
+apa yang disertakan oleh endpoint yang menyaring diri sendiri — pencarian
+global, tenggat, kalender, ringkasan dasbor, angka modul (`core/modules`), dan
+daftar Pekerjaan Saya (jenis dokumen yang `.view`-nya tidak dipegang pemanggil
+tidak menyumbang baris).
 
 **Tidak ada pembatasan per baris.** Tidak ada mekanisme "hanya proyek saya" yang
 otomatis; satu-satunya penyaringan berbasis identitas adalah toggle opsional "Proyek
@@ -4071,7 +4073,11 @@ Yang perlu Anda ketahui sebagai administrator:
   miliknya sendiri harus mengetik alamat layarnya. Daftar itu **hanya** memuat
   hak persetujuan dokumen, jadi lima belas layar di butir sebelumnya tetap
   tertutup di layar sama seperti di server. Perubahannya terlihat setelah
-  halaman dimuat ulang (sesi membaca ulang haknya saat memuat).
+  halaman dimuat ulang (sesi membaca ulang haknya saat memuat). Di ponsel,
+  "Persetujuan" juga mengambil tombol kedua bilah bawah, yang bagi pengguna tanpa
+  hak approve dipakai "Pekerjaan Saya". "Pekerjaan Saya" sendiri tidak bergantung
+  pada delegasi: ia ada di bilah samping setiap pengguna dan hanya memuat dokumen
+  yang diajukan penerima itu sendiri, bukan yang diajukan pemberi delegasi.
 - Delegasi **tidak berantai**: pemberinya harus memegang izin itu sendiri, bukan
   lewat delegasi lain.
 - Delegasi **tidak mencabut hak siapa pun.** Penerima yang sudah memegang hak

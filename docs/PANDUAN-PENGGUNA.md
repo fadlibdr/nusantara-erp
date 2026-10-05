@@ -149,16 +149,17 @@ ada tombol "keluarkan saya dari semua perangkat"; itu pekerjaan administrator
 ### 1.4 Tampilan — apa yang ada di layar
 
 **Bilah atas**, dari kiri ke kanan: ikon **Menu** (hanya berguna di layar sempit —
-membuka/menutup sidebar), ikon **rumah** (**Beranda** — halaman peluncur, lihat §1.4a),
-remah roti (mis. `Keuangan › Invoice Termin (AR) › INV/…`), tombol **`Cari`**, tombol
-**`Buat`**, ikon lonceng, dan kotak akun berisi inisial, nama, dan peran Anda (atau "tanpa
-peran").
+membuka/menutup sidebar), ikon **rumah** (**Beranda** — tempat memulai hari kerja dan pintu ke
+semua modul, lihat §1.4a), remah roti (mis. `Keuangan › Invoice Termin (AR) › INV/…`), tombol
+**`Cari`**, tombol **`Buat`**, ikon lonceng, dan kotak akun berisi inisial, nama, dan peran Anda
+(atau "tanpa peran").
 
 **Remah roti dan beranda modul.** Remah pertama adalah nama modul dengan titik warna
 modul itu (warna yang sama menandai kelompok yang sedang terbuka di sidebar); klik untuk
-membuka **beranda modul** — satu halaman berisi kartu semua layar modul itu yang boleh
-Anda buka (kartunya persis daftar sidebar kelompok itu, kecuali baris **Beranda** yang
-memang bukan layar modul melainkan peluncurnya; modul yang izinnya tidak Anda pegang hanya
+membuka **beranda modul** — halaman kerja modul itu (§1.4a): angka utamanya, apa yang perlu
+perhatian Anda di dalamnya, dan di bawah judul **Semua layar** (mis. *Semua layar Proyek*)
+kartu semua layarnya yang boleh Anda buka (kartunya persis daftar sidebar kelompok itu, kecuali
+baris **Beranda** yang memang bukan layar modul; modul yang izinnya tidak Anda pegang hanya
 menampilkan "Tidak ada layar yang bisa Anda buka di modul ini"). Di halaman dokumen,
 remah kedua membawa Anda kembali ke daftarnya. Di ponsel hanya remah modul yang tampil
 (judul halaman sudah menyebut layarnya) dan tombol Cari menjadi ikon saja. **Kepadatan** tampilan diatur dari dialog
@@ -169,9 +170,11 @@ sasaran jempol 36 px, jadi petunjuknya di sana menyebut baris bertombol 43 / 55 
 (Lega = Normal untuk baris bertombol).
 
 **Sidebar** dibuka dengan **baris tetap**: **Beranda**, lalu **Persetujuan** bila Anda memegang
-hak menyetujui sesuatu — dengan angka dokumen yang menunggu keputusan Anda di ujungnya. Angka
-yang diberi tanda `+` dan berwarna kuning berarti sebagian jenis dokumen gagal dimuat: daftarnya
-belum lengkap, dan angkanya batas bawah, bukan jumlah sebenarnya. Di bawahnya **Favorit**,
+hak menyetujui sesuatu — dengan angka dokumen yang menunggu keputusan Anda di ujungnya — lalu
+**Pekerjaan Saya**, yang ada bagi semua orang dan tidak membawa angka (dokumen yang Anda ajukan
+sendiri, §1.4f). Angka Persetujuan yang diberi tanda `+` dan berwarna kuning berarti sebagian
+jenis dokumen gagal dimuat: daftarnya belum lengkap, dan angkanya batas bawah, bukan jumlah
+sebenarnya. Di bawahnya **Favorit**,
 **Terakhir dibuka**, dan empat belas kelompok. Setiap judul kelompok bisa diklik untuk melipat
 isinya, dan keadaan lipatan itu diingat peramban Anda. Kelompok yang berisi lebih dari sepuluh
 layar (Penjualan, Pengadaan, Persediaan, Proyek, Keuangan) menampilkan delapan layar pertamanya
@@ -181,13 +184,14 @@ tampil walau letaknya di luar delapan itu, dan kotak **Saring menu** tetap menem
 **Rel ikon.** Tombol **«** di ujung kotak Saring menu menciutkan sidebar menjadi rel selebar ikon
 (64 px), dan **»** melebarkannya lagi; pilihan itu diingat **peramban ini**, bukan akun Anda. Pada
 tablet (761–1023 px) sidebar selalu berupa rel. Di rel, arahkan kursor ke ikon untuk melihat
-namanya; klik ikon sebuah kelompok membuka **beranda modulnya** — kartu semua layar modul itu —
-dan ikon Favorit atau Terakhir dibuka membuka menu lengkap di atas halaman (begitu pula tombol
-» di tablet). Klik di luar menu atau tekan Esc untuk menutupnya.
+namanya; klik ikon sebuah kelompok membuka **beranda modulnya** (§1.4a) — dan ikon Favorit atau
+Terakhir dibuka membuka menu lengkap di atas halaman (begitu pula tombol » di tablet). Klik di
+luar menu atau tekan Esc untuk menutupnya. Baris tetap di puncak sidebar (Beranda, Persetujuan,
+Pekerjaan Saya) tetap ada di puncak rel sebagai ikon; angka Persetujuan ikut tampil di ikonnya.
 
 | Kelompok | Isinya |
 |---|---|
-| Ringkasan | Beranda · Dasbor · Persetujuan · Tenggat · Kalender · Laporan Bebas (Beranda dan Persetujuan tergambar sebagai baris tetap di puncak sidebar) |
+| Ringkasan | Beranda · Dasbor · Persetujuan · Pekerjaan Saya · Tenggat · Kalender · Laporan Bebas (Beranda, Persetujuan, dan Pekerjaan Saya tergambar sebagai baris tetap di puncak sidebar) |
 | Penjualan | Pelanggan · Prospek · **Papan Pipeline** · **Aktivitas CRM** · Paket Tender · Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi |
 | Estimasi | AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja |
 | Engineering | Register Gambar · Persetujuan Gambar (SDS) · Persetujuan Material (SMS) · Transmittal · Ijin Pelaksanaan (IPP) · Lokasi Tapak |
@@ -214,19 +218,22 @@ yang hanya berisi **Log BBM & Jam Alat** — masing-masing memang satu-satunya b
 kelompok itu yang boleh mereka buka.
 
 **Bilah bawah di ponsel.** Pada lebar 760 px ke bawah, tempat sidebar menjadi laci, bagian
-bawah layar membawa empat tombol dalam jangkauan ibu jari: **Beranda**, **Persetujuan** (hanya
-bila Anda memegang hak menyetujui sesuatu, dengan angka yang sama seperti di sidebar), **Cari**
-(palet pencarian yang sama dengan Ctrl+K), dan **Menu** (laci yang sama dengan ikon Menu di
-bilah atas). Tanpa hak menyetujui, bilahnya tiga tombol. Panduan onboarding berdiri di atas
-bilah ini, bukan di belakangnya, dan laci yang terbuka menutupinya.
+bawah layar membawa empat tombol dalam jangkauan ibu jari, bagi semua orang: **Beranda**;
+**Persetujuan** bila Anda memegang hak menyetujui sesuatu (dengan angka yang sama seperti di
+sidebar) atau **Pekerjaan Saya** bila tidak (tanpa angka); **Cari** (palet pencarian yang sama
+dengan Ctrl+K); dan **Menu** (laci yang sama dengan ikon Menu di bilah atas). Penyetuju menemukan
+Pekerjaan Saya di baris tetap laci itu. Panduan onboarding berdiri di atas bilah ini, bukan di
+belakangnya, dan laci yang terbuka menutupinya.
 
 **Buat.** Tombol **`Buat`** di bilah atas membuka daftar formulir buat-baru — tombol
 **`Tambah …`** dari daftar-daftar yang boleh Anda buka, dikumpulkan di satu tempat. Saat Anda
 berada di sebuah modul, formulir modul itu yang tampil lebih dulu (paling banyak delapan);
-di luar modul, yang tampil adalah jenis dokumen yang baru-baru ini Anda buka. Formulir
-berbaris (PO, PR, dan sejenisnya) dan formulir panjang (lebih dari delapan kolom — pelanggan,
-vendor, karyawan, proyek, aset, tiket, NCR, …) terbuka sebagai halaman, yang pendek sebagai dialog —
-sama persis dengan tombol Tambah di daftarnya. Di bawah 1200 px tombol ini hanya ikon `+`.
+di luar modul, yang tampil adalah jenis dokumen yang baru-baru ini Anda buka, dan bila belum ada
+yang dibuka, enam formulir pertama dalam urutan menu. Daftar yang sama dipakai kotak
+**Aksi cepat** di Beranda (§1.4a). Formulir berbaris (PO, PR, dan sejenisnya) dan formulir
+panjang (lebih dari delapan kolom — pelanggan, vendor, karyawan, proyek, aset, tiket, NCR, …)
+terbuka sebagai halaman, yang pendek sebagai dialog — sama persis dengan tombol Tambah di
+daftarnya. Di bawah 1200 px tombol ini hanya ikon `+`.
 Kalau Anda tidak boleh membuat apa pun, tombolnya tidak ada.
 
 **Tema** dipilih di **dialog Akun**: *Ikuti perangkat*, *Terang*, atau *Gelap* — berlaku
@@ -246,11 +253,59 @@ ganti email, foto, atau pengaturan pemberitahuan.
 `Halaman "…" tidak ditemukan.` dengan tombol **`Ke dasbor`**. Layar yang izinnya tidak
 Anda pegang menghasilkan `Anda tidak memiliki hak akses "<modul>.view" untuk halaman ini.`
 
-### 1.4a Beranda — peluncur modul
+### 1.4a Beranda — ruang kerja Anda, lalu pintu ke modul
 
-**Beranda** (`#/home`) adalah satu halaman berisi **satu ubin per modul yang boleh Anda
-buka**. Tiap ubin membawa nama modul, jumlah layarnya, dan **satu angka utama** — angka
-yang paling menuntut tindakan di modul itu:
+**Beranda** (`#/home`) membuka dengan apa yang menunggu Anda, baru kemudian pilihan modul.
+Kepalanya bertuliskan **Beranda** dengan tombol **`Dasbor`**; di bawahnya, dari atas ke bawah:
+
+1. **Kotak cari** (*"Cari modul atau layar…"*) — menyaring modul DAN layar sekaligus; Enter
+   membuka hasil pertama.
+2. **Perlu tindakan Anda** — dokumen yang menunggu keputusan Anda dan tenggat yang sudah lewat.
+3. **Aksi cepat** — formulir buat-baru yang paling mungkin Anda butuhkan. Hanya ada bila peran
+   Anda boleh membuat sesuatu.
+4. **Angka** — sampai empat angka utama modul.
+5. **Favorit** dan **Terakhir dibuka**, masing-masing hanya bila Anda punya isinya.
+6. **Bidang kerja** — satu ubin per modul yang boleh Anda buka.
+
+**Perlu tindakan Anda.** Di bawah judulnya ada satu baris hitungan, misalnya
+*"4 dokumen menunggu keputusan Anda · 2 tenggat sudah lewat"*. Bagian pertamanya hanya ada bila
+peran Anda memegang hak menyetujui sesuatu, dan angkanya bertanda `+` bila sebagian jenis
+dokumen gagal dimuat (daftarnya belum lengkap, §1.4). **`—`** menggantikan angka yang sumbernya
+gagal atau belum menjawab. Yang dihitung sebagai "tenggat" adalah **baris** tenggat berstatus
+**Lewat** (§1.7c) — jumlah yang sama dengan hitungan Lewat di layar Tenggat — dan hanya yang bisa
+Anda tindak: ERP mengirim tenggat dari modul yang izin ubah, buat, atau setujuinya Anda pegang.
+
+Di bawahnya kartu, yang paling lama menunggu di atas: paling banyak **dua dokumen** yang paling
+lama menunggu keputusan Anda — tombol **`Tinjau & putuskan`** membuka halaman dokumennya — dan
+paling banyak **tiga tenggat** yang sudah lewat, yang paling lama lewat lebih dulu — tombol
+**`Tindak lanjuti`** membuka layar daftar tempat tenggat itu dibereskan (mis. daftar penawaran),
+bukan satu dokumen. Kedua jenis kartu diurutkan bersama. Di dasarnya dua tautan: **Semua persetujuan →** (hanya bagi penyetuju) dan
+**Semua tenggat →**. Bila tidak ada apa pun yang menunggu, yang tampil
+*"Tidak ada yang perlu ditindak"* — bagi peran yang tidak menyetujui apa pun,
+*"Tidak ada tenggat yang lewat"*. Tenggat yang jatuh tempo **hari ini** ditulis *"jatuh tempo hari ini"*. Dokumen Anda **sendiri** yang ditolak tidak tampil di sini;
+tempatnya **Pekerjaan Saya** (§1.4f).
+
+**Sumber yang gagal mengaku gagal.** Persetujuan dan tenggat dimuat terpisah, dan yang satu tidak
+menunggu yang lain. Bila persetujuan gagal, satu kalimat menggantikan kartunya:
+*"Persetujuan tidak dapat dimuat sekarang — daftarnya di Persetujuan tetap bisa dibuka."* — kartu
+tenggat tetap tampil. Bila tenggat yang gagal, *"Tenggat tidak dapat dimuat sekarang."* — kartu
+persetujuan tetap tampil. Kegagalan tidak pernah dibaca sebagai "tidak ada yang perlu ditindak". Hal yang sama berlaku bila
+pemindaian tenggat melewati sebagian pemeriksaan (*"Pemindaian tenggat belum lengkap: sebagian
+pemeriksaan dilewati."*) atau bila ada temuan **tanpa tanggal** (mis. karyawan PKWT tanpa tanggal
+akhir): satu kalimat (*"N temuan tanpa tanggal — lihat Tenggat."*) menunjuk layar Tenggat, dan
+keadaan "tidak ada yang perlu ditindak" tidak ditampilkan di atasnya.
+
+**Aksi cepat.** Sampai enam tombol **`Buat …`** (diikuti nama jenis dokumennya) yang membuka
+formulir buat-baru. Sumbernya sama dengan tombol **`Buat`** di bilah atas (§1.4): jenis dokumen
+yang baru-baru ini Anda buka, dan bila belum ada, enam formulir pertama dalam urutan menu.
+
+**Angka.** Sampai empat angka utama dari modul yang angkanya boleh Anda lihat, dalam urutan menu
+dan tanpa Ringkasan (angkanya sama dengan lonceng). Tiap angka membawa nama dan satuannya,
+bertanda **`—`** bila tidak diketahui (namanya tetap tertulis), dan membuka halaman modulnya.
+Angka yang sama juga dibawa ubin di bawahnya.
+
+**Bidang kerja** adalah satu ubin per modul yang boleh Anda buka. Tiap ubin membawa nama modul,
+jumlah layarnya, dan **satu angka utama** — angka yang paling menuntut tindakan di modul itu:
 
 | Modul | Angka di ubinnya |
 |---|---|
@@ -275,9 +330,6 @@ ketika hitungannya gagal — dan **namanya tetap tertulis di bawah tanda itu**, 
 Anda baca adalah "— Job gagal": kami memberi tahu angka apa yang tidak diketahui, bukan
 sekadar bahwa ada yang tidak diketahui. Angka `0` selalu berarti benar-benar nol.
 
-Di atas ubin ada **kotak cari** yang menyaring modul DAN layar sekaligus (Enter membuka
-hasil pertama), lalu baris **Favorit** dan **Terakhir dibuka** bila Anda punya isinya.
-
 **Halaman pertama sesudah masuk adalah Beranda, di setiap lebar layar.** (Sampai Oktober 2026
 layar lebar membuka Dasbor dan hanya ponsel yang membuka Beranda.) Dasbor tetap satu klik: baris
 **Dasbor** di kelompok Ringkasan, atau tombol **Dasbor** di kepala Beranda. Panduan onboarding
@@ -286,12 +338,36 @@ tab yang dipulihkan peramban) selalu menang atas aturan ini. Kapan pun, ikon rum
 dan baris **Beranda** di puncak sidebar membawa Anda ke sana. Dari Beranda, Lapangan hanya **dua ketukan**:
 ubin **Proyek** → kartu **Lapangan (mobile)**.
 
-**Beranda modul** (`#/m/<modul>`, dibuka dari ubin atau dari remah roti pertama) kini juga
-memimpin dengan angkanya: angka utama modul plus — untuk Proyek dan Keuangan — sampai tiga
-angka tambahan yang sudah ada di dasbor (nilai kontrak berjalan; piutang, utang, tagihan
-vendor terbuka). Di bawahnya ada **Terakhir dibuka** untuk modul itu ("Belum ada yang
-dibuka." bila memang belum) dan kartu layarnya, masing-masing dengan **bintang** untuk
-menambahkannya ke Favorit.
+**Beranda modul** (`#/m/<modul>`, dibuka dari ubin, dari sebuah angka di **Angka**, atau dari
+remah roti pertama) adalah halaman kerja satu modul. Dari atas ke bawah:
+
+- **Kepala** berwarna modul itu: tulisan kecil **Modul**, nama modul, dan satu kalimat tentangnya.
+- **Alur** diikuti nama modul — hanya bagi modul yang punya peta urutan; hari ini hanya
+  **Alur Pengadaan** (di bawah).
+- **Angka utama** modul; untuk Proyek dan Keuangan ditambah sampai tiga angka yang sudah ada di
+  dasbor (nilai kontrak berjalan; piutang, utang, tagihan vendor terbuka).
+- **Perlu perhatian** — bagi penyetuju satu baris seperti
+  *"1 dokumen Pengadaan menunggu keputusan Anda"* (membuka Persetujuan; angkanya `N+` bila
+  daftarnya belum lengkap), lalu satu baris untuk tiap tenggat modul itu yang sudah lewat atau
+  segera jatuh tempo, yang lewat lebih dulu. Tanpa keduanya: *"Tidak ada yang perlu perhatian"*.
+  Sumber yang gagal ditulis satu kalimat dan tidak pernah dibaca sebagai "tidak ada"; begitu pula
+  temuan tanpa tanggal (*"N temuan tanpa tanggal — lihat Tenggat."*). Beranda modul **Ringkasan**
+  tidak punya bagian ini: isinya lintas modul, dan itu pekerjaan **Perlu tindakan Anda** di Beranda.
+- **Terakhir dibuka** untuk modul itu (*"Belum ada yang dibuka."* bila memang belum).
+- Judul **Semua layar** diikuti nama modul (mis. *Semua layar Proyek*), dan di bawahnya kartu
+  semua layar yang boleh Anda buka, masing-masing dengan **bintang** untuk menambahkannya ke
+  Favorit.
+
+**Alur Pengadaan** menggambar urutan lazim enam layar sebagai deretan tahap: Permintaan (PR) →
+RFQ → BA Negosiasi → Keputusan Pemenang → Pesanan (PO) → Penerimaan (GRN). Sebuah tahap menjadi
+tautan hanya bila layarnya boleh Anda buka. **Hanya tahap Pesanan (PO) yang membawa angka** — PO
+terbuka, sama dengan ubin Pengadaan; tahap lain tidak menampilkan angka, dan PO bertanda `—` bila
+angkanya gagal dimuat. Catatan di bawahnya berbunyi *"Urutan lazim, bukan wajib"*: pembelian
+langsung, penunjukan langsung, RFQ, dan tender menempuh jalan yang berbeda. Tiga aturan yang
+ditegakkan server disebutnya: PO yang lahir dari RFQ baru bisa disetujui setelah
+Keputusan Pemenang untuk vendornya disetujui; vendor yang belum lolos prakualifikasi hanya bisa
+dipesan dengan alasan yang tercatat; PO tanpa PR wajib menulis alasannya. Modul lain belum punya
+alur.
 
 **Favorit dan Terakhir dibuka mengikuti akun Anda,** bukan peramban: bintang yang Anda
 pasang di komputer kantor ada juga di tablet lapangan, dan membersihkan data peramban tidak
@@ -496,6 +572,48 @@ Anda memakai versi baru. Menunda tidak merusak apa pun — pesan itu bertahan sa
 —, tetapi selesaikan dulu formulir yang sedang Anda isi. Beberapa rilis berturut-turut tetap hanya
 menyisakan **satu** pesan, dan tombolnya selalu memasang versi terbaru.
 
+### 1.4f Pekerjaan Saya — dokumen yang Anda ajukan
+
+**Persetujuan** menjawab "apa yang menunggu keputusan *saya*". **Pekerjaan Saya** (`#/pekerjaan`)
+menjawab kebalikannya: **di mana dokumen yang saya ajukan sendiri sekarang.** Barisnya ada di
+sidebar tepat di bawah Persetujuan, bagi semua orang — tidak butuh izin khusus — dan di ponsel
+menjadi tombol kedua bilah bawah bagi yang bukan penyetuju (§1.4). Dua layar ini tidak saling
+menggantikan: dokumen yang Anda ajukan dan masih menunggu ada di **Pekerjaan Saya** milik Anda
+dan di **Persetujuan** milik penyetujunya.
+
+Yang tampil adalah dokumen yang **Anda ajukan**, yang tercatat Anda sebagai pembuatnya, atau yang
+atas nama karyawan Anda sendiri (mis. pengajuan cuti), dan hanya dari jenis dokumen yang boleh Anda
+lihat. Semuanya dibaca dari satu permintaan, dalam dua tab:
+
+| Tab | Isinya | Tombol di barisnya |
+|---|---|---|
+| **Perlu diperbaiki** | Dokumen Anda yang **ditolak** penyetuju. Barisnya menyebut siapa yang menolak, kapan, dan catatannya. | **`Perbaiki`** bila halaman dokumennya memang menawarkan **`Ubah`** kepada Anda (hampir semua jenis dokumen; tidak untuk Keputusan Pemenang, yang hanya bisa diubah saat Draf, §5.12, dan tidak bila Anda tidak memegang hak ubahnya; aturan umumnya di §2.6) — selain itu **`Lihat`**. Keduanya membuka halaman dokumennya |
+| **Menunggu orang lain** | Dokumen Anda yang sudah diajukan dan belum diputuskan. Barisnya menyebut sudah berapa hari ia menunggu. | **`Lihat`** — membuka halaman dokumennya |
+
+Setiap baris memuat kode, judul, jenis dokumen, lencana status, nilai, dan satu kalimat keadaan.
+Untuk dokumen yang **ditolak**, kalimatnya sama dengan yang ditulis halaman dokumennya sendiri: kata
+*Ditolak*, tanggalnya, nama penolaknya, dan catatannya. Untuk dokumen yang **menunggu**, bunyinya
+*"Diajukan (tanggal) oleh (nama pengaju) · menunggu persetujuan."* — *"oleh Anda"* bila Anda
+sendiri pengajunya; bila pengajunya tidak tercatat (mis. dokumen dari impor), baris hanya berbunyi
+*"Diajukan · menunggu persetujuan."* Halaman dokumennya menulis *"(n dari m tingkat)"* bila
+dokumennya berjenjang, yang tidak ada di baris ini. Pada kedua jenis baris, satu petunjuk status singkat (mis. *"Menunggu keputusan penyetuju."*)
+dapat menyusul, dan baris yang menunggu menutup dengan *"Sudah n hari."* Seluruh barisnya bisa diklik;
+tombol di halaman dokumen itu tetap mengikuti izin Anda (§2.5). Layar membuka pada tab pertama
+yang berisi, dan pada **Perlu diperbaiki** bila keduanya kosong. Tombol **`Muat ulang`** di kepala
+halaman menanyakan ulang.
+
+**Daftar yang gagal mengaku gagal.** Angka di tab bertanda `n+` bila sebagian jenis dokumen gagal
+dimuat; sebuah spanduk menyebut yang gagal (*"Gagal dimuat: …. Daftar ini belum lengkap."*), dan
+tab yang kosong saat itu berkata *"Daftar belum lengkap"*, bukan "tidak ada". Bila seluruh
+permintaannya gagal, layar menulis galatnya dan angka di kedua tab tetap `—`. Hanya tab yang
+benar-benar kosong yang berkata *"Tidak ada yang perlu diperbaiki"* atau
+*"Tidak ada yang menunggu orang lain"*.
+
+**Yang tidak ada di layar ini:** draf yang belum Anda ajukan (cari di tab **Draf** pada layar
+daftar jenis dokumennya, §2.1) dan dokumen yang sudah disetujui lalu menunggu dokumen lanjutan —
+ERP tidak menyatakan apakah dokumen lanjutannya sudah dibuat (§2.4). Baris Pekerjaan Saya di
+sidebar dan di bilah bawah tidak membawa angka.
+
 ### 1.5 Pencarian
 
 1. Tekan **Ctrl+K** (atau **Cmd+K** di Mac), atau klik **`Cari`** di bilah atas.
@@ -565,13 +683,19 @@ Yang perlu Anda ketahui tentang lonceng:
 
 ### 1.7 Tiga pintu tempat pekerjaan sampai kepada Anda
 
-Ketiganya menjawab pertanyaan yang berbeda. Pakailah ketiganya.
+Ketiganya menjawab pertanyaan yang berbeda. **Beranda** mengumpulkan cuplikan dua di antaranya
+— **a** dan **c** — di layar pertama Anda, pada bagian **Perlu tindakan Anda** (§1.4a), jadi untuk
+memulai hari Anda tidak perlu membuka ketiganya satu per satu. Tetapi itu cuplikan: dua dokumen
+dan tiga tenggat saja. Daftar lengkapnya tetap di **Persetujuan** dan **Tenggat**, dan hanya
+lonceng yang memberi tahu peristiwa. Pertanyaan keempat — *dokumen saya sendiri sekarang di
+mana?* — dijawab **Pekerjaan Saya**, yang bukan salah satu pintu ini (§1.4f).
 
 **a. Dasbor → widget "Menunggu persetujuan Anda"** — kotak masuk persetujuan. Berisi
 dokumen berstatus **Diajukan** yang boleh Anda setujui, yang paling lama menunggu di atas.
 Widget menampilkan **lima baris** dengan tombol **`Lihat semua (n)`** di bawahnya; daftar
 penuhnya ada di **Persetujuan**, baris tetap di puncak sidebar (sampai Oktober 2026 bernama
-"Tugas Saya"). Klik baris untuk membukanya.
+"Tugas Saya" — bukan **Pekerjaan Saya**, yang memuat dokumen Anda sendiri). Klik baris untuk
+membukanya.
 
 Kartu ini mencakup **seluruh 29 jenis dokumen** yang punya alur persetujuan — termasuk
 pembayaran, pekerjaan tambah-kurang, BAST, addendum SPK, baseline proyek, pengajuan cuti,
@@ -581,8 +705,8 @@ pernah terlihat oleh orang yang berhak menyetujuinya; sejak itu satu permintaan 
 seluruh registri.
 
 Bila salah satu sumber gagal dimuat, kartu berkata *"Tidak ada dokumen yang dapat
-ditampilkan"* dan **menyebut sumber yang gagal** di bawahnya ("Gagal dimuat: … Daftar ini
-belum lengkap."). **Daftar yang pendek bukan bukti tidak ada yang menunggu.**
+ditampilkan"* dan **menyebut sumber yang gagal** di bawahnya ("Gagal dimuat: …
+Daftar ini belum lengkap."). **Daftar yang pendek bukan bukti tidak ada yang menunggu.**
 
 Widget ini hanya digambar bagi pemegang hak `.approve` mana pun. Bila peran Anda tidak
 menyetujui apa pun, kartunya tidak ada — dan permintaannya pun tidak dikirim.
@@ -923,7 +1047,11 @@ daftarnya — ERP tidak menyatakan apakah dokumen lanjutannya sudah atau belum d
 Notifikasi sukses selalu berbentuk `<Label tombol> berhasil.`
 
 **Ditolak mengembalikan dokumen ke keadaan bisa diubah.** Penolakan bukan akhir dokumen —
-ia adalah cara resmi membuka kembali dokumen yang sudah terlanjur diajukan.
+ia adalah cara resmi membuka kembali dokumen yang sudah terlanjur diajukan. Dokumen Anda sendiri
+yang ditolak terkumpul di **Pekerjaan Saya**, tab **Perlu diperbaiki** (§1.4f): barisnya menyebut
+siapa yang menolak, kapan, dan catatannya, dan tombol **`Perbaiki`** membuka halaman dokumennya —
+tempat **`Ubah`** biasanya tersedia (kecuali jenis yang hanya bisa diubah saat Draf, mis. Keputusan
+Pemenang, §5.12; lihat §2.6) dan, sesudah dibetulkan, **`Ajukan`** (tabel di atas).
 
 **Kartu Riwayat Persetujuan** di kolom kanan menampilkan garis waktu Diajukan (kuning) /
 Disetujui (hijau) / Ditolak (merah) beserta nama orang, waktu, dan catatannya. Dua

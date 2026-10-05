@@ -41,11 +41,16 @@ class MyWorkTest extends ErpTestCase
         $this->assertNotNull($fix['decided_at']);
         $this->assertSame("#/d/procurement/purchase-requisitions/{$rejected->id}", $fix['link']);
         $this->assertSame('Ditolak', $fix['title']);
-        foreach (['id', 'code', 'label', 'resource', 'title', 'amount', 'submitted_at', 'days_waiting', 'link', 'status', 'bucket'] as $key) {
+        foreach (['id', 'code', 'label', 'resource', 'title', 'amount', 'submitted_at', 'submitted_by', 'submitted_by_id', 'days_waiting', 'link', 'status', 'bucket'] as $key) {
             $this->assertArrayHasKey($key, $rows[1], "Baris waiting kehilangan {$key} (bentuk baris kotak masuk).");
         }
         $this->assertArrayNotHasKey('note', $rows[1]);
         $this->assertNotNull($response->json('meta.as_of'));
+
+        // UX-F2 (review): siapa yang mengajukan dikirim server, supaya layar tidak mengarang "oleh Anda".
+        $this->assertSame($maker->name, $rows[1]['submitted_by']);
+        $this->assertSame($maker->id, $rows[1]['submitted_by_id']);
+        $this->assertSame($maker->id, $rows[0]['submitted_by_id']);
     }
 
     public function test_another_users_documents_are_not_offered(): void
@@ -77,7 +82,10 @@ class MyWorkTest extends ErpTestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.code', $pr->code)
-            ->assertJsonPath('data.0.bucket', 'waiting');
+            ->assertJsonPath('data.0.bucket', 'waiting')
+            // Tanpa baris pengajuan: pengaju TIDAK diketahui — null, bukan nama pemanggil (UX-F2 review).
+            ->assertJsonPath('data.0.submitted_by', null)
+            ->assertJsonPath('data.0.submitted_by_id', null);
     }
 
     public function test_a_type_that_throws_lands_in_meta_failed_and_the_rest_still_answers(): void

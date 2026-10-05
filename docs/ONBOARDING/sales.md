@@ -44,10 +44,29 @@ Bab PANDUAN yang menjadi milik Anda (PANDUAN §0): **1, 2, 3** — dan bab 3 ber
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2) —
 penawaran 40 baris pun aman: drafnya ikut bertahan di peramban.
 
+**Layar pertama** — sesudah masuk Anda mendarat di **Beranda** (`#/home`), di lebar layar
+mana pun; **Dasbor** satu klik dari sana, lewat tombol **`Dasbor`** di kepala Beranda. Di
+bawah kotak cari, Beranda memuat **Perlu tindakan Anda**, **Aksi cepat** (paling banyak
+enam tombol **`Buat <jenis>`**, sumbernya sama dengan tombol **`Buat`** di bilah atas),
+**Angka**, baris Favorit dan Terakhir dibuka bila sudah ada isinya, lalu **Bidang kerja**
+— satu ubin per modul yang boleh Anda buka. Anda tidak menyetujui apa pun, jadi
+**Perlu tindakan Anda** hanya memuat tenggat yang sudah lewat (tombol
+**`Tindak lanjuti`**) dan berbunyi *"Tidak ada tenggat yang lewat"* bila tidak ada.
+Penawaran dan CCO Anda yang ditolak atau masih menunggu orang lain tidak ada di Beranda,
+melainkan di **Pekerjaan Saya** — baris tetap di puncak sidebar, dengan tab
+**Perlu diperbaiki** (ditolak penyetuju) dan tab **Menunggu orang lain** (belum
+diputuskan).
+
+**Di ponsel** (≤ 760 px), bilah bawah memuat empat tombol: **Beranda**,
+**Pekerjaan Saya**, **Cari**, **Menu** — **Pekerjaan Saya** menempati tempat yang bagi
+penyetuju diisi **Persetujuan**.
+
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
 
-- **Ringkasan** — Dasbor · Tenggat · Kalender.
+- **Ringkasan** — Dasbor · Tenggat · Kalender. Baris tetap **Beranda** dan
+  **Pekerjaan Saya** tergambar di puncak sidebar, di atas semua kelompok; baris
+  **Persetujuan** tidak ada bagi Anda — ia hanya untuk pemegang izin menyetujui.
 - **Penjualan** — kesebelas layarnya milik Anda: Pelanggan · Prospek · Paket Tender ·
   Penawaran · Lembar TKDN · RKK Penawaran · Penyusun Kualifikasi · Kontrak · Pekerjaan
   Tambah-Kurang · Analitik Win-Rate · Jaminan & Asuransi.
@@ -65,25 +84,28 @@ layar yang akan Anda pakai minggu ini, per kelompok:
 Kelompok Estimasi, Mutu, Pengadaan, Persediaan, Subkontrak, Keuangan, dan SDM tidak ada di
 sidebar Anda. BOQ di balik penawaran Anda dibaca estimator, bukan Anda.
 
-**Dasbor Anda** (PANDUAN §1.7):
+**Dasbor Anda** — satu klik dari Beranda (PANDUAN §1.7):
 
 - Ubin **Proyek berjalan** (jumlah dan nilai kontrak) dan **Tiket aktif** (dengan *"n
   melewati SLA"* atau *"SLA aman"*). Tombol **`Proyek saya`** hanya digambar bila akun
   Anda ditautkan ke data karyawan; pada akun demo `sales` ia tidak ada.
-- Kartu **Menunggu persetujuan Anda** — **selalu berbunyi** *"Tidak ada dokumen yang
-  menunggu persetujuan."* untuk Anda. Kabar penawaran dan CCO Anda disetujui atau ditolak
-  datang lewat **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat lencana
-  status di daftarnya.
+- Kartu **Menunggu persetujuan Anda** **tidak digambar untuk Anda** — kartu itu hanya ada
+  bagi pemegang izin `.approve`, dan Anda tidak menyetujui apa pun. Kabar penawaran dan CCO
+  Anda disetujui atau ditolak datang lewat **lonceng** (lencana Disetujui hijau / Ditolak
+  merah) dan lewat lencana status di daftarnya.
 - Kartu **Kalender Acara** (selalu digambar), **Progres proyek** (bila ada proyek
   berjalan), dan **Tiket layanan aktif** (bila ada tiket terbuka).
 
-**Lonceng dan Tenggat** — yang ditujukan kepada peran Anda (PANDUAN §1.7), tiga saja:
+**Lonceng dan Tenggat** — yang ditujukan kepada peran Anda (PANDUAN §1.7): empat tenggat
+dokumen, ditambah satu pengawas lampiran:
 
 | Tenggat | Diperingatkan | Catatan |
 |---|---|---|
+| Aktivitas CRM mendekati jatuh tempo | 3 hari | hanya aktivitas yang belum selesai |
 | Paket tender mendekati batas pemasukan | 7 hari | hari batasnya masih "hari ini" |
 | Penawaran mendekati akhir masa berlaku | 14 hari | hilang saat ditandai Menang/Kalah |
 | Kontrak layanan mendekati akhir periode | 60 hari | layarnya baca saja bagi Anda |
+| Lampiran Penjualan mendekati akhir masa berlaku (lalu: lewat masa berlaku) | 30 hari | masa berlaku **berkas** yang diberi **`Masa berlaku (opsional)`** pada penawaran, paket tender, kontrak, atau jaminan — bukan tanggal berakhir kontrak atau jaminannya |
 
 Yang **tidak** sampai kepada Anda: **Kontrak mendekati tanggal berakhir** dan **Jaminan &
 asuransi mendekati berakhir** — keduanya bergerbang `crm.approve`, jadi hanya direktur dan
@@ -100,7 +122,7 @@ yang paling cepat habis. Batas pemasukan tender adalah satu-satunya tenggat di s
    sederhana: Anda tidak menyetujui apa pun.
 4. Yang sudah diposting tidak punya tombol batal — di lajur Anda, `Tandai Kalah` dan
    `Aktifkan Kontrak` (oleh direktur) adalah titik tanpa jalan kembali.
-5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (§14).
 6. Sesi 12 jam; isian yang belum disimpan bertahan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2).
 
 ## 3. Pekerjaan Anda
@@ -363,9 +385,11 @@ alamat), **kode dokumen**, **teks merah persis**, dan **tombol yang Anda tekan**
 sekaligus. Bila yang hilang adalah tombolnya, sebutkan itu: tombol yang tidak ada hampir
 selalu berarti izin, bukan kerusakan.
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** yang menampilkan penawaran dan
-> CCO Anda yang ditolak dan yang menunggu dalam satu permintaan; draf formulir (termasuk
-> penawaran) yang bertahan di peramban saat sesi habis; catatan persetujuan inline tanpa
-> dialog; dan ganti kata sandi sendiri. Sampai rilis itu tayang, halaman ini menggambarkan
-> yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**. Redesain itu
+> belum dirilis; bagian 2 di atas sudah menulis layar sesudahnya, jadi tampilan di erp1
+> bisa berbeda. Yang ia tambahkan untuk peran Anda: **Beranda** sebagai ruang kerja
+> (**Perlu tindakan Anda**, bagi Anda tenggat yang sudah lewat; **Aksi cepat**; **Angka**)
+> di atas ubin **Bidang kerja**; baris tetap **Pekerjaan Saya** di sidebar, yang
+> mengumpulkan penawaran dan CCO Anda yang ditolak (tab **Perlu diperbaiki**) dan yang
+> masih menunggu orang lain (tab **Menunggu orang lain**); dan bilah bawah ponsel berisi
+> empat tombol (**Beranda**, **Pekerjaan Saya**, **Cari**, **Menu**).

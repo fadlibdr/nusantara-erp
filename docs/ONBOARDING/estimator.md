@@ -40,10 +40,28 @@ menyusun AHSP/BOQ/RAP, dan drafter yang mendaftarkan gambar serta menyiapkan sub
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2) —
 AHSP 40 baris pun aman: drafnya ikut bertahan di peramban.
 
+**Layar pertama** — sesudah masuk Anda mendarat di **Beranda** (`#/home`), di lebar layar
+mana pun; **Dasbor** satu klik dari sana, lewat tombol **`Dasbor`** di kepala Beranda. Di
+bawah kotak cari, Beranda memuat **Perlu tindakan Anda**, **Aksi cepat** (paling banyak
+enam tombol **`Buat <jenis>`**, sumbernya sama dengan tombol **`Buat`** di bilah atas),
+**Angka**, baris Favorit dan Terakhir dibuka bila sudah ada isinya, lalu **Bidang kerja**
+— satu ubin per modul yang boleh Anda buka. Anda tidak menyetujui apa pun, jadi
+**Perlu tindakan Anda** hanya memuat tenggat yang sudah lewat (tombol
+**`Tindak lanjuti`**) dan berbunyi *"Tidak ada tenggat yang lewat"* bila tidak ada.
+Dokumen Anda yang ditolak atau masih menunggu orang lain tidak ada di Beranda, melainkan
+di **Pekerjaan Saya** — baris tetap di puncak sidebar, dengan tab **Perlu diperbaiki**
+(ditolak penyetuju) dan tab **Menunggu orang lain** (belum diputuskan).
+
+**Di ponsel** (≤ 760 px), bilah bawah memuat empat tombol: **Beranda**,
+**Pekerjaan Saya**, **Cari**, **Menu** — **Pekerjaan Saya** menempati tempat yang bagi
+penyetuju diisi **Persetujuan**.
+
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
 
-- **Ringkasan** — Dasbor · Tenggat · Kalender.
+- **Ringkasan** — Dasbor · Tenggat · Kalender. Baris tetap **Beranda** dan
+  **Pekerjaan Saya** tergambar di puncak sidebar, di atas semua kelompok; baris
+  **Persetujuan** tidak ada bagi Anda — ia hanya untuk pemegang izin menyetujui.
 - **Penjualan** — Paket Tender · Penawaran · Lembar TKDN · Penyusun Kualifikasi —
   **baca saja**: tidak ada tombol Tambah untuk Anda di kelompok ini.
 - **Estimasi** — AHSP · BOQ / RAB · RAP · Riwayat Harga Satuan · Pustaka Metode Kerja.
@@ -58,18 +76,24 @@ layar yang akan Anda pakai minggu ini, per kelompok:
 
 Kelompok Pengadaan, Persediaan, Keuangan, Subkontrak, dan Mutu tidak ada di sidebar Anda.
 
-**Dasbor Anda** (PANDUAN §1.7):
+**Dasbor Anda** — satu klik dari Beranda (PANDUAN §1.7):
 
 - Ubin **Proyek berjalan**; kartu **Progres proyek** (bila ada proyek berjalan) dan
   **Kalender Acara**.
-- Kartu **Menunggu persetujuan Anda** — **selalu kosong untuk Anda**, karena Anda tidak
-  menyetujui apa pun. Kabar bahwa BOQ/RAP Anda disetujui atau ditolak datang lewat
-  **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat kolom Status di daftar.
+- Kartu **Menunggu persetujuan Anda** **tidak digambar untuk Anda** — kartu itu hanya ada
+  bagi pemegang izin `.approve`, dan Anda tidak menyetujui apa pun. Kabar bahwa BOQ/RAP
+  Anda disetujui atau ditolak datang lewat **lonceng** (lencana Disetujui hijau / Ditolak
+  merah) dan lewat kolom Status di daftar.
 
-**Lonceng dan Tenggat:** **tidak ada satu pun tenggat yang ditujukan kepada peran Anda.**
-Sembilan belas tenggat di layar Tenggat disaring menurut izin, dan tidak satu pun memakai
-izin estimasi atau engineering — layar itu kosong untuk Anda. Batas pemasukan paket tender
-diperingatkan kepada `sales` (izin buat penjualan), bukan kepada Anda; bacalah kolom
+**Lonceng dan Tenggat:** **tidak ada tenggat dokumen yang ditujukan kepada peran Anda.**
+Layar Tenggat disaring menurut izin, dan tidak satu pun tenggat dokumen memakai izin
+estimasi atau engineering. Yang sampai kepada Anda hanya pengawas masa berlaku lampiran
+(PANDUAN §1.7): berkas yang diberi **`Masa berlaku (opsional)`** pada dokumen Estimasi atau
+Engineering muncul sebagai *"Lampiran Estimasi mendekati akhir masa berlaku"* (30 hari di
+muka) dan, setelah lewat, *"Lampiran Estimasi lewat masa berlaku"* — begitu pula untuk
+Engineering. Berkas tanpa masa berlaku (hampir semuanya) tidak pernah muncul, jadi layar
+itu kosong untuk Anda selama tidak ada lampiran yang bertanggal. Batas pemasukan paket
+tender diperingatkan kepada `sales` (izin buat penjualan), bukan kepada Anda; bacalah kolom
 **Batas pemasukan** di `Penjualan › Paket Tender`, yang diurutkan dari yang paling cepat
 jatuh tempo (§3.5a).
 
@@ -82,7 +106,7 @@ jatuh tempo (§3.5a).
    sederhana: Anda tidak menyetujui apa pun.
 4. Yang sudah diposting tidak punya tombol batal — pada modul Anda, yang sepadan: BOQ
    yang disetujui membekukan harganya selamanya.
-5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (§14).
 6. Sesi 12 jam; simpan dokumen panjang bertahap.
 
 ## 3. Pekerjaan Anda
@@ -267,7 +291,8 @@ keputusan Konsultan MK"*, bukan stempel karangan.
 - [ ] Saya tahu nama manajer proyek yang mencatat stempel MK pada submittal saya.
 - [ ] Saya sudah membuka satu Paket Tender dan membaca register dokumen lelangnya.
 - [ ] Saya sudah mencetak satu RAB / BOQ (F/RAB) dan satu Persetujuan Gambar (F/SD).
-- [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu bahwa ia kosong untuk peran saya.
+- [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu bahwa ia tidak memuat tenggat
+      dokumen untuk peran saya — hanya lampiran yang saya beri masa berlaku.
 
 ## 7. Bila tersangkut
 
@@ -289,9 +314,11 @@ alamat), **kode dokumen**, **teks merah persis**, dan **tombol yang Anda tekan**
 sekaligus. Bila yang hilang adalah tombolnya, sebutkan itu: tombol yang tidak ada hampir
 selalu berarti izin, bukan kerusakan.
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** yang menampilkan dokumen Anda
-> yang ditolak dan yang menunggu dalam satu permintaan; draf formulir (AHSP berbaris
-> banyak) yang bertahan di peramban saat sesi habis; catatan persetujuan inline tanpa
-> dialog; dan ganti kata sandi sendiri. Sampai rilis itu tayang, halaman ini menggambarkan
-> yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**. Redesain itu
+> belum dirilis; bagian 2 di atas sudah menulis layar sesudahnya, jadi tampilan di erp1
+> bisa berbeda. Yang ia tambahkan untuk peran Anda: **Beranda** sebagai ruang kerja
+> (**Perlu tindakan Anda**, bagi Anda tenggat yang sudah lewat; **Aksi cepat**; **Angka**)
+> di atas ubin **Bidang kerja**; baris tetap **Pekerjaan Saya** di sidebar, yang
+> mengumpulkan dokumen Anda yang ditolak (tab **Perlu diperbaiki**) dan yang masih
+> menunggu orang lain (tab **Menunggu orang lain**); dan bilah bawah ponsel berisi empat
+> tombol (**Beranda**, **Pekerjaan Saya**, **Cari**, **Menu**).
