@@ -77,6 +77,10 @@ class MyWork
 
                     $status = (string) ($attrs['status'] ?? '');
                     $submittedAt = $sub->created_at ?? ($attrs['updated_at'] ?? null);
+                    // Siapa yang mengajukan — sama dengan baris kotak masuk (`submitted_by`, `submitted_by_id`). NULL
+                    // bila dokumennya tidak punya baris pengajuan: layar tidak boleh mengarang "oleh Anda" untuk dokumen
+                    // yang diajukan orang lain atas nama karyawan ini (mis. cuti yang diketik petugas HR).
+                    $submitterId = $sub->user_id ?? null;
                     $row = [
                         'id' => $doc->getKey(),
                         'code' => $attrs['code'] ?? ('#'.$doc->getKey()),
@@ -85,6 +89,8 @@ class MyWork
                         'title' => ApprovalQueue::titleOf($attrs),
                         'amount' => ApprovalQueue::amountOf($attrs),
                         'submitted_at' => $submittedAt,
+                        'submitted_by' => $submitterId ? ($names[$submitterId] ?? null) : null,
+                        'submitted_by_id' => $submitterId ? (int) $submitterId : null,
                         'days_waiting' => $submittedAt ? (int) floor(abs(Carbon::parse($submittedAt)->diffInDays($now))) : null,
                         'link' => "#/d/{$entry['resource']}/{$doc->getKey()}",
                         'status' => $status,

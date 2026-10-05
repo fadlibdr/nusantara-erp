@@ -30,7 +30,14 @@ UX-E3 (argumen keempat "e3"): formulir halaman — PO baru sebagai procurement@ 
 kaki lengket, Lanjutan terlipat), PO baru sesudah "Simpan draf" kosong (ringkasan galat, titik
 merah), PO baru dengan satu baris dan Diskon (DPP hidup; di 390 kartu baris), Pelanggan baru
 sebagai sales@ (formulir panjang sebagai halaman) — terang dan gelap, 390 dan 1440 px. Tidak ada
-yang disimpan ke server. Berkas keluaran e3-<n>-<layar>-<tema>-<lebar>.jpg."""
+yang disimpan ke server. Berkas keluaran e3-<n>-<layar>-<tema>-<lebar>.jpg.
+
+UX-F2 (argumen keempat "f2"): Beranda sebagai ruang kerja (direktur@ dengan dua kartu persetujuan,
+procurement@ dengan dua kartu tenggat dan Aksi cepat, warehouse@ dengan keadaan kosong), Pekerjaan Saya
+sebagai procurement@ (dua PR yang ditanam lewat API: satu ditolak direktur, satu menunggu) dan sebagai
+warehouse@ (kosong), beranda modul Pengadaan dengan peta alur, dan bilah bawah warehouse@ di 390 px —
+terang dan gelap, 390 dan 1440 px. Dua PR uji tertinggal di salinan DB (jalankan di salinan, bukan DB
+hidup). Berkas keluaran f2-<n>-<layar>-<tema>-<lebar>.jpg."""
 import json, sqlite3, sys, time, urllib.request
 from playwright.sync_api import sync_playwright
 DB=sys.argv[1]; OUT=sys.argv[2]; BASE=sys.argv[3] if len(sys.argv)>3 else "http://127.0.0.1:8000/app/"; ONLY=sys.argv[4] if len(sys.argv)>4 else None
@@ -43,7 +50,7 @@ SCREENS=[ # name, role, hash (None = whatever the app lands on after login)
  ("6-pengadaan-modul","procurement@nusantara.test","#/m/prc"),
  ("7-lapangan","site-manager@nusantara.test","#/lapangan"),
 ]
-SCREENS=[x for x in SCREENS if not ONLY or x[0]==ONLY or ONLY in ("e1","e2","e3")]
+SCREENS=[x for x in SCREENS if not ONLY or x[0]==ONLY or ONLY in ("e1","e2","e3","f2")]
 VIEWS={"390":dict(viewport={"width":390,"height":844},is_mobile=True,has_touch=True,device_scale_factor=1),
        "1440":dict(viewport={"width":1440,"height":900})}
 con=sqlite3.connect(DB)
@@ -184,8 +191,58 @@ def e3_shots(b):
                 print(vname,name,"errs",errs[-2:],flush=True)
             ctx.close()
 
+def f2_shots(b):
+    """UX-F2 — Beranda, Pekerjaan Saya, beranda modul (lihat docstring)."""
+    api_base=BASE.split("/app/")[0]+"/api/"
+    def call(path,tok="",method="GET",body=None):
+        req=urllib.request.Request(api_base+path,method=method,headers={"Accept":"application/json","Content-Type":"application/json","Authorization":"Bearer "+tok},data=json.dumps(body).encode() if body is not None else None)
+        try:
+            with urllib.request.urlopen(req,timeout=30) as r: return r.status,json.loads(r.read().decode() or "{}")
+        except urllib.error.HTTPError as e: return e.code,json.loads(e.read().decode() or "{}")
+    def token(email):
+        for _ in range(6):
+            st,d=call("iam/auth/login","","POST",{"email":email,"password":"password"})
+            if st==200: return d["data"]["token"]
+            time.sleep(21)
+        raise SystemExit("login gagal "+email)
+    emails=("direktur@nusantara.test","procurement@nusantara.test","warehouse@nusantara.test")
+    con=sqlite3.connect(DB)
+    for e in emails: con.execute("UPDATE users SET onboarding_status='skipped', onboarding_seen_at=datetime('now') WHERE email=? AND onboarding_status IS NULL",(e,))
+    con.commit(); con.close()
+    tp,td=token(emails[1]),token(emails[0])
+    made={}
+    for tag in ("menunggu","ditolak"):
+        st,d=call("procurement/purchase-requisitions",tp,"POST",{"needed_date":"2026-12-01","purpose":f"UJI-F2 {tag}","items":[{"description":"Semen uji F2","qty":5,"unit":"sak","estimated_price":70000}]})
+        if st not in (200,201): print("fixture gagal",tag,st); continue
+        rid=d["data"]["id"]; made[tag]=rid; call(f"procurement/purchase-requisitions/{rid}/submit",tp,"POST",{})
+    if "ditolak" in made: call(f"procurement/purchase-requisitions/{made['ditolak']}/reject",td,"POST",{"note":"Spesifikasi kurang jelas, perbaiki."})
+    SHOTS=[ # name, email, hash, wait-selector, only-390
+     ("1-beranda-direktur",emails[0],"#/home","#view .home-card, #view #perlu-tindakan .empty",False),
+     ("2-beranda-procurement",emails[1],"#/home","#view .home-card",False),
+     ("3-beranda-warehouse",emails[2],"#/home","#view #perlu-tindakan .empty",False),
+     ("4-pekerjaan-procurement",emails[1],"#/pekerjaan","#view .work-row",False),
+     ("5-pekerjaan-kosong-warehouse",emails[2],"#/pekerjaan","#view .empty",False),
+     ("6-pengadaan-modul",emails[1],"#/m/prc","#view .module-flow .step",False),
+     ("7-bilah-bawah-warehouse",emails[2],"#/home","#view #perlu-tindakan .empty",True),
+    ]
+    for vname,opts in VIEWS.items():
+        for email in emails:
+            ctx=b.new_context(**opts); pg=ctx.new_page(); errs=[]
+            pg.on("pageerror",lambda e:errs.append(str(e)[:160]))
+            login(pg,email)
+            for name,e,h,sel,only390 in SHOTS:
+                if e!=email or (only390 and vname!="390"): continue
+                pg.goto(BASE+h); pg.wait_for_selector(sel,timeout=20000); pg.wait_for_timeout(1500)
+                for theme in ("light","dark"):
+                    pg.evaluate("(t)=>{document.documentElement.dataset.theme=t}",theme); pg.wait_for_timeout(350)
+                    pg.screenshot(path=f"{OUT}/f2-{name}-{theme}-{vname}.jpg",type="jpeg",quality=82)
+                print(vname,name,"errs",errs[-2:],flush=True)
+            ctx.close()
+
 with sync_playwright() as p:
     b=p.chromium.launch()
+    if ONLY=="f2":
+        f2_shots(b); b.close(); sys.exit(0)
     if ONLY=="e3":
         e3_shots(b); b.close(); sys.exit(0)
     if ONLY=="e1":

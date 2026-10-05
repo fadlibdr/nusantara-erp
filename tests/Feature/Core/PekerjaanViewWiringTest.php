@@ -69,6 +69,16 @@ class PekerjaanViewWiringTest extends ErpTestCase
         $this->assertStringContainsString("kind: 'done'", $view);
         $this->assertStringContainsString('errorState(error,', $view, 'Permintaan yang gagal tidak lagi memakai errorState().');
 
+        // Baris utuh, bukan kehadiran kata-katanya (tinjauan UX-F2: mutasi satu baris lolos dari pin teks).
+        $this->assertStringContainsString('failed = ((payload.meta || {}).failed) || [];', $view);
+        $this->assertStringContainsString('failed.length ? `${countOf(bucket.id)}+` : countOf(bucket.id)', $view);
+        $this->assertStringContainsString('if (failed.length) {', $view);
+        $this->assertStringContainsString("let state = 'loading';", $view);
+        $this->assertStringContainsString("state = 'failed';", $view);
+        $this->assertStringContainsString("if (state === 'ready') paint();", $view, 'Klik tab sebelum jawaban / sesudah kegagalan menggambar keadaan kosong "done".');
+        $this->assertDoesNotMatchRegularExpression('/\.then\([^)]*,\s*\(/', $view, 'Permintaan my-work memakai .then(ok, gagal) yang menelan galat.');
+        $this->assertSame(1, substr_count($view, 'catch (error)'), 'Hanya SATU catch (galat permintaan → errorState).');
+
         // "done" hanya di cabang tanpa kegagalan: ternary `failed.length ? error : done`.
         $this->assertMatchesRegularExpression("/failed\\.length\\s*\\?\\s*emptyState\\([^;]*kind: 'error'[^;]*:\\s*emptyState\\([^;]*kind: 'done'/s", $view,
             'Kondisi gambar "done" tidak lagi dijaga oleh meta.failed.');
@@ -79,6 +89,27 @@ class PekerjaanViewWiringTest extends ErpTestCase
         foreach (['count || 0', 'count ?? 0', ') || 0', '.catch(() =>'] as $bad) {
             $this->assertStringNotContainsString($bad, $view, "Pola terlarang di pekerjaan.js: {$bad}");
         }
+    }
+
+    /** Pengaju datang dari server (`submitted_by`), "Anda" hanya bila id-nya pemanggil; tidak dikarang. */
+    public function test_the_submitter_comes_from_the_server_and_perbaiki_only_when_the_page_offers_ubah(): void
+    {
+        $view = $this->withoutComments($this->spa('views/pekerjaan.js'));
+        $trace = (string) $this->functionBody($view, 'function traceRecord(row) {');
+
+        $this->assertStringContainsString("row.submitted_by_id === (session.user || {}).id", $trace);
+        $this->assertSame(1, substr_count($view, "'Anda'"), "Nama 'Anda' ditulis di lebih dari satu tempat; hanya untuk pengaju = pemanggil.");
+        $this->assertStringContainsString('approvals: who ? [', $trace);
+        $this->assertStringContainsString(': [],', $trace, 'Tanpa pengaju yang diketahui, jejak pengajuan harus kosong (bukan "oleh Anda").');
+
+        $fix = (string) $this->functionBody($view, 'function canFix(def, row) {');
+        foreach (['def.canEdit !== false', 'Boolean(def.form)', 'session.can(`${def.module}.update`)', 'def.editableWhen({ status: row.status })'] as $gate) {
+            $this->assertStringContainsString($gate, $fix, "canFix tidak lagi memeriksa: {$gate}");
+        }
+        $this->assertStringContainsString("fix ? 'Perbaiki' : 'Lihat'", $view);
+        $this->assertStringContainsString("row.bucket === 'needs_fix' && !fix ? null : enumHint(statusEnum, row.status)", $view);
+        $this->assertStringContainsString('.map(sentence)', $view, 'Kalimat dengan catatan tidak lagi diakhiri titik sebelum petunjuknya.');
+        $this->assertStringContainsString('\'aria-labelledby\': `pekerjaan-tab-${active}`', $view);
     }
 
     /** E-3 butir 4 dan 5: kalimat dari statusStrip() (satu sumber), petunjuk statis dari enums.js. */
@@ -115,7 +146,7 @@ class PekerjaanViewWiringTest extends ErpTestCase
         $read = array_values(array_unique($m[1]));
         sort($read);
         $this->assertSame(
-            ['amount', 'bucket', 'code', 'days_waiting', 'decided_at', 'decided_by', 'label', 'link', 'note', 'resource', 'status', 'submitted_at', 'title'],
+            ['amount', 'bucket', 'code', 'days_waiting', 'decided_at', 'decided_by', 'label', 'link', 'note', 'resource', 'status', 'submitted_at', 'submitted_by', 'submitted_by_id', 'title'],
             $read,
             'Kunci baris yang dibaca layar berubah; periksa MyWork.php dan MyWorkTest.',
         );

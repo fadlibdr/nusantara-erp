@@ -37,6 +37,9 @@ import { loadDeadlines } from '../deadlines.js';
 import { createEntries, startCreate } from '../create.js';
 import * as fmt from '../format.js';
 
+/** Umur jawaban tenggat (ms) yang boleh dipakai ulang: tenggat yang baru diselesaikan tidak boleh bertahan semenit. */
+const DEADLINES_MAX_AGE = 15000;
+
 /** Hasil layar yang ditampilkan saat mencari — di atas ini jawabannya adalah modulnya. */
 const SEARCH_MAX = 24;
 
@@ -108,14 +111,14 @@ export async function renderHome(host) {
 
   if (counts === null) {
     tiles.forEach((tile) => tile.fail());
-    paintNumbers(numbers, groups, null);
+    paintNumbers(numbers, groups.filter((group) => !hidden.includes(group.prefix)), null);
     body.appendChild(el('.muted.home-note', { text: 'Angka modul tidak dapat dimuat sekarang — menu di bawah tetap bisa dipakai.' }));
     return;
   }
 
   const byPrefix = new Map((Array.isArray(counts) ? counts : []).map((one) => [one.prefix, one]));
   tiles.forEach((tile, prefix) => tile.fill(byPrefix.get(prefix) || null));
-  paintNumbers(numbers, groups, byPrefix);
+  paintNumbers(numbers, groups.filter((group) => !hidden.includes(group.prefix)), byPrefix);
 }
 
 /* ------------------------------------------------------- perlu tindakan Anda */
@@ -151,18 +154,26 @@ function workSection() {
     redraw();
   };
   settle('inbox', () => loadInbox());
-  settle('due', () => loadDeadlines());
+  settle('due', () => loadDeadlines({ maxAge: DEADLINES_MAX_AGE }));
   return { node };
 }
 
 function paintWork(sub, content, state) {
+  // Kartu digambar ulang setiap sumber menjawab; fokus papan ketik di sebuah tombol kartu tidak boleh hilang.
+  const focused = content.contains(document.activeElement) ? document.activeElement.getAttribute('href') : null;
   clear(content);
   const answered = (value) => value !== undefined;
   const failedOf = (value) => value === 'failed';
   const inboxRows = state.inbox && state.inbox !== 'failed' ? (state.inbox.data || []) : [];
   const inboxMeta = state.inbox && state.inbox !== 'failed' ? (state.inbox.meta || {}) : {};
-  const findings = state.due && state.due !== 'failed' ? (state.due.data || []) : [];
+  const dueOk = state.due && state.due !== 'failed';
+  const findings = dueOk ? (state.due.data || []) : [];
+  const dueMeta = dueOk ? (state.due.meta || {}) : {};
   const overdue = findings.filter((finding) => finding.tier === 'lewat');
+  // "N tenggat" = jumlah BARIS tenggat (jumlah `count` tiap temuan), sama dengan layar Tenggat yang ditautkan;
+  // bukan jumlah jenis temuan.
+  const overdueCount = overdue.reduce((sum, finding) => sum + rowsIn(finding), 0);
+  const undatedCount = findings.filter((finding) => finding.tier === 'tanpa_tanggal').reduce((sum, finding) => sum + rowsIn(finding), 0);
 
   // Kalimat hitungan di bawah judul; sumber yang gagal atau belum menjawab menulis '—', bukan 0.
   const pieces = [];
@@ -171,7 +182,7 @@ function paintWork(sub, content, state) {
       ? '— dokumen menunggu keputusan Anda'
       : `${inboxMeta.failed && inboxMeta.failed.length ? `${inboxMeta.total ?? inboxRows.length}+` : (inboxMeta.total ?? inboxRows.length)} dokumen menunggu keputusan Anda`);
   }
-  pieces.push(failedOf(state.due) || !answered(state.due) ? '— tenggat sudah lewat' : `${overdue.length} tenggat sudah lewat`);
+  pieces.push(failedOf(state.due) || !answered(state.due) ? '— tenggat sudah lewat' : `${overdueCount} tenggat sudah lewat`);
   sub.textContent = pieces.join(' · ');
 
   const cards = [
@@ -187,17 +198,23 @@ function paintWork(sub, content, state) {
   if (failedOf(state.inbox)) notes.push('Persetujuan tidak dapat dimuat sekarang — daftarnya di Persetujuan tetap bisa dibuka.');
   if (failedOf(state.due)) notes.push('Tenggat tidak dapat dimuat sekarang.');
   if (inboxMeta.failed && inboxMeta.failed.length) notes.push(`Gagal dimuat: ${inboxMeta.failed.join(', ')}. Daftar persetujuan ini belum lengkap.`);
+  // Pemindaian yang melewati pemeriksaan (tabel/kolom belum ada) bukan "tidak ada tenggat"; temuan TANPA tanggal
+  // bukan kartu di sini, tetapi juga bukan "tidak ada" — keduanya satu kalimat yang menunjuk Tenggat.
+  if (dueMeta.skipped > 0) notes.push('Pemindaian tenggat belum lengkap: sebagian pemeriksaan dilewati.');
+  if (undatedCount > 0) notes.push(`${undatedCount} temuan tanpa tanggal — lihat Tenggat.`);
 
   if (cards.length) content.appendChild(el('ul.home-cards', cards.map((card) => el('li', card.node))));
   notes.forEach((text) => content.appendChild(el('.alert.warn.home-alert', text)));
 
   const settled = answered(state.inbox) && answered(state.due);
   if (settled && !cards.length && !notes.length) {
+    // Server hanya mengirim tenggat yang bisa DITINDAK pembaca (izin ubah/buat/setujui, bukan izin lihat): kalimat
+    // kosong menyebut lingkup itu, bukan "tidak ada tenggat" secara umum.
     content.appendChild(emptyState(
       state.inbox === null
-        ? 'Tidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat.'
-        : 'Tidak ada dokumen yang menunggu keputusan Anda dan tidak ada tenggat yang sudah lewat.',
-      { title: 'Tidak ada yang perlu ditindak', kind: 'done', compact: true },
+        ? 'Tidak ada tenggat sudah lewat yang bisa Anda tindak.'
+        : 'Tidak ada dokumen yang menunggu keputusan Anda dan tidak ada tenggat sudah lewat yang bisa Anda tindak.',
+      { title: state.inbox === null ? 'Tidak ada tenggat yang lewat' : 'Tidak ada yang perlu ditindak', kind: 'done', compact: true },
     ));
   }
 
@@ -206,6 +223,17 @@ function paintWork(sub, content, state) {
     el('a', { href: '#/tenggat', text: 'Semua tenggat →' }),
   ].filter(Boolean);
   content.appendChild(el('.home-more', more));
+
+  if (focused) {
+    const again = [...content.querySelectorAll('a[href]')].find((node) => node.getAttribute('href') === focused);
+    if (again) again.focus();
+  }
+}
+
+/** Jumlah baris tenggat sebuah temuan (`count` dari server); temuan tanpa angka yang sah tidak menyumbang. */
+function rowsIn(finding) {
+  const n = Number(finding.count);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /** Hari terlama sebuah temuan terlewat (item.days bertanda: negatif = sudah lewat). */
@@ -236,7 +264,10 @@ function approvalCard(row) {
 
 function deadlineCard(finding) {
   const oldest = (finding.items || [])[0];
-  const late = oldest && typeof oldest.days === 'number' ? `${oldest.code} lewat ${Math.abs(oldest.days)} hari` : null;
+  // Tier "lewat" mencakup HARI-nya sendiri (days === 0): "lewat 0 hari" melebih-lebihkan, layar Tenggat menulis "hari ini".
+  const late = oldest && typeof oldest.days === 'number'
+    ? (oldest.days === 0 ? `${oldest.code} jatuh tempo hari ini` : `${oldest.code} lewat ${Math.abs(oldest.days)} hari`)
+    : null;
   return homeCard({
     tone: 'danger', kindIcon: 'clock', kind: 'Tenggat lewat',
     title: finding.title || finding.label,
@@ -415,6 +446,9 @@ function shortcut(href, label, sub) {
  * sendiri begitu simpulnya lepas dari dokumen (view() mengosongkan #view).
  */
 function redrawWhenPrefsLand(node, redraw) {
+  // Hanya bila jawaban server BELUM tiba (prefs.load() mengumumkan SEKALI per boot): tanpa penjaga ini setiap
+  // kunjungan Beranda meninggalkan dua pendengar yatim yang menahan simpul yang sudah lepas.
+  if (prefs.loaded()) return;
   const handler = () => {
     if (!node.isConnected) {
       window.removeEventListener('erp:prefs-loaded', handler);

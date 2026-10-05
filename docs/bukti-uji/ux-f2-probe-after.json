@@ -1,0 +1,1991 @@
+{
+ "base": "http://127.0.0.1:8012/app/",
+ "fixture": {
+  "menunggu": {
+   "id": 3,
+   "code": "PR/2026/X/0003",
+   "submit": 200
+  },
+  "ditolak": {
+   "id": 4,
+   "code": "PR/2026/X/0004",
+   "submit": 200,
+   "reject": 200
+  }
+ },
+ "cells": {
+  "direktur|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 6,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 53
+    },
+    {
+     "api": "core/inbox",
+     "ms": 88
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 130
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 264
+    },
+    {
+     "api": "core/modules",
+     "ms": 317
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 239
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 14,
+    "chips": 0,
+    "action_panels": 2,
+    "quick": 0,
+    "stats": 8,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1280,
+    "first_tile_y": 672,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Persetujuan5",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Persetujuan",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki0",
+     "Menunggu orang lain0"
+    ],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 979,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [
+     "Alur Pengadaan",
+     "Perlu perhatian",
+     "Terakhir dibuka",
+     "Semua layar Pengadaan"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 6,
+     "counted": [
+      "2"
+     ],
+     "linked": 6
+    },
+    "module_kpis": 1,
+    "module_cards": 14,
+    "attn_rows": 1,
+    "inline_styled": 0,
+    "doc_h": 1270,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [
+     "Perlu perhatian",
+     "Terakhir dibuka",
+     "Semua layar SDM & Payroll"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 9,
+    "attn_rows": 1,
+    "inline_styled": 0,
+    "doc_h": 1562,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 117,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:21"
+     },
+     "sample": []
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 100,
+     "rows": 0,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": []
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 65,
+     "rows": 13,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "crm",
+      "est"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 66,
+     "rows": 5,
+     "meta": {
+      "total": 5,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:21",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": [
+      null,
+      null,
+      null
+     ]
+    }
+   },
+   "console_errors": []
+  },
+  "procurement|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 46
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 80
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 156
+    },
+    {
+     "api": "core/modules",
+     "ms": 208
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 159
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Aksi cepat",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 6,
+    "chips": 0,
+    "action_panels": 2,
+    "quick": 6,
+    "stats": 8,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1069,
+    "first_tile_y": 730,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Pekerjaan Saya",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki1",
+     "Menunggu orang lain1"
+    ],
+    "rows": 1,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [
+     "Alur Pengadaan",
+     "Perlu perhatian",
+     "Terakhir dibuka",
+     "Semua layar Pengadaan"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 6,
+     "counted": [
+      "2"
+     ],
+     "linked": 6
+    },
+    "module_kpis": 1,
+    "module_cards": 14,
+    "attn_rows": 2,
+    "inline_styled": 0,
+    "doc_h": 1029,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 971,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 47,
+     "rows": 2,
+     "meta": {
+      "total": 2,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:30"
+     },
+     "sample": [
+      "needs_fix",
+      "waiting"
+     ]
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 82,
+     "rows": 2,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": [
+      "lewat",
+      "lewat"
+     ]
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 60,
+     "rows": 5,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "est",
+      "eng"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 65,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:30",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": []
+    }
+   },
+   "console_errors": []
+  },
+  "warehouse|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 61
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 66
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 145
+    },
+    {
+     "api": "core/modules",
+     "ms": 181
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 136
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Aksi cepat",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 6,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 6,
+    "stats": 4,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu ditindakTidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1052,
+    "first_tile_y": 714,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Pekerjaan Saya",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki0",
+     "Menunggu orang lain0"
+    ],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 59,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:40"
+     },
+     "sample": []
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 81,
+     "rows": 0,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": []
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 38,
+     "rows": 3,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "prj",
+      "inv"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 48,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:40",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": []
+    }
+   },
+   "console_errors": []
+  },
+  "teknisi|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 125
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 61
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 157
+    },
+    {
+     "api": "core/modules",
+     "ms": 212
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 182
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Aksi cepat",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 3,
+    "chips": 0,
+    "action_panels": 1,
+    "quick": 4,
+    "stats": 4,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 917,
+    "first_tile_y": 714,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Pekerjaan Saya",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki0",
+     "Menunggu orang lain0"
+    ],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 52,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:49"
+     },
+     "sample": []
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 79,
+     "rows": 1,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": [
+      "lewat"
+     ]
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 48,
+     "rows": 3,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "inv",
+      "svc"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 51,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:49",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": []
+    }
+   },
+   "console_errors": []
+  },
+  "hr|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 76
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 45
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 126
+    },
+    {
+     "api": "core/modules",
+     "ms": 176
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 179
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Aksi cepat",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 3,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 5,
+    "stats": 2,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu ditindakTidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 917,
+    "first_tile_y": 714,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Pekerjaan Saya",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki0",
+     "Menunggu orang lain0"
+    ],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [
+     "Perlu perhatian",
+     "Terakhir dibuka",
+     "Semua layar SDM & Payroll"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu perhatianTidak ada tenggat yang menipis dan tidak ada dokumen SDM & Payroll yang menunggu keputusan"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 9,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 55,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:58"
+     },
+     "sample": []
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 58,
+     "rows": 1,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": [
+      "tanpa_tanggal"
+     ]
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 59,
+     "rows": 2,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "hr"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 60,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 08:31:59",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": []
+    }
+   },
+   "console_errors": []
+  },
+  "direktur|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 6,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 42
+    },
+    {
+     "api": "core/inbox",
+     "ms": 101
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 167
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 306
+    },
+    {
+     "api": "core/modules",
+     "ms": 412
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 309
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 14,
+    "chips": 0,
+    "action_panels": 2,
+    "quick": 0,
+    "stats": 8,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 2189,
+    "first_tile_y": 1112,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Persetujuan5",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Persetujuan",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki0",
+     "Menunggu orang lain0"
+    ],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [
+     "Alur Pengadaan",
+     "Perlu perhatian",
+     "Terakhir dibuka",
+     "Semua layar Pengadaan"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 6,
+     "counted": [
+      "2"
+     ],
+     "linked": 6
+    },
+    "module_kpis": 1,
+    "module_cards": 14,
+    "attn_rows": 1,
+    "inline_styled": 0,
+    "doc_h": 1784,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [
+     "Perlu perhatian",
+     "Terakhir dibuka",
+     "Semua layar SDM & Payroll"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 9,
+    "attn_rows": 1,
+    "inline_styled": 0,
+    "doc_h": 1202,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  },
+  "procurement|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 69
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 74
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 183
+    },
+    {
+     "api": "core/modules",
+     "ms": 231
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 200
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Aksi cepat",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 6,
+    "chips": 0,
+    "action_panels": 2,
+    "quick": 6,
+    "stats": 8,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1718,
+    "first_tile_y": 1219,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Pekerjaan Saya",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki1",
+     "Menunggu orang lain1"
+    ],
+    "rows": 1,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [
+     "Alur Pengadaan",
+     "Perlu perhatian",
+     "Terakhir dibuka",
+     "Semua layar Pengadaan"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 6,
+     "counted": [
+      "2"
+     ],
+     "linked": 6
+    },
+    "module_kpis": 1,
+    "module_cards": 14,
+    "attn_rows": 2,
+    "inline_styled": 0,
+    "doc_h": 1853,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  },
+  "warehouse|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 128
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 103
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 211
+    },
+    {
+     "api": "core/modules",
+     "ms": 295
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 240
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Aksi cepat",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 6,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 6,
+    "stats": 4,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu ditindakTidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1459,
+    "first_tile_y": 960,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Pekerjaan Saya",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki0",
+     "Menunggu orang lain0"
+    ],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  },
+  "teknisi|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 94
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 145
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 229
+    },
+    {
+     "api": "core/modules",
+     "ms": 278
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 177
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Aksi cepat",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 3,
+    "chips": 0,
+    "action_panels": 1,
+    "quick": 4,
+    "stats": 4,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1239,
+    "first_tile_y": 874,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Pekerjaan Saya",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki0",
+     "Menunggu orang lain0"
+    ],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  },
+  "hr|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 49
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 45
+    },
+    {
+     "api": "core/deadlines",
+     "ms": 120
+    },
+    {
+     "api": "core/modules",
+     "ms": 163
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 146
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Perlu tindakan Anda",
+     "Aksi cepat",
+     "Angka",
+     "Bidang kerja"
+    ],
+    "tiles": 3,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 5,
+    "stats": 2,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu ditindakTidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1311,
+    "first_tile_y": 929,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Pekerjaan Saya",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Pekerjaan Saya"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": "Pekerjaan Saya",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Muat ulang"
+    ],
+    "tabs": [
+     "Perlu diperbaiki0",
+     "Menunggu orang lain0"
+    ],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+    },
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [
+     "Perlu perhatian",
+     "Terakhir dibuka",
+     "Semua layar SDM & Payroll"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "done",
+     "text": "Tidak ada yang perlu perhatianTidak ada tenggat yang menipis dan tidak ada dokumen SDM & Payroll yang menunggu keputusan"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 9,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1293,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  }
+ }
+}

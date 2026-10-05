@@ -6,7 +6,9 @@
  * sama — dan Beranda adalah halaman landing, jadi permintaan itu jatuh pada
  * SETIAP masuk. Polanya persis inbox.js: permintaan yang berjalan dibagi,
  * jawaban disimpan MAX_AGE ms dan DIKUNCI pada pengguna yang menanyakannya
- * (tablet lapangan dipakai bergantian), dan layar Tenggat meminta maxAge: 0.
+ * (tablet lapangan dipakai bergantian), layar Tenggat meminta maxAge: 0, dan Beranda dengan beranda modul
+ * memakai ulang jawaban yang berumur ≤ 15 dtk saja — tenggat yang baru diselesaikan lewat "Tindak lanjuti"
+ * tidak boleh bertahan semenit di kartu yang sama.
  *
  * Tidak ada gerbang izin di sini: endpoint-nya menyaring per-temuan menurut
  * izin pemanggil (DeadlineController). Pemuat MELEMPAR bila server gagal —
@@ -27,11 +29,6 @@ let inflight = null;
 
 const currentUserId = () => (session.user && session.user.id) || null;
 const cacheIsMine = () => cache.payload !== null && cache.userId === currentUserId();
-
-/** Lupakan jawaban terakhir (sebuah tanggal baru saja diselesaikan). */
-export function forgetDeadlines() {
-  cache = { userId: null, at: 0, payload: null };
-}
 
 /**
  * Muat tenggat: { data: [temuan], meta: { today, checked, skipped } }.

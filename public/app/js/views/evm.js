@@ -40,6 +40,7 @@ import { ENUMS } from '../enums.js';
 import * as fmt from '../format.js';
 import { navigate } from '../router.js';
 import { lineChart, chartWidth } from '../charts.js';
+import { forgetInbox } from '../inbox.js';
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -345,6 +346,7 @@ function baselineRowActions(row, onChanged, extra = []) {
   const act = async (action, message) => {
     try {
       await api.post(`projects/baselines/${row.id}/${action}`, {});
+      forgetInbox(); // keputusan di layar ini tidak lewat runAction(): kartu Beranda dan lencana tidak boleh basi
       toast(message);
       onChanged();
     } catch (error) {

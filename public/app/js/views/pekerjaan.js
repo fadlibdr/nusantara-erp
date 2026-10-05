@@ -8,7 +8,7 @@
  *   Menunggu orang lain  — diajukan dan belum diputuskan (bucket waiting).
  *
  * Tidak ada tab "Draf saya" dan tidak ada tab "disetujui, menunggu dokumen
- * lanjutan": 24 dari 29 tabel dokumen tidak mencatat pembuatnya, dan tidak ada
+ * lanjutan": 25 dari 29 tabel dokumen tidak mencatat pembuatnya (kolom OWNER_KEYS; cuti dimiliki lewat employee_id), dan tidak ada
  * API yang tahu dokumen lanjutan itu sudah ada (ERRATA D-3, E-7).
  *
  * SATU permintaan: GET core/my-work (UX-F1). Kalimat keadaan datang dari
@@ -18,7 +18,7 @@
  * server, tidak pernah dari sini. Sumber yang gagal tidak pernah tampak
  * sebagai "kosong": `meta.failed` menulis kalimatnya dan jumlah tab memakai
  * "+" (CONVENTIONS §14, §16). */
-import { api } from '../api.js';
+import { api, session } from '../api.js';
 import { RESOURCES } from '../schema.js';
 import { enumHint } from '../enums.js';
 import { navigate } from '../router.js';
@@ -31,12 +31,22 @@ const BUCKETS = [
   { id: 'waiting', label: 'Menunggu orang lain' },
 ];
 
+// Teks menyebut LINGKUP yang diperiksa: server hanya mengirim jenis dokumen yang boleh Anda lihat dan tidak
+// melaporkan jenis yang dilewati karena izin, jadi "semua sudah diputuskan" adalah klaim yang lebih besar dari itu.
 const EMPTY = {
-  needs_fix: { title: 'Tidak ada yang perlu diperbaiki', text: 'Tidak ada dokumen Anda yang ditolak dan menunggu perbaikan.' },
-  waiting: { title: 'Tidak ada yang menunggu orang lain', text: 'Semua dokumen yang Anda ajukan sudah diputuskan.' },
+  needs_fix: { title: 'Tidak ada yang perlu diperbaiki', text: 'Tidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh Anda lihat.' },
+  waiting: { title: 'Tidak ada yang menunggu orang lain', text: 'Tidak ada dokumen Anda yang masih menunggu keputusan orang lain, dari jenis dokumen yang boleh Anda lihat.' },
 };
 
-/** Satu baris jejak palsu agar statusStrip() menulis kalimat yang sama persis dengan halaman dokumen. */
+/** Satu kalimat berakhir titik: kalimat dari statusStrip() berakhir `: "catatan"` tanpa titik bila ada catatan. */
+const sentence = (text) => (/[.!?]["”]?$/.test(text) ? text : `${text}.`);
+
+/**
+ * Satu baris jejak yang disusun dari baris my-work, supaya statusStrip() menulis kalimat yang sama persis dengan
+ * halaman dokumen. Nama datang dari server: pengaju = `submitted_by` ("Anda" bila pemanggil sendiri), penolak =
+ * `decided_by`. Pengaju yang TIDAK diketahui (tidak ada baris pengajuan) tidak diberi nama dan tidak diberi tanggal:
+ * "Diajukan · menunggu persetujuan." — bukan "oleh Anda" untuk dokumen yang diajukan orang lain atas nama karyawan ini.
+ */
 function traceRecord(row) {
   if (row.bucket === 'needs_fix') {
     return {
@@ -47,7 +57,23 @@ function traceRecord(row) {
       }],
     };
   }
-  return { status: row.status, approvals: [{ action: 'submitted', created_at: row.submitted_at, user: { name: 'Anda' } }] };
+  const mine = row.submitted_by_id !== null && row.submitted_by_id !== undefined && row.submitted_by_id === (session.user || {}).id;
+  const who = mine ? 'Anda' : row.submitted_by;
+  return {
+    status: row.status,
+    approvals: who ? [{ action: 'submitted', created_at: row.submitted_at, user: { name: who } }] : [],
+  };
+}
+
+/** Halaman dokumen menawarkan Ubah hanya bila bisa (hak ubah, form, dan editableWhen); selain itu tombolnya "Lihat". */
+function canFix(def, row) {
+  if (row.bucket !== 'needs_fix') return false;
+  try {
+    return def.canEdit !== false && Boolean(def.form) && session.can(`${def.module}.update`)
+      && (!def.editableWhen || Boolean(def.editableWhen({ status: row.status })));
+  } catch {
+    return false;
+  }
 }
 
 function workRow(row) {
@@ -57,10 +83,11 @@ function workRow(row) {
   // menulis kata mentah "rejected".
   const statusEnum = ((def.columns || []).find((column) => column.key === 'status') || {}).enum || 'documentStatus';
   const strip = statusStrip(def, traceRecord(row), false);
-  const hint = enumHint(statusEnum, row.status);
+  const fix = canFix(def, row);
+  // Petunjuk "Perbaiki lalu ajukan lagi." hanya bila halaman dokumennya memang menawarkan Ubah.
+  const hint = row.bucket === 'needs_fix' && !fix ? null : enumHint(statusEnum, row.status);
   const waited = row.bucket === 'waiting' && row.days_waiting !== null && row.days_waiting !== undefined
-    ? ` Sudah ${row.days_waiting} hari.` : '';
-  const fix = row.bucket === 'needs_fix';
+    ? `Sudah ${row.days_waiting} hari.` : null;
 
   const cta = el(`a.btn.sm${fix ? '.primary' : ''}`, { href: row.link }, [
     icon(fix ? 'pencil' : 'arrow-right', 13),
@@ -74,7 +101,7 @@ function workRow(row) {
     ]),
     el('.work-state', [
       statusBadge(row.status, statusEnum),
-      el('p.work-next', { text: [strip ? strip.text : null, hint, waited.trim() || null].filter(Boolean).join(' ') }),
+      el('p.work-next', { text: [strip ? strip.text : null, hint, waited].filter(Boolean).map(sentence).join(' ') }),
     ]),
     el('.work-side', [
       el('span.work-amount.mono.num', { text: row.amount === null || row.amount === undefined ? '—' : fmt.rupiah(row.amount) }),
@@ -100,10 +127,13 @@ export async function renderPekerjaan(host) {
   let rows = [];
   let failed = [];
   let active = BUCKETS[0].id;
-  const panel = el('.card', { id: 'pekerjaan-panel', role: 'tabpanel' });
-  const tabBar = tabs(BUCKETS.map((bucket) => ({ ...bucket, count: null, panelId: 'pekerjaan-panel' })), {
+  // 'loading' | 'failed' | 'ready': klik tab sebelum jawaban datang, atau sesudah permintaan gagal, tidak
+  // boleh menggambar keadaan kosong "done" — daftar yang belum dimuat bukan daftar kosong (CONVENTIONS §14).
+  let state = 'loading';
+  const panel = el('.card', { id: 'pekerjaan-panel', role: 'tabpanel', 'aria-labelledby': `pekerjaan-tab-${active}` });
+  const tabBar = tabs(BUCKETS.map((bucket) => ({ ...bucket, count: null, tabId: `pekerjaan-tab-${bucket.id}`, panelId: 'pekerjaan-panel' })), {
     active,
-    onChange: (id) => { active = id; paint(); },
+    onChange: (id) => { active = id; panel.setAttribute('aria-labelledby', `pekerjaan-tab-${id}`); if (state === 'ready') paint(); },
   });
   host.appendChild(tabBar);
   host.appendChild(panel);
@@ -114,18 +144,21 @@ export async function renderPekerjaan(host) {
     payload = await api.list('core/my-work');
   } catch (error) {
     // Jumlah tab tetap "—": sumbernya tidak menjawab, bukan nol.
+    state = 'failed';
     clear(panel).appendChild(el('.card-body', errorState(error, () => renderPekerjaan(host))));
     return;
   }
   rows = payload.data || [];
   failed = ((payload.meta || {}).failed) || [];
+  state = 'ready';
 
   const countOf = (id) => rows.filter((row) => row.bucket === id).length;
   // Daftar yang belum lengkap tidak boleh tampak sebagai jumlah pasti: "3+".
   BUCKETS.forEach((bucket) => tabBar.setCount(bucket.id, failed.length ? `${countOf(bucket.id)}+` : countOf(bucket.id)));
-  // Buka tab pertama yang berisi; kalau keduanya kosong, tetap "Perlu diperbaiki".
-  active = BUCKETS.find((bucket) => countOf(bucket.id) > 0)?.id || BUCKETS[0].id;
+  // Buka tab pertama yang berisi, kecuali pembaca sudah memilih tab lain selagi menunggu.
+  if (active === BUCKETS[0].id) active = BUCKETS.find((bucket) => countOf(bucket.id) > 0)?.id || BUCKETS[0].id;
   tabBar.select(active);
+  panel.setAttribute('aria-labelledby', `pekerjaan-tab-${active}`);
   paint();
 
   function paint() {

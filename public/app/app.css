@@ -3969,3 +3969,14 @@ button.linkish:hover b { text-decoration: underline; }
 @media (pointer: coarse) {
   .attn-row { min-height: 52px; }
 }
+
+/* UX-F2 (tinjauan) — fokus papan ketik pada tahap peta proses: cincin luar 2 px terpotong oleh gulir
+   `.stepper` sendiri (overflow-x memaksa overflow-y), jadi cincinnya ditarik ke dalam, idiom yang sama
+   dengan tab. Cetak: peta tidak boleh terpotong di tepi kertas. Sasaran ketuk tautan "Semua …" di Beranda. */
+.step-link:focus-visible { outline-offset: -2px; }
+@media print {
+  .stepper { flex-wrap: wrap; overflow: visible; }
+}
+@media (pointer: coarse) {
+  .home-more a { display: inline-flex; align-items: center; min-height: 44px; }
+}

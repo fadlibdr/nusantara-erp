@@ -51,8 +51,13 @@ class HomeWiringTest extends ErpTestCase
         $this->assertStringContainsString('const MAX_AGE = 60000;', $loader);
         $this->assertStringContainsString('inflight.userId !== userId', $loader, 'Permintaan yang berjalan tidak lagi hanya dibagi kepada pengguna yang sama.');
         $this->assertStringContainsString('cache.userId === currentUserId()', $loader, 'Cache tenggat tidak lagi dikunci pada pengguna.');
-        $this->assertStringNotContainsString('.catch(', $this->withoutComments($loader),
-            'Pemuat menelan galat; tidak ada tenggat untuk tidak tahu adalah kabar baik palsu.');
+        $code = $this->withoutComments($loader);
+        $this->assertStringNotContainsString('.catch(', $code, 'Pemuat menelan galat; tidak ada tenggat untuk tidak tahu adalah kabar baik palsu.');
+        // Dua bentuk lain menelan galat sama baiknya: .then(ok, gagal) dan try/catch di dalam pemuat.
+        $this->assertDoesNotMatchRegularExpression('/\.then\([^)]*,\s*\(/', $code, 'Pemuat memakai .then(ok, gagal) yang menelan galat.');
+        $this->assertDoesNotMatchRegularExpression('/\bcatch\s*[({]/', $code, 'Pemuat berisi try/catch yang menelan galat.');
+        $this->assertStringContainsString('if (cacheIsMine() && Date.now() - cache.at < maxAge) return Promise.resolve(cache.payload);', $code);
+        $this->assertStringNotContainsString('forgetDeadlines', $code, 'Ekspor yang tidak punya pemanggil kembali.');
 
         $tenggat = $this->spa('views/tenggat.js');
         $this->assertStringContainsString('loadDeadlines({ maxAge: 0 })', $tenggat);
@@ -62,7 +67,8 @@ class HomeWiringTest extends ErpTestCase
             $this->assertStringNotContainsString("'core/deadlines'", $code, "{$file} memanggil core/deadlines sendiri.");
             $this->assertStringNotContainsString("'core/inbox'", $code, "{$file} memanggil core/inbox sendiri (inbox.js satu-satunya).");
         }
-        $this->assertStringContainsString('loadDeadlines()', $this->spa('views/home.js'));
+        $this->assertStringContainsString('loadDeadlines({ maxAge: DEADLINES_MAX_AGE })', $this->spa('views/home.js'));
+        $this->assertStringContainsString('const DEADLINES_MAX_AGE = 15000;', $this->spa('views/home.js'));
         $this->assertStringContainsString('loadInbox()', $this->spa('views/home.js'));
     }
 
@@ -80,17 +86,44 @@ class HomeWiringTest extends ErpTestCase
 
         $paint = (string) $this->functionBody($home, 'function paintWork(sub, content, state) {');
         $this->assertNotSame('', $paint);
-        // Keadaan "done" hanya bila KEDUA sumber sudah menjawab dan tidak ada catatan kegagalan.
-        $this->assertMatchesRegularExpression("/settled && !cards\\.length && !notes\\.length[^;]*?kind: 'done'/s", $paint,
-            'Gambar "done" tidak lagi dijaga oleh jawaban kedua sumber dan catatan kegagalan.');
+        // Keadaan "done" hanya bila KEDUA sumber sudah menjawab dan tidak ada catatan kegagalan — dipaku
+        // sebagai baris utuh, bukan sekadar kehadiran kata-katanya (tinjauan UX-F2: mutasi satu baris lolos).
+        $this->assertStringContainsString('const settled = answered(state.inbox) && answered(state.due);', $paint);
+        $this->assertStringContainsString('if (settled && !cards.length && !notes.length) {', $paint);
         $this->assertSame(1, substr_count($paint, "kind: 'done'"));
+        $this->assertStringContainsString("const failedOf = (value) => value === 'failed';", $paint);
+        foreach ([
+            "if (failedOf(state.inbox)) notes.push(",
+            "if (failedOf(state.due)) notes.push(",
+            "if (inboxMeta.failed && inboxMeta.failed.length) notes.push(",
+            "if (dueMeta.skipped > 0) notes.push(",
+            "if (undatedCount > 0) notes.push(",
+        ] as $line) {
+            $this->assertStringContainsString($line, $paint, "Baris kegagalan hilang atau berubah: {$line}");
+        }
         // Hitungan di bawah judul: '—' untuk sumber yang gagal atau belum menjawab.
         $this->assertStringContainsString("'— dokumen menunggu keputusan Anda'", $paint);
         $this->assertStringContainsString("'— tenggat sudah lewat'", $paint);
-        // Hanya yang SUDAH LEWAT yang disebut "perlu tindakan"; menipis dan tanpa tanggal bukan.
+        $this->assertStringContainsString('failedOf(state.due) || !answered(state.due) ?', $paint);
+        // Angka tenggat = jumlah BARIS (count tiap temuan), sama dengan layar Tenggat; bukan jumlah jenis temuan.
+        $this->assertStringContainsString('overdue.reduce((sum, finding) => sum + rowsIn(finding), 0)', $paint);
+        $this->assertStringNotContainsString('overdue.length', $paint);
+        // Hanya yang SUDAH LEWAT menjadi kartu; menipis tidak ada di sini, dan "tanpa tanggal" hanya menjadi catatan.
         $this->assertStringContainsString("finding.tier === 'lewat'", $paint);
         $this->assertStringNotContainsString("'menipis'", $paint);
-        $this->assertStringNotContainsString("'tanpa_tanggal'", $paint);
+        $this->assertSame(1, substr_count($paint, "'tanpa_tanggal'"), "'tanpa_tanggal' dipakai di luar hitungan catatannya.");
+        // Fokus papan ketik sebuah tombol kartu tidak hilang saat sumber kedua menggambar ulang.
+        $this->assertStringContainsString('document.activeElement', $paint);
+        $this->assertStringContainsString('again.focus()', $paint);
+
+        // Kartu tenggat yang jatuh tempo HARI INI tidak ditulis "lewat 0 hari".
+        $card = (string) $this->functionBody($home, 'function deadlineCard(finding) {');
+        $this->assertStringContainsString('oldest.days === 0', $card);
+        $this->assertStringContainsString('jatuh tempo hari ini', $card);
+
+        // Seluruh permintaan core/modules gagal → null → ubin dan Angka menulis '—'.
+        $render = (string) $this->functionBody($home, 'export async function renderHome(host) {');
+        $this->assertMatchesRegularExpression('/\} catch \{\s*counts = null;\s*\}/', $render, 'Kegagalan core/modules tidak lagi menjadi counts = null.');
     }
 
     /** README: dua dokumen teratas; yang paling lama di atas; tombol dua kali sumbernya sendiri. */
@@ -121,6 +154,8 @@ class HomeWiringTest extends ErpTestCase
         $this->assertStringContainsString('onclick: () => startCreate(entry)', $home);
         $this->assertDoesNotMatchRegularExpression('/\.(create|update|approve)[\'"`]/', $home, 'home.js menulis izinnya sendiri; semuanya lewat create.js dan visibleNav().');
         $this->assertStringContainsString('redrawWhenPrefsLand(quick,', $home, 'Aksi cepat tidak lagi digambar ulang saat preferensi tiba (Terakhir dibuka).');
+        $this->assertStringContainsString('if (prefs.loaded()) return;', (string) $this->functionBody($home, 'function redrawWhenPrefsLand(node, redraw) {'),
+            'Setiap kunjungan Beranda kembali meninggalkan pendengar erp:prefs-loaded yatim.');
     }
 
     /** Angka: paling banyak empat, ringkasan dilewati, '—' bila tidak diketahui, nama dari cermin lokal. */
@@ -131,6 +166,8 @@ class HomeWiringTest extends ErpTestCase
 
         $this->assertStringContainsString('const NUMBERS_MAX = 4;', $home);
         $this->assertStringContainsString("group.prefix !== 'ringkasan'", $numbers, 'Angka mengulang hitungan lonceng (ringkasan).');
+        // Modul yang disembunyikan dari Beranda (launcher.hidden) tidak mengambil slot Angka.
+        $this->assertSame(2, substr_count($home, 'groups.filter((group) => !hidden.includes(group.prefix))'));
         $this->assertStringContainsString('byPrefix === null', $numbers);
         $this->assertStringContainsString('(MODULES[group.prefix] || {}).kpi', $numbers, 'Tanpa jawaban, nama angka tidak lagi dibaca dari cermin MODULES.kpi.');
         $this->assertStringContainsString('? entry.count : null', $numbers);

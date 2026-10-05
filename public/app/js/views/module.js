@@ -48,6 +48,9 @@ import * as fmt from '../format.js';
 /** Dua modul yang angka sekundernya SUDAH ada di jawaban dasbor. */
 const SUMMARY_PREFIXES = ['prj', 'fin'];
 
+/** Umur jawaban tenggat (ms) yang boleh dipakai Beranda dan beranda modul: tenggat yang baru diselesaikan tidak boleh bertahan semenit. */
+const DEADLINES_MAX_AGE = 15000;
+
 /** Entri "Terakhir dibuka" yang muat di kepala modul tanpa mendorong kartu ke bawah lipatan. */
 const RECENT_MAX = 6;
 
@@ -97,8 +100,11 @@ export function renderModuleHome(host, { prefix }) {
     if (module.flow && flowHost.isConnected) paintFlow(flowHost, module, payload);
   });
 
-  const attention = attentionSection(prefix, module.label);
-  host.appendChild(attention);
+  /* "Perlu perhatian" menyaring ke modul INI lewat resource dan tautan temuan — grup Ringkasan tidak memiliki
+     dokumen maupun tautan tenggat mana pun (isinya Persetujuan, Tenggat, Pekerjaan Saya: lintas modul), jadi
+     di sana sebuah saringan akan SELALU menggambar "tidak ada yang perlu perhatian" di atas antrean yang
+     penuh. Lintas modul adalah pekerjaan Beranda ("Perlu tindakan Anda"), bukan halaman ini. */
+  if (prefix !== 'ringkasan') host.appendChild(attentionSection(prefix, module.label));
 
   const recentHost = el('div');
   recentHost.appendChild(recentSection(prefix, module.label));
@@ -133,7 +139,8 @@ export function renderModuleHome(host, { prefix }) {
     recentHost.replaceChildren(recentSection(prefix, module.label));
     syncStars(screens);
   };
-  window.addEventListener('erp:prefs-loaded', onPrefs);
+  // Hanya bila jawaban server BELUM tiba: tanpa penjaga ini setiap kunjungan meninggalkan satu pendengar yatim.
+  if (!prefs.loaded()) window.addEventListener('erp:prefs-loaded', onPrefs);
 }
 
 /* ------------------------------------------------------------------ angka */
@@ -173,7 +180,6 @@ async function loadKpis(host, prefix) {
  * hitungannya tidak dipegang), tidak menampilkan angka — E-8, bukan 0.
  */
 function paintFlow(host, module, payload) {
-  host.replaceChildren();
   const open = new Set(visibleNav((perm) => session.can(perm)).flatMap((group) => group.items.map((item) => item.route)));
   const entries = payload ? (payload.modules || []) : [];
   const steps = module.flow.steps.map((step) => {
@@ -190,11 +196,33 @@ function paintFlow(host, module, payload) {
     }
     return { label: step.label, href: open.has(step.route) ? `#/${step.route}` : undefined, count, title };
   });
-  host.appendChild(el('section.module-flow', [
-    el('h2.module-block-title', { text: `Alur ${module.label}` }),
-    stepper(steps),
-    module.flow.note ? el('p.module-flow-note', { text: module.flow.note }) : null,
-  ]));
+
+  const strip = host.querySelector('.stepper');
+  if (!strip) {
+    host.appendChild(el('section.module-flow', [
+      el('h2.module-block-title', { text: `Alur ${module.label}` }),
+      stepper(steps),
+      module.flow.note ? el('p.module-flow-note', { text: module.flow.note }) : null,
+    ]));
+    return;
+  }
+  // Sudah tergambar (jawaban angka baru tiba): hanya angkanya yang diperbarui DI TEMPAT. Mengganti seluruh
+  // stepper membuang fokus papan ketik di sebuah tahap dan menggulirkan stripnya kembali ke awal.
+  strip.querySelectorAll('.step').forEach((item, index) => {
+    const step = steps[index];
+    const link = item.querySelector('.step-link');
+    let node = item.querySelector('.step-count');
+    if (step.count === undefined) {
+      if (node) node.remove();
+      return;
+    }
+    if (!node) {
+      node = el('span.step-count.mono');
+      link.appendChild(node);
+    }
+    node.textContent = step.count === null ? '—' : String(step.count);
+    if (step.title) link.title = step.title;
+  });
 }
 
 /* ----------------------------------------------------------- perlu perhatian */
@@ -220,13 +248,16 @@ function attentionSection(prefix, moduleLabel) {
     redraw();
   };
   settle('inbox', () => loadInbox());
-  settle('due', () => loadDeadlines());
+  // Jawaban 15 dtk boleh dipakai ulang (Beranda baru saja mengisinya); lebih lama dari itu diminta lagi.
+  settle('due', () => loadDeadlines({ maxAge: DEADLINES_MAX_AGE }));
   return node;
 }
 
 /** Awalan modul sebuah temuan tenggat: `r/<kunci>` lewat resource-nya, `m/<p>` apa adanya, rute lain lewat grup NAV-nya. */
 function prefixOfLink(link) {
-  const path = String(link || '');
+  // Beberapa tautan membawa saringan (`r/crm/activities?state=open`): tanpa memotongnya temuan itu tidak
+  // pernah dikaitkan ke modulnya dan modulnya menulis "tidak ada yang perlu perhatian".
+  const path = String(link || '').split('?')[0];
   if (path.startsWith('m/')) return path.slice(2);
   if (path.startsWith('r/')) return groupPrefixFor(path.slice(2));
   const group = NAV.find((one) => one.items.some((item) => item.route === path));
@@ -243,9 +274,12 @@ function paintAttention(content, state, prefix, moduleLabel) {
     const more = inboxMeta.failed && inboxMeta.failed.length ? '+' : '';
     rows.push(attentionRow('attn', `${mine.length}${more} dokumen ${moduleLabel} menunggu keputusan Anda`, 'Buka Persetujuan', '#/tugas'));
   }
-  const findings = state.due && state.due !== 'failed' ? (state.due.data || []) : [];
-  findings
-    .filter((finding) => finding.tier !== 'tanpa_tanggal' && prefixOfLink(finding.link) === prefix)
+  const dueOk = state.due && state.due !== 'failed';
+  const findings = dueOk ? (state.due.data || []) : [];
+  const dueMeta = dueOk ? (state.due.meta || {}) : {};
+  const ofModule = findings.filter((finding) => prefixOfLink(finding.link) === prefix);
+  ofModule
+    .filter((finding) => finding.tier !== 'tanpa_tanggal')
     .sort((a, b) => (a.tier === b.tier ? 0 : a.tier === 'lewat' ? -1 : 1))
     .forEach((finding) => rows.push(attentionRow(
       finding.tier === 'lewat' ? 'danger' : 'warn',
@@ -254,20 +288,31 @@ function paintAttention(content, state, prefix, moduleLabel) {
       `#/${finding.link}`,
     )));
 
+  // Temuan TANPA tanggal bukan baris "perlu perhatian" di sini, tetapi juga bukan "tidak ada": satu kalimat
+  // yang menunjuk Tenggat, dan gambar "done" tidak boleh terlukis di atasnya.
+  const undated = ofModule.filter((finding) => finding.tier === 'tanpa_tanggal').reduce((sum, finding) => sum + rowsIn(finding), 0);
+  const notes = [];
+  if (state.inbox === 'failed') notes.push('Persetujuan tidak dapat dimuat sekarang.');
+  if (state.due === 'failed') notes.push('Tenggat tidak dapat dimuat sekarang.');
+  if (inboxMeta.failed && inboxMeta.failed.length) notes.push(`Gagal dimuat: ${inboxMeta.failed.join(', ')}. Daftar persetujuan ini belum lengkap.`);
+  if (dueMeta.skipped > 0) notes.push('Pemindaian tenggat belum lengkap: sebagian pemeriksaan dilewati.');
+  if (undated > 0) notes.push(`${undated} temuan tanpa tanggal — lihat Tenggat.`);
+
   if (rows.length) content.appendChild(el('ul.attn-list', rows.map((row) => el('li', row))));
-  if (state.inbox === 'failed') content.appendChild(el('.muted.module-kpi-note', { text: 'Persetujuan tidak dapat dimuat sekarang.' }));
-  if (state.due === 'failed') content.appendChild(el('.muted.module-kpi-note', { text: 'Tenggat tidak dapat dimuat sekarang.' }));
-  if (inboxMeta.failed && inboxMeta.failed.length) {
-    content.appendChild(el('.muted.module-kpi-note', { text: `Gagal dimuat: ${inboxMeta.failed.join(', ')}. Daftar persetujuan ini belum lengkap.` }));
-  }
+  notes.forEach((text) => content.appendChild(el('.muted.module-kpi-note', { text })));
 
   const settled = state.inbox !== undefined && state.due !== undefined;
-  const failed = state.inbox === 'failed' || state.due === 'failed' || (inboxMeta.failed && inboxMeta.failed.length);
-  if (settled && !rows.length && !failed) {
-    content.appendChild(emptyState(`Tidak ada tenggat yang menipis dan tidak ada dokumen ${moduleLabel} yang menunggu keputusan Anda.`, {
+  if (settled && !rows.length && !notes.length) {
+    content.appendChild(emptyState(`Tidak ada tenggat menipis atau lewat yang bisa Anda tindak, dan tidak ada dokumen ${moduleLabel} yang menunggu keputusan Anda.`, {
       title: 'Tidak ada yang perlu perhatian', kind: 'done', compact: true,
     }));
   }
+}
+
+/** Jumlah baris tenggat sebuah temuan (`count` dari server); temuan tanpa angka yang sah tidak menyumbang. */
+function rowsIn(finding) {
+  const n = Number(finding.count);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function attentionRow(tone, title, sub, href) {

@@ -90,6 +90,9 @@ class ModuleFlowTest extends ErpTestCase
         foreach (['count || 0', 'count ?? 0', 'count) || 0', 'count : 0', '?? 0'] as $bad) {
             $this->assertStringNotContainsString($bad, $module, "Pola terlarang di module.js: {$bad}");
         }
+        // Jawaban angka yang tiba memperbarui angkanya DI TEMPAT: mengganti stepper membuang fokus papan ketik.
+        $this->assertStringNotContainsString('host.replaceChildren()', $flow);
+        $this->assertStringContainsString("node.textContent = step.count === null ? '—' : String(step.count);", $flow);
         $this->assertStringContainsString('if (module.flow) paintFlow(flowHost, module, undefined);', $module);
         $this->assertStringContainsString('if (module.flow && flowHost.isConnected) paintFlow(flowHost, module, payload);', $module);
         $this->assertStringContainsString("import { el, svgIcon, icon, emptyState, stepper } from '../ui.js';", $module);
@@ -100,7 +103,7 @@ class ModuleFlowTest extends ErpTestCase
     {
         $module = $this->withoutComments($this->spa('views/module.js'));
 
-        $this->assertStringContainsString('loadDeadlines()', $module);
+        $this->assertStringContainsString('loadDeadlines({ maxAge: DEADLINES_MAX_AGE })', $module);
         $this->assertStringContainsString('loadInbox()', $module);
         $this->assertStringNotContainsString("'core/deadlines'", $module);
         $this->assertStringNotContainsString("'core/inbox'", $module);
@@ -111,18 +114,53 @@ class ModuleFlowTest extends ErpTestCase
         $this->assertStringContainsString("finding.tier !== 'tanpa_tanggal'", $paint, 'Temuan tanpa tanggal bukan "perlu perhatian".');
         $this->assertStringContainsString('groupPrefixFor(row.resource) === prefix', $paint, 'Baris persetujuan tidak lagi disaring ke modul ini.');
         $this->assertStringContainsString('prefixOfLink(finding.link) === prefix', $paint);
-        $this->assertMatchesRegularExpression("/settled && !rows\\.length && !failed\\) \\{.*?kind: 'done'/s", $paint,
-            'Gambar "done" tidak lagi dijaga oleh jawaban kedua sumber dan kegagalannya.');
+        // Baris utuh, bukan kehadiran kata-katanya (tinjauan UX-F2: tujuh mutasi satu baris lolos dari pin teks).
+        $this->assertStringContainsString('const settled = state.inbox !== undefined && state.due !== undefined;', $paint);
+        $this->assertStringContainsString('if (settled && !rows.length && !notes.length) {', $paint);
         $this->assertSame(1, substr_count($paint, "kind: 'done'"));
-        $this->assertStringContainsString('Persetujuan tidak dapat dimuat sekarang.', $paint);
-        $this->assertStringContainsString('Tenggat tidak dapat dimuat sekarang.', $paint);
+        foreach ([
+            "if (state.inbox === 'failed') notes.push('Persetujuan tidak dapat dimuat sekarang.');",
+            "if (state.due === 'failed') notes.push('Tenggat tidak dapat dimuat sekarang.');",
+            "if (inboxMeta.failed && inboxMeta.failed.length) notes.push(",
+            "if (dueMeta.skipped > 0) notes.push(",
+            "if (undated > 0) notes.push(",
+        ] as $line) {
+            $this->assertStringContainsString($line, $paint, "Baris kegagalan hilang atau berubah: {$line}");
+        }
         $this->assertStringContainsString('Daftar persetujuan ini belum lengkap', $paint);
+
+        // Tautan temuan dengan saringan (`r/crm/activities?state=open`) tetap sampai ke modulnya.
+        $this->assertStringContainsString(".split('?')[0]", (string) $this->functionBody($module, 'function prefixOfLink(link) {'));
+        // Grup Ringkasan tidak memiliki dokumen/tautan tenggat: saringan per modul selalu "kosong" di sana.
+        $this->assertStringContainsString("if (prefix !== 'ringkasan') host.appendChild(attentionSection(prefix, module.label));", $module);
+        $this->assertStringContainsString('loadDeadlines({ maxAge: DEADLINES_MAX_AGE })', $module);
 
         // Judul bagian baru memakai kelasnya sendiri: `.module-section` berarti "melabeli kisinya" (S21).
         $this->assertStringContainsString("'Perlu perhatian'", $module);
         $this->assertStringContainsString('`Semua layar ${module.label}`', $module);
         $this->assertStringContainsString('`Alur ${module.label}`', $module);
         $this->assertSame(0, preg_match_all('/h2\.module-section\b[^{]*(?:Perlu perhatian|Semua layar|Alur )/', $module));
+    }
+
+    /** Setiap tautan temuan tenggat dari server menunjuk rute NAV nyata atau `m/<prefix>` — termasuk yang bersaringan. */
+    public function test_every_deadline_link_resolves_to_a_nav_route_or_a_module_page(): void
+    {
+        $source = (string) file_get_contents(base_path('Modules/Core/Support/WatchedDeadlines.php'));
+        preg_match_all("/'link'\\s*=>\\s*'([^']+)'/", $source, $m);
+        $this->assertGreaterThan(15, count($m[1]), 'Pembaca tautan WatchedDeadlines tidak menemukan entri.');
+        // `r/<kunci>` yang bukan baris NAV tetap sampai ke modulnya lewat RESOURCES[kunci].module (groupPrefixFor).
+        preg_match_all('/^  \'([a-z0-9\-\/]+)\': \{$/m', $this->spa('schema.js'), $keys);
+        $unresolved = [];
+        foreach (array_unique($m[1]) as $link) {
+            $path = explode('?', $link)[0];
+            $ok = in_array($path, SpaNav::routes(), true)
+                || (str_starts_with($path, 'r/') && in_array(substr($path, 2), $keys[1], true))
+                || (str_starts_with($path, 'm/') && in_array(substr($path, 2), SpaNav::prefixes(), true));
+            if (! $ok) {
+                $unresolved[] = $link;
+            }
+        }
+        $this->assertSame([], $unresolved, 'Tautan tenggat yang tidak bisa dikaitkan module.js ke modulnya (prefixOfLink): beranda modul akan menulis "tidak ada yang perlu perhatian".');
     }
 
     /** Bintang kartu beranda modul akhirnya bergaya: ukuran, reset, dan keadaan `.on`. */

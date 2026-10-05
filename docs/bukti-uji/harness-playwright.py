@@ -16550,6 +16550,12 @@ def s59(browser):
         out["gagal_500"] = f
         if not f["error"] or (f["empty"] and f["empty"]["kind"] == "done") or [t["count"] for t in f["tabs"]] != ["—", "—"]:
             checks.append(f"500 tidak jujur (galat/'done'/jumlah tab): {f!r}")
+        # Klik tab SESUDAH kegagalan tidak boleh menggambar 'done' menimpa panel galat (tinjauan UX-F2).
+        pg2.click("#view .tabs button:nth-child(2)"); pg2.wait_for_timeout(300)
+        f2 = pg2.evaluate(PEKERJAAN_READ)
+        out["gagal_500_klik_tab"] = f2
+        if not f2["error"] or f2["empty"]:
+            checks.append(f"klik tab sesudah 500 menimpa panel galat: {f2!r}")
         pg2.close()
         # meta.failed: banner, 'n+' dan gambar 'error' (bukan 'done') pada daftar kosong.
         pg3 = ctx.new_page()
@@ -16676,6 +16682,9 @@ def s60(browser):
             checks.append(f"kartu tenggat procurement salah: {h['cards']!r}")
         if h["cards"] and h["cards"][0]["href"] != "#/r/procurement/purchase-orders":
             checks.append(f"tenggat tertua (PO, 218 hari) bukan yang pertama: {[c['href'] for c in h['cards']]!r}")
+        # Jumlah tenggat = jumlah BARIS (2 PO + 1 PR), sama dengan layar Tenggat — bukan jumlah jenis temuan (2).
+        if "3 tenggat sudah lewat" not in (h["sub"] or ""):
+            checks.append(f"kalimat hitungan procurement bukan 3 tenggat (2 PO + 1 PR): {h['sub']!r}")
         if "dokumen menunggu keputusan" in (h["sub"] or "") or "Semua persetujuan →" in h["more"]:
             checks.append(f"non-penyetuju melihat persetujuan di Beranda: {h['sub']!r} {h['more']!r}")
         if "core/inbox" in calls:
@@ -16887,6 +16896,16 @@ def s61(browser):
     finally:
         ctx.close()
 
+    # ------------------------------------------------------------ ringkasan: lintas modul, tanpa saringan per modul (tinjauan UX-F2)
+    ctx, pg = open_module("direktur@nusantara.test", "ringkasan")
+    try:
+        r = pg.evaluate(MODULE_READ)
+        out["ringkasan"] = r
+        if r["attn_title"] is not None or "module-attention" in r["order"]:
+            checks.append(f"#/m/ringkasan menggambar Perlu perhatian per modul (selalu 'kosong' di sana): {r['order']!r}")
+    finally:
+        ctx.close()
+
     # ------------------------------------------------------------ hr: tanpa peta, tetap ada Perlu perhatian
     ctx, pg = open_module("hr@nusantara.test", "hr")
     try:
@@ -16894,8 +16913,10 @@ def s61(browser):
         out["hr"] = c
         if c["steps"] is not None:
             checks.append(f"hr tidak punya peta proses tetapi menggambar: {c['steps']!r}")
-        if c["attn_title"] != "Perlu perhatian" or not (c["attn_rows"] or c["attn_empty"]):
-            checks.append(f"hr tanpa bagian Perlu perhatian yang terjawab: {c['attn_rows']!r} {c['attn_empty']!r}")
+        # hr memegang hr.update: pkwt_end (2 karyawan tanpa tanggal akhir) ADA di Tenggat, jadi bagian ini menulis
+        # satu kalimat yang menunjuk Tenggat dan TIDAK menggambar 'done' (tinjauan UX-F2: temuan tanpa tanggal bukan "tidak ada").
+        if c["attn_title"] != "Perlu perhatian" or not any("temuan tanpa tanggal" in n for n in c["attn_notes"]) or c["attn_empty"]:
+            checks.append(f"hr: temuan tanpa tanggal tidak menahan 'done': {c['attn_notes']!r} {c['attn_rows']!r} {c['attn_empty']!r}")
     finally:
         ctx.close()
 
