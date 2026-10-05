@@ -403,11 +403,26 @@ tablet lapangan.
 empat kartu sekaligus dari atas ke bawah — itu sebabnya kartu paling atas terisi duluan dan
 halaman tidak melompat-lompat saat Anda sudah mulai membaca.
 
+**Membaca sebuah kartu.** Setiap kartu dibuka dengan persegi kecil berwarna modulnya, judulnya,
+dan tautan **`Buka`** di kanan atas yang membawa Anda ke layar yang memuat angkanya secara
+lengkap — untuk *Umur piutang*, *Umur hutang*, dan *Proyeksi kas* langsung ke tab laporannya,
+bukan ke daftar laporan. Karena tautan, ia bisa dibuka di tab baru. Di kaki kartu ada **satu
+kalimat** yang dihitung dari angka kartu itu sendiri dan menyebut langkah berikutnya — misalnya
+*"3 termin sudah berhak ditagih — terbitkan tagihan mulai dari yang tertua."* — dengan tombol ke
+layar yang sama di kanannya. Kalimat itu hanya muncul bila angkanya mendukung: kartu yang
+kosong, kartu yang sumbernya gagal, dan kartu yang tidak bisa membuktikan kalimatnya (misalnya
+"tidak ada proyek yang tertinggal" dari peringkat yang hanya mencakup 100 proyek terbaru) hanya
+menampilkan tombolnya. Kartu *Proyek, piutang & hutang* sengaja tanpa kalimat — tiga angka uang
+tidak menunjuk satu langkah — dan tautan **`Buka`**-nya menuju layar yang sama dengan tombol di
+kakinya, mengikuti blok pertama yang Anda lihat; bila sumbernya gagal, tautannya tidak tampil.
+
 **Kartu yang gagal mengaku gagal.** Bila sumber sebuah widget tidak bisa dibaca, kartunya
-menuliskan *"Data widget ini gagal dimuat"* beserta tombol **`Coba lagi`** yang memuat ulang
-kartu itu saja — bukan seluruh dasbor. Angka yang tidak diketahui ditulis **`—`**, tidak pernah
-`Rp 0`: nol adalah pernyataan bahwa Anda sudah menghitung, dan sebuah "Hutang belum dibayar
-Rp 0" di atas data yang gagal dimuat adalah kabar baik yang tidak benar.
+menuliskan *"Tidak dapat dimuat — angkanya tidak diketahui, jangan dibaca sebagai nol."*
+beserta tombol **`Coba lagi`** yang memuat ulang kartu itu saja — bukan seluruh dasbor. Kartu
+yang berupa ubin angka tetap menggambar ubinnya, masing-masing berisi **`—`** dengan keterangan
+*Gagal dimuat*, dan tombol **`Coba lagi`** di kakinya. Angka yang tidak diketahui ditulis
+**`—`**, tidak pernah `Rp 0`: nol adalah pernyataan bahwa Anda sudah menghitung, dan sebuah
+"Hutang belum dibayar Rp 0" di atas data yang gagal dimuat adalah kabar baik yang tidak benar.
 
 **Spanduk penjadwal dan antrean** di atas dasbor (hanya bagi pemegang hak `core.update`) **bukan**
 widget dan tidak bisa dilepas — ia bukan angka yang Anda pilih untuk dibaca, melainkan kabar

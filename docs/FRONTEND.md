@@ -581,6 +581,17 @@ reading, in another shape. There is no `print` action anywhere in the permission
   that has never opened the drawer gets the default set written for its role, and
   `DashboardDefaultsTest` proves — against `RoleSeeder::intended()` — that no seeded role lands on
   an empty dashboard.
+- **Dashboard card shell (UX-F3)**: `widgetCard()` in `views/dashboard.js` draws every card head —
+  an 8 px accent square (`aria-hidden`, `--module-accent`), the `h2` (`id="dash-w-<id>-title"`) and
+  an `a.widget-cta` "Buka" link to the catalogue `route`, whose accessible name is built with
+  `aria-labelledby` from the title on screen (two widgets retitle themselves). `kit.js` adds
+  `setDoor(card, route)` — the three report widgets point the head link at their report tab, and
+  `ringkasan-uang` at its first block or hides it (`null`) — and `footSentence(sentence, label,
+  onClick)`: the foot ends with one actionable sentence computed from the widget's own numbers,
+  falling back to `footLink()` when there is nothing provable to say. `failedBody()` reads "Tidak
+  dapat dimuat — angkanya tidak diketahui, jangan dibaca sebagai nol." `DashboardTileFailureTest`
+  is unchanged; `DashboardShellWiringTest` pins the guard lines and harness S23 checks the shell on
+  every role.
 - **Panah `<select>`**: warnanya datang dari token `--chevron`, bukan dari literal di dalam
   data-URI-nya. Ia didefinisikan di kelima blok palet (root terang, media gelap, `data-theme`
   terang/gelap, dan blok `@media print`) dan dipakai dua kali — `select` dan `.combo-input`.

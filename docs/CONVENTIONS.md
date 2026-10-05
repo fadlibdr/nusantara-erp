@@ -677,15 +677,43 @@ ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
    memberi tahu ubinnya bahwa angkanya tidak diketahui.
 
 **Perkakas bersama** `views/widgets/kit.js`: `safe()` / `safeList()` (fetch bertanda `loadFailure`),
-`failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
-Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti membuat 18 menyimpang.
+`failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`,
+`footLink()`, `footSentence()`, `setDoor()`. Aturannya hidup satu kali; menyalinnya ke 19 berkas
+adalah cara paling pasti membuat 18 menyimpang.
+
+**Cangkang kartu (UX-F3).** Kepala kartu digambar `dashboard.js`, bukan widget-nya: persegi aksen
+8 px (`aria-hidden`, warna `--module-accent` dari `module` katalog), `h2` ber-`id`
+`dash-w-<id>-title`, dan tautan `a.widget-cta` **`Buka`** ke `#/<route>` katalog. Nama aksesibel
+tautan itu dirangkai `aria-labelledby` dari dirinya sendiri dan judul YANG SEDANG TERTULIS — bukan
+`aria-label` beku — karena `ringkasan-uang` dan `proyek-progres` mengganti judulnya sendiri.
+Widget yang pintunya lebih dalam dari `route` katalog (tab laporan) atau baru diketahui setelah
+datanya tiba memanggil `setDoor(card, route)` supaya kepala dan kaki menunjuk ke layar yang SAMA;
+`setDoor(card, null)` menyembunyikan tautannya — pintu yang tidak diketahui lebih baik tidak ada.
+Tiga aturan:
+
+1. **Kaki berakhir pada satu kalimat yang dihitung**, bukan teks tetap: `footSentence(kalimat,
+   label, onClick)`, kalimatnya dari angka yang sudah ada di tangan widget ("3 termin sudah berhak
+   ditagih — …"). Kalimat kosong jatuh ke `footLink()`, jadi kaki tidak pernah hilang.
+2. **Kalimat hanya berbicara bila angkanya membuktikannya.** Angka yang tidak diketahui
+   (`Number(null) === 0`!) membungkam kalimat; peringatan di atas angka mengalahkan kabar baik;
+   "tidak ada yang tertinggal" tidak diucapkan dari jendela yang terpotong; ambang kalimat sama
+   dengan ambang warna di badan kartu (`proyek-progres`: satu fungsi `behind()` untuk batang amber
+   dan kalimat).
+3. **Teks kegagalan dari README:** `failedBody()` menulis *"Tidak dapat dimuat — angkanya tidak
+   diketahui, jangan dibaca sebagai nol."* dengan **Coba lagi**; ubin angka tetap memakai
+   `failedStats()` (`—` + *Gagal dimuat* + **Coba lagi**).
+
+Dipaku `DashboardShellWiringTest` (baris penjaganya, bukan kata-katanya) dan S23 harness
+(persegi 8×8, tautan `#/…` di setiap kartu, tiga pintu dalam, nama tautan "Buka <judul>").
+`ringkasan-uang` satu-satunya widget tanpa `footSentence` (OQ-50).
 
 **Widget dasbor dan layar membaca sumber yang sama dengan pintu yang berbeda.** `js/deadlines.js`
 (UX-F2.2) adalah pemuat tingkat LAYAR untuk `GET core/deadlines` — Beranda, beranda modul dan Tenggat
 berbagi satu permintaan dan satu jawaban 60 detik per pengguna, dan pemuatnya MELEMPAR bila server gagal
 supaya pemanggil menulis kalimatnya sendiri. Widget dasbor TIDAK memakainya: ia tetap memakai `safeList()`
 dari `kit.js`, karena aturan kegagalannya (`failure(`, `failedStat`, `failedBody`) dipaku
-`DashboardTileFailureTest` dan merombaknya adalah paket UX-F3. Untuk `core/inbox`, widget
+`DashboardTileFailureTest` — dan UX-F3, paket cangkang kartu, sengaja tidak mengubah uji itu
+maupun sumber datanya (syarat gerbangnya: uji itu tidak berubah dan hijau). Untuk `core/inbox`, widget
 "Menunggu persetujuan Anda" memang sudah memakai pemuat bersama (`loadInbox({ maxAge: 0 })`), tetapi
 membungkus kegagalannya menjadi `loadFailure` supaya tetap bercabang `failure(`.
 
