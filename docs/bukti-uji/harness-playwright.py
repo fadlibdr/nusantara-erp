@@ -16772,6 +16772,173 @@ def s60(browser):
     return out
 
 
+MODULE_READ = """() => {
+  const txt = (n) => n ? (n.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+  const v = document.querySelector('#view');
+  const flow = v.querySelector('.module-flow');
+  const steps = flow ? [...flow.querySelectorAll('.step')].map((li) => ({
+    label: txt(li.querySelector('.step-label')), count: txt(li.querySelector('.step-count')),
+    href: (li.querySelector('a.step-link') || {}).getAttribute ? li.querySelector('a.step-link').getAttribute('href') : null,
+    title: (li.querySelector('.step-link') || {}).title || null })) : null;
+  const order = [...v.children].map((n) => (n.className || n.tagName).toString().split(' ')[0]);
+  const att = v.querySelector('.module-attention');
+  const empty = att && att.querySelector('.empty');
+  const star = v.querySelector('.module-cell > .star');
+  const stepper = flow && flow.querySelector('.stepper');
+  return { hash: location.hash, order,
+    flow_title: flow ? txt(flow.querySelector('.module-block-title')) : null, steps,
+    note: flow ? txt(flow.querySelector('.module-flow-note')) : null,
+    attn_title: att ? txt(att.querySelector('.module-block-title')) : null,
+    attn_rows: att ? [...att.querySelectorAll('.attn-row')].map((a) => ({ tone: a.dataset.tone, text: txt(a.querySelector('.attn-text b')), sub: txt(a.querySelector('.attn-sub')), href: a.getAttribute('href') })) : [],
+    attn_notes: att ? [...att.querySelectorAll('.module-kpi-note')].map(txt) : [],
+    attn_empty: empty ? { kind: (empty.querySelector('.illus') || {}).dataset ? empty.querySelector('.illus').dataset.kind : null } : null,
+    all_title: txt(v.querySelector('.module-all > .module-block-title')),
+    kpis: [...v.querySelectorAll('.module-kpi')].map((k) => ({ value: txt(k.querySelector('.module-kpi-value')), label: txt(k.querySelector('.module-kpi-label')) })),
+    cards: v.querySelectorAll('.module-card').length,
+    nav_hrefs: [...document.querySelectorAll('nav.nav .nav-items a')].map((a) => a.getAttribute('href')),
+    star: star ? { w: Math.round(star.getBoundingClientRect().width), bg: getComputedStyle(star).backgroundColor, on: star.classList.contains('on'), pressed: star.getAttribute('aria-pressed') } : null,
+    stepper_scroll: stepper ? { client: stepper.clientWidth, scroll: stepper.scrollWidth } : null,
+    h_scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+}"""
+
+@scenario("S61_beranda_modul_proses")
+def s61(browser):
+    """UX-F2.3: beranda modul sebagai halaman proses. Peta Pengadaan (enam tahap, satu angka = PO terbuka dari
+    core/modules, tahap lain tanpa angka, tautan hanya untuk layar yang boleh dibuka), "Perlu perhatian" yang
+    disaring ke modul ini (tenggat untuk non-penyetuju, dokumen menunggu untuk penyetuju), "Semua layar", bintang
+    yang akhirnya bergaya, urutan bagian, dan kejujuran saat core/modules atau core/deadlines gagal."""
+    out, checks = {}, []
+
+    def open_module(email, prefix, vw=1440, vh=900, mobile=False, route=None):
+        opts = dict(viewport={"width": vw, "height": vh})
+        if mobile:
+            opts.update(is_mobile=True, has_touch=True)
+        ctx = browser.new_context(**opts)
+        pg = ctx.new_page()
+        if route:
+            route(pg)
+        login(pg, email)
+        pg.goto(BASE + f"#/m/{prefix}")
+        pg.wait_for_selector("#view .module-head", timeout=20000)
+        pg.wait_for_timeout(1800)
+        return ctx, pg
+
+    # ------------------------------------------------------------ procurement #/m/prc
+    tp = token_for("procurement@nusantara.test")
+    _, mods = api("core/modules", tp)
+    prc = next((m for m in mods.get("data", []) if m["prefix"] == "prc"), None)
+    ctx, pg = open_module("procurement@nusantara.test", "prc")
+    try:
+        a = pg.evaluate(MODULE_READ)
+        out["prc"] = a
+        pg.screenshot(path=f"{OUT}/s61-modul-prc.png")
+        labels = [s["label"] for s in a["steps"] or []]
+        if labels != ["Permintaan (PR)", "RFQ", "BA Negosiasi", "Keputusan Pemenang", "Pesanan (PO)", "Penerimaan (GRN)"]:
+            checks.append(f"tahap peta Pengadaan: {labels!r}")
+        counted = [(s["label"], s["count"]) for s in a["steps"] or [] if s["count"] is not None]
+        want = str(prc["count"]) if prc and prc["count"] is not None else "—"
+        if counted != [("Pesanan (PO)", want)]:
+            checks.append(f"angka tahap bukan hanya PO={want}: {counted!r}")
+        for s in a["steps"] or []:
+            allowed = s["href"] is not None
+            in_nav = s["href"] in a["nav_hrefs"] if allowed else None
+            if allowed and not in_nav and s["label"] != "Penerimaan (GRN)":
+                checks.append(f"tahap {s['label']} bertautan ke layar yang tidak ada di sidebar: {s['href']!r}")
+        if a["flow_title"] != "Alur Pengadaan" or a["all_title"] != "Semua layar Pengadaan" or a["attn_title"] != "Perlu perhatian":
+            checks.append(f"judul bagian: {a['flow_title']!r} {a['attn_title']!r} {a['all_title']!r}")
+        if "Urutan lazim, bukan wajib" not in (a["note"] or ""):
+            checks.append(f"catatan peta tidak menyebut urutan lazim, bukan wajib: {a['note']!r}")
+        pos = {k: a["order"].index(k) for k in ("module-head", "module-attention", "module-all") if k in a["order"]}
+        if not (pos.get("module-head", 9) < pos.get("module-attention", -1) < pos.get("module-all", -1)):
+            checks.append(f"urutan bagian modul: {a['order']!r}")
+        rows = a["attn_rows"]
+        if sorted(r["tone"] for r in rows) != ["danger", "danger"] or any("keputusan Anda" in (r["text"] or "") for r in rows):
+            checks.append(f"Perlu perhatian procurement (dua tenggat lewat, tanpa baris persetujuan): {rows!r}")
+        if a["h_scroll"] > 0:
+            checks.append(f"beranda modul menggulir ke samping {a['h_scroll']} px")
+        # Bintang: bergaya (26 px, bukan tombol bawaan) dan keadaan hidupnya tampak.
+        st = a["star"]
+        if not st or st["w"] != 26:
+            checks.append(f"bintang kartu modul tidak bergaya: {st!r}")
+        else:
+            pg.click("#view .module-cell > .star")
+            pg.wait_for_timeout(500)
+            st2 = pg.evaluate("() => { const s = document.querySelector('#view .module-cell > .star'); return { on: s.classList.contains('on'), pressed: s.getAttribute('aria-pressed'), bg: getComputedStyle(s).backgroundColor }; }")
+            out["star_after"] = st2
+            if not st2["on"] or st2["pressed"] != "true" or st2["bg"] in ("rgba(0, 0, 0, 0)", "transparent"):
+                checks.append(f"bintang hidup tidak tampak: {st2!r}")
+            pg.click("#view .module-cell > .star"); pg.wait_for_timeout(300)  # kembalikan
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------ direktur #/m/prc: dokumen menunggu modul ini
+    td = token_for("direktur@nusantara.test")
+    _, inbox = api("core/inbox", td)
+    mine = [r for r in inbox.get("data", []) if (r.get("resource") or "").startswith("procurement/")]
+    ctx, pg = open_module("direktur@nusantara.test", "prc")
+    try:
+        b = pg.evaluate(MODULE_READ)
+        out["prc_direktur"] = b
+        approvals = [r for r in b["attn_rows"] if "keputusan Anda" in (r["text"] or "")]
+        if len(mine) and (len(approvals) != 1 or not (approvals[0]["text"] or "").startswith(f"{len(mine)} dokumen Pengadaan")):
+            checks.append(f"baris persetujuan Pengadaan direktur bukan {len(mine)} dokumen: {b['attn_rows']!r}")
+        if not len(mine) and approvals:
+            checks.append(f"direktur melihat baris persetujuan Pengadaan padahal tidak ada: {approvals!r}")
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------ hr: tanpa peta, tetap ada Perlu perhatian
+    ctx, pg = open_module("hr@nusantara.test", "hr")
+    try:
+        c = pg.evaluate(MODULE_READ)
+        out["hr"] = c
+        if c["steps"] is not None:
+            checks.append(f"hr tidak punya peta proses tetapi menggambar: {c['steps']!r}")
+        if c["attn_title"] != "Perlu perhatian" or not (c["attn_rows"] or c["attn_empty"]):
+            checks.append(f"hr tanpa bagian Perlu perhatian yang terjawab: {c['attn_rows']!r} {c['attn_empty']!r}")
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------ kegagalan: core/modules dan core/deadlines
+    def modules_500(pg):
+        pg.route("**/api/core/modules*", lambda r: r.fulfill(status=500, content_type="application/json", body='{"message":"uji"}'))
+    ctx, pg = open_module("procurement@nusantara.test", "prc", route=modules_500)
+    try:
+        d = pg.evaluate(MODULE_READ)
+        out["prc_modules_500"] = d
+        counted = [(s["label"], s["count"]) for s in d["steps"] or [] if s["count"] is not None]
+        if counted != [("Pesanan (PO)", "—")]:
+            checks.append(f"core/modules 500: tahap bernomor bukan satu '—' pada PO: {counted!r}")
+    finally:
+        ctx.close()
+
+    def deadlines_500(pg):
+        pg.route("**/api/core/deadlines*", lambda r: r.fulfill(status=500, content_type="application/json", body='{"message":"uji"}'))
+    ctx, pg = open_module("procurement@nusantara.test", "prc", route=deadlines_500)
+    try:
+        e = pg.evaluate(MODULE_READ)
+        out["prc_deadlines_500"] = e
+        if (e["attn_empty"] and e["attn_empty"]["kind"] == "done") or "Tenggat tidak dapat dimuat sekarang." not in e["attn_notes"]:
+            checks.append(f"core/deadlines 500 tidak jujur: {e['attn_notes']!r} {e['attn_empty']!r}")
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------ 390
+    ctx, pg = open_module("procurement@nusantara.test", "prc", 390, 844, mobile=True)
+    try:
+        f = pg.evaluate(MODULE_READ)
+        out["prc_390"] = f
+        pg.screenshot(path=f"{OUT}/s61-modul-prc-390.png")
+        if f["h_scroll"] > 0:
+            checks.append(f"beranda modul menggulir ke samping {f['h_scroll']} px di 390")
+    finally:
+        ctx.close()
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -16782,7 +16949,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None),("S58",s58,None),("S59",s59,"b"),("S60",s60,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None),("S58",s58,None),("S59",s59,"b"),("S60",s60,"b"),("S61",s61,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #

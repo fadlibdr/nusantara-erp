@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '75';
+const SHELL_VERSION = '76';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */

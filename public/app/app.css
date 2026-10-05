@@ -825,6 +825,19 @@ table.data tr.emphasis td { background: var(--surface-2); }
 @media (pointer: coarse) {
   .nav-item .star { opacity: .45; width: 34px; height: 32px; }
 }
+/* Bintang kartu beranda modul (UX-F2.3): sampai sini hanya `.module-cell > .star`
+   (posisi) yang memukul tombolnya — ukuran, reset, dan keadaan `.on` hanya ada di
+   `.nav-item .star`, jadi ia tergambar sebagai tombol bawaan peramban dan
+   keadaan hidupnya tidak tampak. Selalu terlihat (tidak ada hover di kartu). */
+.module-cell > .star {
+  width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer;
+}
+.module-cell > .star:hover, .module-cell > .star:focus-visible { background: var(--surface-3); color: var(--text); }
+.module-cell > .star.on { color: var(--primary); background: var(--primary-soft); }
+@media (pointer: coarse) {
+  .module-cell > .star { width: 34px; height: 32px; }
+}
 
 /* ------------------------------------------------------------------ main */
 .main { grid-area: main; overflow-y: auto; padding: 20px 22px 60px; }
@@ -3930,4 +3943,29 @@ button.linkish:hover b { text-decoration: underline; }
 }
 @media (pointer: coarse) {
   .home-card .btn, .home-quick-tile { min-height: 44px; }
+}
+
+/* UX-F2.3 — beranda modul sebagai halaman proses (views/module.js). Hanya token. Aksen
+   modul tetap hanya di kepala (§12): titik dan rel di sini memakai warna semantik. */
+.module-flow, .module-attention, .module-all { margin-bottom: var(--space-4); }
+.module-block-title {
+  margin: 0 0 var(--space-2); font-size: var(--fs-caption); font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--muted);
+}
+.module-flow-note { margin: var(--space-2) 0 0; font-size: var(--fs-secondary); color: var(--muted); }
+.attn-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.attn-row {
+  display: flex; align-items: center; gap: var(--space-3); min-height: 48px; padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  color: var(--text); text-decoration: none;
+}
+.attn-row:hover { background: var(--surface-2); text-decoration: none; }
+.attn-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--warning); }
+.attn-row[data-tone="danger"] .attn-dot { background: var(--danger); }
+.attn-row[data-tone="attn"] .attn-dot { background: var(--attn); }
+.attn-text { display: grid; gap: var(--space-1); flex: 1; min-width: 0; }
+.attn-text b { font-weight: var(--fw-semi); overflow-wrap: anywhere; }
+.attn-sub { font-size: var(--fs-secondary); color: var(--muted); }
+@media (pointer: coarse) {
+  .attn-row { min-height: 52px; }
 }

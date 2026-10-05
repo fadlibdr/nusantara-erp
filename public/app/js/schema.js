@@ -6470,11 +6470,49 @@ export const MODULES = {
   iam: { accent: 8, icon: 'settings', kpi: 'Job gagal', description: 'Pengguna, peran dan hak akses, profil perusahaan, impor, pengaturan, antrean.' },
 };
 
-/** Modul untuk sebuah prefix: entri MODULES + label dan grup NAV-nya; null bila tidak ada. */
+/*
+ * Peta proses beranda modul (UX-F2, README Fase F, ERRATA E-8) — DATA, bukan aturan.
+ *
+ * Dibaca views/module.js lewat `moduleFor(prefix).flow` dan digambar `stepper()`.
+ * Kenapa bukan di baris MODULES: NavRouteRegistryTest memaku bentuk tiap baris
+ * MODULES (`{ accent, icon, kpi, description }`) dan ModuleCountsTest membaca baris
+ * yang sama untuk `kpi`; peta ini ditaruh SEBELUM NAV supaya pemindai rute
+ * (NavRouteRegistryTest, SpaNav) tidak menghitung rutenya sebagai baris menu.
+ *
+ *  - `steps[].route` harus rute NAV (ModuleFlowTest); langkah yang tidak boleh
+ *    dibuka pembaca digambar tanpa tautan.
+ *  - `steps[].count` menyebut KUNCI ModuleCounts, dan hanya boleh kunci modul itu
+ *    sendiri (satu entri per prefix, CONVENTIONS §16): tahap tanpa kunci terdaftar
+ *    tidak menampilkan angka apa pun (E-8) — bukan 0. Kunci yang gagal dimuat '—'.
+ *  - `note` hanya menyebut aturan yang DITEGAKKAN server, dengan penegaknya.
+ *  - Urutan lazim, BUKAN wajib: pengadaan punya empat jalan (pembelian langsung,
+ *    penunjukan langsung, RFQ, tender). Hanya Pengadaan yang punya peta hari ini:
+ *    handoff menyebutnya, dan urutan modul lain adalah klaim proses yang belum
+ *    dikatakan siapa pun (OQ-40). Tahap "Evaluasi" handoff tidak digambar: layar
+ *    Evaluasi Vendor adalah penilaian berkala vendor, bukan langkah antara RFQ
+ *    dan negosiasi — perbandingan penawaran terjadi di RFQ itu sendiri (OQ-41).
+ */
+export const FLOWS = {
+  prc: {
+    steps: [
+      { label: 'Permintaan (PR)', route: 'r/procurement/purchase-requisitions' },
+      { label: 'RFQ', route: 'r/procurement/rfqs' },
+      { label: 'BA Negosiasi', route: 'r/procurement/negotiation-minutes' },
+      { label: 'Keputusan Pemenang', route: 'r/procurement/award-decisions' },
+      { label: 'Pesanan (PO)', route: 'r/procurement/purchase-orders', count: 'prc' },
+      { label: 'Penerimaan (GRN)', route: 'r/inventory/goods-receipts' },
+    ],
+    note: 'Urutan lazim, bukan wajib: pembelian langsung, penunjukan langsung, RFQ, dan tender menempuh jalan yang berbeda. '
+      + 'Yang ditegakkan server: PO yang lahir dari RFQ baru bisa disetujui setelah Keputusan Pemenang untuk vendornya disetujui; '
+      + 'vendor yang belum lolos prakualifikasi hanya bisa dipesan dengan alasan yang tercatat; PO tanpa PR wajib menulis alasannya.',
+  },
+};
+
+/** Modul untuk sebuah prefix: entri MODULES + label dan grup NAV-nya (+ `flow` bila ada petanya); null bila tidak ada. */
 export function moduleFor(prefix) {
   const group = NAV.find((one) => one.prefix === prefix);
   const module = MODULES[prefix];
-  return group && module ? { prefix, label: group.label, group, ...module } : null;
+  return group && module ? { prefix, label: group.label, group, ...module, flow: FLOWS[prefix] || null } : null;
 }
 
 /** Modul dari label grup NAV (remah roti pertama, app.js setCrumbs); null bila label bukan grup. */
