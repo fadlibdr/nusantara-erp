@@ -8061,7 +8061,20 @@ DASH_CARDS = """() => [...document.querySelectorAll('.dash-grid .card.widget')].
     // 10 dari 19 kartu tanpa .card-foot, termasuk seluruh kartu umur piutang/
     // hutang/pajak yang sedang kosong).
     foot: ((c.querySelector('.card-foot') || {}).innerText || '').trim() || null,
+    // UX-F3: cangkang kartu — persegi aksen 8 px, CTA bertautan ke layarnya, dan kalimat kaki.
+    accent_px: (() => { const a = c.querySelector('.card-head .widget-accent'); if (!a) return null; const r = a.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; })(),
+    cta_href: (c.querySelector('.card-head a.widget-cta') || {}).getAttribute ? c.querySelector('.card-head a.widget-cta').getAttribute('href') : null,
+    cta_hidden: !!((c.querySelector('.card-head a.widget-cta') || {}).hidden),
+    sentence: ((c.querySelector('.card-foot .foot-sentence') || {}).innerText || '').trim() || null,
 }))"""
+
+
+# UX-F3: tautan dalam di kaki tiga widget laporan; tautan kepala kartu harus sama (setDoor di widgetnya).
+S23_DEEP_DOORS = {
+    "ar-aging": "#/reports?tab=ar-aging",
+    "ap-aging": "#/reports?tab=ap-aging",
+    "proyeksi-kas": "#/reports?tab=cash-projection",
+}
 
 
 # Permintaan yang dibayar SETIAP layar, bukan oleh susunan dasbor: sesi, izin,
@@ -8130,6 +8143,10 @@ def s23(pg):
         try:
             login(page, email)
             page.wait_for_timeout(2500)
+            # Sejak UX-D aturan pendaratan membawa login ke Beranda (#/home), bukan Dasbor:
+            # skenario ini mengukur Dasbor, jadi ia pergi ke sana dengan sengaja (UX-F3).
+            page.evaluate("() => { location.hash = '#/dashboard'; }")
+            page.wait_for_timeout(2500)
             assert_screen(page, "#/dashboard")
             cards = page.evaluate(DASH_CARDS)
             if email in ("direktur@nusantara.test", "teknisi@nusantara.test"):
@@ -8147,6 +8164,25 @@ def s23(pg):
                 "empty_bodies": [c["id"] for c in cards if len(c["body"]) < 3],
                 # …dan kartu tanpa KAKI adalah angka tanpa cara memeriksanya.
                 "cards_without_foot": [c["id"] for c in cards if not c["foot"]],
+                # UX-F3: cangkang kartu. Persegi aksen 8x8 dan CTA ke layar lengkapnya di SETIAP kartu;
+                # kalimat kaki dicatat (kartu kosong/gagal memang tanpa kalimat, jadi tidak diwajibkan).
+                "cards_without_shell": [c["id"] for c in cards
+                                        if c["accent_px"] != [8, 8] or not (c["cta_href"] or "").startswith("#/")
+                                        or c["cta_hidden"]],
+                "foot_sentences": {c["id"]: c["sentence"] for c in cards if c["sentence"]},
+                # Kepala dan kaki menunjuk ke layar yang SAMA: tiga widget punya tautan dalam ke tab Laporan
+                # (katalog hanya tahu indeks `reports`), dan ringkasan-uang mengikuti blok yang dikirim server.
+                "deep_door_mismatch": [
+                    f"{c['id']}: {c['cta_href']} != {S23_DEEP_DOORS[c['id']]}"
+                    for c in cards
+                    if c["id"] in S23_DEEP_DOORS and c["cta_href"] != S23_DEEP_DOORS[c["id"]]
+                ],
+                # Nama aksesibel tautan = "Buka" + judul kartu yang sedang tertulis (aria-labelledby).
+                "cta_name_mismatch": [
+                    c["id"] for c in cards
+                    if c["cta_href"] and not c["cta_hidden"]
+                    and page.get_by_role("link", name=f"Buka {c['title']}", exact=True).count() != 1
+                ],
                 # Ukuran yang DIDEKLARASIKAN lawan rentang yang TERGAMBAR.
                 # 'auto' berarti aturan @media ponsel/tablet sedang memaksa satu
                 # kolom — itu benar, dan tidak dihitung sebagai selisih.
@@ -8202,6 +8238,9 @@ def s23(pg):
     try:
         login(page, "direktur@nusantara.test")
         page.wait_for_timeout(3000)
+        # Login mendarat di Beranda sejak UX-D; skenario ini mengukur Dasbor (UX-F3).
+        page.evaluate("() => { location.hash = '#/dashboard'; }")
+        page.wait_for_timeout(2500)
         cards = page.evaluate(DASH_CARDS)
         budget = 4 + sum(1 for c in cards if c["id"] in MULTI_REQUEST_WIDGETS)
 
@@ -8243,6 +8282,9 @@ def s23(pg):
     try:
         login(page, "project-manager@nusantara.test")
         page.wait_for_timeout(3000)
+        # Login mendarat di Beranda sejak UX-D; sakelar ini milik Dasbor (UX-F3).
+        page.evaluate("() => { location.hash = '#/dashboard'; }")
+        page.wait_for_timeout(3000)
         sent.clear()
         # Sakelar menyala; kalau sudah menyala, dimatikan lalu dinyalakan lagi.
         state = page.evaluate("() => localStorage.getItem('nusantara_erp_dash_mine')")
@@ -8282,6 +8324,9 @@ def s23(pg):
         and mine["both_filtered"]
         and mine["progres_card_says_mine"]
         and not any(r["cards_without_foot"] for r in out["roles"].values())
+        and not any(r["cards_without_shell"] for r in out["roles"].values())
+        and not any(r["deep_door_mismatch"] for r in out["roles"].values())
+        and not any(r["cta_name_mismatch"] for r in out["roles"].values())
         # RENTANG KARTU (UI-5). Rencana kampanye menyebut rentang gridColumn
         # sebaris sebagai batasan keras, dan harness memang MEMBACANYA —
         # getComputedStyle(c).gridColumnSTART — properti yang sebelumnya salah
@@ -8295,6 +8340,9 @@ def s23(pg):
 def s23s(pg):
     """Laci: tambah, hapus, ubah ukuran, urutkan — lalu MUAT ULANG dan baca lagi."""
     login(pg, "direktur@nusantara.test")
+    pg.wait_for_timeout(2500)
+    # Login mendarat di Beranda sejak UX-D; skenario ini mengukur Dasbor (UX-F3).
+    pg.evaluate("() => { location.hash = '#/dashboard'; }")
     pg.wait_for_timeout(2500)
     before = [c["id"] for c in pg.evaluate(DASH_CARDS)]
 
@@ -8430,6 +8478,9 @@ def s23s(pg):
     try:
         login(fresh, "direktur@nusantara.test")
         fresh.wait_for_selector("nav.nav", timeout=15000)
+        # Login mendarat di Beranda sejak UX-D: kunjungan pertama ke DASBOR dimulai di sini,
+        # tanpa menunggu apa pun dahulu, supaya balapan prefs-nya tetap yang diukur (UX-F3).
+        fresh.evaluate("() => { location.hash = '#/dashboard'; }")
         # Cukup lama untuk prefs.load() + gambar ulang, tetapi TIDAK dibantu
         # navigasi apa pun: kunjungan PERTAMA yang harus benar.
         fresh.wait_for_timeout(6000)
@@ -8507,6 +8558,9 @@ def s23f(pg):
     """Satu sumber dijatuhkan sungguhan; kartunya harus MENGAKU, bukan menulis 0."""
     login(pg, "finance@nusantara.test")
     pg.wait_for_timeout(2500)
+    # Login mendarat di Beranda sejak UX-D; skenario ini mengukur Dasbor (UX-F3).
+    pg.evaluate("() => { location.hash = '#/dashboard'; }")
+    pg.wait_for_timeout(2500)
     healthy = {c["id"]: c["body"] for c in pg.evaluate(DASH_CARDS)}
 
     # `core/dashboard/summary` memberi makan KETIGA ubin uang Temuan 79.
@@ -8516,6 +8570,11 @@ def s23f(pg):
     pg.wait_for_timeout(3500)
     broken = {c["id"]: c["body"] for c in pg.evaluate(DASH_CARDS)}
     pg.screenshot(path=f"{OUT}/s23-gagal-jujur-p1d.png", full_page=True)
+    # UX-F3: pintu kepala kartu uang bergantung pada blok yang dikirim server; selagi sumbernya jatuh
+    # tautannya disembunyikan (setDoor(card, null)), bukan diarahkan ke layar yang mungkin menolak peran ini.
+    cta_while_failed = pg.evaluate(
+        "() => { const a = document.querySelector('.dash-grid .card.widget[data-widget=\"ringkasan-uang\"] a.widget-cta');"
+        " return a ? { hidden: a.hidden, visible: a.offsetParent !== null } : null; }")
     pg.unroute("**/api/core/dashboard/summary*")
 
     money = broken.get("ringkasan-uang", "")
@@ -8538,7 +8597,13 @@ def s23f(pg):
         pg.click(".dash-grid .card.widget[data-widget='ringkasan-uang'] button")
         pg.wait_for_timeout(2000)
 
+    cta_after_retry = pg.evaluate(
+        "() => { const a = document.querySelector('.dash-grid .card.widget[data-widget=\"ringkasan-uang\"] a.widget-cta');"
+        " return a ? { hidden: a.hidden, href: a.getAttribute('href') } : null; }")
+
     return {
+        "cta_while_failed": cta_while_failed,
+        "cta_after_retry": cta_after_retry,
         "healthy_money_card": healthy.get("ringkasan-uang", "")[:120],
         "broken_money_card": money[:160],
         "card_still_drawn": "ringkasan-uang" in broken,
@@ -8555,6 +8620,8 @@ def s23f(pg):
             and "Gagal dimuat" in money
             and "Rp 0" not in money
             and retry_buttons == ["Coba lagi"]
+            and cta_while_failed == {"hidden": True, "visible": False}
+            and cta_after_retry == {"hidden": False, "href": "#/r/finance/ar-invoices"}
             # Satu klik = satu permintaan: widget itu saja, bukan dasbor.
             and len(requests_on_retry) == 1
             and not [i for i in others if i not in broken]

@@ -3415,7 +3415,29 @@ body.onboarding-sheet .main { padding-bottom: 72px; }
   align-items: start;
 }
 .card.widget { min-width: 0; }
-.card.widget > .card-head { border-left: 3px solid var(--module-accent); }
+/* UX-F3: persegi aksen 8 px menggantikan garis kiri 3 px; CTA di kanan kepala. */
+.card.widget > .card-head { gap: 8px; }
+.card.widget > .card-head h2 { min-width: 0; overflow-wrap: anywhere; }
+.card.widget .widget-accent { flex: none; width: 8px; height: 8px; border-radius: 2px; background: var(--module-accent); }
+/* CTA: tautan sungguhan, bukan tombol. Tingginya 24 px (lantai WCAG 2.5.8) dengan margin negatif
+   supaya kepala kartu tidak tumbuh; di penunjuk kasar 44 px dengan trik yang sama. `hidden` dipakai
+   widget yang tidak tahu pintunya (setDoor(card, null)) — display di bawah mengalahkan [hidden]
+   bawaan peramban, jadi aturannya ditulis sendiri. */
+.card.widget .widget-cta {
+  flex: none; display: inline-flex; align-items: center;
+  min-height: 24px; margin-block: -4px; padding-inline: 4px;
+  font-size: 12.5px; font-weight: 500; color: var(--primary); text-decoration: none;
+}
+.card.widget .widget-cta:hover { text-decoration: underline; }
+.card.widget .widget-cta[hidden] { display: none; }
+@media (pointer: coarse) {
+  .card.widget .widget-cta { min-height: 44px; margin-block: -12px; padding-inline: 8px; margin-inline-end: -8px; }
+}
+/* Kalimat kaki (footSentence): satu kalimat yang menyuruh melakukan sesuatu, pintunya di kanan.
+   Di kartu sempit tombolnya turun ke baris sendiri, rata kanan, alih-alih memeras kalimat jadi lima baris. */
+.card-foot.has-sentence { justify-content: space-between; flex-wrap: wrap; }
+.card-foot .foot-sentence { flex: 1 1 16rem; min-width: 0; font-size: 12.5px; color: var(--muted); }
+.card-foot.has-sentence > .btn { margin-inline-start: auto; }
 .card.widget .widget-body { min-width: 0; }
 /* Ubin di dalam widget 'kecil' berdiri sendiri-sendiri; .stat-row bawaan
    mengejar empat kolom dan menyisakan tiga sel kosong di lebar 1 kolom. */

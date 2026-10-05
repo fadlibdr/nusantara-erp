@@ -7,7 +7,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safeList, failure, rowsOf, statRow, stat, tileEmpty, failedBody, miniTable, footLink } from './kit.js';
+import { safeList, failure, rowsOf, statRow, stat, tileEmpty, failedBody, miniTable, footLink, footSentence } from './kit.js';
 
 const TIER_LABEL = { lewat: 'lewat', menipis: 'menipis', tanpa_tanggal: 'tanpa tanggal' };
 
@@ -57,7 +57,10 @@ export async function build({ reload }) {
     /* SELALU ada kakinya, bukan hanya saat daftarnya terpotong: sampai
        verifikasi kedua P1-D kartu ini kehilangan satu-satunya pintunya persis
        ketika kelompoknya lima atau kurang — yaitu keadaan yang paling sering. */
-    footLink(
+    footSentence(
+      lewat > 0
+        ? `${lewat} baris sudah lewat atau tanpa tanggal — selesaikan yang lewat dulu.`
+        : (menipis > 0 ? `${menipis} baris mendekati tenggat — jadwalkan penyelesaiannya.` : ''),
       findings.length > top.length ? `Lihat semua (${findings.length} kelompok)` : 'Buka semua tenggat',
       () => navigate('tenggat'),
     ),

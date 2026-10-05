@@ -14,7 +14,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, miniTable, footLink } from './kit.js';
+import { safe, failure, failedBody, miniTable, footSentence } from './kit.js';
 
 export async function build({ reload }) {
   const rows = await safe('inventory/stock/low-stock');
@@ -57,6 +57,10 @@ export async function build({ reload }) {
        satu-satunya pintu kartu ini persis ketika daftarnya PENDEK — yaitu
        keadaan yang paling sering, dan keadaan yang paling perlu diperiksa
        (verifikasi kedua P1-D: 10 dari 19 kartu tanpa .card-foot). */
-    footLink(rows.length > worst.length ? `Lihat semua (${rows.length})` : 'Buka Stok', () => navigate('stock')),
+    footSentence(
+      rows.length ? `${rows.length} item di bawah stok minimum — buat permintaan pembelian.` : '',
+      rows.length > worst.length ? `Lihat semua (${rows.length})` : 'Buka Stok',
+      () => navigate('stock'),
+    ),
   ]);
 }

@@ -7,7 +7,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, statRow, stat, footLink, tileEmpty } from './kit.js';
+import { safe, failure, failedBody, statRow, stat, footLink, footSentence, tileEmpty } from './kit.js';
 
 /* Server MENGIRIM persen (PipelineReportService::rate = won/decided × 100,
    dibulatkan satu desimal), bukan pecahan — mengalikannya lagi menulis
@@ -42,6 +42,12 @@ export async function build({ reload }) {
           + (totals.rejected_count ? ` · ${totals.rejected_count} ditolak internal tidak dihitung` : ''),
       }),
     ])),
-    footLink('Buka analisis pipeline', () => navigate('pipeline')),
+    footSentence(
+      Number(totals.undecided_count) > 0
+        ? `${totals.undecided_count} peluang masih berjalan — tindak lanjuti yang paling lama belum diputuskan.`
+        : '',
+      'Buka analisis pipeline',
+      () => navigate('pipeline'),
+    ),
   ]);
 }

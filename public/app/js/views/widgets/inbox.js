@@ -11,7 +11,7 @@
 import { el, icon } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { failure, rowsOf, tileEmpty, failedBody, miniTable, footLink } from './kit.js';
+import { failure, rowsOf, tileEmpty, failedBody, miniTable, footSentence } from './kit.js';
 import { loadInbox } from '../../inbox.js';
 
 const PREVIEW = 5;
@@ -72,6 +72,10 @@ export async function build({ reload }) {
        satu-satunya pintu kartu ini persis ketika daftarnya PENDEK — yaitu
        keadaan yang paling sering, dan keadaan yang paling perlu diperiksa
        (verifikasi kedua P1-D: 10 dari 19 kartu tanpa .card-foot). */
-    footLink(total > PREVIEW ? `Lihat semua (${total})` : 'Buka Persetujuan', () => navigate('tugas')),
+    footSentence(
+      total > 0 ? `${total} dokumen menunggu Anda — mulai dari yang paling lama menunggu.` : '',
+      total > PREVIEW ? `Lihat semua (${total})` : 'Buka Persetujuan',
+      () => navigate('tugas'),
+    ),
   ]);
 }

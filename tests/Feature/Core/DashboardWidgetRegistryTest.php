@@ -118,7 +118,7 @@ class DashboardWidgetRegistryTest extends ErpTestCase
      * justru pada keadaan KOSONG — layar yang paling perlu diperiksa.
      *
      * Yang dijaga di sini karena itu dua hal yang bisa dijaga tanpa runtime JS:
-     *  1. setiap berkas widget memanggil footLink();
+     *  1. setiap berkas widget memanggil footLink() atau footSentence();
      *  2. sedikitnya satu `navigate('…')` di berkas itu MULAI DENGAN route
      *     katalognya — jadi `reports?tab=ar-aging` sah untuk route `reports`
      *     (tautan dalam ke tab layar yang sama), sementara route yang tidak
@@ -137,11 +137,16 @@ class DashboardWidgetRegistryTest extends ErpTestCase
             $this->assertFileExists($path);
             $source = (string) file_get_contents($path);
 
-            $this->assertStringContainsString('footLink(', $source, sprintf(
-                'Widget [%s] tidak menggambar kaki kartu satu kali pun, jadi katalognya menjanjikan pintu '
-                .'("route: %s") yang tidak ada di layar mana pun.',
-                $entry['id'], $route,
-            ));
+            // UX-F3: kaki kartu adalah footLink() (pintu saja) ATAU footSentence()
+            // (kalimat + pintu); keduanya menggambar `.card-foot`.
+            $this->assertTrue(
+                str_contains($source, 'footLink(') || str_contains($source, 'footSentence('),
+                sprintf(
+                    'Widget [%s] tidak menggambar kaki kartu satu kali pun, jadi katalognya menjanjikan pintu '
+                    .'("route: %s") yang tidak ada di layar mana pun.',
+                    $entry['id'], $route,
+                ),
+            );
 
             preg_match_all("/navigate\('([^']+)'/", $source, $targets);
             $this->assertNotSame([], $targets[1], "Widget [{$entry['id']}] tidak menaut ke mana pun.");
@@ -177,7 +182,7 @@ class DashboardWidgetRegistryTest extends ErpTestCase
                     continue;
                 }
 
-                $this->assertStringContainsString('footLink(', $statement, sprintf(
+                $this->assertTrue(str_contains($statement, 'footLink(') || str_contains($statement, 'footSentence('), sprintf(
                     'Widget [%s] menggambar keadaan kosong tanpa kaki kartu. Justru pada layar yang isinya '
                     .'kosong pembacanya perlu jalan untuk memeriksa, dan katalognya menjanjikan "route: %s".',
                     $entry['id'], $route,

@@ -9,7 +9,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, statRow, stat, footLink, tileEmpty } from './kit.js';
+import { safe, failure, failedBody, statRow, stat, footLink, footSentence, tileEmpty } from './kit.js';
 
 const index = (value) => (value === null ? '—' : value.toFixed(2));
 // Ambang yang sama dengan layar EVM: < 0,95 buruk, > 1,05 baik.
@@ -67,6 +67,12 @@ export async function build({ reload }) {
       }),
       stat('Biaya aktual (Σ AC)', fmt.rupiahShort(ac), { sub: `biaya proyek s.d. ${per}` }),
     ])),
-    footLink('Buka EVM', () => navigate('evm')),
+    footSentence(
+      spi !== null && spi < 0.95
+        ? `Jadwal gabungan tertinggal (SPI ${spi.toFixed(2)}) — periksa proyek dengan SPI terendah.`
+        : (cpi !== null && cpi < 0.95 ? `Biaya melampaui capaian (CPI ${cpi.toFixed(2)}) — tinjau pengeluaran proyek.` : ''),
+      'Buka EVM',
+      () => navigate('evm'),
+    ),
   ]);
 }

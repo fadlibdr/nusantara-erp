@@ -17,7 +17,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedStats, statRow, stat, footLink } from './kit.js';
+import { safe, failure, failedStats, statRow, stat, footLink, setDoor } from './kit.js';
 
 export async function build({ mineOnly, reload, card }) {
   const tiles = await safe('core/dashboard/summary', { mine: mineOnly ? 1 : undefined });
@@ -27,6 +27,8 @@ export async function build({ mineOnly, reload, card }) {
      "Hutang belum dibayar Rp 0" di atas sumber yang jatuh adalah kebohongan
      yang rapi. */
   if (failure(tiles)) {
+    // Pintunya bergantung pada blok yang dikirim server; tanpa itu tautan kepala disembunyikan.
+    setDoor(card, null);
     return failedStats(['Proyek berjalan', 'Piutang belum tertagih', 'Hutang belum dibayar'], reload);
   }
 
@@ -49,9 +51,11 @@ export async function build({ mineOnly, reload, card }) {
   ].filter(Boolean);
   const heading = card && card.querySelector('.card-head h2');
   if (heading && shown.length) {
-    heading.textContent = shown.length === 1
+    const text = shown.length === 1
       ? shown[0]
       : `${shown.slice(0, -1).join(', ')} & ${shown[shown.length - 1]}`;
+    // Peran tanpa prj.view dulu membaca "piutang & hutang" berhuruf kecil di kepala kartu.
+    heading.textContent = text.charAt(0).toUpperCase() + text.slice(1);
   }
 
   const body = el('.card-body', statRow([
@@ -88,6 +92,9 @@ export async function build({ mineOnly, reload, card }) {
       : tiles.ap_bills
         ? { label: 'Semua tagihan vendor', route: 'r/finance/ap-bills' }
         : null;
+
+  // Kepala dan kaki menunjuk blok pertama yang sama; tanpa blok, tidak ada pintu sama sekali.
+  setDoor(card, door ? door.route : null);
 
   return el('div', [body, door ? footLink(door.label, () => navigate(door.route)) : null]);
 }

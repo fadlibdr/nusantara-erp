@@ -10,7 +10,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedStats, statRow, stat, footLink, tileEmpty } from './kit.js';
+import { safe, failure, failedStats, statRow, stat, footLink, footSentence, tileEmpty } from './kit.js';
 
 export async function build({ reload }) {
   const rows = await safe('finance/reports/bank-balances');
@@ -35,6 +35,10 @@ export async function build({ reload }) {
         tone: total < 0 || minus.length ? 'down' : undefined,
       }),
     ])),
-    footLink('Buka rekening bank', () => navigate('r/finance/bank-accounts')),
+    footSentence(
+      minus.length ? `${minus.length} rekening bersaldo minus — periksa mutasi dan saldo awalnya.` : '',
+      'Buka rekening bank',
+      () => navigate('r/finance/bank-accounts'),
+    ),
   ]);
 }

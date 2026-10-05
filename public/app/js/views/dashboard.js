@@ -118,7 +118,26 @@ function widgetCard(widget, size) {
     dataset: { widget: widget.id, size, accent: String(accentOf(widget)) },
     style: { gridColumn: `span ${SPAN[size] || 1}` },
   }, [
-    el('.card-head', [el('h2', { text: widget.title }), el('.spacer')]),
+    /* Cangkang kartu (UX-F3): persegi aksen 8 px, judul, lalu pintu ke layar
+       lengkapnya. Persegi itu hiasan (aria-hidden); pintunya tautan sungguhan
+       supaya bisa dibuka di tab baru. Namanya dirangkai dari kata "Buka" dan
+       JUDUL KARTU YANG SEDANG TERTULIS (aria-labelledby, bukan teks tetap):
+       ringkasan-uang dan proyek-progres mengganti judulnya sendiri, dan nama
+       yang dibekukan saat kartu dibuat akan menyebut judul yang sudah tidak
+       ada di layar. */
+    el('.card-head', [
+      el('span.widget-accent', { 'aria-hidden': 'true' }),
+      el('h2', { id: `dash-w-${widget.id}-title`, text: widget.title }),
+      el('.spacer'),
+      widget.route
+        ? el('a.widget-cta', {
+          id: `dash-w-${widget.id}-cta`,
+          href: `#/${widget.route}`,
+          'aria-labelledby': `dash-w-${widget.id}-cta dash-w-${widget.id}-title`,
+          text: 'Buka',
+        })
+        : null,
+    ]),
     body,
   ]);
   return { card, body };

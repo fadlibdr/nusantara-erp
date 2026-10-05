@@ -6,7 +6,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, statRow, stat, miniTable, footLink } from './kit.js';
+import { safe, failure, failedBody, statRow, stat, miniTable, footSentence } from './kit.js';
 
 export async function build({ reload }) {
   const report = await safe('procurement/reports/outstanding');
@@ -42,6 +42,10 @@ export async function build({ reload }) {
       () => navigate('po-outstanding'),
       { empty: { kind: 'done', message: 'Tidak ada baris PO yang lewat batas kirim.' } },
     ),
-    footLink('Buka PO outstanding', () => navigate('po-outstanding')),
+    footSentence(
+      overdue > 0 ? `${overdue} baris PO lewat tanggal kirim — tanyakan jadwal kirimnya ke vendor.` : '',
+      'Buka PO outstanding',
+      () => navigate('po-outstanding'),
+    ),
   ]);
 }

@@ -135,8 +135,8 @@ export function tileEmpty(message, kind = 'inbox') {
  * diulang.
  */
 export const failedBody = (error, retry) => el('.card-body', errorState({
-  message: 'Data widget ini gagal dimuat.',
-  details: ['Jangan dibaca sebagai "tidak ada data" — isinya tidak diketahui.', error.message || String(error)],
+  message: 'Tidak dapat dimuat — angkanya tidak diketahui, jangan dibaca sebagai nol.',
+  details: [error.message || String(error)],
 }, retry));
 
 /* Tabel ringkas di dalam widget. `empty.kind` 'done' hanya untuk widget yang
@@ -155,6 +155,36 @@ export function miniTable(columns, rows, onRowClick, { empty = {} } = {}) {
       return tr;
     })),
   ]));
+}
+
+/**
+ * Pintu di kepala kartu (UX-F3). Cangkang dasbor menggambar tautan "Buka" ke `route` katalog;
+ * widget yang pintunya lebih dalam dari route itu (tab laporan tertentu) atau baru diketahui
+ * setelah datanya tiba (ringkasan-uang: blok pertama yang dikirim server) memanggil ini supaya
+ * kepala dan kakinya menunjuk ke layar yang SAMA. `null` menyembunyikan tautannya: pintu yang
+ * tidak diketahui lebih baik tidak ada daripada menuju layar yang menolak pembacanya.
+ */
+export function setDoor(card, route) {
+  const link = card && card.querySelector('.card-head a.widget-cta');
+  if (!link) return;
+  link.hidden = !route;
+  if (route) link.setAttribute('href', `#/${route}`);
+}
+
+/**
+ * Kaki widget yang berakhir pada SATU kalimat yang bisa ditindaklanjuti (UX-F3),
+ * dengan pintu ke layarnya di kanan. Kalimatnya dihitung pemanggil dari angka
+ * yang sudah ada di tangannya — "3 termin siap ditagih; mulai dari yang tertua"
+ * — bukan teks tetap: kalimat tetap pada kartu yang kosong adalah kebohongan
+ * kecil. Kalimat kosong jatuh kembali ke footLink(), jadi kaki tidak pernah
+ * hilang.
+ */
+export function footSentence(sentence, label, onClick) {
+  if (!sentence) return footLink(label, onClick);
+  return el('.card-foot.has-sentence', [
+    el('span.foot-sentence', { text: sentence }),
+    button(label, { size: 'sm', variant: 'ghost', onClick }),
+  ]);
 }
 
 /** Kaki widget dengan satu pintu ke layar yang memuat angkanya secara lengkap. */

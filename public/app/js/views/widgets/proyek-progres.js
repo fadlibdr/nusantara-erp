@@ -28,10 +28,14 @@
 import { el, progressBar } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safeList, failure, failedBody, rowsOf, totalOf, miniTable, footLink } from './kit.js';
+import { safeList, failure, failedBody, rowsOf, totalOf, miniTable, footSentence } from './kit.js';
 
 /** Berapa proyek yang diminta server per halaman — dipakai juga oleh kalimat kaki. */
 const WINDOW = 100;
+
+/* Satu ambang "tertinggal" untuk batang amber DAN kalimat kaki (UX-F3): dua
+   ambang membuat batang hijau berdiri di atas kalimat "tertinggal". */
+const behind = (row) => Number(row.actual_progress_pct || 0) + 0.01 < Number(row.planned_progress_pct || 0);
 
 export async function build({ reload, mineOnly, card }) {
   const payload = await safeList('projects', { per_page: WINDOW, mine: mineOnly ? 1 : undefined });
@@ -75,7 +79,7 @@ export async function build({ reload, mineOnly, card }) {
                 el('span.num', { text: fmt.percent(actual) }),
                 el('span.muted.num', { text: `rencana ${fmt.percent(planned)}` }),
               ]),
-              progressBar(actual, actual + 0.01 < planned ? 'amber' : 'green'),
+              progressBar(actual, behind(row) ? 'amber' : 'green'),
             ]);
           },
         },
@@ -90,6 +94,16 @@ export async function build({ reload, mineOnly, card }) {
         },
       },
     ),
-    footLink(footLabel, () => navigate('r/projects')),
+    /* Selisihnya ditulis seperti tabel di atasnya (fmt.percent), bukan dibulatkan
+       ke bilangan bulat: -0,3 menjadi "tertinggal 0 poin". "Tidak ada yang
+       tertinggal" hanya diucapkan bila peringkatnya menyapu seluruh proyek; dari
+       jendela yang terpotong kalimat itu tidak bisa dibuktikan. */
+    footSentence(
+      active.length && behind(active[0])
+        ? `${active[0].name} tertinggal ${fmt.percent(-active[0].deviation)} dari rencana — periksa jadwalnya.`
+        : (active.length && !truncated ? 'Tidak ada proyek berjalan yang tertinggal dari rencana.' : ''),
+      footLabel,
+      () => navigate('r/projects'),
+    ),
   ]);
 }

@@ -8,7 +8,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safeList, failure, rowsOf, failedStats, statRow, stat, footLink, tileEmpty } from './kit.js';
+import { safeList, failure, rowsOf, failedStats, statRow, stat, footLink, footSentence, tileEmpty } from './kit.js';
 
 export async function build({ reload }) {
   // api.list, bukan api.get: `meta.total_amount` adalah jumlah SERVER, dan
@@ -36,6 +36,10 @@ export async function build({ reload }) {
         tone: 'down',
       }),
     ])),
-    footLink('Buka daftar siap tagih', () => navigate('siap-tagih')),
+    footSentence(
+      `${rows.length} termin sudah berhak ditagih — terbitkan tagihan mulai dari yang tertua.`,
+      'Buka daftar siap tagih',
+      () => navigate('siap-tagih'),
+    ),
   ]);
 }

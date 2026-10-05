@@ -11,7 +11,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, statRow, stat, miniTable, footLink, tileEmpty } from './kit.js';
+import { safe, failure, failedBody, statRow, stat, miniTable, footLink, footSentence, tileEmpty } from './kit.js';
 
 export async function build({ reload }) {
   const year = new Date().getFullYear();
@@ -64,6 +64,12 @@ export async function build({ reload }) {
       () => navigate('kalender-pajak'),
       { empty: { kind: 'done', message: 'Semua masa tahun ini sudah disetor atau dilapor.' } },
     ),
-    footLink('Buka kalender pajak', () => navigate('kalender-pajak')),
+    footSentence(
+      lewat.length
+        ? `${lewat.length} masa lewat tenggat setor — setor dan lapor hari ini.`
+        : (terdekat.length ? `Setoran berikutnya jatuh tempo ${fmt.date(terdekat[0].due_date)}.` : ''),
+      'Buka kalender pajak',
+      () => navigate('kalender-pajak'),
+    ),
   ]);
 }

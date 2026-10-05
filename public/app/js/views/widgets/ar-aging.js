@@ -5,10 +5,12 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, barRows, footLink, tileEmpty, stat } from './kit.js';
+import { safe, failure, failedBody, barRows, footLink, footSentence, setDoor, tileEmpty, stat } from './kit.js';
 import { AGING_BUCKETS, agingEntries } from './aging.js';
 
-export async function build({ reload }) {
+export async function build({ reload, card }) {
+  // Pintu kepala kartu = pintu kakinya: tab umur piutang, bukan indeks Laporan (UX-F3).
+  setDoor(card, 'reports?tab=ar-aging');
   const report = await safe('finance/reports/ar-aging');
   if (failure(report)) return failedBody(failure(report), reload);
 
@@ -56,6 +58,10 @@ export async function build({ reload }) {
       }),
     ])),
     barRows(agingEntries(buckets), { format: (value) => fmt.rupiahShort(value) }),
-    footLink('Buka umur piutang', () => navigate('reports?tab=ar-aging')),
+    footSentence(
+      lewat > 0 ? `${fmt.rupiahShort(lewat)} piutang sudah jatuh tempo — tagih mulai dari yang tertua.` : 'Tidak ada piutang yang jatuh tempo.',
+      'Buka umur piutang',
+      () => navigate('reports?tab=ar-aging'),
+    ),
   ]);
 }

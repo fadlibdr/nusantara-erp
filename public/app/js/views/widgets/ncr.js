@@ -11,7 +11,7 @@
 
 import { el } from '../../ui.js';
 import { navigate } from '../../router.js';
-import { safeList, failure, rowsOf, totalOf, failedStats, statRow, stat, footLink, miniTable } from './kit.js';
+import { safeList, failure, rowsOf, totalOf, failedStats, statRow, stat, footSentence, miniTable } from './kit.js';
 
 const OPEN_STATUSES = ['open', 'under_correction'];
 
@@ -55,6 +55,10 @@ export async function build({ reload }) {
        satu-satunya pintu kartu ini persis ketika daftarnya PENDEK — yaitu
        keadaan yang paling sering, dan keadaan yang paling perlu diperiksa
        (verifikasi kedua P1-D: 10 dari 19 kartu tanpa .card-foot). */
-    footLink(total > rows.length ? `Lihat semua (${total})` : 'Buka NCR', () => navigate('r/quality/ncr')),
+    footSentence(
+      total > 0 ? `${total} NCR belum ditutup — tetapkan penanggung jawab dan tenggat perbaikannya.` : '',
+      total > rows.length ? `Lihat semua (${total})` : 'Buka NCR',
+      () => navigate('r/quality/ncr'),
+    ),
   ]);
 }

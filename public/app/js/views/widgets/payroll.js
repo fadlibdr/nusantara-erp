@@ -7,7 +7,14 @@
 import { el, badge } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safeList, failure, rowsOf, failedBody, statRow, stat, miniTable, footLink, tileEmpty } from './kit.js';
+import { safeList, failure, rowsOf, failedBody, statRow, stat, miniTable, footLink, footSentence, tileEmpty } from './kit.js';
+
+const NEXT_STEP = {
+  draft: 'masih draf — ajukan sebelum tanggal bayar.',
+  submitted: 'menunggu persetujuan — pastikan diputuskan sebelum tanggal bayar.',
+  approved: 'sudah disetujui — siap dibayarkan.',
+  rejected: 'ditolak — perbaiki lalu ajukan ulang.',
+};
 
 export async function build({ reload }) {
   const payload = await safeList('hr/payroll-runs', { per_page: 3 });
@@ -50,6 +57,12 @@ export async function build({ reload }) {
       text: 'Tiga run terakhir DIBUAT (urutan server), bukan tiga masa terakhir.',
       style: { fontSize: '11.5px', margin: '0 16px 12px' },
     }),
-    footLink('Buka payroll', () => navigate('r/hr/payroll-runs')),
+    // Kalimat menurut status DocumentStatus; run yang sudah selesai atau batal tidak butuh tindakan, jadi
+    // kakinya jatuh ke pintu saja alih-alih menyuruh melakukan sesuatu yang tidak perlu.
+    footSentence(
+      NEXT_STEP[latest.status] ? `Run terbaru ${latest.code} ${NEXT_STEP[latest.status]}` : '',
+      'Buka payroll',
+      () => navigate('r/hr/payroll-runs'),
+    ),
   ]);
 }

@@ -6,7 +6,7 @@
 import { el, badge } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safeList, failure, rowsOf, totalOf, failedBody, statRow, stat, miniTable, footLink } from './kit.js';
+import { safeList, failure, rowsOf, totalOf, failedBody, statRow, stat, miniTable, footSentence } from './kit.js';
 
 /** Jam keterlambatan terhadap jam peramban; null bila batasnya tidak ada. */
 function overdueBy(due) {
@@ -56,6 +56,10 @@ export async function build({ reload }) {
        satu-satunya pintu kartu ini persis ketika daftarnya PENDEK — yaitu
        keadaan yang paling sering, dan keadaan yang paling perlu diperiksa
        (verifikasi kedua P1-D: 10 dari 19 kartu tanpa .card-foot). */
-    footLink(total > tickets.length ? `Lihat semua (${total})` : 'Buka Pelanggaran SLA', () => navigate('sla-breaches')),
+    footSentence(
+      total > 0 ? `${total} tiket melewati SLA — tindak lanjuti yang paling lama terlambat.` : '',
+      total > tickets.length ? `Lihat semua (${total})` : 'Buka Pelanggaran SLA',
+      () => navigate('sla-breaches'),
+    ),
   ]);
 }

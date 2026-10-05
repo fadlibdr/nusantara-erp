@@ -7,9 +7,11 @@
 import { el, icon } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, footLink, stat } from './kit.js';
+import { safe, failure, failedBody, footSentence, setDoor, stat } from './kit.js';
 
-export async function build({ reload }) {
+export async function build({ reload, card }) {
+  // Pintu kepala kartu = pintu kakinya: tab proyeksi kas, bukan indeks Laporan (UX-F3).
+  setDoor(card, 'reports?tab=cash-projection');
   const report = await safe('finance/reports/cash-projection', { days: 90 });
   if (failure(report)) return failedBody(failure(report), reload);
 
@@ -17,6 +19,7 @@ export async function build({ reload }) {
   const lowest = (report && report.lowest) || {};
   const warnings = (report && report.warnings) || [];
   const ending = Number(report && report.ending_balance);
+  const lowestKnown = lowest.balance !== null && lowest.balance !== undefined && Number.isFinite(Number(lowest.balance));
 
   const money = (value) => (Number.isFinite(Number(value)) ? fmt.rupiah(value) : '—');
   // Kelas, bukan gaya sebaris: sejak UI-5 stat() menerima valueTone.
@@ -61,6 +64,20 @@ export async function build({ reload }) {
           : el('.delta', { text: 'tidak diketahui' }),
       ]),
     ])),
-    footLink('Buka proyeksi 90 hari', () => navigate('reports?tab=cash-projection')),
+    /* Kalimatnya hanya berbicara bila titik terendahnya DIKETAHUI (null bukan nol: Number(null) === 0
+       akan menulis "tidak turun di bawah nol" di atas angka yang tidak ada), dan peringatan di atas
+       angkanya mengalahkan kabar baik — "kas aman" di bawah spanduk "saldo awal belum dijurnal"
+       adalah kalimat yang sama kelirunya dengan Rp 0 di atas sumber yang jatuh. */
+    footSentence(
+      !lowestKnown
+        ? ''
+        : (Number(lowest.balance) < 0
+          ? `Kas diproyeksi negatif ${money(lowest.balance)} — siapkan pendanaan sebelum titik itu.`
+          : (warnings.length
+            ? 'Proyeksi memuat peringatan — periksa saldo awalnya sebelum mengandalkan angkanya.'
+            : 'Kas diproyeksi tidak turun di bawah nol dalam 90 hari.')),
+      'Buka proyeksi 90 hari',
+      () => navigate('reports?tab=cash-projection'),
+    ),
   ]);
 }

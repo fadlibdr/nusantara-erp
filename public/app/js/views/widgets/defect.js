@@ -7,7 +7,7 @@
 import { el } from '../../ui.js';
 import * as fmt from '../../format.js';
 import { navigate } from '../../router.js';
-import { safe, failure, failedBody, statRow, stat, footLink } from './kit.js';
+import { safe, failure, failedBody, statRow, stat, footSentence } from './kit.js';
 
 export async function build({ reload }) {
   const summary = await safe('projects/defects/summary');
@@ -38,6 +38,12 @@ export async function build({ reload }) {
       text: `Dihitung server dari SELURUH temuan per ${fmt.date(summary.as_of)} (${summary.total} temuan tercatat).`,
       style: { fontSize: '11.5px', margin: '0 16px 12px' },
     }),
-    footLink('Buka register temuan', () => navigate('defects')),
+    footSentence(
+      blocking > 0
+        ? `${blocking} temuan menahan BAST II — selesaikan dulu sebelum serah terima.`
+        : (overdue > 0 ? `${overdue} temuan lewat target perbaikan — minta kepastian jadwalnya.` : 'Tidak ada temuan yang menahan serah terima.'),
+      'Buka register temuan',
+      () => navigate('defects'),
+    ),
   ]);
 }
