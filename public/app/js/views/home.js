@@ -27,11 +27,15 @@
  */
 
 import { api, session } from '../api.js';
-import { el, clear, append, button, svgIcon, emptyState } from '../ui.js';
+import { el, clear, append, button, svgIcon, emptyState, pageHeader, keyValueTile } from '../ui.js';
 import { MODULES, moduleFor, visibleNav } from '../schema.js';
 import { prefs } from '../prefs.js';
 import { screenHits } from '../search.js';
 import { navigate } from '../router.js';
+import { loadInbox } from '../inbox.js';
+import { loadDeadlines } from '../deadlines.js';
+import { createEntries, startCreate } from '../create.js';
+import * as fmt from '../format.js';
 
 /** Hasil layar yang ditampilkan saat mencari — di atas ini jawabannya adalah modulnya. */
 const SEARCH_MAX = 24;
@@ -42,15 +46,13 @@ export async function renderHome(host) {
   const groups = visibleNav((perm) => session.can(perm)).filter((group) => group.items.some((item) => item.route));
   const hidden = hiddenPrefixes();
 
-  host.appendChild(el('.page-head', [
-    el('div', [
-      el('h1', { text: 'Beranda' }),
-      el('.desc', { text: `Selamat datang, ${(session.user || {}).name || 'pengguna'}. Pilih modul untuk mulai bekerja.` }),
-    ]),
-    el('.actions', [button('Dasbor', { onClick: () => navigate('dashboard') })]),
-  ]));
+  host.appendChild(pageHeader({
+    title: 'Beranda',
+    description: `Selamat datang, ${(session.user || {}).name || 'pengguna'}. Mulai dari yang menunggu Anda, atau pilih bidang kerja.`,
+    actions: [button('Dasbor', { onClick: () => navigate('dashboard') })],
+  }));
 
-  const grid = el('ul.home-grid', { 'aria-label': 'Modul' });
+  const grid = el('ul.home-grid', { 'aria-label': 'Bidang kerja' });
   const tiles = new Map();
   for (const group of groups) {
     if (hidden.includes(group.prefix)) continue;
@@ -69,6 +71,19 @@ export async function renderHome(host) {
   const body = el('div');
   host.appendChild(body);
 
+  /* UX-F2.2 (README Fase F): ruang kerja DI ATAS ubin — apa yang perlu Anda
+     tindak, aksi tercepat, tiga-empat angka. Semuanya digambar dari pemuat
+     bersama (inbox.js, deadlines.js) dan cermin lokal; satu-satunya permintaan
+     baru di halaman landing adalah core/deadlines. */
+  const work = workSection();
+  body.appendChild(work.node);
+  const quick = el('div');
+  body.appendChild(quick);
+  paintQuick(quick);
+  redrawWhenPrefsLand(quick, () => paintQuick(clear(quick)));
+  const numbers = el('div');
+  body.appendChild(numbers);
+
   const shortcuts = el('div');
   body.appendChild(shortcuts);
   shortcutRows(shortcuts);
@@ -79,7 +94,7 @@ export async function renderHome(host) {
     return;
   }
 
-  body.appendChild(el('section.home-section', [el('h2.home-section-title', { text: 'Modul' }), grid]));
+  body.appendChild(el('section.home-section', [el('h2.home-section-title', { text: 'Bidang kerja' }), grid]));
   append(body, hiddenFooter(hidden, host));
 
   /* Angka menyusul; ubin sudah bisa ditekan sebelum jawabannya datang, dan
@@ -93,12 +108,194 @@ export async function renderHome(host) {
 
   if (counts === null) {
     tiles.forEach((tile) => tile.fail());
+    paintNumbers(numbers, groups, null);
     body.appendChild(el('.muted.home-note', { text: 'Angka modul tidak dapat dimuat sekarang — menu di bawah tetap bisa dipakai.' }));
     return;
   }
 
   const byPrefix = new Map((Array.isArray(counts) ? counts : []).map((one) => [one.prefix, one]));
   tiles.forEach((tile, prefix) => tile.fill(byPrefix.get(prefix) || null));
+  paintNumbers(numbers, groups, byPrefix);
+}
+
+/* ------------------------------------------------------- perlu tindakan Anda */
+
+/** Kartu per sumber yang tampil: persetujuan teratas dan tenggat lewat. */
+const WORK_INBOX_MAX = 2;
+const WORK_DEADLINE_MAX = 3;
+
+/**
+ * "Perlu tindakan Anda": dua dokumen yang paling lama menunggu keputusan Anda
+ * (core/inbox lewat pemuat bersama; hanya pemegang hak approve) dan tenggat yang
+ * SUDAH LEWAT (core/deadlines lewat pemuat bersama), yang paling lama di atas.
+ * Dua sumber, dua kegagalan terpisah: yang pertama tiba menggambar duluan, yang
+ * gagal menulis SATU kalimat dan tidak pernah menjadi "tidak ada yang perlu
+ * ditindak" (CONVENTIONS §14 — daftar kosong karena gagal bukan daftar kosong).
+ */
+function workSection() {
+  const sub = el('p.home-section-sub', { text: 'Memuat…' });
+  const content = el('div');
+  const node = el('section.home-section#perlu-tindakan', [
+    el('h2.home-section-title', { text: 'Perlu tindakan Anda' }), sub, content,
+  ]);
+  // undefined = belum menjawab; null = tidak ditanyakan (bukan penyetuju); 'failed' = gagal.
+  const state = { inbox: undefined, due: undefined };
+  const redraw = () => { if (node.isConnected) paintWork(sub, content, state); };
+
+  const settle = async (key, load) => {
+    try {
+      state[key] = await load();
+    } catch {
+      state[key] = 'failed';
+    }
+    redraw();
+  };
+  settle('inbox', () => loadInbox());
+  settle('due', () => loadDeadlines());
+  return { node };
+}
+
+function paintWork(sub, content, state) {
+  clear(content);
+  const answered = (value) => value !== undefined;
+  const failedOf = (value) => value === 'failed';
+  const inboxRows = state.inbox && state.inbox !== 'failed' ? (state.inbox.data || []) : [];
+  const inboxMeta = state.inbox && state.inbox !== 'failed' ? (state.inbox.meta || {}) : {};
+  const findings = state.due && state.due !== 'failed' ? (state.due.data || []) : [];
+  const overdue = findings.filter((finding) => finding.tier === 'lewat');
+
+  // Kalimat hitungan di bawah judul; sumber yang gagal atau belum menjawab menulis '—', bukan 0.
+  const pieces = [];
+  if (state.inbox !== null) {
+    pieces.push(failedOf(state.inbox) || !answered(state.inbox)
+      ? '— dokumen menunggu keputusan Anda'
+      : `${inboxMeta.failed && inboxMeta.failed.length ? `${inboxMeta.total ?? inboxRows.length}+` : (inboxMeta.total ?? inboxRows.length)} dokumen menunggu keputusan Anda`);
+  }
+  pieces.push(failedOf(state.due) || !answered(state.due) ? '— tenggat sudah lewat' : `${overdue.length} tenggat sudah lewat`);
+  sub.textContent = pieces.join(' · ');
+
+  const cards = [
+    ...inboxRows.slice(0, WORK_INBOX_MAX).map((row) => ({ age: Number(row.days_waiting) || 0, node: approvalCard(row) })),
+    ...overdue
+      .map((finding) => ({ finding, age: maxOverdueDays(finding) }))
+      .sort((a, b) => b.age - a.age)
+      .slice(0, WORK_DEADLINE_MAX)
+      .map(({ finding, age }) => ({ age, node: deadlineCard(finding) })),
+  ].sort((a, b) => b.age - a.age);
+
+  const notes = [];
+  if (failedOf(state.inbox)) notes.push('Persetujuan tidak dapat dimuat sekarang — daftarnya di Persetujuan tetap bisa dibuka.');
+  if (failedOf(state.due)) notes.push('Tenggat tidak dapat dimuat sekarang.');
+  if (inboxMeta.failed && inboxMeta.failed.length) notes.push(`Gagal dimuat: ${inboxMeta.failed.join(', ')}. Daftar persetujuan ini belum lengkap.`);
+
+  if (cards.length) content.appendChild(el('ul.home-cards', cards.map((card) => el('li', card.node))));
+  notes.forEach((text) => content.appendChild(el('.alert.warn.home-alert', text)));
+
+  const settled = answered(state.inbox) && answered(state.due);
+  if (settled && !cards.length && !notes.length) {
+    content.appendChild(emptyState(
+      state.inbox === null
+        ? 'Tidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat.'
+        : 'Tidak ada dokumen yang menunggu keputusan Anda dan tidak ada tenggat yang sudah lewat.',
+      { title: 'Tidak ada yang perlu ditindak', kind: 'done', compact: true },
+    ));
+  }
+
+  const more = [
+    state.inbox !== null && state.inbox !== undefined ? el('a', { href: '#/tugas', text: 'Semua persetujuan →' }) : null,
+    el('a', { href: '#/tenggat', text: 'Semua tenggat →' }),
+  ].filter(Boolean);
+  content.appendChild(el('.home-more', more));
+}
+
+/** Hari terlama sebuah temuan terlewat (item.days bertanda: negatif = sudah lewat). */
+function maxOverdueDays(finding) {
+  const days = (finding.items || []).map((item) => (typeof item.days === 'number' ? -item.days : 0));
+  return days.length ? Math.max(...days) : 0;
+}
+
+function homeCard({ tone, kindIcon, kind, title, meta, href, cta }) {
+  return el('article.home-card', { dataset: { tone } }, [
+    el('.home-card-kind', [svgIcon(kindIcon, { size: 14 }), el('span', { text: kind })]),
+    el('b.home-card-title', { text: title }),
+    meta ? el('.home-card-meta', { text: meta }) : null,
+    el('a.btn.sm.primary', { href }, el('span', { text: cta })),
+  ]);
+}
+
+function approvalCard(row) {
+  const waited = row.days_waiting === null || row.days_waiting === undefined ? null : `menunggu ${row.days_waiting} hari`;
+  const amount = row.amount === null || row.amount === undefined ? null : fmt.rupiah(row.amount);
+  return homeCard({
+    tone: 'attn', kindIcon: 'clipboard-check', kind: 'Menunggu keputusan Anda',
+    title: `${row.code} · ${row.title || row.label}`,
+    meta: [row.label, row.submitted_by ? `diajukan ${row.submitted_by}` : null, amount, waited].filter(Boolean).join(' · '),
+    href: row.link, cta: 'Tinjau & putuskan',
+  });
+}
+
+function deadlineCard(finding) {
+  const oldest = (finding.items || [])[0];
+  const late = oldest && typeof oldest.days === 'number' ? `${oldest.code} lewat ${Math.abs(oldest.days)} hari` : null;
+  return homeCard({
+    tone: 'danger', kindIcon: 'clock', kind: 'Tenggat lewat',
+    title: finding.title || finding.label,
+    meta: [`${finding.count} ${finding.label}`, late].filter(Boolean).join(' · '),
+    href: `#/${finding.link}`, cta: 'Tindak lanjuti',
+  });
+}
+
+/* -------------------------------------------------------------- aksi cepat */
+
+const QUICK_MAX = 6;
+
+/**
+ * "Aksi cepat": SUMBER YANG SAMA dengan Buat ▾ (create.js) — formulir yang
+ * sudah ditawarkan daftarnya kepada pembaca ini, dengan predikat yang sama.
+ * Dari Beranda tidak ada modul "di sini", jadi yang tampil adalah yang baru
+ * dipakai, atau enam pertama dalam urutan NAV. Kosong → tidak menggambar apa pun.
+ */
+function paintQuick(host) {
+  const entries = createEntries('home');
+  const list = [...entries.module, ...entries.recent].slice(0, QUICK_MAX);
+  if (!list.length) return;
+  host.appendChild(el('section.home-section', [
+    el('h2.home-section-title', { text: 'Aksi cepat' }),
+    el('ul.home-quick', { 'aria-label': 'Aksi cepat' }, list.map((entry) => el('li',
+      el('button.home-quick-tile', { type: 'button', onclick: () => startCreate(entry) }, [
+        el('span.home-quick-icon', svgIcon('plus', { size: 16 })),
+        el('span', { text: `Buat ${entry.def.labelOne || entry.def.label}` }),
+      ])))),
+  ]));
+}
+
+/* ------------------------------------------------------------------ angka */
+
+const NUMBERS_MAX = 4;
+
+/**
+ * "Angka": paling banyak empat angka utama modul yang HITUNGANNYA dipegang
+ * pembaca (registri ModuleCounts), urutan NAV. `ringkasan` dilewati — ia
+ * mengulang angka lonceng. Tidak ada jawaban sama sekali → empat nama dari
+ * cermin lokal MODULES.kpi dengan '—': nama tanpa angka tetap memberi tahu
+ * apa yang tidak diketahui, dan 0 palsu tidak pernah muncul.
+ */
+function paintNumbers(host, groups, byPrefix) {
+  clear(host);
+  const order = groups.filter((group) => group.prefix && group.prefix !== 'ringkasan');
+  const picks = byPrefix === null
+    ? order.slice(0, NUMBERS_MAX).map((group) => ({ group, entry: null }))
+    : order.filter((group) => byPrefix.has(group.prefix)).slice(0, NUMBERS_MAX).map((group) => ({ group, entry: byPrefix.get(group.prefix) }));
+  if (!picks.length) return;
+  host.appendChild(el('section.home-section', [
+    el('h2.home-section-title', { text: 'Angka' }),
+    el('ul.home-stats', { 'aria-label': 'Angka utama' }, picks.map(({ group, entry }) => el('li',
+      el('a.home-stat', { href: `#/m/${group.prefix}` }, keyValueTile({
+        label: entry ? entry.label : (MODULES[group.prefix] || {}).kpi,
+        value: entry && entry.count !== null && entry.count !== undefined ? entry.count : null,
+        note: entry && entry.unit ? `${entry.unit} · ${group.label}` : group.label,
+      }))))),
+  ]));
 }
 
 /* ------------------------------------------------------------------- ubin */

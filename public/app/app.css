@@ -3882,3 +3882,52 @@ button.linkish:hover b { text-decoration: underline; }
 @media (pointer: coarse) {
   .work-row .btn { min-height: 44px; }
 }
+
+/* UX-F2.2 — Beranda sebagai ruang kerja (views/home.js). Hanya token. Rel `--attn`
+   dan `--danger` pada kartu sama artinya dengan pita tindakannya (CONVENTIONS §12:
+   aksen modul tidak pernah di sini); kartu BUKAN `.badge`, jadi `--attn` tetap
+   hanya milik actionPanel dan kartu beranda (UiPrimitivesTest). */
+.home-section-sub { margin: 0 0 var(--space-3); font-size: var(--fs-secondary); color: var(--muted); }
+.home-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-3); }
+.home-cards > li { min-width: 0; }
+.home-card {
+  display: grid; gap: var(--space-2); align-content: start; height: 100%; padding: var(--space-4);
+  border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius-lg); background: var(--surface);
+}
+.home-card[data-tone="attn"] { border-left-color: var(--attn); }
+.home-card[data-tone="danger"] { border-left-color: var(--danger); }
+.home-card-kind {
+  display: inline-flex; align-items: center; gap: var(--space-1); justify-self: start;
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-pill);
+  font-size: var(--fs-caption); font-weight: var(--fw-semi);
+}
+.home-card[data-tone="attn"] .home-card-kind { background: var(--attn-soft); color: var(--attn); }
+.home-card[data-tone="danger"] .home-card-kind { background: var(--danger-soft); color: var(--danger); }
+.home-card-title { font-size: var(--fs-section); font-weight: var(--fw-semi); overflow-wrap: anywhere; }
+.home-card-meta { font-size: var(--fs-secondary); color: var(--muted); }
+.home-card .btn { justify-self: start; margin-top: var(--space-1); }
+.home-alert { margin-top: var(--space-3); }
+.home-more { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); font-size: var(--fs-secondary); }
+.home-quick { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: var(--space-2); }
+.home-quick > li { min-width: 0; }
+.home-quick-tile {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 48px;
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); color: var(--text); font: inherit; font-weight: var(--fw-medium); text-align: left; cursor: pointer;
+}
+.home-quick-tile:hover { background: var(--surface-2); }
+.home-quick-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px;
+  border-radius: var(--radius-sm); background: var(--primary-soft); color: var(--primary);
+}
+.home-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: var(--space-2); }
+.home-stats > li { min-width: 0; }
+.home-stat { display: block; color: inherit; text-decoration: none; border-radius: var(--radius); }
+.home-stat:hover .kv-tile { background: var(--surface-2); }
+@media (max-width: 760px) {
+  .home-cards { grid-template-columns: 1fr; }
+  .home-quick, .home-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (pointer: coarse) {
+  .home-card .btn, .home-quick-tile { min-height: 44px; }
+}

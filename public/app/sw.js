@@ -66,7 +66,7 @@
  *  yang lupa didaftarkan akan membuat aplikasi ini setengah luring tanpa suara.
  */
 
-const SHELL_VERSION = '74';
+const SHELL_VERSION = '75';
 const CACHE = `nusantara-shell-v${SHELL_VERSION}`;
 
 /** Lingkup worker: '/app/' bila berkas ini dilayani sebagai /app/sw.js. */
@@ -105,6 +105,7 @@ const SHELL = [
   'js/format.js',
   'js/illustrations.js',
   // UX-D.2 — pemuat bersama kotak masuk persetujuan (lencana, widget, layar).
+  'js/deadlines.js',
   'js/inbox.js',
   'js/kalenderpalette.js',
   'js/lookup.js',

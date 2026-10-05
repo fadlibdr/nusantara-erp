@@ -16570,6 +16570,208 @@ def s59(browser):
     return out
 
 
+HOME_READ = """() => {
+  const txt = (n) => n ? (n.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+  const cards = [...document.querySelectorAll('#view .home-card')].map((c) => ({
+    tone: c.dataset.tone, kind: txt(c.querySelector('.home-card-kind')), title: txt(c.querySelector('.home-card-title')),
+    meta: txt(c.querySelector('.home-card-meta')), cta: txt(c.querySelector('.btn')), href: (c.querySelector('.btn') || {}).getAttribute ? c.querySelector('.btn').getAttribute('href') : null }));
+  const work = document.querySelector('#view #perlu-tindakan');
+  const empty = work && work.querySelector('.empty');
+  const first = document.querySelector('#view .home-tile');
+  return { sections: [...document.querySelectorAll('#view .home-section-title')].map(txt),
+    sub: work ? txt(work.querySelector('.home-section-sub')) : null, cards,
+    alerts: work ? [...work.querySelectorAll('.home-alert')].map(txt) : [],
+    more: work ? [...work.querySelectorAll('.home-more a')].map(txt) : [],
+    empty: empty ? { kind: (empty.querySelector('.illus') || {}).dataset ? empty.querySelector('.illus').dataset.kind : null, title: txt(empty.querySelector('h3')) } : null,
+    quick: [...document.querySelectorAll('#view .home-quick-tile')].map(txt),
+    stats: [...document.querySelectorAll('#view .home-stat')].map((a) => ({ label: txt(a.querySelector('.kv-tile-label')), value: txt(a.querySelector('.kv-tile-value')), note: txt(a.querySelector('.kv-tile-note')), href: a.getAttribute('href') })),
+    tiles: document.querySelectorAll('#view .home-tile').length,
+    first_tile_y: first ? Math.round(first.getBoundingClientRect().top + scrollY) : null,
+    card_cols: cards.length ? getComputedStyle(document.querySelector('#view .home-cards')).gridTemplateColumns.split(' ').length : null,
+    quick_cols: document.querySelector('#view .home-quick') ? getComputedStyle(document.querySelector('#view .home-quick')).gridTemplateColumns.split(' ').length : null,
+    doc_h: Math.round(Math.max(document.documentElement.scrollHeight, (document.querySelector('.main') || {}).scrollHeight || 0)),
+    h_scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    inline_styled: document.querySelectorAll('#view [style]').length };
+}"""
+
+@scenario("S60_beranda_ruang_kerja")
+def s60(browser):
+    """UX-F2.2: Beranda sebagai ruang kerja (README Fase F). Diperiksa dari DOM dan permintaan jaringan: urutan
+    bagian, Perlu tindakan Anda (dua persetujuan teratas untuk penyetuju, tenggat lewat yang paling lama di atas),
+    Aksi cepat (sumber Buat ▾, ≤ 6), Angka (≤ 4, cocok dengan core/modules), jumlah permintaan di halaman
+    landing (+1 core/deadlines, core/inbox tetap SATU kali, tidak ada core/my-work), satu klik dari landing ke
+    dokumen yang paling lama menunggu, dan kejujuran saat sumbernya gagal (tidak pernah 'done')."""
+    out, checks = {}, []
+
+    def landing(email, vw=1440, vh=900, mobile=False, route=None):
+        opts = dict(viewport={"width": vw, "height": vh})
+        if mobile:
+            opts.update(is_mobile=True, has_touch=True)
+        ctx = browser.new_context(**opts)
+        pg = ctx.new_page()
+        calls = []
+        pg.on("request", lambda r: calls.append(r.url.split("/api/")[1].split("?")[0]) if "/api/" in r.url else None)
+        if route:
+            route(pg)
+        login(pg, email)
+        pg.wait_for_selector("#view .home-tile", timeout=20000)
+        pg.wait_for_timeout(1800)
+        after = list(calls)
+        # permintaan sesudah login POST saja
+        if "iam/auth/login" in after:
+            after = after[after.index("iam/auth/login") + 1:]
+        return ctx, pg, after
+
+    # ------------------------------------------------------------ direktur: penyetuju
+    tok = token_for("direktur@nusantara.test")
+    _, inbox = api("core/inbox", tok)
+    rows = inbox.get("data", [])
+    ctx, pg, calls = landing("direktur@nusantara.test")
+    try:
+        out["direktur_calls"] = calls
+        h = pg.evaluate(HOME_READ)
+        out["direktur"] = h
+        pg.screenshot(path=f"{OUT}/s60-beranda-direktur.png")
+        titles = [t.strip().upper() for t in h["sections"]]
+        # Direktur tidak memegang izin buat apa pun (Buat ▾ tersembunyi) → Aksi cepat tidak digambar sama sekali.
+        buat_hidden = pg.evaluate("() => { const w = document.querySelector('.create-menu'); return !w || w.hidden; }")
+        out["direktur_buat_hidden"] = buat_hidden
+        want = ["PERLU TINDAKAN ANDA", "ANGKA"] if buat_hidden else ["PERLU TINDAKAN ANDA", "AKSI CEPAT", "ANGKA"]
+        if titles[:len(want)] != want or titles[-1] != "BIDANG KERJA":
+            checks.append(f"urutan bagian Beranda direktur: {titles!r} (Buat tersembunyi: {buat_hidden})")
+        if len([c for c in h["cards"] if c["tone"] == "attn"]) != min(2, len(rows)):
+            checks.append(f"kartu persetujuan direktur bukan {min(2, len(rows))}: {[c['title'] for c in h['cards']]!r}")
+        if h["cards"] and rows and (rows[0]["code"] not in h["cards"][0]["title"] or h["cards"][0]["href"] != rows[0]["link"] or h["cards"][0]["cta"] != "Tinjau & putuskan"):
+            checks.append(f"kartu pertama bukan dokumen yang paling lama menunggu: {h['cards'][0]!r} vs {rows[0]['code']}")
+        if f"{len(rows)} dokumen menunggu keputusan Anda" not in (h["sub"] or ""):
+            checks.append(f"kalimat hitungan tidak menyebut {len(rows)} dokumen: {h['sub']!r}")
+        if calls.count("core/inbox") != 1 or calls.count("core/deadlines") != 1 or "core/my-work" in calls:
+            checks.append(f"permintaan landing direktur: inbox {calls.count('core/inbox')}x, deadlines {calls.count('core/deadlines')}x, my-work {'ya' if 'core/my-work' in calls else 'tidak'}")
+        if len(calls) > 12:
+            checks.append(f"permintaan landing direktur {len(calls)} > batas 12")
+        if len(h["quick"]) > 6 or any(not q.startswith("Buat ") for q in h["quick"]) or bool(h["quick"]) == buat_hidden:
+            checks.append(f"Aksi cepat direktur salah: {h['quick']!r} (Buat tersembunyi: {buat_hidden})")
+        if len(h["stats"]) > 4:
+            checks.append(f"Angka lebih dari empat: {len(h['stats'])}")
+        # Satu klik dari landing ke dokumen yang paling lama menunggu (S11 mencatat 2 sebelumnya).
+        CLICKS[0] = 0
+        click(pg, "#view .home-card .btn")
+        pg.wait_for_timeout(800)
+        out["clicks_to_oldest_document"] = CLICKS[0]
+        out["oldest_landing"] = pg.evaluate("() => location.hash")
+        if rows and out["oldest_landing"] != rows[0]["link"]:
+            checks.append(f"kartu pertama tidak membuka dokumen tertua: {out['oldest_landing']!r} vs {rows[0]['link']!r}")
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------ procurement: bukan penyetuju, dua tenggat lewat
+    ctx, pg, calls = landing("procurement@nusantara.test")
+    try:
+        out["procurement_calls"] = calls
+        h = pg.evaluate(HOME_READ)
+        out["procurement"] = h
+        pg.screenshot(path=f"{OUT}/s60-beranda-procurement.png")
+        tones = [c["tone"] for c in h["cards"]]
+        if tones != ["danger", "danger"] or "po_expected" and "lewat" not in (h["cards"][0]["meta"] or ""):
+            checks.append(f"kartu tenggat procurement salah: {h['cards']!r}")
+        if h["cards"] and h["cards"][0]["href"] != "#/r/procurement/purchase-orders":
+            checks.append(f"tenggat tertua (PO, 218 hari) bukan yang pertama: {[c['href'] for c in h['cards']]!r}")
+        if "dokumen menunggu keputusan" in (h["sub"] or "") or "Semua persetujuan →" in h["more"]:
+            checks.append(f"non-penyetuju melihat persetujuan di Beranda: {h['sub']!r} {h['more']!r}")
+        if "core/inbox" in calls:
+            checks.append("non-penyetuju memanggil core/inbox")
+        if not h["quick"]:
+            checks.append("Aksi cepat procurement kosong")
+        else:
+            click(pg, "#view .home-quick-tile")
+            pg.wait_for_selector(".form-page, .overlay .modal", timeout=15000)
+            out["quick_opens_form"] = True
+        pg.goto(BASE + "#/home"); pg.wait_for_selector("#view .home-stat", timeout=15000); pg.wait_for_timeout(500)
+        h = pg.evaluate(HOME_READ)
+        tp = token_for("procurement@nusantara.test")
+        _, mods = api("core/modules", tp)
+        entries = {m["label"]: m for m in mods.get("data", [])}
+        for st in h["stats"]:
+            m = entries.get(st["label"])
+            if not m or (str(m["count"]) if m["count"] is not None else "—") != st["value"] or m["prefix"] == "ringkasan":
+                checks.append(f"angka tidak cocok dengan core/modules: {st!r} vs {m!r}")
+        out["procurement_stats"] = h["stats"]
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------ warehouse: tidak ada apa-apa → done
+    ctx, pg, calls = landing("warehouse@nusantara.test")
+    try:
+        h = pg.evaluate(HOME_READ)
+        out["warehouse"] = h
+        out["warehouse_calls"] = calls
+        if h["cards"] or not h["empty"] or h["empty"]["kind"] != "done":
+            checks.append(f"warehouse tanpa tenggat tidak menggambar 'done': {h['empty']!r} {h['cards']!r}")
+        if "0 tenggat sudah lewat" not in (h["sub"] or ""):
+            checks.append(f"kalimat hitungan warehouse: {h['sub']!r}")
+        if len(calls) > 8:
+            checks.append(f"permintaan landing warehouse {len(calls)} > batas 8")
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------ sumber gagal: tidak pernah 'done'
+    def deadlines_500(pg):
+        pg.route("**/api/core/deadlines*", lambda r: r.fulfill(status=500, content_type="application/json", body='{"message":"uji"}'))
+    ctx, pg, calls = landing("warehouse@nusantara.test", route=deadlines_500)
+    try:
+        h = pg.evaluate(HOME_READ)
+        out["warehouse_deadlines_500"] = h
+        if h["empty"] and h["empty"]["kind"] == "done":
+            checks.append("tenggat 500 menggambar keadaan 'done'")
+        if not any("Tenggat tidak dapat dimuat sekarang." in a for a in h["alerts"]) or "— tenggat sudah lewat" not in (h["sub"] or ""):
+            checks.append(f"tenggat 500 tidak jujur: {h['alerts']!r} {h['sub']!r}")
+    finally:
+        ctx.close()
+
+    def inbox_500(pg):
+        pg.route("**/api/core/inbox*", lambda r: r.fulfill(status=500, content_type="application/json", body='{"message":"uji"}'))
+    ctx, pg, calls = landing("admin@nusantara.test", route=inbox_500)
+    try:
+        h = pg.evaluate(HOME_READ)
+        out["admin_inbox_500"] = h
+        if not any("Persetujuan tidak dapat dimuat sekarang" in a for a in h["alerts"]) or "— dokumen menunggu keputusan Anda" not in (h["sub"] or ""):
+            checks.append(f"inbox 500 tidak jujur: {h['alerts']!r} {h['sub']!r}")
+        if not [c for c in h["cards"] if c["tone"] == "danger"]:
+            checks.append("inbox 500 menjatuhkan kartu tenggat yang berhasil dimuat")
+    finally:
+        ctx.close()
+
+    def modules_500(pg):
+        pg.route("**/api/core/modules*", lambda r: r.fulfill(status=500, content_type="application/json", body='{"message":"uji"}'))
+    ctx, pg, calls = landing("procurement@nusantara.test", route=modules_500)
+    try:
+        h = pg.evaluate(HOME_READ)
+        out["procurement_modules_500"] = h
+        if not h["stats"] or any(st["value"] != "—" or not st["label"] for st in h["stats"]):
+            checks.append(f"core/modules 500: Angka bukan '—' bernama: {h['stats']!r}")
+    finally:
+        ctx.close()
+
+    # ------------------------------------------------------------ 390
+    for who in ("direktur", "procurement"):
+        ctx, pg, calls = landing(f"{who}@nusantara.test", 390, 844, mobile=True)
+        try:
+            h = pg.evaluate(HOME_READ)
+            out[f"{who}_390"] = h
+            out[f"{who}_390_calls"] = len(calls)
+            pg.screenshot(path=f"{OUT}/s60-beranda-{who}-390.png")
+            if h["h_scroll"] > 0:
+                checks.append(f"Beranda {who} menggulir ke samping {h['h_scroll']} px di 390")
+            if h["card_cols"] != 1 or (h["quick"] and h["quick_cols"] != 2):
+                checks.append(f"kolom {who} di 390: kartu {h['card_cols']}, aksi cepat {h['quick_cols']}")
+        finally:
+            ctx.close()
+
+    out["failed_checks"] = checks
+    out["ok"] = not checks
+    return out
+
+
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
     def fresh():
@@ -16580,7 +16782,7 @@ with sync_playwright() as p:
     try: prev = json.load(open(f"{OUT}/results.json"))
     except Exception: pass
     R.update(prev)
-    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None),("S58",s58,None),("S59",s59,"b")]
+    RUNS = [("S10",s10,None),("S1",s1,None),("S2",s2,None),("S3",s3,None),("S4",s4,None),("S5",s5,None),("S6",s6,"b"),("S7",s7,None),("S8",s8,None),("S9",s9,None),("S11",s11,None),("S12",s12,None),("S13",s13,None),("S14",s14,None),("S15",s15,"b"),("S16",s16,None),("S17",s17,None),("S18",s18,None),("S19",s19,"b"),("S20",s20,None),("S20m",s20m,"b"),("S21",s21,None),("S21m",s21m,"b"),("S22",s22,None),("S22m",s22m,"b"),("S22r",s22r,None),("S23",s23,None),("S23s",s23s,None),("S23f",s23f,None),("S23m",s23m,"b"),("S20e",s20e,None),("S20em",s20em,"b"),("S24",s24,None),("S25",s25,None),("S26",s26,None),("S26m",s26m,"b"),("S26f",s26f,None),("S26t",s26t,"b"),("S26d",s26d,None),("S26p",s26p,None),("S27",s27,None),("S27m",s27m,"b"),("S27u",s27u,None),("S27k",s27k,"b"),("S27p",s27p,None),("S28",s28,None),("S28m",s28m,"b"),("S29",s29,None),("S29m",s29m,"b"),("S30",s30,None),("S30m",s30m,"b"),("S30r",s30r,None),("S31",s31,"b"),("S31s",s31s,None),("S32",s32,None),("S32m",s32m,"b"),("S33",s33,None),("S33k",s33k,"b"),("S33m",s33m,"b"),("S34",s34,None),("S34m",s34m,"b"),("S35",s35,None),("S35m",s35m,"b"),("S36",s36,"b"),("S36m",s36m,"b"),("S37",s37,"b"),("S37m",s37m,"b"),("S38",s38,"b"),("S38m",s38m,"b"),("S39",s39,"b"),("S39m",s39m,"b"),("S40",s40,"b"),("S40m",s40m,"b"),("S41",s41,"b"),("S41m",s41m,"b"),("S42",s42,"b"),("S42m",s42m,"b"),("S43",s43,None),("S44",s44,None),("S45",s45,None),("S46",s46,"b"),("S47",s47,None),("S48",s48,None),("S49",s49,None),("S50",s50,None),("S51",s51,None),("S52",s52,None),("S53",s53,None),("S54",s54,None),("S55",s55,None),("S56",s56,None),("S57",s57,None),("S58",s58,None),("S59",s59,"b"),("S60",s60,"b")]
 
     # NAMA YANG TIDAK DIKENAL MENJATUHKAN RUN, dan nama PANJANG diterima.
     #
