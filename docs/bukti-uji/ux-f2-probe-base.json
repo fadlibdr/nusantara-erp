@@ -1,0 +1,1785 @@
+{
+ "base": "http://127.0.0.1:8010/app/",
+ "fixture": {
+  "menunggu": {
+   "id": 3,
+   "code": "PR/2026/X/0003",
+   "submit": 200
+  },
+  "ditolak": {
+   "id": 4,
+   "code": "PR/2026/X/0004",
+   "submit": 200,
+   "reject": 200
+  }
+ },
+ "cells": {
+  "direktur|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 197
+    },
+    {
+     "api": "core/inbox",
+     "ms": 197
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 160
+    },
+    {
+     "api": "core/modules",
+     "ms": 177
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 80
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 14,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 947,
+    "first_tile_y": 229,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Persetujuan5",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Persetujuan"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 947,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [
+     "Terakhir dibuka"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 14,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1239,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [
+     "Terakhir dibuka"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 9,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1530,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 79,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:06"
+     },
+     "sample": []
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 94,
+     "rows": 0,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": []
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 44,
+     "rows": 13,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "crm",
+      "est"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 64,
+     "rows": 5,
+     "meta": {
+      "total": 5,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:06",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": [
+      null,
+      null,
+      null
+     ]
+    }
+   },
+   "console_errors": []
+  },
+  "procurement|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 4,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 31
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 44
+    },
+    {
+     "api": "core/modules",
+     "ms": 85
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 68
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 6,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": 229,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [
+     "Terakhir dibuka"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 14,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 939,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 939,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 60,
+     "rows": 2,
+     "meta": {
+      "total": 2,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:15"
+     },
+     "sample": [
+      "needs_fix",
+      "waiting"
+     ]
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 98,
+     "rows": 2,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": [
+      "lewat",
+      "lewat"
+     ]
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 44,
+     "rows": 5,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "est",
+      "eng"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 50,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:16",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": []
+    }
+   },
+   "console_errors": []
+  },
+  "warehouse|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 4,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 47
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 50
+    },
+    {
+     "api": "core/modules",
+     "ms": 100
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 77
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 6,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": 229,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 52,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:24"
+     },
+     "sample": []
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 73,
+     "rows": 0,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": []
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 37,
+     "rows": 3,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "prj",
+      "inv"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 36,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:25",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": []
+    }
+   },
+   "console_errors": []
+  },
+  "teknisi|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 4,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 29
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 55
+    },
+    {
+     "api": "core/modules",
+     "ms": 86
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 67
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 3,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": 229,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 42,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:33"
+     },
+     "sample": []
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 73,
+     "rows": 1,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": [
+      "lewat"
+     ]
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 44,
+     "rows": 3,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "inv",
+      "svc"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 42,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:33",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": []
+    }
+   },
+   "console_errors": []
+  },
+  "hr|1440": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 4,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 24
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 45
+    },
+    {
+     "api": "core/modules",
+     "ms": 77
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 58
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 3,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": 229,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [
+     "Terakhir dibuka"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 9,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 900,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "api_timing": {
+    "core/my-work": {
+     "status": 200,
+     "ms": 44,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:42"
+     },
+     "sample": []
+    },
+    "core/deadlines": {
+     "status": 200,
+     "ms": 64,
+     "rows": 1,
+     "meta": {
+      "today": "2026-10-05",
+      "checked": 34,
+      "skipped": 0
+     },
+     "sample": [
+      "tanpa_tanggal"
+     ]
+    },
+    "core/modules": {
+     "status": 200,
+     "ms": 37,
+     "rows": 2,
+     "meta": null,
+     "sample": [
+      "ringkasan",
+      "hr"
+     ]
+    },
+    "core/inbox": {
+     "status": 200,
+     "ms": 36,
+     "rows": 0,
+     "meta": {
+      "total": 0,
+      "failed": [],
+      "as_of": "2026-10-05 07:49:42",
+      "batch_cap": null,
+      "delegations": []
+     },
+     "sample": []
+    }
+   },
+   "console_errors": []
+  },
+  "direktur|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 5,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 45
+    },
+    {
+     "api": "core/inbox",
+     "ms": 71
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 96
+    },
+    {
+     "api": "core/modules",
+     "ms": 133
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 68
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 14,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1363,
+    "first_tile_y": 286,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Persetujuan5",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda",
+     "Persetujuan"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [
+     "Terakhir dibuka"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 14,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1427,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [
+     "Terakhir dibuka"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 9,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1043,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  },
+  "procurement|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 4,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 46
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 70
+    },
+    {
+     "api": "core/modules",
+     "ms": 115
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 66
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 6,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": 286,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [
+     "Terakhir dibuka"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 14,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1427,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  },
+  "warehouse|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 4,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 163
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 229
+    },
+    {
+     "api": "core/modules",
+     "ms": 328
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 146
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 6,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": 286,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  },
+  "teknisi|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 4,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 34
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 56
+    },
+    {
+     "api": "core/modules",
+     "ms": 92
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 73
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 3,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": 267,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  },
+  "hr|390": {
+   "landing_hash": "#/home",
+   "landing_api_calls": 4,
+   "landing_api": [
+    {
+     "api": "core/notifications/unread-count",
+     "ms": 25
+    },
+    {
+     "api": "iam/auth/me",
+     "ms": 43
+    },
+    {
+     "api": "core/modules",
+     "ms": 74
+    },
+    {
+     "api": "core/me/preferences",
+     "ms": 58
+    }
+   ],
+   "home": {
+    "hash": "#/home",
+    "h1": "Beranda",
+    "sections": [
+     "Modul"
+    ],
+    "tiles": 3,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [
+     "Dasbor"
+    ],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": 267,
+    "h_scroll": 0
+   },
+   "navbar": {
+    "bottom_bar": [
+     "Beranda",
+     "Cari",
+     "Menu"
+    ],
+    "pinned": [
+     "Beranda"
+    ]
+   },
+   "pekerjaan": {
+    "hash": "#/pekerjaan",
+    "h1": null,
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": null,
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_prc": {
+    "hash": "#/m/prc",
+    "h1": "Pengadaan",
+    "sections": [],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": {
+     "kind": "inbox",
+     "text": "Tidak ada layarTidak ada layar yang bisa Anda buka di modul ini"
+    },
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 0,
+    "module_cards": 0,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 844,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "module_hr": {
+    "hash": "#/m/hr",
+    "h1": "SDM & Payroll",
+    "sections": [
+     "Terakhir dibuka"
+    ],
+    "tiles": 0,
+    "chips": 0,
+    "action_panels": 0,
+    "quick": 0,
+    "stats": 0,
+    "head_buttons": [],
+    "tabs": [],
+    "rows": 0,
+    "empty": null,
+    "eyebrow": "Modul",
+    "stepper": {
+     "steps": 0,
+     "counted": [],
+     "linked": 0
+    },
+    "module_kpis": 1,
+    "module_cards": 9,
+    "attn_rows": 0,
+    "inline_styled": 0,
+    "doc_h": 1043,
+    "first_tile_y": null,
+    "h_scroll": 0
+   },
+   "console_errors": []
+  }
+ }
+}

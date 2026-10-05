@@ -663,6 +663,29 @@ Branch `feat/ux-redesign-f1` from `77b7410` (the E3 merge). One endpoint, exactl
 
 ---
 
+## UX-F2 — Home, Pekerjaan Saya, module process pages
+
+Branch `feat/ux-redesign-f2` from `4a4c640` (the UX-F1 merge). The plan came from the same read-only workflow as E1 to E3: six readers (code, handoff, docs, CSS and shell, API sources, harness and PHPUnit pins), two planners with opposite priorities (fidelity, compatibility), and a judge. Scope is README Phase F bullets 1 to 3 with ERRATA D-3 (two tabs), E-4 (bottom bar), E-8 (stage numbers only from registered `ModuleCounts` keys) and E-9 (`core/my-work`, shipped in UX-F1); the dashboard widget shell is UX-F3. Decisions of the judge, each with the reason:
+- Beranda reads `core/deadlines` through one new loader (`js/deadlines.js`, the `inbox.js` pattern). It is +1 request on every landing (direktur 5 → 6, warehouse 4 → 5), inside the 12 / 8 bound that the UX-0 column of the metrics table names "the bound for UX-F2". The inbox half paints first and the deadline half when it lands; a failed half is one honest line, never an empty "done" state.
+- "Angka" is built as the README asks (at most four held keys, `ringkasan` skipped because it repeats the bell count); it repeats numbers the tiles carry, recorded as an open question.
+- `MODULES[prefix].flow` cannot sit on the MODULES line (NavRouteRegistryTest pins each line's shape): the flows live in a separate `FLOWS` map that `moduleFor()` merges. Only Pengadaan ships a strip; the README's "Evaluasi" stage is not drawn, because `Evaluasi Vendor` is periodic vendor scoring, not a step between RFQ and negotiation.
+- The pinned `pekerjaan` NAV row goes after Persetujuan, so the bottom bar's second slot (the first pinned row after Beranda) is Persetujuan for approvers and Pekerjaan Saya for everyone else, with no shell code change (E-4).
+- The row sentence on Pekerjaan Saya comes from the document page's own `statusStrip()` (E-3 item 4), split into an exported pure function; the per-(enum, value) hint of E-3 item 5 is static data in `enums.js`.
+- Not built: a count badge on the Pekerjaan Saya row, "Draf saya" and "approved, awaiting follow-up" tabs (D-3), per-stage `ModuleCounts` keys, create buttons in the module head.
+
+### UX-F2.0 — Baseline on the merge base
+- Commit: the commit that adds this entry (docs and evidence only; nothing under `public/app` or `tests` changes).
+- Files: `docs/bukti-uji/results-ux-f2-base.json`, `docs/bukti-uji/ux-f2-probes.py` (new), `docs/bukti-uji/ux-f2-probe-base.json`, this file
+- Harness on `4a4c640`, fresh seed copy, lane `S1 S5 S11 S14 S18 S19 S21 S22 S22m S22r` (all ten ran; S1, S5, S11, S19, S22, S22m, S22r have no `ok` key and can fail only by exception): landing is `#/home` at 759, 760, 761, 1440 and 390; **S1 landing calls 5 direktur, 4 warehouse** (dashboard 9 and 5); S5 admin 149 links, nav content 851 px; S11 Persetujuan in 2 clicks; **S22 admin `screens_label_ok` false** (the Ringkasan tile says 9 layar, the reader counts 8, because the pinned Persetujuan row is not in its selector — it was already false at the merge base; warehouse and teknisi true); S22 taps home to Lapangan 2; S21 `ok`.
+- Probe (`ux-f2-probes.py`, 5 roles × 1440/390, with two PRs planted through the API: one submitted, one submitted and rejected by direktur): landing `#/home` for all ten cells, 0 console errors. `#/pekerjaan` is the not-found page (no h1). `#/m/prc` has 0 steppers. Home has one section title ("Modul"), 0 action panels, 0 inline-styled nodes; document height at 390 is 844 px for four roles and 1363 px for direktur. Bottom bar at 390: direktur Beranda · Persetujuan · Cari · Menu; **procurement, warehouse, teknisi and hr three items** (Beranda · Cari · Menu).
+- Landing calls, direktur: core/notifications/unread-count 197 ms, core/inbox 197 ms, iam/auth/me 160 ms, core/modules 177 ms, core/me/preferences 80 ms. Warehouse: core/notifications/unread-count 47 ms, iam/auth/me 50 ms, core/modules 100 ms, core/me/preferences 77 ms.
+- Endpoint timings from inside the page (status, ms; direktur / procurement / warehouse): `core/my-work` (200, 79) / (200, 60) / (200, 52); `core/deadlines` (200, 94) / (200, 98) / (200, 73); `core/modules` (200, 44). The seed is small; `core/deadlines` walks about 36 entries and has no try/catch (OQ-38).
+- Click ledger today (hand-counted, to compare at the gate): approver to the oldest waiting document 2 clicks (nav Persetujuan, row; S11); a non-approver to their own rejected document has no dedicated path (a list, its status filter, the row: 3 or more); phone non-approver bottom bar 3 buttons.
+- §35 before-counts (`git grep -n -F` on `4a4c640`, the usual exclusions): "Tugas Saya" 75, "Pekerjaan Saya" 3, "belum tayang" 13, "Beranda" 33, "Semua layar" 2, "Terakhir dibuka" 27, "Perlu tindakan Anda" 0, "Aksi cepat" 0, "Bidang kerja" 0, "Perlu perhatian" 0, "Perlu diperbaiki" 1, "Menunggu orang lain" 1, "Draf saya" 1, "#/pekerjaan" 0.
+- Deviations: none; measurements only.
+
+---
+
 ## Metrics
 
 Method for every row: the scenario named, on the fresh seed above, 1440 × 900, light theme unless stated. "Last recorded" is ERRATA §4, which quotes `RECAP-UX-PROSES-2026-09.md` of 5 Sep 2026.
