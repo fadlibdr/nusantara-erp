@@ -475,7 +475,9 @@ function mountDock(guide, { auto }) {
       return;
     }
 
-    const link = document.querySelector(`nav.nav .nav-group:not([data-kind]) a[href="#/${target.route}"]`);
+    // Baris tetap (UX-D.2) ada di .nav-pinned, bukan di .nav-group: tanpa pemilih kedua
+    // langkah 1, 2 dan 6 menyorot Beranda hanya di ponsel.
+    const link = document.querySelector(`nav.nav .nav-group:not([data-kind]) a[href="#/${target.route}"], nav.nav .nav-pinned a[href="#/${target.route}"]`);
     if (link) spotlight(link, { label: 'Anda di sini' });
     if (addButton) {
       const add = document.querySelector('#view .page-head .actions .btn.primary');

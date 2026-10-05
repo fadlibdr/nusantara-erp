@@ -490,3 +490,18 @@ export function enumIcon(name, value) {
   const hit = list.find((option) => option.value === value);
   return hit && 'icon' in hit ? hit.icon : undefined;
 }
+
+/* Petunjuk statis per (enum, nilai) untuk baris Pekerjaan Saya (ERRATA E-3
+   butir 5): satu klausa tentang APA YANG TERJADI BERIKUTNYA, tanpa nama orang
+   atau tingkat — yang menyebut orang datang dari data server, bukan dari sini.
+   Kalimat keadaan lengkap tetap hanya satu sumbernya: statusStrip() di
+   views/detail.js. Peta ini bukan generator kalimat. */
+const HINTS = {
+  documentStatus: { rejected: 'Perbaiki lalu ajukan lagi.', submitted: 'Menunggu keputusan penyetuju.' },
+  paymentStatus: { rejected: 'Perbaiki lalu ajukan lagi.', submitted: 'Menunggu keputusan penyetuju.' },
+};
+
+/** Petunjuk satu klausa untuk satu nilai status, atau `null` bila enum itu tidak menetapkannya. */
+export function enumHint(name, value) {
+  return (HINTS[name || 'documentStatus'] || {})[value] || null;
+}

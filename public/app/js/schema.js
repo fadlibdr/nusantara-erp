@@ -6498,7 +6498,10 @@ export const NAV = [
     // #/m/ringkasan → kartu Beranda → #/home). Sidebar tetap memuatnya;
     // yang menyaring adalah kisi kartu dan hitungan layar.
     /* `pinned: true` (UX-D.2, ERRATA E-4) — BARIS TETAP di puncak sidebar dan
-       bilah bawah ponsel: Beranda, Persetujuan, dan nanti Pekerjaan Saya (UX-F2).
+       bilah bawah ponsel: Beranda, Persetujuan, dan Pekerjaan Saya (UX-F2). URUTANNYA berarti: slot
+       kedua bilah bawah ponsel adalah baris tetap PERTAMA sesudah Beranda yang
+       lolos visibleNav() — Persetujuan bagi pemegang hak approve, Pekerjaan Saya
+       (tanpa `perm`: dokumen sendiri) bagi yang lain, tanpa kode shell (E-4).
        Barisnya tetap milik grup ini (izin, palet Ctrl+K, onboarding, beranda
        modul membacanya dari sini); shell hanya MENGGAMBARNYA di atas dan
        melewatkannya di grupnya. `icon` untuk rel ikon/bilah bawah, `count:
@@ -6510,7 +6513,7 @@ export const NAV = [
        sumbernya sendiri. Tanpa `perm`: katalognya menyaring dirinya per entri,
        dan peran yang tidak punya satu sumber pun mendapat kalimat yang
        mengatakannya — bukan baris menu yang hilang tanpa sebab. */
-    items: [{ label: 'Beranda', route: 'home', chrome: true, pinned: true, icon: 'home' }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Persetujuan', route: 'tugas', perm: ANY_APPROVE, pinned: true, icon: 'inbox', count: 'inbox' }, { label: 'Absensi Saya', route: 'absensi-saya' }, { label: 'Timesheet Saya', route: 'timesheet-saya' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }, { label: 'Profil & Notifikasi', route: 'profil' }],
+    items: [{ label: 'Beranda', route: 'home', chrome: true, pinned: true, icon: 'home' }, { label: 'Dasbor', route: 'dashboard' }, { label: 'Persetujuan', route: 'tugas', perm: ANY_APPROVE, pinned: true, icon: 'inbox', count: 'inbox' }, { label: 'Pekerjaan Saya', route: 'pekerjaan', pinned: true, icon: 'file-text' }, { label: 'Absensi Saya', route: 'absensi-saya' }, { label: 'Timesheet Saya', route: 'timesheet-saya' }, { label: 'Tenggat', route: 'tenggat' }, { label: 'Ambang & Batas', route: 'ambang' }, { label: 'Kalender', route: 'kalender' }, { label: 'Laporan Bebas', route: 'laporan-bebas' }, { label: 'Profil & Notifikasi', route: 'profil' }],
   },
   {
     label: 'Penjualan', perm: 'crm.view', prefix: 'crm',

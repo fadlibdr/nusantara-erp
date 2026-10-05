@@ -35,6 +35,18 @@ class ShellWiringTest extends ErpTestCase
             'Baris Persetujuan kehilangan gerbang ANY_APPROVE-nya atau tanda baris tetapnya.',
         );
 
+        // UX-F2 (ERRATA E-4): Pekerjaan Saya sebagai baris tetap SESUDAH Persetujuan. Urutan itulah yang
+        // memberi slot kedua bilah bawah kepada Persetujuan bagi penyetuju dan kepada Pekerjaan Saya bagi
+        // yang lain — bottomNavItems() mengambil baris tetap pertama sesudah Beranda yang lolos visibleNav().
+        // Tanpa `perm`: layarnya hanya menampilkan dokumen pemanggil sendiri.
+        $pekerjaan = "{ label: 'Pekerjaan Saya', route: 'pekerjaan', pinned: true, icon: 'file-text' }";
+        $this->assertStringContainsString($pekerjaan, $schema, 'Baris tetap Pekerjaan Saya hilang atau berubah bentuk.');
+        $this->assertGreaterThan(
+            (int) strpos($schema, "route: 'tugas', perm: ANY_APPROVE"),
+            (int) strpos($schema, $pekerjaan),
+            'Pekerjaan Saya harus SESUDAH Persetujuan: bilah bawah mengambil baris tetap pertama sesudah Beranda.',
+        );
+
         $render = $this->functionBody($this->spa('app.js'), 'function renderNav(nav) {');
         $this->assertNotNull($render, 'renderNav() hilang dari app.js.');
         $this->assertStringContainsString('const groups = navForSession();', $render,
@@ -286,7 +298,7 @@ class ShellWiringTest extends ErpTestCase
         return $end === false ? null : substr($source, $start, $end - $start);
     }
 
-    /** Jumlah rute per grup NAV, dibaca dari schema.js. @return array<string, int> */
+    /** Jumlah rute TAK-TETAP per grup NAV, dibaca dari schema.js. @return array<string, int> */
     private function routesPerGroup(): array
     {
         $schema = $this->spa('schema.js');
@@ -294,10 +306,13 @@ class ShellWiringTest extends ErpTestCase
         $nav = substr($schema, $start, (int) strpos($schema, "\n];", $start) - $start);
         preg_match_all("/^    label: '([^']+)', perm: [^\n]*prefix: '[a-z]+'/m", $nav, $labels, PREG_OFFSET_CAPTURE);
 
+        // Hanya baris YANG TIDAK tetap: renderNav() menyaring `pinned` sebelum plafon (app.js navGroupNode
+        // menghitung baris tak-tetap), jadi tiga baris tetap Ringkasan tidak membuatnya "grup panjang".
         $out = [];
         foreach ($labels[1] as $i => [$label, $offset]) {
             $end = $labels[1][$i + 1][1] ?? strlen($nav);
-            $out[$label] = preg_match_all("/route: '/", substr($nav, $offset, $end - $offset));
+            $slice = substr($nav, $offset, $end - $offset);
+            $out[$label] = preg_match_all("/route: '/", $slice) - preg_match_all('/pinned: true/', $slice);
         }
 
         return $out;

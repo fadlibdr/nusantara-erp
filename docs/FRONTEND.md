@@ -360,9 +360,12 @@ reading, in another shape. There is no `print` action anywhere in the permission
   rooted on the `ERP` placeholder and would otherwise leave the header empty (harness S21
   `crumb_walk` walks every route). Accents never colour semantic states.
 - **The shell (UX-D)**: the landing is `#/home` at every width (ERRATA D-2). NAV rows with `pinned: true`
-  (Beranda, Persetujuan; Pekerjaan Saya when UX-F2 adds it) are drawn as fixed rows above Favorit and as
-  the first slots of the ≤ 760 px bottom bar — still owned by their NAV group, still filtered by
-  `visibleNav()`, so the shell writes no permission. `icon` names their glyph; `count: 'inbox'` asks for
+  (Beranda, Persetujuan, Pekerjaan Saya — in that order) are drawn as fixed rows above Favorit, and the
+  first two that pass `visibleNav()` are the first slots of the ≤ 760 px bottom bar: Beranda, then
+  Persetujuan for approvers or Pekerjaan Saya for everyone else (ERRATA E-4, no shell code — the order in
+  NAV decides). The rows stay owned by their NAV group and filtered by `visibleNav()`, so the shell writes
+  no permission. `views/pekerjaan.js` (`#/pekerjaan`, no `perm`) makes ONE `core/my-work` request, shows
+  ERRATA D-3's two tabs, and takes its sentence from `statusStrip()` in `views/detail.js`. `icon` names their glyph; `count: 'inbox'` asks for
   the approval badge. Groups with more than 10 routes show 8 plus "Semua layar <modul> →"; the rest stay
   in the DOM (`.beyond-cap`) so the filter, the module-home comparison and the active route still reach
   them. **`js/inbox.js` is the only `core/inbox` caller**: badge, dashboard widget, the Persetujuan screen

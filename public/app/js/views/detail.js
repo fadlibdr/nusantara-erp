@@ -844,7 +844,7 @@ function nextLink(def, strip) {
   return el('a.btn', { href: `#/${next.route}` }, [icon('arrow-right', 15), el('span', { text: `Buka ${next.label}` })]);
 }
 
-function statusStrip(def, record, canEdit, { canDecide = false } = {}) {
+export function statusStrip(def, record, canEdit, { canDecide = false } = {}) {
   const status = String(record.status || '');
   const approvals = Array.isArray(record.approvals) ? record.approvals : [];
   const last = (action) => [...approvals].reverse().find((a) => a.action === action);
