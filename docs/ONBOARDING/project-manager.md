@@ -40,10 +40,31 @@ Bab PANDUAN yang menjadi milik Anda (PANDUAN §0): **1, 2, 7, 8, 16, 17**, ditam
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2)
 
+**Layar pertama** — sesudah masuk Anda mendarat di **Beranda** (`#/home`), di lebar layar
+mana pun; **Dasbor** satu klik dari sana, lewat tombol **`Dasbor`** di kepala Beranda.
+Di bawah kotak cari, Beranda memuat **Perlu tindakan Anda**, **Aksi cepat** (paling
+banyak enam tombol **`Buat <jenis>`**, sumbernya sama dengan tombol **`Buat`** di bilah
+atas), **Angka**, lalu **Bidang kerja** — satu ubin per modul yang boleh Anda buka.
+Karena Anda memegang izin setujui, **Perlu tindakan Anda** membuka dengan hitungan
+*"N dokumen menunggu keputusan Anda · M tenggat sudah lewat"* dan menaruh sampai dua
+dokumen yang paling lama menunggu keputusan Anda (tombol **`Tinjau & putuskan`** →
+halaman dokumennya) serta sampai tiga tenggat yang sudah lewat (tombol
+**`Tindak lanjuti`**), yang tertua di atas; antrean penuhnya ada di **Persetujuan**.
+**Pekerjaan Saya** adalah kebalikannya: RAP, SPK, opname, BAST, atau baseline yang
+**Anda** ajukan sendiri — tab **Perlu diperbaiki** (ditolak penyetuju; tombol
+**`Perbaiki`** membuka halaman dokumennya) dan tab **Menunggu orang lain** (belum
+diputuskan).
+
+**Di ponsel** (≤ 760 px), bilah bawah memuat empat tombol: **Beranda**, **Persetujuan**
+(dengan angka dokumen yang menunggu keputusan Anda), **Cari**, **Menu**; **Pekerjaan Saya**
+ada di baris tetap laci **Menu**.
+
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
 
-- **Ringkasan** — Dasbor · Tenggat · Kalender.
+- **Ringkasan** — Dasbor · Tenggat · Kalender. Tiga baris tetap — **Beranda**,
+  **Persetujuan** (dengan angka dokumen yang menunggu keputusan Anda), dan **Pekerjaan Saya** —
+  tergambar di puncak sidebar, di atas semua kelompok.
 - **Estimasi** — RAP · BOQ / RAB · AHSP · Riwayat Harga Satuan.
 - **Engineering** — Ijin Pelaksanaan (IPP) · Persetujuan Gambar (SDS) · Persetujuan
   Material (SMS).
@@ -64,7 +85,7 @@ layar yang akan Anda pakai minggu ini, per kelompok:
 
 Sidebar penuh Anda memuat 60 layar lebih; yang di atas cukup untuk minggu pertama.
 
-**Dasbor Anda** (PANDUAN §1.7):
+**Dasbor Anda** — satu klik dari Beranda (PANDUAN §1.7):
 
 - Ubin **Proyek berjalan** — menjadi **Proyek saya (berjalan)** bila sakelar
   **`Proyek saya`** dinyalakan; sakelar itu mencocokkan akun Anda dengan kolom manajer
@@ -74,12 +95,15 @@ Sidebar penuh Anda memuat 60 layar lebih; yang di atas cukup untuk minggu pertam
   kalimatnya sendiri (*"Tidak ada pasangan gudang × item di bawah ambangnya."*), dan
   kakinya tetap ada: kartu yang menghilang saat tidak ada isinya membuat orang mengira
   layarnya rusak.
-- Kartu **Menunggu persetujuan Anda** — **untuk peran Anda kartu ini selalu kosong, dan
-  itu bukan berarti tidak ada yang menunggu.** Kartu itu hanya mencakup 11 jenis
-  dokumen, dan tidak satu pun di antaranya Anda setujui: IPP, inspeksi mutu, BAST,
-  baseline, ketiga izin lapangan, dan opname ke pemilik **tidak pernah tampil di sana**.
-  Pekerjaan persetujuan Anda datang lewat **lonceng** dan lewat **layar daftar masing-
-  masing yang disaring ke status Diajukan**. Pakai keduanya setiap pagi.
+- Kartu **Menunggu persetujuan Anda** — untuk peran Anda ia memuat IPP, inspeksi mutu,
+  BAST, baseline, ketiga izin lapangan, dan opname ke pemilik yang Diajukan: kartu itu
+  membaca satu kotak masuk untuk seluruh 29 jenis dokumen berpersetujuan dan hanya
+  menampilkan jenis yang izin setujuinya Anda pegang (RAP/BOQ dan SPK tidak termasuk —
+  itu milik direktur). Ia menggambar **lima baris** teratas, yang paling lama menunggu di
+  atas; sisanya ada di **Persetujuan** lewat tombol **`Lihat semua (n)`** di kakinya.
+  **Yang tidak ada di kartu ini**: NCR (jalurnya **`Verifikasi`**, bukan Setujui) dan stempel
+  MK pada SDS/SMS (keputusan yang diketik, bukan Setujui) — cari keduanya di layar
+  daftarnya sendiri, setiap pagi, di samping kartu ini.
 
 **Lonceng dan Tenggat** — yang ditujukan kepada peran Anda (PANDUAN §1.7):
 
@@ -109,7 +133,7 @@ Alat**, yang ditulis orang lapangan Anda.
    adalah `Tolak`.
 3. Anda tidak boleh menyetujui dokumen yang Anda ajukan sendiri.
 4. Yang sudah diposting tidak punya tombol batal — hanya pembalikan, dan itu permanen.
-5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (§14).
 6. Sesi 12 jam; simpan dokumen panjang bertahap.
 
 ## 3. Pekerjaan Anda
@@ -142,8 +166,9 @@ apa yang terjadi berikutnya → rujukan PANDUAN.
    bisa diubah, diambil ulang, atau dihapus. Jadwal MS Project masuk lewat **`Impor
    Jadwal (MPP-XML)`** hanya pada proyek yang belum ber-WBS. → PANDUAN §7.2, §7.10.
 
-4. **Menyetujui izin lapangan dan IPP setiap pagi.** Pemicu: lonceng *Menunggu*, atau
-   saring status **Diajukan** di `Proyek › Izin Kerja (IKL)`, `Izin Lembur (ILB)`,
+4. **Menyetujui izin lapangan dan IPP setiap pagi.** Pemicu: lonceng *Menunggu*, layar
+   **Persetujuan** (atau **Perlu tindakan Anda** di Beranda), atau saring status
+   **Diajukan** di `Proyek › Izin Kerja (IKL)`, `Izin Lembur (ILB)`,
    `Izin Material (IMK)`, dan `Engineering › Ijin Pelaksanaan (IPP)`. Tombol:
    **`Setujui`** (catatan opsional) / **`Tolak`** (alasan wajib). Nomor yang Anda putus:
    `IKL/2026/IX/0001`, `ILB/…`, `IMK/…`, `IPP/…`. Akibat: `Setujui` pada ILB menulis jam
@@ -308,8 +333,9 @@ berarti nol** — isi tangan, jangan menebak.
 - [ ] Saya sudah masuk dengan akun saya sendiri dan melihat peran `project-manager` di
       dialog Akun.
 - [ ] Saya sudah membuka halaman proyek saya dan kolom **Konsultan MK / pengawas** terisi.
-- [ ] Saya tahu **`Menunggu persetujuan Anda`** tidak memuat IPP/inspeksi/BAST/izin, dan
-      saya sudah menyaring satu layar daftar ke status Diajukan.
+- [ ] Saya tahu kartu **`Menunggu persetujuan Anda`** memuat IPP, inspeksi, BAST, baseline,
+      izin, dan opname ke pemilik (lima baris teratas), tidak memuat NCR dan stempel SDS/SMS,
+      dan saya sudah membuka **Persetujuan** untuk daftar penuhnya.
 - [ ] Saya sudah menyetujui satu izin lapangan (`IKL/…`) atau satu IPP dan melihat
       lencananya berganti hijau.
 - [ ] Saya sudah mencatat satu stempel MK dengan `Catat Keputusan MK` (SDS atau SMS).
@@ -344,9 +370,13 @@ alamat), **kode dokumen**, **teks merah persis**, dan **tombol yang Anda tekan**
 sekaligus. Bila yang hilang adalah tombolnya, sebutkan itu: tombol yang tidak ada hampir
 selalu berarti izin, bukan kerusakan.
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Persetujuan** (dulu bernama Tugas Saya) yang mengumpulkan semua dokumen
-> menunggu persetujuan Anda dalam satu permintaan (termasuk yang hari ini hanya lewat
-> lonceng); draf formulir yang bertahan di peramban saat sesi habis; catatan persetujuan
-> inline tanpa dialog; dan ganti kata sandi sendiri. Sampai rilis itu tayang, halaman ini
-> menggambarkan yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**
+>
+> Rilis redesain UX belum tayang; sampai ia tayang, panduan ini yang berlaku, dan bagian 2
+> di atas sudah menulis layar sesudahnya, jadi tampilan di erp1 bisa berbeda darinya. Yang
+> akan ditambahkannya bagi peran `project-manager`: **Beranda** menjadi ruang kerja —
+> **Perlu tindakan Anda** menaruh sampai dua dokumen yang paling lama menunggu keputusan
+> Anda (tombol **`Tinjau & putuskan`**) dan sampai tiga tenggat yang sudah lewat di layar
+> pertama; **Pekerjaan Saya** di puncak sidebar mengumpulkan RAP, SPK, opname, BAST, dan
+> baseline yang Anda ajukan sendiri (**Perlu diperbaiki** untuk yang ditolak,
+> **Menunggu orang lain** untuk yang belum diputuskan).

@@ -53,7 +53,7 @@ berumur 12 jam (§1.2).
 
 | Kelompok | Layar yang akan Anda buka |
 |---|---|
-| Ringkasan | **Dasbor** · **Tenggat** · Kalender |
+| Ringkasan | **Beranda** · **Persetujuan** · Pekerjaan Saya (tiga baris tetap di puncak sidebar) · **Dasbor** · **Tenggat** · Kalender |
 | Penjualan | Penawaran · Kontrak · Pekerjaan Tambah-Kurang · Jaminan & Asuransi |
 | Estimasi | BOQ / RAB · RAP |
 | Pengadaan | Permintaan (PR) · Pesanan (PO) · Keputusan Pemenang · PPK Alat & Jasa |
@@ -64,6 +64,12 @@ berumur 12 jam (§1.2).
 | Persediaan | Opname |
 | SDM & Payroll | Payroll · Cuti & Izin |
 | Sistem | Pengguna · Peran & Hak Akses — terlihat, tetapi mengubahnya butuh izin admin |
+
+**Layar pertama setelah masuk adalah Beranda** (`#/home`), bukan Dasbor: kepalanya
+bertuliskan **Beranda** dan membawa tombol **`Dasbor`**. Dasbor tetap satu klik — tombol
+itu, atau baris **Dasbor** di kelompok Ringkasan (PANDUAN §1.4a). **Pekerjaan Saya** memuat
+dokumen yang Anda ajukan sendiri; peran Anda tidak mengajukan dokumen, jadi ia biasanya
+kosong — antrean keputusan Anda ada di **Persetujuan**.
 
 **Dasbor Anda** menampilkan enam ubin — **Proyek berjalan**, **Piutang belum tertagih**,
 **Hutang belum dibayar**, **Saldo bank**, **Termin siap ditagih**, **Tiket aktif** — dan
@@ -96,7 +102,7 @@ kerusakan (ADMINISTRATOR §5.6, §10.2). Alarm sistem berlencana **"—"**.
 2. `Ubah` dan `Hapus` hilang begitu dokumen diajukan; **`Tolak`** Anda-lah jalan kembalinya.
 3. Pengaju tidak boleh menyetujui dokumennya sendiri — itu melindungi tanda tangan Anda.
 4. Yang terposting tidak bisa dibatalkan — hanya dibalik, dua jurnal berdampingan.
-5. Anda tidak bisa mengganti kata sandi sendiri — minta administrator (bab 14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (bab 14).
 6. Sesi 12 jam; jendela persetujuan yang belum dikirim hilang saat sesi habis.
 
 ## 3. Pekerjaan Anda
@@ -104,9 +110,10 @@ kerusakan (ADMINISTRATOR §5.6, §10.2). Alarm sistem berlencana **"—"**.
 Setiap butir: pemicu → layar → yang Anda periksa → yang terjadi setelah tombol → pasal.
 
 **1. Kotak masuk pagi, dua pintu** — PANDUAN §1.7, §2.5
-Pemicu: mulai hari. Pintu pertama **Dasbor › Menunggu persetujuan Anda** (11 jenis). Pintu
-kedua: layar daftar dari 17 jenis lain, disaring **Status = Diajukan** — minimal
-**Keuangan › Pembayaran** dan **Pengadaan › Keputusan Pemenang** setiap hari. Bila kartu
+Pemicu: mulai hari. Pintu pertama **Dasbor › Menunggu persetujuan Anda** — lima baris
+teratas dari seluruh 29 jenis, yang paling lama menunggu di atas. Pintu kedua
+**Persetujuan** (baris tetap di sidebar, atau tombol **`Lihat semua (n)`** di kaki kartu):
+daftar penuhnya, termasuk **Pembayaran keluar** dan **Keputusan pemenang**. Bila kartu
 berbunyi *"Tidak ada dokumen yang dapat ditampilkan."*, ada sumber yang gagal dimuat dan
 daftarnya belum lengkap.
 
@@ -228,10 +235,10 @@ menandatangani angka yang diisi tangan di atas garis tanpa memeriksa dokumennya.
 
 - [ ] Saya sudah masuk dengan akun saya sendiri, dan sidebar saya memuat empat belas
       kelompok.
-- [ ] Saya sudah membuka kartu **Menunggu persetujuan Anda** dan tahu ia hanya memuat
-      11 jenis.
-- [ ] Saya sudah menyaring **Keuangan › Pembayaran** dan **Pengadaan › Keputusan Pemenang**
-      ke status Diajukan, satu kali pagi ini.
+- [ ] Saya sudah membuka kartu **Menunggu persetujuan Anda** dan tahu ia memuat seluruh 29
+      jenis tetapi hanya menampilkan lima baris teratas.
+- [ ] Saya sudah membuka **Persetujuan** dan melihat daftar penuhnya — termasuk
+      **Pembayaran keluar** dan **Keputusan pemenang** — satu kali pagi ini.
 - [ ] Saya sudah menyetujui satu dokumen dan membaca kartu Riwayat Persetujuannya.
 - [ ] Saya sudah menolak satu dokumen dengan alasan tertulis, dan melihatnya kembali
       ke Draf.
@@ -266,3 +273,19 @@ PANDUAN-ADMINISTRATOR §12 dan ANALISIS §5; itu keputusan Anda, bukan keputusan
 > ter-deploy): layar **Persetujuan** (dulu bernama Tugas Saya) dengan satu kotak masuk untuk **semua jenis dokumen
 > berpersetujuan** (bukan 11); draf formulir bertahan di peramban saat sesi habis; catatan
 > persetujuan diketik langsung di halaman tanpa dialog; ganti kata sandi sendiri.
+
+---
+
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**
+>
+> Rilis redesain UX belum tayang; sampai ia tayang, panduan ini yang berlaku, dan bagian 2
+> di atas sudah menulis layar sesudahnya, jadi tampilan di erp1 bisa berbeda darinya. Yang
+> akan ditambahkannya bagi peran `direktur`: **Beranda** menjadi ruang kerja dan layar
+> pertama di semua lebar layar — bagian **Perlu tindakan Anda** menaruh sampai dua dokumen
+> yang paling lama menunggu keputusan Anda, dengan tombol **`Tinjau & putuskan`**, dan sampai
+> tiga tenggat yang sudah lewat, dengan tombol **`Tindak lanjuti`**; **Pekerjaan Saya** di
+> puncak sidebar mengumpulkan dokumen yang Anda ajukan sendiri (**Perlu diperbaiki**,
+> **Menunggu orang lain**) — karena peran Anda tidak mengajukan dokumen, ia biasanya kosong;
+> dan halaman modul **Pengadaan**, tempat Anda memutuskan PO bernilai besar dan keputusan
+> pemenang, menggambar urutan lazim Permintaan (PR) → RFQ → BA Negosiasi →
+> Keputusan Pemenang → Pesanan (PO) → Penerimaan (GRN).

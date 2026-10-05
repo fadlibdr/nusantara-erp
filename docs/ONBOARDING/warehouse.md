@@ -42,10 +42,30 @@ pengeluaran bisa menunjuk IPP dan mewarisi paket pekerjaannya).
 **Masuk** — PANDUAN §1.1: `https://erp1.pi2.co.id`, Email + Kata sandi dari administrator,
 tombol **`Masuk`**. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2)
 
+**Layar pertama** — sesudah masuk Anda mendarat di **Beranda** (`#/home`), di lebar layar
+mana pun; **Dasbor** satu klik dari sana, lewat tombol **`Dasbor`** di kepala Beranda.
+Di bawah kotak cari, Beranda memuat **Perlu tindakan Anda**, **Aksi cepat** (paling
+banyak enam tombol **`Buat <jenis>`**, sumbernya sama dengan tombol **`Buat`** di bilah
+atas), **Angka**, lalu **Bidang kerja** — satu ubin per modul yang boleh Anda buka. Anda
+tidak menyetujui apa pun, jadi **Perlu tindakan Anda** hanya memuat tenggat yang sudah
+lewat (tombol **`Tindak lanjuti`**) dan berbunyi *"Tidak ada tenggat yang lewat"* bila
+tidak ada. Opname Anda yang ditolak atau masih menunggu orang lain tidak ada di
+Beranda, melainkan di **Pekerjaan Saya** — baris tetap di puncak sidebar, dengan tab
+**Perlu diperbaiki** (ditolak penyetuju; tombol **`Perbaiki`** membuka halaman
+dokumennya, tempat **`Ubah`** tersedia) dan tab **Menunggu orang lain** (belum
+diputuskan); baris opname di sana berlabel *Penyesuaian stok*. GRN, bon, transfer, dan
+retur tidak lewat persetujuan, jadi tidak tampil di sana.
+
+**Di ponsel** (≤ 760 px), bilah bawah memuat empat tombol: **Beranda**, **Pekerjaan Saya**,
+**Cari**, **Menu** — **Pekerjaan Saya** menempati tempat yang bagi penyetuju diisi
+**Persetujuan**.
+
 **Sidebar Anda** (kelompok yang izinnya Anda pegang; kelompok lain tidak digambar) —
 layar yang akan Anda pakai minggu ini, per kelompok:
 
-- **Ringkasan** — Dasbor · Tenggat · Kalender.
+- **Ringkasan** — Dasbor · Tenggat · Kalender. Baris tetap **Beranda** dan **Pekerjaan Saya**
+  tergambar di puncak sidebar, di atas semua kelompok; baris **Persetujuan** tidak ada
+  bagi Anda — ia hanya untuk pemegang izin menyetujui.
 - **Persediaan** — kesebelas layarnya milik Anda: Saldo Stok · Item · Kategori Item ·
   Gudang · **Aturan Reorder** · **Usulan Pesan Ulang** · **Pindai Barcode** · Penerimaan
   (GRN) · Pengeluaran · Transfer · Opname. Kedua retur **tidak punya baris di sidebar** —
@@ -67,13 +87,15 @@ Kelompok Penjualan, Estimasi, Mutu, Pengadaan, Subkontrak, Keuangan, SDM, dan La
 tidak ada di sidebar Anda. PO Anda baca dari kolom **PO** di daftar GRN dan dari pemilih
 **PO terkait** di formulir — layar Pesanan (PO) sendiri tidak ada untuk Anda.
 
-**Dasbor Anda** (PANDUAN §1.7):
+**Dasbor Anda** — satu klik dari Beranda (PANDUAN §1.7):
 
 - Ubin **Proyek berjalan** (jumlah dan nilai kontrak). Tombol **`Proyek saya`** hanya
   digambar bila akun Anda ditautkan ke data karyawan; pada akun demo `warehouse` ia tidak
   ada.
-- Kartu **Menunggu persetujuan Anda** — **selalu berbunyi** *"Tidak ada dokumen yang
-  menunggu persetujuan."* untuk Anda. Kabar opname Anda disetujui atau ditolak datang
+- Kartu **Menunggu persetujuan Anda** — **tidak digambar untuk peran Anda**: ia hanya
+  untuk pemegang izin menyetujui atau penerima delegasi persetujuan (PANDUAN §1.7a), dan
+  Anda tidak menyetujui apa pun. Opname Anda yang ditolak atau masih menunggu ada di
+  **Pekerjaan Saya**; kabar opname Anda disetujui atau ditolak datang
   lewat **lonceng** (lencana Disetujui hijau / Ditolak merah) dan lewat lencana status di
   daftar Opname; GRN dan bon Anda yang sudah diposting orang lain terbaca dari lencana
   **Diposting** di daftarnya.
@@ -85,9 +107,11 @@ tidak ada di sidebar Anda. PO Anda baca dari kolom **PO** di daftar GRN dan dari
   kartu item bila tidak — kartunya menyebut yang mana.
 
 **Lonceng dan Tenggat** — **tidak satu pun tenggat harian ditujukan kepada peran Anda**
-(PANDUAN §1.7): sembilan belas tenggat itu bergerbang izin penjualan, keuangan,
-pengadaan, proyek, aset, dan SDM. Layar `Ringkasan › Tenggat` akan kosong untuk Anda, dan
-itu benar. Alarm stok Anda adalah tab **Perlu dipesan ulang** di Saldo Stok dan kartu
+(PANDUAN §1.7): tenggat tanggalnya bergerbang izin penjualan, keuangan, pengadaan, proyek,
+subkontrak, aset, layanan, dan SDM. Satu-satunya pengecualian adalah lampiran dokumen
+persediaan yang diberi masa berlaku; berkas biasa tanpa masa berlaku tidak pernah muncul.
+Jadi layar `Ringkasan › Tenggat` biasanya kosong untuk Anda, dan itu benar.
+Alarm stok Anda adalah tab **Perlu dipesan ulang** di Saldo Stok dan kartu
 dasbor di atas. Keduanya daftar yang dibaca — tetapi sejak F-6 tab itu punya tombol
 **`Usulkan PR dari kekurangan ini`** bila Anda juga memegang `prc.create`, dan layar
 `Persediaan › Usulan Pesan Ulang` membuat PR **Draf** yang tetap harus diperiksa orang
@@ -104,7 +128,7 @@ atau menyetujui (§6.10).
    sederhana: Anda tidak menyetujui apa pun.
 4. Yang sudah diposting tidak punya tombol batal — hanya `Batalkan Penerimaan` /
    `Batalkan Bon` oleh pemegang izin posting, dan transfer serta opname tidak punya itu.
-5. Kata sandi tidak bisa Anda ganti sendiri; minta administrator (§14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (§14).
 6. Sesi 12 jam; GRN puluhan baris disimpan dulu, lalu dibuka lagi lewat `Ubah`.
 
 ## 3. Pekerjaan Anda
@@ -318,8 +342,8 @@ mengisinya dengan nol saat mengolah lanjut.
       tahu mutasi terbaru bisa tidak terlihat pada item yang sibuk.
 - [ ] Saya sudah membuka **Persediaan › Pindai Barcode**, mengetik satu kode item di
       kotak paling atas, dan melihat kartunya beserta saldo per gudang.
-- [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu bahwa kosongnya layar itu benar
-      untuk peran saya.
+- [ ] Saya sudah membuka **Ringkasan › Tenggat** dan tahu bahwa layar itu biasanya kosong
+      untuk peran saya, dan itu benar.
 - [ ] Saya sudah mencetak satu Bukti Penerimaan Barang (F/BPB) dan satu Daftar Saldo Stok
       (F/SS) dari halaman Gudang.
 
@@ -348,9 +372,13 @@ sekaligus. Bila yang hilang adalah tombolnya, sebutkan itu: tombol yang tidak ad
 selalu berarti izin, bukan kerusakan — dan untuk peran Anda, `Posting ke Stok` yang tidak
 ada adalah keadaan normal.
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Tugas Saya** yang menampilkan opname Anda
-> yang ditolak dan yang menunggu dalam satu permintaan; draf formulir (termasuk GRN dan
-> bon) yang bertahan di peramban saat sesi habis; catatan persetujuan inline tanpa
-> dialog; dan ganti kata sandi sendiri. Sampai rilis itu tayang, halaman ini menggambarkan
-> yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**
+>
+> Rilis redesain UX belum tayang; sampai ia tayang, panduan ini yang berlaku, dan bagian 2
+> di atas sudah menulis layar sesudahnya, jadi tampilan di erp1 bisa berbeda darinya. Yang
+> akan ditambahkannya bagi peran `warehouse`: **Beranda** menjadi ruang kerja —
+> **Perlu tindakan Anda** (bagi Anda tenggat yang sudah lewat), **Aksi cepat**, dan **Angka**
+> di atas ubin **Bidang kerja**; **Pekerjaan Saya** di puncak sidebar mengumpulkan opname
+> Anda yang ditolak (tab **Perlu diperbaiki**) atau masih menunggu orang lain (tab
+> **Menunggu orang lain**); dan bilah bawah ponsel empat tombol: **Beranda**,
+> **Pekerjaan Saya** di tempat kedua, **Cari**, **Menu**.

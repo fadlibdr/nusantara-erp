@@ -448,8 +448,8 @@ action }`) tetap sah — bawaan `kind: 'inbox'`. Lima jenis di `js/illustrations
 | `inbox` | belum ada yang tercatat | daftar tanpa baris (+ Tambah), pemberitahuan, kalender, beranda modul tanpa layar yang boleh dibuka |
 | `search` | pencarian tanpa hasil | daftar dengan `q` saja (`Tidak ada <label> yang cocok dengan "<q>".` + **Hapus pencarian**) |
 | `filter` | filter menyaring semuanya | daftar tersaring (`Tidak ada <label> yang lolos filter yang dipasang.` + **Hapus filter**) |
-| `error` | sumbernya gagal, bukan kosong | kotak masuk/Persetujuan saat `meta.failed` — jangan pernah `inbox`/`done` untuk kegagalan |
-| `done` | semuanya selesai | kotak masuk kosong, piutang/tiket tanpa yang tertunda, "Stok aman" (Saldo Stok), "Laci bersih" (Kasir Kas Kecil) |
+| `error` | sumbernya gagal, bukan kosong | kotak masuk/Persetujuan saat `meta.failed`; tab Pekerjaan Saya yang kosong karena `meta.failed` ("Daftar belum lengkap") — jangan pernah `inbox`/`done` untuk kegagalan |
+| `done` | semuanya selesai | kotak masuk kosong, piutang/tiket tanpa yang tertunda, "Stok aman" (Saldo Stok), "Laci bersih" (Kasir Kas Kecil), tab Pekerjaan Saya yang kosong ("Tidak ada yang perlu diperbaiki", "Tidak ada yang menunggu orang lain"), Beranda "Perlu tindakan Anda" ("Tidak ada yang perlu ditindak"), "Perlu perhatian" di beranda modul ("Tidak ada yang perlu perhatian") |
 
 Aturan gambar: SVG garis (stroke) 120 × 120, dibaca di 96–120 px (ubin `compact` 72 px), **tanpa
 satu pun literal warna** — bentuk hanya membawa kelas `.ln/.ac/.fl/.fa` dan app.css memberi token
@@ -460,6 +460,14 @@ habis", dan yang tersaring habis menyebut penyaringnya: pencarian (`… yang coc
 Hapus pencarian) atau filter (`… yang lolos filter yang dipasang.` + Hapus filter) — tiga kalimat,
 tiga gambar; judul tidak mengulang kalimatnya. Ilustrasi
 baru = entri di `ILLUSTRATIONS` + baris di tabel ini.
+
+Bagian yang dibaca dari DUA sumber (Beranda "Perlu tindakan Anda", "Perlu perhatian" di beranda modul)
+tidak menggambar `error`: sumber yang gagal menulis SATU kalimat
+("Persetujuan tidak dapat dimuat sekarang …", "Tenggat tidak dapat dimuat sekarang."), kartu sumber
+yang lain tetap tampil, dan gambar
+`done` hanya muncul bila kedua sumber sudah menjawab, tidak ada kartu, dan tidak ada kegagalan yang
+ditulis — daftar kosong karena gagal bukan daftar kosong. Tab Pekerjaan Saya dibaca dari satu sumber, jadi
+ia memakai gambarnya: `error` bila `meta.failed` terisi, `done` bila tidak.
 
 ## 15. Preferensi pengguna (`core_user_preferences`, P1-C)
 
@@ -485,7 +493,7 @@ adalah penyimpanan bebas 16 KB × kunci sebanyak-banyaknya × jumlah pengguna, i
 | `recent` | `{route,label,sub,at}` dokumen terakhir dibuka; field di luar keempatnya ditolak | 20 entri / 8 KB |
 | `density` | `compact` \| `normal` \| `comfortable` (§13) | 64 B |
 | `dashboard.layout` | susunan dasbor P1-D: `[{id,size}]`, id diperiksa `Support\SpaWidgets`, size ∈ {kecil, sedang, lebar}, duplikat ditolak | 24 entri / 16 KB |
-| `launcher.hidden` | prefix modul yang disembunyikan dari `#/home` | 32 entri / 512 B |
+| `launcher.hidden` | prefix modul yang disembunyikan dari ubin "Bidang kerja" di `#/home` | 32 entri / 512 B |
 
 **Kejujuran.** Kunci yang belum pernah dipilih **tidak punya baris**; bawaan (`normal`, `[]`) milik
 SPA. Baris `density: 'normal'` yang ditulis server berbohong bahwa orangnya pernah memilih.
@@ -512,12 +520,16 @@ kalimat dialognya berjanji begitu. Migrasi satu kali dijalankan **per
 kunci**: server yang sudah punya barisnya MENANG, dan kunci lokal hanya dihapus setelah server
 benar-benar punya nilainya. `set()` optimistis (cermin dulu, PUT menyusul); PUT yang tidak pernah
 sampai dicoba lagi pada boot berikutnya. `load()` mengumumkan `erp:prefs-loaded`, dan layar yang
-sudah tergambar dari cermin (launcher, beranda modul) menggambar ulang BAGIANNYA — bukan rutenya,
-yang berarti setiap permintaan layar berjalan dua kali.
+sudah tergambar dari cermin menggambar ulang BAGIANNYA — bukan rutenya, yang berarti setiap permintaan
+layar berjalan dua kali: di Beranda baris "Aksi cepat" (formulir yang baru dipakai datang dari `recent`),
+Favorit dan "Terakhir dibuka"; di beranda modul "Terakhir dibuka" dan bintang kartunya. Bagian
+"Perlu tindakan Anda" dan "Angka" tidak bergantung pada preferensi; ubin "Bidang kerja" membaca
+`launcher.hidden` sekali, saat digambar.
 
 ## 16. Registri `ModuleCounts` (P1-C)
 
-Satu angka utama per modul, dipimpin ubin launcher `#/home` dan kepala beranda modul `#/m/<prefix>`.
+Satu angka utama per modul, dibaca ubin "Bidang kerja" dan bagian "Angka" di Beranda `#/home` serta
+kepala beranda modul `#/m/<prefix>`.
 `Modules\Core\Support\ModuleCounts::entries()` — satu entri per prefix grup NAV, **dalam urutan NAV**;
 kelengkapan dan urutannya dipaku `ModuleCountsTest` terhadap `schema.js`, jadi grup ke-15 tanpa entri
 menjatuhkan uji alih-alih diam-diam menghasilkan ubin tanpa angka selamanya.
@@ -532,9 +544,9 @@ dengan memo per proses, di-flush `ErpTestCase::setUp`), `count` (**satu** kueri 
 `qc_ncr.status`, `hr_leave_requests.status`, dan `eng_drawing_submittals(decision, superseded_at)`.
 Ketiganya sekarang berindeks (migrasi Core `000196`, hanya indeks, berpenjaga `Schema::hasTable`),
 dan `ModuleCountsTest::test_the_scanning_counts_have_their_indexes` menjaga agar tidak hilang lagi —
-sejak P1-C hitungan ini berjalan setiap kali launcher `#/home` dibuka, yaitu landing ponsel setiap
-pengguna. Satu pemindaian TERSISA dan disengaja: entri `inv`. Sejak F-6 (8 Sep 2026) kuerinya bukan lagi
-satu perbandingan `b.qty < i.min_stock` antar dua tabel melainkan DUA LENGAN yang saling
+sejak P1-C hitungan ini berjalan setiap kali Beranda `#/home` dibuka, dan sejak UX-D.1 (ERRATA D-2)
+itu landing setiap pengguna di setiap lebar layar. Satu pemindaian TERSISA dan disengaja: entri `inv`.
+Sejak F-6 (8 Sep 2026) kuerinya bukan lagi satu perbandingan `b.qty < i.min_stock` antar dua tabel melainkan DUA LENGAN yang saling
 meniadakan lewat `r.id`, di atas `LEFT JOIN inv_reorder_rules` — ambangnya `r.reorder_point`
 bila ada aturan AKTIF untuk pasangan gudang × item, dan `i.min_stock` bila tidak. `EXPLAIN`-nya
 dijalankan ulang pada kedua driver (putaran perbaikan F-6, 8 Sep 2026):
@@ -619,6 +631,17 @@ yang paling mahal. Tiga angka yang SUDAH punya pemilik lain dipaku setara — `p
 tidak berubah sedikit pun (target metrik Fase 1). Keduanya tanpa gerbang izin, pola
 `search`/`calendar`: registri menyaring dirinya sendiri per entri.
 
+**Alur modul (`FLOWS`, UX-F2.3).** Beranda modul `#/m/<prefix>` menggambar peta urutan lazim
+(`stepper()`) bagi modul yang punya entri di `FLOWS` pada `schema.js` — hari ini hanya `prc`. Peta itu
+DATA (`steps[]` berisi `label`, `route`, `count?`, ditambah `note`) yang **tinggal di luar baris
+`MODULES`** dan sebelum `NAV`: `NavRouteRegistryTest` memaku bentuk tiap baris `MODULES`, dan pemindai
+rute tidak boleh menghitung rute peta sebagai baris menu; `moduleFor()` menggabungkannya sebagai `flow`.
+Aturan E-8: sebuah tahap menampilkan angka **hanya dari kunci milik modul itu sendiri** — satu entri
+per prefix, seperti di atas — jadi hari ini hanya tahap Pesanan (PO), kunci `prc`, yang bernomor. Tahap
+lain tidak menampilkan angka apa pun (bukan 0), kunci yang gagal dimuat menulis `—`, dan tahap baru yang
+ingin bernomor berarti entri registri baru dengan `EXPLAIN`-nya, bukan kunci pinjaman. `ModuleFlowTest`
+memaku bentuk peta, rute NAV yang nyata, kunci milik sendiri, dan penggambar yang tidak pernah menulis 0.
+
 ## 17. Widget dasbor (`public/app/js/views/widgets/`, P1-D)
 
 Dasbor `#/dashboard` adalah **penyusun**, bukan penggambar. `views/dashboard.js` membaca susunan
@@ -656,6 +679,15 @@ ikut diperiksa tanpa satu baris pun ditambahkan di ujinya):
 **Perkakas bersama** `views/widgets/kit.js`: `safe()` / `safeList()` (fetch bertanda `loadFailure`),
 `failure()`, `failedStat()` (`—`, tidak pernah Rp 0), `failedBody()`, `miniTable()`, `barRows()`.
 Aturannya hidup satu kali; menyalinnya ke 19 berkas adalah cara paling pasti membuat 18 menyimpang.
+
+**Widget dasbor dan layar membaca sumber yang sama dengan pintu yang berbeda.** `js/deadlines.js`
+(UX-F2.2) adalah pemuat tingkat LAYAR untuk `GET core/deadlines` — Beranda, beranda modul dan Tenggat
+berbagi satu permintaan dan satu jawaban 60 detik per pengguna, dan pemuatnya MELEMPAR bila server gagal
+supaya pemanggil menulis kalimatnya sendiri. Widget dasbor TIDAK memakainya: ia tetap memakai `safeList()`
+dari `kit.js`, karena aturan kegagalannya (`failure(`, `failedStat`, `failedBody`) dipaku
+`DashboardTileFailureTest` dan merombaknya adalah paket UX-F3. Untuk `core/inbox`, widget
+"Menunggu persetujuan Anda" memang sudah memakai pemuat bersama (`loadInbox({ maxAge: 0 })`), tetapi
+membungkus kegagalannya menjadi `loadFailure` supaya tetap bercabang `failure(`.
 
 **Satu baris ubin TINGKAT ATAS memakai satu ukuran angka (UI-6d).** Mencampur `.value` (22 px) dan
 `.value.sm` (16 px) dalam satu baris tidak terbaca sebagai hierarki — ia terbaca sebagai kelalaian.
@@ -713,8 +745,8 @@ tabrakan teks** pada dua ubin berempat anak di layar proyek. Harness **S51** kin
 dalam bentuk umum: tidak boleh ada dua daun teks yang kotaknya bertindih.
 
 **Ukuran**: `kecil` 1 kolom, `sedang` 2, `lebar` 4 (satu baris penuh) di kisi **empat** kolom; dua kolom
-di bawah 1180 px, satu kolom di bawah 760 px — titik potong yang sama dengan laci nav dan aturan
-landing P1-C.
+di bawah 1180 px, satu kolom di bawah 760 px — titik potong yang sama dengan laci nav (sejak UX-D.1
+titik itu tidak lagi memilih halaman landing).
 
 **Vendor dimuat malas.** SortableJS (seret-lepas di laci) diambil `js/vendorload.js` saat laci
 DIBUKA, bukan oleh shell. Urutan tetap bisa diubah dengan tombol Naik/Turun tanpa satu byte vendor

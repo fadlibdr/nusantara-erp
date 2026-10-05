@@ -51,21 +51,30 @@ berumur 12 jam (§1.2).
 
 | Kelompok | Layar yang akan Anda buka |
 |---|---|
-| Ringkasan | **Dasbor** · Tenggat · Kalender |
+| Ringkasan | **Beranda** · **Persetujuan** · Pekerjaan Saya (tiga baris tetap di puncak sidebar) · **Dasbor** · Tenggat · Kalender |
 | **Keuangan** (20 layar, semua baca-dan-setujui) | Invoice Termin (AR) · Tagihan Vendor (AP) · **Pembayaran** · Jurnal · Termin Siap Ditagih · Piutang Retensi · Periode Fiskal · Laporan Keuangan · Buku Besar · Rekonsiliasi Bank · Ekspor Pajak · Ekualisasi Pajak |
 | Penjualan (lihat saja) | Kontrak — jadwal termin, pola retensi, status kontrak yang ditagih |
 | Pengadaan (lihat saja) | Pesanan (PO) · Baris PO Terbuka — untuk memeriksa tagihan vendor |
 | Subkontrak (lihat saja) | SPK Subkon · Opname Subkon · Opname Mandor — sumber tagihan subkon |
 
+**Layar pertama setelah masuk adalah Beranda** (`#/home`), bukan Dasbor: kepalanya
+bertuliskan **Beranda** dan membawa tombol **`Dasbor`**. Dasbor tetap satu klik — tombol
+itu, atau baris **Dasbor** di kelompok Ringkasan (PANDUAN §1.4a). **Pekerjaan Saya** memuat
+dokumen yang Anda ajukan sendiri; peran Anda tidak mengajukan dokumen, jadi ia biasanya
+kosong — antrean keputusan Anda ada di **Persetujuan**.
+
 **Dasbor Anda**: ubin **Piutang belum tertagih**, **Hutang belum dibayar**, **Saldo bank**,
 **Termin siap ditagih**; kartu **Menunggu persetujuan Anda** — untuk Anda ia memuat
-**Invoice termin** dan **Tagihan vendor** yang Diajukan, terbaru di atas, paling banyak
-10 baris; kartu **Piutang jatuh tempo terdekat** dan **Kalender Acara**.
+dokumen keuangan yang Diajukan dan boleh Anda setujui, di antaranya **Invoice termin**,
+**Tagihan vendor**, dan **Pembayaran keluar** — yang paling lama menunggu di atas; kartu
+**Piutang jatuh tempo terdekat** dan **Kalender Acara**.
 
-> **Pembayaran keluar tidak tampil di kartu itu** (§1.7). Ia hanya sampai lewat lonceng
-> dan lewat **Keuangan › Pembayaran** yang Anda saring ke status **Diajukan**. Di produksi,
-> dokumen yang paling lama menunggu justru yang tidak tampil di kartu (ANALISIS §0).
-> Buka daftar Pembayaran setiap pagi, jangan hanya kartu dasbor.
+> **Pembayaran keluar tampil di kartu itu** (§1.7): kartu membaca satu kotak masuk untuk
+> seluruh jenis dokumen berpersetujuan. Kartu hanya menggambar **lima baris** teratas;
+> sisanya ada di **Persetujuan** lewat tombol **`Lihat semua (n)`** di kakinya. Di produksi,
+> dokumen yang paling lama menunggu justru yang dulu tidak tampil di kartu (ANALISIS §0).
+> Daftar **Keuangan › Pembayaran** yang Anda saring ke status **Diajukan** tetap berguna
+> sebagai pemeriksaan kedua.
 
 **Lonceng dan Tenggat.** Peran Anda **tidak menerima satu pun baris Tenggat** — kesembilan
 belas pengawas tanggal menyasar izin buat/ubah, bukan izin setujui (§1.7). Yang Anda
@@ -81,7 +90,7 @@ penyetuju lain (§1.6).
 2. `Ubah` dan `Hapus` hilang begitu dokumen diajukan; **`Tolak`** Anda-lah jalan kembalinya.
 3. Yang menekan `Ajukan` tidak boleh menekan `Setujui` — Anda tidak pernah mengajukan.
 4. Yang terposting tidak bisa dibatalkan — hanya dibalik, dua jurnal berdampingan.
-5. Anda tidak bisa mengganti kata sandi sendiri — minta administrator (bab 14).
+5. Kata sandi Anda ganti sendiri dari menu akun (**`Ganti kata sandi`**, sandi lama wajib); bila lupa dan server tidak mengirim surat, minta administrator (bab 14).
 6. Sesi 12 jam; isian yang belum disimpan tersimpan sebagai draf di peramban ini dan ditawarkan kembali setelah masuk lagi (§1.2).
 
 ## 3. Pekerjaan Anda
@@ -89,11 +98,12 @@ penyetuju lain (§1.6).
 Setiap butir: pemicu → layar → yang Anda periksa → yang terjadi setelah tombol → pasal.
 
 **1. Membaca kotak masuk pagi** — PANDUAN §1.7, §2.5
-Pemicu: mulai hari. **Dasbor › Menunggu persetujuan Anda** untuk invoice dan tagihan;
-**Keuangan › Pembayaran**, saring **Status = Diajukan**, untuk pembayaran keluar. Bila
-kartu berbunyi *"Tidak ada dokumen yang dapat ditampilkan."* dan menyebut sumber yang
-gagal dimuat, **daftar yang pendek bukan bukti tidak ada yang menunggu** — muat ulang.
-Klik baris untuk membuka dokumennya.
+Pemicu: mulai hari. **Dasbor › Menunggu persetujuan Anda** — invoice, tagihan, dan
+pembayaran keluar yang Diajukan, lima baris teratas; daftar penuhnya di **Persetujuan**.
+**Keuangan › Pembayaran**, saring **Status = Diajukan**, tetap berguna sebagai pemeriksaan
+kedua. Bila kartu berbunyi *"Tidak ada dokumen yang dapat ditampilkan."* dan menyebut
+sumber yang gagal dimuat, **daftar yang pendek bukan bukti tidak ada yang menunggu** —
+muat ulang. Klik baris untuk membuka dokumennya.
 
 **2. Menyetujui invoice termin** — §3.11, §3.11a, §3.14
 Pemicu: `INV/…` berstatus Diajukan. Periksa: kontrak **Disetujui**; termin yang ditagih
@@ -117,9 +127,10 @@ Subkon, PO/GRN → Material, PPK → Alat) dan tidak bisa dipilih siapa pun. Set
 Setujui, hutang vendor terbentuk di buku besar.
 
 **4. Menyetujui pembayaran keluar** — §5.10, §10.8, §11.7
-Pemicu: `PAY/…` Diajukan (dari daftar, bukan kartu). Periksa kartu **`Alokasikan ke
-tagihan terbuka`** atau **`Bayar kewajiban non-AP (gaji, pajak, BPJS)`** — satu
-pembayaran hanya salah satu — dan kaki kartu **`Sesuai mutasi bank ✓`**. Pada isi ulang
+Pemicu: `PAY/…` Diajukan (dari kartu **Menunggu persetujuan Anda**, **Persetujuan**, atau
+daftar **Pembayaran**). Periksa kartu **`Alokasikan ke tagihan terbuka`** atau
+**`Bayar kewajiban non-AP (gaji, pajak, BPJS)`** — satu pembayaran hanya salah satu —
+dan kaki kartu **`Sesuai mutasi bank ✓`**. Pada isi ulang
 kas kecil, tabel **"Bon & kasbon yang akan diganti"** berkata *"periksa bukti fisiknya
 sebelum menyetujui — inilah yang dibayar uang bank ini"*; jumlahnya dihitung server dari
 float − saldo laci − kasbon beredar. Tekan **`Setujui`**, atau **`Tolak`** dengan alasan —
@@ -217,9 +228,10 @@ Lembar yang ditandatangani dengan angka karangan lebih buruk daripada garis koso
 
 - [ ] Saya sudah masuk dengan akun saya sendiri, dan sidebar saya memuat lima kelompok.
 - [ ] Saya tahu nama petugas keuangan (`finance`) yang mengajukan dokumen kepada saya.
-- [ ] Saya sudah membuka kartu **Menunggu persetujuan Anda** dan tahu ia hanya memuat
-      invoice dan tagihan — bukan pembayaran.
-- [ ] Saya sudah menyaring **Keuangan › Pembayaran** ke status Diajukan, satu kali pagi ini.
+- [ ] Saya sudah membuka kartu **Menunggu persetujuan Anda** dan tahu ia memuat invoice,
+      tagihan, dan pembayaran keluar — lima baris teratas, sisanya di **Persetujuan**.
+- [ ] Saya sudah menyaring **Keuangan › Pembayaran** ke status Diajukan, satu kali pagi ini,
+      sebagai pemeriksaan kedua.
 - [ ] Saya sudah menyetujui satu invoice termin dan membaca kartu Riwayat Persetujuannya.
 - [ ] Saya sudah menolak satu dokumen dengan alasan tertulis, dan melihatnya kembali
       ke Draf.
@@ -247,8 +259,13 @@ bukan soal layar (bayar siapa dulu, buka bulan atau tidak) adalah milik direktur
 
 ---
 
-> **Yang berubah pada rilis UX berikutnya — belum tayang di erp1 hari ini** (cabang
-> `ux/p0-measured`, belum digabung): layar **Persetujuan** (dulu bernama Tugas Saya) dengan satu kotak masuk untuk
-> semua jenis dokumen (termasuk pembayaran keluar); draf formulir bertahan di peramban
-> saat sesi habis; catatan persetujuan diketik langsung di halaman tanpa dialog; ganti
-> kata sandi sendiri. Sampai rilis itu tayang, panduan ini yang berlaku.
+> **Yang berubah pada rilis redesain UX — belum tayang di erp1 hari ini**
+>
+> Rilis redesain UX belum tayang; sampai ia tayang, panduan ini yang berlaku, dan bagian 2
+> di atas sudah menulis layar sesudahnya, jadi tampilan di erp1 bisa berbeda darinya. Yang
+> akan ditambahkannya bagi peran `finance-manager`: **Beranda** menjadi ruang kerja — bagian
+> **Perlu tindakan Anda** menaruh sampai dua dokumen yang paling lama menunggu keputusan
+> Anda di layar pertama, dengan tombol **`Tinjau & putuskan`** ke halaman dokumennya; dan
+> **Pekerjaan Saya** di puncak sidebar mengumpulkan dokumen yang Anda ajukan sendiri
+> (**Perlu diperbaiki**, **Menunggu orang lain**) — karena peran Anda tidak mengajukan
+> dokumen, ia biasanya kosong.
