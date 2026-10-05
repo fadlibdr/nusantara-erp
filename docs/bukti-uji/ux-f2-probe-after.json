@@ -20,27 +20,27 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 53
+     "ms": 68
     },
     {
      "api": "core/inbox",
-     "ms": 88
+     "ms": 83
     },
     {
      "api": "iam/auth/me",
-     "ms": 130
+     "ms": 103
     },
     {
      "api": "core/deadlines",
-     "ms": 264
+     "ms": 186
     },
     {
      "api": "core/modules",
-     "ms": 317
+     "ms": 276
     },
     {
      "api": "core/me/preferences",
-     "ms": 239
+     "ms": 243
     }
    ],
    "home": {
@@ -108,7 +108,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh"
     },
     "eyebrow": null,
     "stepper": {
@@ -192,18 +192,18 @@
    "api_timing": {
     "core/my-work": {
      "status": 200,
-     "ms": 117,
+     "ms": 70,
      "rows": 0,
      "meta": {
       "total": 0,
       "failed": [],
-      "as_of": "2026-10-05 08:31:21"
+      "as_of": "2026-10-05 09:44:27"
      },
      "sample": []
     },
     "core/deadlines": {
      "status": 200,
-     "ms": 100,
+     "ms": 82,
      "rows": 0,
      "meta": {
       "today": "2026-10-05",
@@ -214,7 +214,7 @@
     },
     "core/modules": {
      "status": 200,
-     "ms": 65,
+     "ms": 40,
      "rows": 13,
      "meta": null,
      "sample": [
@@ -225,12 +225,12 @@
     },
     "core/inbox": {
      "status": 200,
-     "ms": 66,
+     "ms": 70,
      "rows": 5,
      "meta": {
       "total": 5,
       "failed": [],
-      "as_of": "2026-10-05 08:31:21",
+      "as_of": "2026-10-05 09:44:27",
       "batch_cap": null,
       "delegations": []
      },
@@ -249,23 +249,23 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 46
+     "ms": 75
     },
     {
      "api": "iam/auth/me",
-     "ms": 80
+     "ms": 52
     },
     {
      "api": "core/deadlines",
-     "ms": 156
+     "ms": 122
     },
     {
      "api": "core/modules",
-     "ms": 208
+     "ms": 173
     },
     {
      "api": "core/me/preferences",
-     "ms": 159
+     "ms": 157
     }
    ],
    "home": {
@@ -413,12 +413,12 @@
    "api_timing": {
     "core/my-work": {
      "status": 200,
-     "ms": 47,
+     "ms": 57,
      "rows": 2,
      "meta": {
       "total": 2,
       "failed": [],
-      "as_of": "2026-10-05 08:31:30"
+      "as_of": "2026-10-05 09:44:36"
      },
      "sample": [
       "needs_fix",
@@ -427,7 +427,7 @@
     },
     "core/deadlines": {
      "status": 200,
-     "ms": 82,
+     "ms": 65,
      "rows": 2,
      "meta": {
       "today": "2026-10-05",
@@ -441,7 +441,7 @@
     },
     "core/modules": {
      "status": 200,
-     "ms": 60,
+     "ms": 42,
      "rows": 5,
      "meta": null,
      "sample": [
@@ -452,12 +452,12 @@
     },
     "core/inbox": {
      "status": 200,
-     "ms": 65,
+     "ms": 51,
      "rows": 0,
      "meta": {
       "total": 0,
       "failed": [],
-      "as_of": "2026-10-05 08:31:30",
+      "as_of": "2026-10-05 09:44:37",
       "batch_cap": null,
       "delegations": []
      },
@@ -472,23 +472,23 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 61
+     "ms": 78
     },
     {
      "api": "iam/auth/me",
-     "ms": 66
+     "ms": 64
     },
     {
      "api": "core/deadlines",
-     "ms": 145
+     "ms": 230
     },
     {
      "api": "core/modules",
-     "ms": 181
+     "ms": 289
     },
     {
      "api": "core/me/preferences",
-     "ms": 136
+     "ms": 255
     }
    ],
    "home": {
@@ -512,7 +512,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu ditindakTidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat."
+     "text": "Tidak ada tenggat yang lewatTidak ada tenggat sudah lewat yang bisa Anda tindak."
     },
     "eyebrow": null,
     "stepper": {
@@ -559,7 +559,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh"
     },
     "eyebrow": null,
     "stepper": {
@@ -638,18 +638,18 @@
    "api_timing": {
     "core/my-work": {
      "status": 200,
-     "ms": 59,
+     "ms": 91,
      "rows": 0,
      "meta": {
       "total": 0,
       "failed": [],
-      "as_of": "2026-10-05 08:31:40"
+      "as_of": "2026-10-05 09:44:46"
      },
      "sample": []
     },
     "core/deadlines": {
      "status": 200,
-     "ms": 81,
+     "ms": 93,
      "rows": 0,
      "meta": {
       "today": "2026-10-05",
@@ -660,7 +660,7 @@
     },
     "core/modules": {
      "status": 200,
-     "ms": 38,
+     "ms": 43,
      "rows": 3,
      "meta": null,
      "sample": [
@@ -671,12 +671,12 @@
     },
     "core/inbox": {
      "status": 200,
-     "ms": 48,
+     "ms": 38,
      "rows": 0,
      "meta": {
       "total": 0,
       "failed": [],
-      "as_of": "2026-10-05 08:31:40",
+      "as_of": "2026-10-05 09:44:46",
       "batch_cap": null,
       "delegations": []
      },
@@ -691,23 +691,23 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 125
+     "ms": 53
     },
     {
      "api": "iam/auth/me",
-     "ms": 61
+     "ms": 68
     },
     {
      "api": "core/deadlines",
-     "ms": 157
+     "ms": 147
     },
     {
      "api": "core/modules",
-     "ms": 212
+     "ms": 194
     },
     {
      "api": "core/me/preferences",
-     "ms": 182
+     "ms": 146
     }
    ],
    "home": {
@@ -775,7 +775,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh"
     },
     "eyebrow": null,
     "stepper": {
@@ -854,18 +854,18 @@
    "api_timing": {
     "core/my-work": {
      "status": 200,
-     "ms": 52,
+     "ms": 66,
      "rows": 0,
      "meta": {
       "total": 0,
       "failed": [],
-      "as_of": "2026-10-05 08:31:49"
+      "as_of": "2026-10-05 09:44:55"
      },
      "sample": []
     },
     "core/deadlines": {
      "status": 200,
-     "ms": 79,
+     "ms": 70,
      "rows": 1,
      "meta": {
       "today": "2026-10-05",
@@ -878,7 +878,7 @@
     },
     "core/modules": {
      "status": 200,
-     "ms": 48,
+     "ms": 43,
      "rows": 3,
      "meta": null,
      "sample": [
@@ -894,7 +894,7 @@
      "meta": {
       "total": 0,
       "failed": [],
-      "as_of": "2026-10-05 08:31:49",
+      "as_of": "2026-10-05 09:44:55",
       "batch_cap": null,
       "delegations": []
      },
@@ -909,23 +909,23 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 76
+     "ms": 125
     },
     {
      "api": "iam/auth/me",
-     "ms": 45
+     "ms": 91
     },
     {
      "api": "core/deadlines",
-     "ms": 126
+     "ms": 150
     },
     {
      "api": "core/modules",
-     "ms": 176
+     "ms": 195
     },
     {
      "api": "core/me/preferences",
-     "ms": 179
+     "ms": 133
     }
    ],
    "home": {
@@ -947,10 +947,7 @@
     ],
     "tabs": [],
     "rows": 0,
-    "empty": {
-     "kind": "done",
-     "text": "Tidak ada yang perlu ditindakTidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat."
-    },
+    "empty": null,
     "eyebrow": null,
     "stepper": {
      "steps": 0,
@@ -961,8 +958,8 @@
     "module_cards": 0,
     "attn_rows": 0,
     "inline_styled": 0,
-    "doc_h": 917,
-    "first_tile_y": 714,
+    "doc_h": 900,
+    "first_tile_y": 604,
     "h_scroll": 0
    },
    "navbar": {
@@ -996,7 +993,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh"
     },
     "eyebrow": null,
     "stepper": {
@@ -1058,10 +1055,7 @@
     "head_buttons": [],
     "tabs": [],
     "rows": 0,
-    "empty": {
-     "kind": "done",
-     "text": "Tidak ada yang perlu perhatianTidak ada tenggat yang menipis dan tidak ada dokumen SDM & Payroll yang menunggu keputusan"
-    },
+    "empty": null,
     "eyebrow": "Modul",
     "stepper": {
      "steps": 0,
@@ -1079,18 +1073,18 @@
    "api_timing": {
     "core/my-work": {
      "status": 200,
-     "ms": 55,
+     "ms": 159,
      "rows": 0,
      "meta": {
       "total": 0,
       "failed": [],
-      "as_of": "2026-10-05 08:31:58"
+      "as_of": "2026-10-05 09:45:05"
      },
      "sample": []
     },
     "core/deadlines": {
      "status": 200,
-     "ms": 58,
+     "ms": 198,
      "rows": 1,
      "meta": {
       "today": "2026-10-05",
@@ -1103,7 +1097,7 @@
     },
     "core/modules": {
      "status": 200,
-     "ms": 59,
+     "ms": 53,
      "rows": 2,
      "meta": null,
      "sample": [
@@ -1113,12 +1107,12 @@
     },
     "core/inbox": {
      "status": 200,
-     "ms": 60,
+     "ms": 126,
      "rows": 0,
      "meta": {
       "total": 0,
       "failed": [],
-      "as_of": "2026-10-05 08:31:59",
+      "as_of": "2026-10-05 09:45:06",
       "batch_cap": null,
       "delegations": []
      },
@@ -1133,27 +1127,27 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 42
+     "ms": 66
     },
     {
      "api": "core/inbox",
-     "ms": 101
+     "ms": 153
     },
     {
      "api": "iam/auth/me",
-     "ms": 167
+     "ms": 194
     },
     {
      "api": "core/deadlines",
-     "ms": 306
+     "ms": 330
     },
     {
      "api": "core/modules",
-     "ms": 412
+     "ms": 421
     },
     {
      "api": "core/me/preferences",
-     "ms": 309
+     "ms": 343
     }
    ],
    "home": {
@@ -1185,8 +1179,8 @@
     "module_cards": 0,
     "attn_rows": 0,
     "inline_styled": 0,
-    "doc_h": 2189,
-    "first_tile_y": 1112,
+    "doc_h": 2215,
+    "first_tile_y": 1138,
     "h_scroll": 0
    },
    "navbar": {
@@ -1221,7 +1215,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh"
     },
     "eyebrow": null,
     "stepper": {
@@ -1310,23 +1304,23 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 69
+     "ms": 109
     },
     {
      "api": "iam/auth/me",
-     "ms": 74
+     "ms": 88
     },
     {
      "api": "core/deadlines",
-     "ms": 183
+     "ms": 214
     },
     {
      "api": "core/modules",
-     "ms": 231
+     "ms": 269
     },
     {
      "api": "core/me/preferences",
-     "ms": 200
+     "ms": 258
     }
    ],
    "home": {
@@ -1359,8 +1353,8 @@
     "module_cards": 0,
     "attn_rows": 0,
     "inline_styled": 0,
-    "doc_h": 1718,
-    "first_tile_y": 1219,
+    "doc_h": 1744,
+    "first_tile_y": 1245,
     "h_scroll": 0
    },
    "navbar": {
@@ -1479,23 +1473,23 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 128
+     "ms": 127
     },
     {
      "api": "iam/auth/me",
-     "ms": 103
+     "ms": 351
     },
     {
      "api": "core/deadlines",
-     "ms": 211
+     "ms": 530
     },
     {
      "api": "core/modules",
-     "ms": 295
+     "ms": 632
     },
     {
      "api": "core/me/preferences",
-     "ms": 240
+     "ms": 354
     }
    ],
    "home": {
@@ -1519,7 +1513,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu ditindakTidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat."
+     "text": "Tidak ada tenggat yang lewatTidak ada tenggat sudah lewat yang bisa Anda tindak."
     },
     "eyebrow": null,
     "stepper": {
@@ -1531,8 +1525,8 @@
     "module_cards": 0,
     "attn_rows": 0,
     "inline_styled": 0,
-    "doc_h": 1459,
-    "first_tile_y": 960,
+    "doc_h": 1465,
+    "first_tile_y": 966,
     "h_scroll": 0
    },
    "navbar": {
@@ -1566,7 +1560,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh"
     },
     "eyebrow": null,
     "stepper": {
@@ -1650,23 +1644,23 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 94
+     "ms": 115
     },
     {
      "api": "iam/auth/me",
-     "ms": 145
+     "ms": 133
     },
     {
      "api": "core/deadlines",
-     "ms": 229
+     "ms": 222
     },
     {
      "api": "core/modules",
-     "ms": 278
+     "ms": 347
     },
     {
      "api": "core/me/preferences",
-     "ms": 177
+     "ms": 245
     }
    ],
    "home": {
@@ -1699,8 +1693,8 @@
     "module_cards": 0,
     "attn_rows": 0,
     "inline_styled": 0,
-    "doc_h": 1239,
-    "first_tile_y": 874,
+    "doc_h": 1265,
+    "first_tile_y": 900,
     "h_scroll": 0
    },
    "navbar": {
@@ -1734,7 +1728,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh"
     },
     "eyebrow": null,
     "stepper": {
@@ -1818,23 +1812,23 @@
    "landing_api": [
     {
      "api": "core/notifications/unread-count",
-     "ms": 49
+     "ms": 66
     },
     {
      "api": "iam/auth/me",
-     "ms": 45
+     "ms": 32
     },
     {
      "api": "core/deadlines",
-     "ms": 120
+     "ms": 104
     },
     {
      "api": "core/modules",
-     "ms": 163
+     "ms": 146
     },
     {
      "api": "core/me/preferences",
-     "ms": 146
+     "ms": 152
     }
    ],
    "home": {
@@ -1856,10 +1850,7 @@
     ],
     "tabs": [],
     "rows": 0,
-    "empty": {
-     "kind": "done",
-     "text": "Tidak ada yang perlu ditindakTidak ada tenggat yang sudah lewat pada modul yang boleh Anda lihat."
-    },
+    "empty": null,
     "eyebrow": null,
     "stepper": {
      "steps": 0,
@@ -1870,8 +1861,8 @@
     "module_cards": 0,
     "attn_rows": 0,
     "inline_styled": 0,
-    "doc_h": 1311,
-    "first_tile_y": 929,
+    "doc_h": 1208,
+    "first_tile_y": 826,
     "h_scroll": 0
    },
    "navbar": {
@@ -1905,7 +1896,7 @@
     "rows": 0,
     "empty": {
      "kind": "done",
-     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan."
+     "text": "Tidak ada yang perlu diperbaikiTidak ada dokumen Anda yang ditolak dan menunggu perbaikan, dari jenis dokumen yang boleh"
     },
     "eyebrow": null,
     "stepper": {
@@ -1967,10 +1958,7 @@
     "head_buttons": [],
     "tabs": [],
     "rows": 0,
-    "empty": {
-     "kind": "done",
-     "text": "Tidak ada yang perlu perhatianTidak ada tenggat yang menipis dan tidak ada dokumen SDM & Payroll yang menunggu keputusan"
-    },
+    "empty": null,
     "eyebrow": "Modul",
     "stepper": {
      "steps": 0,
@@ -1981,7 +1969,7 @@
     "module_cards": 9,
     "attn_rows": 0,
     "inline_styled": 0,
-    "doc_h": 1293,
+    "doc_h": 1138,
     "first_tile_y": null,
     "h_scroll": 0
    },
